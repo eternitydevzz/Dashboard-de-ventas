@@ -44,6 +44,8 @@ const ALIAS: Record<string, Canal> = {
 
 // Páginas viejas de agenda (sin UTM)
 const PAGINAS: Record<string, Canal> = { "agenda-yt": "yt", "agenda-ig": "ig", "agenda-callers": "callers" };
+// Cristian, 27 oct: lo que se reserva en la web de la Biblioteca es canal Biblioteca aunque no lleve UTM
+const DOMINIOS: Record<string, Canal> = { "biblioteca.codigomaestria.com": "biblioteca" };
 
 function leerUrl(url: string) {
   try {
@@ -60,7 +62,7 @@ export function canalDeOrigen(url?: string | null, utmSource?: string | null): C
   if (utm) return ALIAS[utm] ?? "otro";
   if (!u) return null;
   const pagina = u.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
-  return PAGINAS[pagina] ?? "directo";
+  return PAGINAS[pagina] ?? DOMINIOS[u.hostname.toLowerCase()] ?? "directo";
 }
 
 // Para guardar la página sin datos personales: el widget de GHL lleva nombre, email y teléfono en la dirección.

@@ -28,6 +28,13 @@ describe("canalDeOrigen", () => {
     expect(canalDeOrigen("https://codigomaestria.com/agenda-ig/")).toBe("ig");
   });
 
+  it("la web de la Biblioteca es canal Biblioteca sin UTM; si trae UTM, manda el UTM", () => {
+    expect(canalDeOrigen("https://biblioteca.codigomaestria.com/recursos")).toBe("biblioteca");
+    expect(canalDeOrigen("https://Biblioteca.CodigoMaestria.com/")).toBe("biblioteca");
+    expect(canalDeOrigen("https://biblioteca.codigomaestria.com/recursos?utm_source=yt")).toBe("yt");
+    expect(canalDeOrigen("http://localhost:4321/recursos.html")).toBe("directo");
+  });
+
   it("sin UTM es «directo»; un UTM desconocido es «otro»; sin datos, null", () => {
     expect(canalDeOrigen("https://codigomaestria.com/agenda")).toBe("directo");
     expect(canalDeOrigen("https://api.leadconnectorhq.com/widget/booking/X7qpsbS2ChORZkwO4O3f")).toBe("directo");
