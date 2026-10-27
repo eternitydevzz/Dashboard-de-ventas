@@ -3,16 +3,31 @@
 import { useEffect, useRef, useState } from "react";
 import { ALFA2_DE_NUMERICO } from "@/lib/mapa-codigos";
 import { SIN_PAIS, nombrePais } from "@/lib/formato";
+import { colocarCuadros, type Sitio } from "@/lib/mapa-cuadros";
 
 type Forma = { alfa: string | null; d: string; x: number; y: number };
 const ANCHO = 800;
 const ALTO = 400;
+// Todos los puntos del mismo azul (Cristian, 27 oct; antes el 2.º iba en granate)
+const COLOR_PUNTO = "var(--primario)";
+// Países con cuadro de cifra en el mapa (Cristian, 27 oct)
+const CON_CUADRO = ["ES", "MX", "CO", "CL", "AR", "VE", "BR", "US", "PE"];
+// Elegido por Cristian sobre el mapa (27 oct): Chile encima de su punto, Argentina debajo y Perú a la izquierda, un
+// poco bajado para no tapar Colombia
+const SITIO_FIJO: Partial<Record<string, Sitio>> = { CL: "arriba", AR: "abajo", PE: "izquierdaBaja" };
+const CLASE_SITIO: Record<Sitio, string> = {
+  arriba: "-translate-x-1/2 -translate-y-[calc(100%+0.5rem)]",
+  izquierda: "-translate-x-[calc(100%+0.5rem)] -translate-y-1/2",
+  izquierdaBaja: "-translate-x-[calc(100%+0.5rem)] -translate-y-[15%]",
+  derecha: "translate-x-2 -translate-y-1/2",
+  abajo: "-translate-x-1/2 translate-y-2",
+};
 // Ranking: azul Maestria, granate Eternity, oro y los tonos de la app (cambian solos en modo oscuro)
 const COLORES = ["var(--primario)", "var(--marca-eternity)", "var(--oro)", "var(--ok)", "var(--morado)", "var(--aviso)", "var(--primario-2)", "var(--mal)"];
 
 // 1c · L5 (Cristian, 26 oct 2026: «haz el mapa visualmente más top», con sus referencias adaptadas a la marca):
 // vidrio con las luces de la app (azul Maestria y granate Eternity), un punto de luz por país (más grande cuantos más
-// leads; los 5 primeros laten), cifras flotando sobre los 5 primeros, 3 datos grandes, un ranking con barras y, al
+// leads; los 5 primeros laten), cifras flotando sobre 9 países elegidos (27 oct), 3 datos grandes, un ranking con barras y, al
 // pasar el ratón por un país, su cuadro. Sin líneas entre países (no hay ningún dato que los una). El dibujo
 // (world-atlas 110m) y las librerías (d3-geo, topojson-client) se cargan solo en esta pestaña. Las islas pequeñas y
 // «Sin país» no salen en el mapa; la lista de debajo con ellos se quitó (Cristian, 26 oct).
@@ -22,6 +37,14 @@ export function MapaPaises({ paises, alElegir }: { paises: { pais: string; n: nu
   const [error, setError] = useState(false);
   const [sobre, setSobre] = useState<{ alfa: string; x: number; y: number; derecha: boolean } | null>(null);
   const caja = useRef<HTMLDivElement>(null);
+  const [anchoCaja, setAnchoCaja] = useState(0);
+  useEffect(() => {
+    const el = caja.current;
+    if (!el) return;
+    const o = new ResizeObserver(() => setAnchoCaja(el.clientWidth));
+    o.observe(el);
+    return () => o.disconnect();
+  }, []);
   useEffect(() => {
     let vivo = true;
     Promise.all([import("d3-geo"), import("topojson-client"), import("world-atlas/countries-110m.json")])
@@ -60,6 +83,24 @@ export function MapaPaises({ paises, alElegir }: { paises: { pais: string; n: nu
   const n = new Map(paises.map((p) => [p.pais, p.n]));
   const max = Math.max(1, ...conPais.map((p) => p.n));
   const top = conPais.slice(0, 5).map((p) => p.pais);
+  // Cuadros con la cifra: los países que eligió Cristian (27 oct), los que tengan leads, de más a menos
+  const conCuadro = conPais.filter((p) => CON_CUADRO.includes(p.pais)).map((p) => p.pais);
+  // Tamaño de cada cuadro en unidades del dibujo: en píxeles (sin el nombre en el móvil) y pasado a la escala del mapa
+  const escala = ANCHO / (anchoCaja || ANCHO);
+  const movil = anchoCaja > 0 && anchoCaja < 640;
+  const sitios = formas
+    ? colocarCuadros(
+        conCuadro.flatMap((alfa) => {
+          const f = formas.find((x) => x.alfa === alfa);
+          if (!f) return [];
+          const cifra = (n.get(alfa) ?? 0).toLocaleString("es-ES").length * (movil ? 7 : 8.5);
+          const ancho = 20 + (movil ? cifra : Math.max(cifra, nombrePais(alfa).length * 6));
+          return [{ id: alfa, x: f.x, y: f.y, ancho: ancho * escala, alto: (movil ? 24 : 44) * escala }];
+        }),
+        8 * escala,
+        SITIO_FIJO
+      )
+    : {};
   const pct = (x: number) => `${total ? Math.round((x / total) * 1000) / 10 : 0} %`.replace(".", ",");
   // Tamaño y brillo del punto: raíz cuadrada (si no, España taparía a todos los demás)
   const radio = (x: number) => 2.5 + 11 * Math.sqrt(x / max);
@@ -126,7 +167,7 @@ export function MapaPaises({ paises, alElegir }: { paises: { pais: string; n: nu
                   const leads = n.get(f.alfa!)!;
                   const r = radio(leads);
                   const esTop = top.includes(f.alfa!);
-                  const color = esTop && top[1] === f.alfa ? "var(--marca-eternity)" : "var(--primario)";
+                  const color = COLOR_PUNTO;
                   return (
                     <g key={f.alfa} className="pointer-events-none">
                       <circle cx={f.x} cy={f.y} r={r * 1.8} fill={color} opacity={0.35} filter="url(#luz-punto)" />
@@ -137,18 +178,13 @@ export function MapaPaises({ paises, alElegir }: { paises: { pais: string; n: nu
                 })}
             </svg>
           )}
-          {/* Cifras flotando sobre los 5 primeros. Si dos se pisarían (países vecinos, como Colombia y Venezuela), la
-              segunda sale debajo de su punto */}
+          {/* Cifras flotando sobre los países elegidos por Cristian, cada una en un sitio libre (lib/mapa-cuadros.ts) */}
           {formas &&
-            top.map((alfa, k) => {
+            conCuadro.map((alfa) => {
               const f = formas.find((x) => x.alfa === alfa);
               if (!f) return null;
-              const pisa = top.slice(0, k).some((otro) => {
-                const g = formas.find((x) => x.alfa === otro);
-                return g && Math.abs(g.x - f.x) < 70 && Math.abs(g.y - f.y) < 45;
-              });
               return (
-                <div key={alfa} className={`vidrio pointer-events-none absolute -translate-x-1/2 rounded-xl border border-borde px-2 py-1 text-center leading-tight ${pisa ? "translate-y-[35%]" : "-translate-y-[135%]"}`} style={{ left: `${(f.x / ANCHO) * 100}%`, top: `${(f.y / ALTO) * 100}%` }}>
+                <div key={alfa} className={`vidrio pointer-events-none absolute rounded-xl border border-borde px-2 py-1 text-center leading-tight ${CLASE_SITIO[sitios[alfa] ?? "arriba"]}`} style={{ left: `${(f.x / ANCHO) * 100}%`, top: `${(f.y / ALTO) * 100}%` }}>
                   <div className="text-xs font-semibold tabular-nums sm:text-sm">{(n.get(alfa) ?? 0).toLocaleString("es-ES")}</div>
                   <div className="hidden text-[10px] text-texto-2 sm:block">{nombrePais(alfa)}</div>
                 </div>
