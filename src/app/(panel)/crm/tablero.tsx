@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   ArrowRight,
   KeyRound,
+  CheckSquare,
 } from "lucide-react";
 import {
   borrarEtapa,
@@ -282,10 +283,26 @@ export function TableroCrm({
   const sinColumna = leads.filter((l) => !l.etapa_id || !etapas.some((e) => e.id === l.etapa_id));
   const tipo: TipoPipeline = pipeline?.tipo ?? "normal";
   const deOrigen = tipo === "normal"; // aquí entran los leads (CSV, nuevo lead)
-  const menu = (e: Etapa, i: number) =>
-    editar ? (
+  const menu = (e: Etapa, i: number) => {
+    // Seleccionar todos los leads de la columna (también los que aún no se ven por «Ver más»); solo quien puede marcar leads
+    const ids = jefe && tipo !== "closers" ? leads.filter((l) => l.etapa_id === e.id).map((l) => l.id) : [];
+    const todas = ids.length > 0 && ids.every((id) => seleccion.has(id));
+    const seleccionar = ids.length
+      ? {
+          todas,
+          n: ids.length,
+          alCambiar: () => {
+            const s = new Set(seleccion);
+            ids.forEach((id) => (todas ? s.delete(id) : s.add(id)));
+            setSeleccion(s);
+          },
+        }
+      : null;
+    return editar || seleccionar ? (
       <MenuColumna
         etapa={e}
+        edicion={editar}
+        seleccionar={seleccionar}
         uniones={UNIONES[tipo]}
         unida={(tipo === "closers" ? e.columna_cita : e.estado_caller) ?? null}
         primera={i === 0}
@@ -304,6 +321,7 @@ export function TableroCrm({
         }}
       />
     ) : null;
+  };
   const anadirColumna = editar && pipeline && (
     <button
       onClick={nuevaColumna}
@@ -634,6 +652,8 @@ function Tarjeta({
 
 function MenuColumna({
   etapa,
+  edicion,
+  seleccionar,
   uniones,
   unida,
   primera,
@@ -645,6 +665,8 @@ function MenuColumna({
   citasGhl,
 }: {
   etapa: Etapa;
+  edicion: boolean; // false = solo se enseña «Seleccionar todos» (quien puede marcar leads pero no editar columnas)
+  seleccionar: { todas: boolean; n: number; alCambiar: () => void } | null;
   uniones: { v: string; t: string }[]; // vacío = pipeline de origen, sin uniones
   unida: string | null;
   primera: boolean;
@@ -665,6 +687,18 @@ function MenuColumna({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setAbierto(false)} />
           <div className="vidrio ventana absolute right-0 z-20 mt-1 w-60 rounded-xl border border-borde p-1">
+            {seleccionar && (
+              <button
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-panel-2"
+                onClick={() => {
+                  seleccionar.alCambiar();
+                  setAbierto(false);
+                }}
+              >
+                <CheckSquare className="h-4 w-4" /> {seleccionar.todas ? "Quitar selección" : `Seleccionar todos (${seleccionar.n})`}
+              </button>
+            )}
+            {edicion && (<>
             <button
               className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-panel-2"
               onClick={() => {
@@ -723,6 +757,7 @@ function MenuColumna({
             <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-mal hover:bg-mal-suave" onClick={() => { onBorrar(); setAbierto(false); }}>
               <Trash2 className="h-4 w-4" /> Borrar columna
             </button>
+            </>)}
           </div>
         </>
       )}
