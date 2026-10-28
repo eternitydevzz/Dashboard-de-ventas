@@ -1,18 +1,17 @@
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
-import { Phone, CalendarCheck, MessageCircle, ShoppingCart, PhoneOff, Users, Inbox, Trophy } from "lucide-react";
+import { Phone, CalendarCheck, MessageCircle, ShoppingCart, PhoneOff, Users, Trophy } from "lucide-react";
 import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { panelObjetivos } from "@/lib/objetivos";
 import { PanelObjetivos } from "@/components/barras-objetivos";
 import { db, todas, equipo } from "@/lib/datos";
-import { rangoDe, fechaHora, ETIQUETA_ESTADO_CALLER, porcentaje, ahoraMs, pct, dinero, hoyEnZona, nombrePais } from "@/lib/formato";
-import { nivel } from "@/lib/prioridad";
+import { rangoDe, fechaHora, porcentaje, ahoraMs, pct, dinero, hoyEnZona } from "@/lib/formato";
 import type { Pesos } from "@/lib/cualificacion";
 import { colaCaller } from "@/lib/cola";
-import { Cabecera, Contenido, Kpi, Seccion, Insignia, Vacio, Avatar } from "@/components/ui";
-import { AccionesLead } from "@/components/acciones-lead";
+import { Cabecera, Contenido, Kpi, Vacio, Avatar } from "@/components/ui";
 import type { Lead, Producto } from "@/lib/tipos";
+import { ColaCaller } from "./cola";
 
 const PESTANAS = [
   { v: "llamar", t: "Por llamar" },
@@ -20,6 +19,9 @@ const PESTANAS = [
   { v: "agendados", t: "Agendados" },
   { v: "todos", t: "Todos" },
 ];
+
+const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, llamar_en, creado_en, etiquetas, respuestas";
+type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas">;
 
 export default async function CallerPage({ searchParams }: PageProps<"/caller">) {
   const { perfil, proyecto } = await exigirPagina("cola"); // H5
@@ -47,8 +49,9 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
 
   const hoy = rangoDe("hoy", proyecto.zona_horaria);
   // Velocidad (17 oct 2026): los objetivos van con el resto de consultas (antes, después)
+  // Velocidad (28 oct 2026, Cristian): solo las columnas que usa la cola (sin `datos` de GHL): 395 → 180 KB por carga
   const [leads, actsHoy, citasHoy, ventasHoy, productos, scoring, panel] = await Promise.all([
-    todas<Lead>((a, b) => db().from("leads").select("*").eq("proyecto_id", proyecto.id).eq(comoCloser ? "closer_id" : "caller_id", caller.id).order("id").range(a, b)),
+    todas<LeadCola>((a, b) => db().from("leads").select(CAMPOS_COLA).eq("proyecto_id", proyecto.id).eq(comoCloser ? "closer_id" : "caller_id", caller.id).order("id").range(a, b)),
     db().from("actividades").select("tipo, resultado").eq("perfil_id", caller.id).eq("proyecto_id", proyecto.id).gte("creado_en", hoy.desde!.toISOString()),
     db().from("citas").select("id", { count: "exact", head: true }).eq("agendada_por", caller.id).gte("creado_en", hoy.desde!.toISOString()),
     db().from("ventas").select("id", { count: "exact", head: true }).eq("vendedor_id", caller.id).gte("fecha", hoy.desde!.toISOString()),
@@ -65,14 +68,10 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const ahora = ahoraMs();
   const filtrados = colaCaller(leads, pestana, ahora, pesos);
   const vencidos = leads.filter((l) => (l.estado_caller === "llamar_luego" || l.estado_caller === "link_enviado") && l.llamar_en && new Date(l.llamar_en).getTime() <= ahora);
-  const seleccionado = filtrados.find((l) => l.id === sp.lead) ?? filtrados[0] ?? null;
-  const base = (extra: Record<string, string>) => {
-    const p = new URLSearchParams();
-    if (jefe) p.set("caller", caller.id);
-    p.set("vista", pestana);
-    Object.entries(extra).forEach(([k, v]) => p.set(k, v));
-    return `/caller?${p.toString()}`;
-  };
+  // Al navegador van los 300 primeros (los que se enseñan) y, si la dirección pide otro (?lead=), también ese
+  const visibles = filtrados.slice(0, 300);
+  const pedido = filtrados.find((l) => l.id === sp.lead);
+  if (pedido && !visibles.includes(pedido)) visibles.push(pedido);
   const closers = gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }));
 
   return (
@@ -116,8 +115,8 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           <Kpi titulo="Ventas low ticket hoy" valor={ventasHoy.count ?? 0} icono={ShoppingCart} tono="oro" />
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
-          <div className="tarjeta flex max-h-[calc(100vh-280px)] min-h-96 flex-col overflow-hidden">
+        <ColaCaller
+          pestanas={
             <div className="flex gap-1 border-b border-borde p-2">
               {PESTANAS.map((p) => (
                 <Link prefetch={true} key={p.v} href={`/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), vista: p.v })}`} className={`flex-1 rounded-md px-2 py-1.5 text-center text-xs font-medium ${pestana === p.v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
@@ -125,73 +124,22 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
                 </Link>
               ))}
             </div>
-            <div className="border-b border-borde px-3 py-2 text-xs text-texto-3">{filtrados.length} leads</div>
-            <ul className="flex-1 divide-y divide-borde overflow-y-auto">
-              {filtrados.length === 0 && <li><Vacio icono={Inbox} texto="Nada por aquí. ¡Buen trabajo!" /></li>}
-              {filtrados.slice(0, 300).map((l) => {
-                const n = nivel(l.puntos);
-                return (
-                  <li key={l.id}>
-                    <Link href={base({ lead: l.id })} className={`block px-3 py-2.5 hover:bg-panel-2 ${seleccionado?.id === l.id ? "bg-primario-suave/50" : ""}`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-medium">{`${l.nombre} ${l.apellido}`.trim()}</span>
-                        <Insignia tono={n.tono}>{n.texto}</Insignia>
-                      </div>
-                      <div className="mt-0.5 flex items-center justify-between text-xs text-texto-3">
-                        <span>{l.telefono}{l.telefono && ` · ${nombrePais(l.pais)}`}</span>
-                        <span>{l.estado_caller === "llamar_luego" && l.llamar_en ? `⏰ ${fechaHora(l.llamar_en, proyecto)}` : l.estado_caller === "link_enviado" && l.llamar_en ? `🔗 Link enviado · insistir ${fechaHora(l.llamar_en, proyecto)}` : ETIQUETA_ESTADO_CALLER[l.estado_caller]}</span>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          {seleccionado ? (
-            <div className="space-y-5">
-              <Seccion>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-2xl font-semibold">{`${seleccionado.nombre} ${seleccionado.apellido}`.trim()}</h2>
-                    <p className="text-sm text-texto-2">{seleccionado.telefono} · {nombrePais(seleccionado.pais)} · {seleccionado.email}</p>
-                    <p className="mt-1 text-xs text-texto-3">Entró el {fechaHora(seleccionado.creado_en, proyecto)} · {seleccionado.etiquetas.join(", ")}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <Insignia tono={nivel(seleccionado.puntos).tono}>{nivel(seleccionado.puntos).texto} · {seleccionado.puntos} pts{pesos ? " · IA" : ""}</Insignia>
-                    <Link href={`/leads/${seleccionado.id}`} className="text-xs text-primario hover:underline">Ver ficha completa →</Link>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <AccionesLead
-                    leadId={seleccionado.id}
-                    telefono={seleccionado.telefono}
-                    closers={closers}
-                    productos={(productos.data ?? []) as Producto[]}
-                    rol={perfil.rol}
-                    linkAgenda={proyecto.link_agenda}
-                    moneda={proyecto.moneda}
-                    guion={guion}
-                    nombreLead={`${seleccionado.nombre} ${seleccionado.apellido}`.trim()}
-                    miNombre={perfil.nombre}
-                  />
-                </div>
-              </Seccion>
-              <Seccion titulo="Lo que respondió en el formulario">
-                <dl className="grid gap-3 sm:grid-cols-2">
-                  {seleccionado.respuestas.map((r) => (
-                    <div key={r.pregunta} className="rounded-lg border border-borde bg-panel-2 p-3">
-                      <dt className="text-xs text-texto-3">{r.pregunta}</dt>
-                      <dd className="mt-1 font-medium">{r.respuesta || <span className="text-texto-3">Sin responder</span>}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </Seccion>
-            </div>
-          ) : (
-            <div className="tarjeta"><Vacio icono={Inbox} texto={leads.length ? "Elige un lead de la lista." : "Todavía no tienes leads asignados. Tu director te los asigna desde el CRM."} /></div>
-          )}
-        </div>
+          }
+          leads={visibles}
+          total={filtrados.length}
+          asignados={leads.length}
+          callerId={jefe ? caller.id : null}
+          pestana={pestana}
+          zona={proyecto.zona_horaria}
+          conIA={!!pesos}
+          closers={closers}
+          productos={(productos.data ?? []) as Producto[]}
+          rol={perfil.rol}
+          linkAgenda={proyecto.link_agenda}
+          moneda={proyecto.moneda}
+          guion={guion}
+          miNombre={perfil.nombre}
+        />
       </Contenido>
     </>
   );
