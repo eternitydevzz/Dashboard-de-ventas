@@ -363,7 +363,7 @@ export function TableroCrm({
             <KeyRound className="h-4 w-4" />
           </button>
         )}
-        <div className="relative min-w-40 flex-1">
+        <div className="relative min-w-32 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-texto-3" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lead por nombre, email, teléfono o país…" className="campo pl-9" />
         </div>
@@ -380,18 +380,19 @@ export function TableroCrm({
             {paises.map(([p, n]) => <option key={p} value={p}>{`${nombrePais(p)} (${n})`}</option>)}
           </Desplegable>
         )}
+        {/* Cristian (28 oct): Tablero/Lista y «Subir CSV» solo con icono, para que la barra quepa en una fila */}
         {jefe && tipo !== "closers" && <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-          <button onClick={() => setVista("tablero")} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${vista === "tablero" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
-            <LayoutGrid className="h-4 w-4" /> Tablero
+          <button onClick={() => setVista("tablero")} title="Tablero" aria-label="Tablero" className={`flex items-center rounded-md px-2.5 py-1.5 text-sm ${vista === "tablero" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
+            <LayoutGrid className="h-4 w-4" />
           </button>
-          <button onClick={() => setVista("lista")} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${vista === "lista" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
-            <List className="h-4 w-4" /> Lista
+          <button onClick={() => setVista("lista")} title="Lista" aria-label="Lista" className={`flex items-center rounded-md px-2.5 py-1.5 text-sm ${vista === "lista" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
+            <List className="h-4 w-4" />
           </button>
         </div>}
         {jefe && deOrigen && (
           <>
-            <button onClick={() => setModal("importar")} className="btn-secundario">
-              <Upload className="h-4 w-4" /> Subir CSV
+            <button onClick={() => setModal("importar")} className="btn-secundario px-2.5" title="Subir CSV" aria-label="Subir CSV">
+              <Upload className="h-4 w-4" />
             </button>
             <RepartirLeads callers={callers} fijo={{ pipelineId: pipeline?.id ?? null }} paisesIniciales={pais ? [pais] : []} seleccion={seleccion.size ? [...seleccion] : undefined} etiqueta="" />
           </>
