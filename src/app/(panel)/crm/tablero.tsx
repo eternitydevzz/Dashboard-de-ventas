@@ -393,7 +393,7 @@ export function TableroCrm({
             <button onClick={() => setModal("importar")} className="btn-secundario">
               <Upload className="h-4 w-4" /> Subir CSV
             </button>
-            <RepartirLeads callers={callers} fijo={{ pipelineId: pipeline?.id ?? null }} paisesIniciales={pais ? [pais] : []} etiqueta="" />
+            <RepartirLeads callers={callers} fijo={{ pipelineId: pipeline?.id ?? null }} paisesIniciales={pais ? [pais] : []} seleccion={seleccion.size ? [...seleccion] : undefined} etiqueta="" />
           </>
         )}
         {editar && pipeline && (

@@ -44,6 +44,20 @@ describe("Repartir leads", () => {
     await ok(repartirLeads({ origen: "reasignar", deCallers: [e.p.callerA.id], oferta: "vip", callers: [e.p.callerB.id], modo: "fijo", porPersona: 10 }));
     expect((await callerDe(nuevos.slice(0, 4))).every((c) => c === e.p.callerB.id)).toBe(true);
   });
+  it("selección del CRM: reparte todos los marcados, también los que ya tienen caller", async () => {
+    como(e, e.p.director);
+    await db.from("leads").update({ caller_id: e.p.callerA.id }).in("id", nuevos.slice(0, 2));
+    await db.from("leads").update({ caller_id: null }).in("id", nuevos.slice(2, 4));
+    const marcados = nuevos.slice(0, 4);
+    const v = await ok(previsualizarReparto({ origen: "seleccion", leadIds: marcados, callers: [e.p.callerB.id], modo: "equitativo", n: 10 }));
+    expect(v.disponibles).toBe(4);
+    expect(v.conCaller).toBe(2);
+    const r = await ok(repartirLeads({ origen: "seleccion", leadIds: marcados, callers: [e.p.callerB.id], modo: "equitativo", n: 10 }));
+    expect(r.repartidos).toBe(4);
+    expect((await callerDe(marcados)).every((c) => c === e.p.callerB.id)).toBe(true);
+    expect((await callerDe(nuevos.slice(4))).every((c) => c === null)).toBe(true); // los no marcados, igual
+    await falla(previsualizarReparto({ origen: "seleccion", leadIds: [], callers: [e.p.callerB.id], modo: "equitativo", n: 1 }), /Selecciona leads/);
+  });
   it("sin callers válidos, no", async () => {
     como(e, e.p.ceo);
     await falla(repartirLeads({ origen: "sin_asignar", callers: [e.p.callerC.id], modo: "equitativo", n: 1 }), /al menos un caller/);
