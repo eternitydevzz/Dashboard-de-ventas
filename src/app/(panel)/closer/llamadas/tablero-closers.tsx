@@ -36,6 +36,7 @@ export type TarjetaCitaC = {
   nota: string | null;
   closer: string | null;
   pasada: boolean;
+  recuperar: boolean; // 3 nov: sin closer del equipo y sin resultado → en rojo
 };
 export type TarjetaVentaC = { id: string; lead_id: string; nombre: string; detalle: string; facturacionTxt: string; faltaTxt: string; pendiente: number; cobrado: number; devuelta: boolean };
 export type ColumnaC = { id: string; clave: ClaveCloser | null; t: string; d?: string; color: string; citas: TarjetaCitaC[]; ventas: TarjetaVentaC[] };
@@ -326,7 +327,8 @@ function TarjetaCita({ c, origen, soloMirar }: { c: TarjetaCitaC; origen: string
       nombre={c.nombre}
       telefono={c.telefono}
       pais={c.pais}
-      arriba={c.closer ? <span className="chip shrink-0 bg-panel-2 text-texto-3">{c.closer}</span> : undefined}
+      arriba={c.closer ? <span className={`chip shrink-0 ${c.recuperar ? "bg-mal text-white" : "bg-panel-2 text-texto-3"}`}>{c.recuperar ? `Recuperar · ${c.closer}` : c.closer}</span> : undefined}
+      alerta={c.recuperar}
       arrastrable={!soloMirar}
       onArrastrar={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ clase: "cita", id: c.id, origen }))}
       chips={

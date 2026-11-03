@@ -1,7 +1,7 @@
 import "server-only";
 import { db, todas } from "@/lib/datos";
 import { dinero, fechaHora, fecha as soloFecha, ahoraMs, hoyEnZona, inicioDia } from "@/lib/formato";
-import { CLAVES_CLOSER, SUB_POSTCALL, claveNatural, repartirCloser } from "@/lib/llamadas";
+import { CLAVES_CLOSER, SUB_POSTCALL, claveNatural, porRecuperar, quienLlevaba, repartirCloser } from "@/lib/llamadas";
 import type { ColumnaC } from "@/app/(panel)/closer/llamadas/tablero-closers";
 import type { Cita, Etapa, Lead, Proyecto } from "@/lib/tipos";
 import { origenCitaGhl } from "@/lib/canal";
@@ -12,12 +12,14 @@ export type CitaFila = Cita & { etapa_closers_id: string | null; leads: LeadCita
 export type VentaFila = { id: string; lead_id: string; vendedor_id: string | null; facturacion: number; cash_collected: number; tipo_pago: string; num_cuotas: number | null; fecha: string; devuelto: number | null; pagos: { importe: number }[]; leads: { nombre: string; apellido: string } | null; productos: { nombre: string } | null };
 const NADIE = "00000000-0000-0000-0000-000000000000";
 
-// Citas de esos closers (o solo las que agendó el caller, si mira un caller) y sus ventas, con lo que falta por cobrar
-export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null) {
+// Citas de esos closers (o solo las que agendó el caller, si mira un caller) y sus ventas, con lo que falta por cobrar.
+// `conSinCloser` (3 nov, el jefe mirando a todos): también las que no tienen closer del equipo.
+export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null, conSinCloser = false) {
   const ids = closerIds.length ? closerIds : [NADIE];
   const [citas, ventasTodas] = await Promise.all([
     todas<CitaFila>((a, b) => {
-      const q = db().from("citas").select("*, leads(id, nombre, apellido, telefono, pais, email, seguimiento)").eq("proyecto_id", proyectoId).in("closer_id", ids);
+      const base = db().from("citas").select("*, leads(id, nombre, apellido, telefono, pais, email, seguimiento)").eq("proyecto_id", proyectoId);
+      const q = conSinCloser ? base.or(`closer_id.in.(${ids.join(",")}),closer_id.is.null`) : base.in("closer_id", ids);
       return (agendadasPor ? q.eq("agendada_por", agendadasPor) : q).order("fecha").order("id").range(a, b);
     }),
     todas<VentaFila>((a, b) => db().from("ventas").select("*, pagos(importe), leads(nombre, apellido), productos(nombre)").eq("proyecto_id", proyectoId).in("vendedor_id", ids).order("id").range(a, b)),
@@ -65,8 +67,9 @@ export function columnasCloser(
           fechaTxt: fechaHora(c.fecha, proyecto),
           quien: c.origen === "ghl" ? origenCitaGhl(c) : `Agendó ${nombrePersona(c.agendada_por)}`,
           nota: c.nota,
-          closer: jefe ? nombrePersona(c.closer_id) : null,
+          closer: jefe ? quienLlevaba(c, nombrePersona) : null,
           pasada: new Date(c.fecha).getTime() < ahora,
+          recuperar: porRecuperar(c),
         })),
       ventas: dentro.ventas.map((v) => ({
         id: v.id,

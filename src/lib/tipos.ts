@@ -106,6 +106,7 @@ export type Cita = {
   canal?: string | null;
   ghl_calendario?: string | null;
   origen_url?: string | null;
+  closer_antes?: string | null; // 3 nov: el nombre del closer que la llevaba, si se le borró
 };
 
 export type Producto = {

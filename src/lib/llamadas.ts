@@ -26,6 +26,13 @@ type VentaL = { id: string; lead_id: string; tipo_pago: string; pendiente: numbe
 
 const abierta = (e: string) => (ABIERTAS as readonly string[]).includes(e);
 
+// Cristian, 3 nov: citas sin closer del equipo (el suyo se borró, o GHL no le puso a nadie). Las ven los jefes con
+// el nombre de quien la llevaba («Felipe (ya no está)») o «Sin llamar», y en rojo hasta que tengan resultado.
+type CitaCloser = { closer_id: string | null; closer_antes?: string | null; estado: string };
+export const porRecuperar = (c: CitaCloser) => !c.closer_id && abierta(c.estado);
+export const quienLlevaba = (c: CitaCloser, nombrePersona: (id: string | null) => string) =>
+  c.closer_id ? nombrePersona(c.closer_id) : c.closer_antes ? `${c.closer_antes} (ya no está)` : "Sin llamar";
+
 export function esPrecall(c: CitaL, ahora: number) {
   return (abierta(c.estado) || c.estado === "no_califica") && new Date(c.fecha).getTime() >= ahora;
 }

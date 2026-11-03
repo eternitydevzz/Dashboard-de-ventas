@@ -24,6 +24,7 @@ export function TarjetaCrm({
   apagada,
   marcada,
   onMarcar,
+  alerta,
 }: {
   leadId: string;
   nombre: string;
@@ -38,6 +39,7 @@ export function TarjetaCrm({
   apagada?: boolean; // mientras se arrastra
   marcada?: boolean;
   onMarcar?: () => void; // sin esto, no hay casilla
+  alerta?: boolean; // 3 nov (Cristian, boceto B): toda la tarjeta en rojo suave (cita por recuperar)
 }) {
   const [popup, setPopup] = useState(false);
   // Los botones, enlaces y casillas de la card hacen lo suyo; los clics que vienen del popup (va en un Portal) no cuentan
@@ -58,8 +60,8 @@ export function TarjetaCrm({
         e.dataTransfer.effectAllowed = "move";
         onArrastrar?.(e);
       }}
-      className={`space-y-1.5 rounded-lg border bg-panel p-3 text-sm shadow-sm transition hover:border-primario/60 ${
-        marcada ? "border-primario ring-1 ring-primario" : "border-borde"
+      className={`space-y-1.5 rounded-lg border p-3 text-sm shadow-sm transition hover:border-primario/60 ${alerta ? "bg-mal-suave" : "bg-panel"} ${
+        marcada ? "border-primario ring-1 ring-primario" : alerta ? "border-mal/50" : "border-borde"
       } ${arrastrable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${apagada ? "opacity-40" : ""}`}
     >
       <div className="flex items-start gap-2">

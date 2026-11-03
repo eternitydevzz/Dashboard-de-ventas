@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { celdasMes, coincide, diaEnZona, enPostcall, esPrecall, ventasPostcall } from "@/lib/llamadas";
+import { celdasMes, coincide, diaEnZona, enPostcall, esPrecall, porRecuperar, quienLlevaba, ventasPostcall } from "@/lib/llamadas";
 
 const ahora = new Date("2026-10-09T15:00:00Z").getTime();
 const c = (estado: string, fecha: string) => ({ id: estado + fecha, lead_id: "L", estado, fecha });
@@ -40,5 +40,22 @@ describe("pestañas de Llamadas", () => {
     expect(coincide("adrian vargas", "Adrián Vargas Jiménez", null)).toBe(true);
     expect(coincide("595 961", "Otro", "+595961103570")).toBe(true);
     expect(coincide("pepe", "Adrián", "a@b.c")).toBe(false);
+  });
+});
+
+// 3 nov (Cristian): citas sin closer del equipo, en rojo hasta tener resultado
+describe("citas sin closer del equipo", () => {
+  const nombre = (id: string | null) => (id === "J" ? "Junior" : "—");
+  it("en rojo solo si no tiene closer y está abierta", () => {
+    expect(porRecuperar({ closer_id: null, estado: "confirmada" })).toBe(true);
+    expect(porRecuperar({ closer_id: null, closer_antes: "Felipe", estado: "pendiente" })).toBe(true);
+    expect(porRecuperar({ closer_id: null, estado: "cancelada" })).toBe(false); // ya tiene resultado
+    expect(porRecuperar({ closer_id: null, estado: "cerrada" })).toBe(false);
+    expect(porRecuperar({ closer_id: "J", estado: "confirmada" })).toBe(false);
+  });
+  it("quién la llevaba", () => {
+    expect(quienLlevaba({ closer_id: "J", estado: "confirmada" }, nombre)).toBe("Junior");
+    expect(quienLlevaba({ closer_id: null, closer_antes: "Felipe Gaspar Fernández", estado: "perdida" }, nombre)).toBe("Felipe Gaspar Fernández (ya no está)");
+    expect(quienLlevaba({ closer_id: null, closer_antes: null, estado: "confirmada" }, nombre)).toBe("Sin llamar");
   });
 });

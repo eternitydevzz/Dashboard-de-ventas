@@ -5,7 +5,7 @@ import { exigirPagina } from "@/lib/permisos";
 import { db, equipo } from "@/lib/datos";
 import { dinero, fechaHora, fecha as soloFecha, ahoraMs, hoyEnZona, inicioDia, ETIQUETA_ESTADO_CITA, nombrePais } from "@/lib/formato";
 import { closersVisibles } from "@/lib/agendas-datos";
-import { ABIERTAS, SUB_POSTCALL, celdasMes, coincide, diaEnZona, enPostcall, esColumnaVentas, esPrecall, partirCloser, ventasPostcall, type SubPostcall } from "@/lib/llamadas";
+import { ABIERTAS, SUB_POSTCALL, celdasMes, coincide, diaEnZona, enPostcall, esColumnaVentas, esPrecall, partirCloser, porRecuperar, quienLlevaba, ventasPostcall, type SubPostcall } from "@/lib/llamadas";
 import { cargarCitasVentas, columnasCloser, etapasCloser, nombreDe, type CitaFila } from "@/lib/tablero-closers";
 import { Cabecera, Contenido, Insignia, Vacio } from "@/components/ui";
 import { FiltroUrl } from "@/components/barra-periodo";
@@ -65,7 +65,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const nombrePersona = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
   // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM
   const [{ citas: citasTodas, ventas: ventasTodas }, productos, { etapas: etapasCl }] = await Promise.all([
-    cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null),
+    cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer")),
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     etapasCloser(proyecto.id),
   ]);
@@ -263,7 +263,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
                   <Link href={baseQs({ vista: "dia", d })} className="text-xs font-medium text-texto-2 hover:text-primario">{DIAS[i]} {Number(d.slice(8))}</Link>
                   <ul className="mt-1 space-y-1">
                     {(porDia.get(d) ?? []).map((c) => (
-                      <li key={c.id} className="rounded-md bg-panel px-2 py-1 text-xs">
+                      <li key={c.id} className={`rounded-md px-2 py-1 text-xs ${porRecuperar(c) ? "bg-mal-suave" : "bg-panel"}`}>
                         <div className="font-medium">{new Intl.DateTimeFormat("es-ES", { timeZone: zona, hour: "2-digit", minute: "2-digit" }).format(new Date(c.fecha))}</div>
                         <a href={`/leads/${c.lead_id}`} className="block truncate hover:text-primario">{nombreDe(c.leads)}</a>
                         <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
@@ -384,7 +384,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     return (
       <ul className="divide-y divide-borde">
         {filas.map((c) => (
-          <li key={c.id} className="flex flex-wrap items-center gap-4 px-4 py-3">
+          <li key={c.id} className={`flex flex-wrap items-center gap-4 px-4 py-3 ${porRecuperar(c) ? "bg-mal-suave" : ""}`}>
             <div className="w-36 shrink-0">
               <div className="text-sm font-semibold">{fechaHora(c.fecha, proyecto)}</div>
               <div className="text-xs text-texto-3">{c.origen === "ghl" ? origenCitaGhl(c) : `Agendó ${nombrePersona(c.agendada_por)}`}</div>
@@ -398,7 +398,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
               )}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {jefe && <Insignia>{nombrePersona(c.closer_id)}</Insignia>}
+              {jefe && <Insignia tono={porRecuperar(c) ? "mal" : "neutro"}>{porRecuperar(c) ? `Recuperar · ${quienLlevaba(c, nombrePersona)}` : quienLlevaba(c, nombrePersona)}</Insignia>}
               <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
             </div>
             {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={proyecto.moneda} />}

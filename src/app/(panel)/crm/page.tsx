@@ -98,7 +98,10 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
     Promise.all(
       pipelines.map(async (p) => {
         if (p.tipo === "closers") {
-          let q = db().from("citas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).in("estado", [...ABIERTAS]).in("closer_id", deCloser.length ? deCloser : ["00000000-0000-0000-0000-000000000000"]);
+          const idsCl = deCloser.length ? deCloser : ["00000000-0000-0000-0000-000000000000"];
+          const base = db().from("citas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).in("estado", [...ABIERTAS]);
+          // 3 nov: el jefe mirando a todos cuenta también las citas sin closer del equipo (salen en rojo)
+          let q = jefe && !persona ? base.or(`closer_id.in.(${idsCl.join(",")}),closer_id.is.null`) : base.in("closer_id", idsCl);
           if (agendadasPor) q = q.eq("agendada_por", agendadasPor);
           return [p.id, (await q).count ?? 0] as const;
         }
@@ -122,7 +125,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
         })
       : Promise.resolve({} as Record<string, number>),
     pipeline?.tipo === "closers"
-      ? cargarCitasVentas(proyecto.id, deCloser, agendadasPor).then(({ citas, ventas }) =>
+      ? cargarCitasVentas(proyecto.id, deCloser, agendadasPor, jefe && !persona).then(({ citas, ventas }) =>
           columnasCloser(etapas, citas, ventas, { proyecto, jefe, nombrePersona: (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—" })
         )
       : Promise.resolve(null),
