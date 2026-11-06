@@ -164,6 +164,85 @@ export async function camposGhl(o: { token: string; locationId: string; fetchImp
   return Array.isArray(j?.customFields) ? j.customFields.filter((c: { id?: unknown; name?: unknown }) => typeof c?.id === "string" && typeof c?.name === "string") : [];
 }
 
+// ---------- Escribir en GHL (Plan GHL, fase 1, Cristian 6 nov 2026) ----------
+// Comprobado el 6 nov en la especificación oficial (apps/contacts.json y apps/opportunities.json), todo Version 2021-07-28:
+// · POST /contacts/upsert { locationId, firstName, lastName, email, phone, source, customFields: [{ id, field_value }] }
+//   → { new, contact } · contacts.write. Su campo `tags` BORRA todas las etiquetas del contacto: aquí no se manda nunca.
+//   Sigue el ajuste de la subcuenta (Maestria: allowDuplicateContact = false → reconoce al contacto por email o teléfono).
+// · POST y DELETE /contacts/{id}/tags { tags } · contacts.write
+// · Oportunidad: GET /opportunities/search?location_id&contact_id&pipeline_id (opportunities.readonly) y, si no hay,
+//   POST /opportunities/ { pipelineId, locationId, name, status, contactId, pipelineStageId } · opportunities.write.
+//   No se usa POST /opportunities/upsert: su cuerpo no lleva contactId (decisión de Cristian, 6 nov).
+type Json = Record<string, unknown>;
+async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "DELETE", ruta: string, cuerpo: Json, permiso: string) {
+  const res = await fetchImpl(`${GHL_BASE}${ruta}`, {
+    method: metodo,
+    headers: { Authorization: `Bearer ${token}`, Version: "2021-07-28", Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(cuerpo),
+    cache: "no-store",
+  });
+  if (res.status === 401 || res.status === 403) throw new Error(`GHL no acepta el token (revisa que la integración tenga el permiso ${permiso}).`);
+  if (res.status === 429) throw new Error("GHL pide esperar (demasiadas peticiones).");
+  if (!res.ok) {
+    // GHL explica el error en `message` (texto o lista): solo eso, recortado
+    const j = (await res.json().catch(() => null)) as { message?: unknown } | null;
+    const m = Array.isArray(j?.message) ? j.message.join("; ") : typeof j?.message === "string" ? j.message : "";
+    throw new Error(`GHL respondió ${res.status}${m ? `: ${m.slice(0, 200)}` : ""}.`);
+  }
+  return res.json().catch(() => ({}));
+}
+
+export type ContactoParaGhl = { firstName?: string; lastName?: string; email?: string; phone?: string; source?: string };
+export async function crearOActualizarContactoGhl(o: {
+  token: string;
+  locationId: string;
+  contacto: ContactoParaGhl;
+  customFields: { id: string; field_value: string }[];
+  fetchImpl?: Fetch;
+}): Promise<{ id: string; nuevo: boolean; etiquetas: string[] | null }> {
+  // Solo los datos del contacto, uno a uno: así nunca se cuela `tags` aunque venga en el objeto
+  const { firstName, lastName, email, phone, source } = o.contacto;
+  const cuerpo: Json = { locationId: o.locationId };
+  for (const [k, v] of Object.entries({ firstName, lastName, email, phone, source })) if (v) cuerpo[k] = v;
+  if (o.customFields.length) cuerpo.customFields = o.customFields;
+  const j = await escribir(o.fetchImpl ?? fetch, o.token, "POST", "/contacts/upsert", cuerpo, "Edit Contacts (contacts.write)");
+  const c = j?.contact;
+  if (typeof c?.id !== "string") throw new Error("GHL contestó sin id de contacto.");
+  return { id: c.id, nuevo: j?.new === true, etiquetas: Array.isArray(c.tags) ? c.tags.map(String) : null };
+}
+
+export async function anadirEtiquetasGhl(o: { token: string; contactId: string; etiquetas: string[]; fetchImpl?: Fetch }) {
+  if (!o.etiquetas.length) return;
+  await escribir(o.fetchImpl ?? fetch, o.token, "POST", `/contacts/${encodeURIComponent(o.contactId)}/tags`, { tags: o.etiquetas }, "Edit Contacts (contacts.write)");
+}
+
+export async function quitarEtiquetasGhl(o: { token: string; contactId: string; etiquetas: string[]; fetchImpl?: Fetch }) {
+  if (!o.etiquetas.length) return;
+  await escribir(o.fetchImpl ?? fetch, o.token, "DELETE", `/contacts/${encodeURIComponent(o.contactId)}/tags`, { tags: o.etiquetas }, "Edit Contacts (contacts.write)");
+}
+
+export async function crearOportunidadGhl(o: {
+  token: string;
+  locationId: string;
+  contactId: string;
+  pipelineId: string;
+  etapaId: string | null;
+  nombre: string;
+  fetchImpl?: Fetch;
+}): Promise<{ id: string; nueva: boolean }> {
+  const f = o.fetchImpl ?? fetch;
+  const q = new URLSearchParams({ location_id: o.locationId, contact_id: o.contactId, pipeline_id: o.pipelineId, limit: "20" });
+  const s = await llamar(f, o.token, `/opportunities/search?${q}`, "2021-07-28");
+  const ya = (Array.isArray(s?.opportunities) ? s.opportunities : []).find((x: OportunidadGhl2) => x?.id && x.pipelineId === o.pipelineId);
+  if (ya) return { id: ya.id, nueva: false };
+  const cuerpo: Json = { locationId: o.locationId, pipelineId: o.pipelineId, contactId: o.contactId, name: o.nombre, status: "open" };
+  if (o.etapaId) cuerpo.pipelineStageId = o.etapaId;
+  const j = await escribir(f, o.token, "POST", "/opportunities/", cuerpo, "Edit Opportunities (opportunities.write)");
+  const id = j?.opportunity?.id ?? j?.id;
+  if (typeof id !== "string") throw new Error("GHL contestó sin id de oportunidad.");
+  return { id, nueva: true };
+}
+
 // Estado de GHL → estado de la cita en la app. `null` = no se toca (lo decide el closer).
 export function estadoDesdeGhl(s: string | undefined): "confirmada" | "cancelada" | "no_show" | "invalida" | null {
   switch ((s ?? "").toLowerCase()) {

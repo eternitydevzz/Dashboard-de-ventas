@@ -24,7 +24,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
 
-type Entrada = { id: string; proyecto_id: string; nombre: string; pipeline_id: string | null; etapa_id: string | null; reglas: unknown; activa: boolean };
+type Entrada = { id: string; proyecto_id: string; nombre: string; pipeline_id: string | null; etapa_id: string | null; reglas: unknown; activa: boolean; ghl_activo?: boolean; ghl_espera_seg?: number | null };
 
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhooks/entrada/[token]">) {
   const { token } = await ctx.params;
@@ -84,7 +84,10 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
     // 4 · El envío queda unido a su lead
     const q = db().from("leads").select("id").eq("proyecto_id", proyecto.id);
     const { data: guardado } = await (lead.email ? q.eq("email", lead.email) : q.eq("telefono", lead.telefono!)).order("creado_en", { ascending: false }).limit(1).maybeSingle();
-    if (evento) await db().from("webhook_eventos").update({ procesado: true, lead_id: guardado?.id ?? null }).eq("id", evento.id);
+    // 5 · Plan GHL, fase 1 (Cristian, 6 nov 2026): si la Entrada manda a GHL, el envío espera (1 min por defecto) por
+    // si llega el cuestionario; lo manda la lectura de cada 60 s (src/lib/ghl-envios.ts), un solo envío por lead.
+    const ghl = entrada.ghl_activo && guardado?.id ? { ghl_estado: "esperando", ghl_enviar_en: new Date(Date.now() + (entrada.ghl_espera_seg ?? 60) * 1000).toISOString() } : {};
+    if (evento) await db().from("webhook_eventos").update({ procesado: true, lead_id: guardado?.id ?? null, ...ghl }).eq("id", evento.id);
     return responder({ ok: true });
   } catch (e) {
     console.error("[entrada] error:", e);
