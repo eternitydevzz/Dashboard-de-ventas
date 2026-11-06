@@ -172,6 +172,12 @@ describe("Entrada → GHL por la API", () => {
       const q = u.searchParams;
       return Response.json({ opportunities: ghl.opps.filter((o) => (!q.get("contact_id") || o.contactId === q.get("contact_id")) && (!q.get("pipeline_id") || o.pipelineId === q.get("pipeline_id"))), meta: {} });
     }
+    const mover = u.pathname.match(/^\/opportunities\/([^/]+)$/);
+    if (mover && metodo === "PUT") {
+      const o = ghl.opps.find((x) => x.id === decodeURIComponent(mover[1]))!;
+      o.pipelineStageId = cuerpo.pipelineStageId;
+      return Response.json({ opportunity: o });
+    }
     if (u.pathname === "/opportunities/" && metodo === "POST") {
       const o = { id: `${e.pref}-o${++n}`, contactId: cuerpo.contactId, pipelineId: cuerpo.pipelineId, pipelineStageId: cuerpo.pipelineStageId };
       ghl.opps.push(o);
@@ -320,6 +326,20 @@ describe("Entrada → GHL por la API", () => {
     expect(r.errores).toEqual([]);
     const l = await lead(email);
     expect(l.etiquetas).toEqual(["recursos-ia", "biblioteca-form-completo"]);
+  });
+
+  it("fase 3: si la Entrada tiene otra columna, la oportunidad que ya existe se mueve ahí (no se crea otra)", async () => {
+    const email = `${e.pref}-g2@ejemplo.test`;
+    const c = ghl.contactos.find((x) => x.email === email)!;
+    const antes = ghl.opps.filter((o) => o.contactId === c.id);
+    expect(antes).toHaveLength(1);
+    await db.from("entradas").update({ ghl_etapa_id: "columna-agenda" }).eq("id", entradaGhl);
+    await post(cuestionario(email));
+    expect((await enviarGhl()).enviados).toBe(1);
+    const despues = ghl.opps.filter((o) => o.contactId === c.id);
+    expect(despues).toHaveLength(1);
+    expect(despues[0].pipelineStageId).toBe("columna-agenda");
+    await db.from("entradas").update({ ghl_etapa_id: COL_GHL }).eq("id", entradaGhl);
   });
 
   it("si GHL falla: 5 intentos, después «error» y UN email; con «Reintentar» termina en ok", async () => {

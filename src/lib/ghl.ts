@@ -173,8 +173,10 @@ export async function camposGhl(o: { token: string; locationId: string; fetchImp
 // · Oportunidad: GET /opportunities/search?location_id&contact_id&pipeline_id (opportunities.readonly) y, si no hay,
 //   POST /opportunities/ { pipelineId, locationId, name, status, contactId, pipelineStageId } · opportunities.write.
 //   No se usa POST /opportunities/upsert: su cuerpo no lleva contactId (decisión de Cristian, 6 nov).
+// · Fase 3 (6 nov): si ya tiene una en ese pipeline pero en otra columna, se mueve a la de la Entrada con
+//   PUT /opportunities/{id} { pipelineStageId } (opportunities.write), como hacía la rama BIBLIOTECA del workflow viejo.
 type Json = Record<string, unknown>;
-async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "DELETE", ruta: string, cuerpo: Json, permiso: string) {
+async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "PUT" | "DELETE", ruta: string, cuerpo: Json, permiso: string) {
   const res = await fetchImpl(`${GHL_BASE}${ruta}`, {
     method: metodo,
     headers: { Authorization: `Bearer ${token}`, Version: "2021-07-28", Accept: "application/json", "Content-Type": "application/json" },
@@ -229,18 +231,22 @@ export async function crearOportunidadGhl(o: {
   etapaId: string | null;
   nombre: string;
   fetchImpl?: Fetch;
-}): Promise<{ id: string; nueva: boolean }> {
+}): Promise<{ id: string; nueva: boolean; movida: boolean }> {
   const f = o.fetchImpl ?? fetch;
   const q = new URLSearchParams({ location_id: o.locationId, contact_id: o.contactId, pipeline_id: o.pipelineId, limit: "20" });
   const s = await llamar(f, o.token, `/opportunities/search?${q}`, "2021-07-28");
   const ya = (Array.isArray(s?.opportunities) ? s.opportunities : []).find((x: OportunidadGhl2) => x?.id && x.pipelineId === o.pipelineId);
-  if (ya) return { id: ya.id, nueva: false };
+  if (ya) {
+    if (!o.etapaId || ya.pipelineStageId === o.etapaId) return { id: ya.id, nueva: false, movida: false };
+    await escribir(f, o.token, "PUT", `/opportunities/${encodeURIComponent(ya.id)}`, { pipelineStageId: o.etapaId }, "Edit Opportunities (opportunities.write)");
+    return { id: ya.id, nueva: false, movida: true };
+  }
   const cuerpo: Json = { locationId: o.locationId, pipelineId: o.pipelineId, contactId: o.contactId, name: o.nombre, status: "open" };
   if (o.etapaId) cuerpo.pipelineStageId = o.etapaId;
   const j = await escribir(f, o.token, "POST", "/opportunities/", cuerpo, "Edit Opportunities (opportunities.write)");
   const id = j?.opportunity?.id ?? j?.id;
   if (typeof id !== "string") throw new Error("GHL contestó sin id de oportunidad.");
-  return { id, nueva: true };
+  return { id, nueva: true, movida: false };
 }
 
 // Estado de GHL → estado de la cita en la app. `null` = no se toca (lo decide el closer).
