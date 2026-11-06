@@ -224,7 +224,7 @@ export function EditorGhlEntrada({
         <>
           <p className="text-xs text-texto-3">
             El lead se guarda aquí al momento. Tras la espera, la app manda a GHL <b>un solo envío</b> con todo lo que ha llegado de esa persona: crea o actualiza el contacto, rellena los campos, pone la etiqueta
-            {base.trim() ? <> <code>{base.trim()}-completo</code> o <code>{base.trim()}-incompleto</code></> : " (si pones una base)"} y crea la oportunidad. Si falla, lo reintenta 5 veces y después avisa por email.
+            {base.trim() ? <> <code>{base.trim().toLowerCase()}-completo</code> o <code>{base.trim().toLowerCase()}-incompleto</code> (en minúsculas, como las guarda GHL)</> : " (si pones una base)"} y crea la oportunidad. Si falla, lo reintenta 5 veces y después avisa por email.
           </p>
           {opciones.error && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{opciones.error}</p>}
 

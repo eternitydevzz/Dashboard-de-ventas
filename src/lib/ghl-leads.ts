@@ -18,6 +18,7 @@ import { leadDeContactoGhl } from "@/lib/ghl-lead";
 import { espejoGhl, type ResultadoEspejo } from "@/lib/ghl-espejo";
 import { PIPELINE_GENERAL } from "@/lib/canal";
 import { mismoNombre } from "@/lib/formato";
+import { unirEtiquetas } from "@/lib/etiquetas";
 import type { Proyecto, Respuesta } from "@/lib/tipos";
 
 type Fetch = typeof fetch;
@@ -178,8 +179,9 @@ export function hayCambios(antes: Omit<LeadApp, "id" | "ghl_contact_id" | "pipel
   if (l.apellido?.trim() && vacio(antes.apellido)) return true;
   if (l.telefono?.trim() && vacio(antes.telefono)) return true;
   if (l.email && !antes.email) return true;
+  // 6 nov (plan GHL): con la misma regla que al guardar; así una `-incompleto` vieja de GHL no reescribe el lead cada minuto
   const tags = new Set((antes.etiquetas ?? []).map((x) => x.toLowerCase()));
-  if (l.etiquetas.some((x) => !tags.has(x.toLowerCase()))) return true;
+  if (unirEtiquetas(antes.etiquetas, l.etiquetas).some((x) => !tags.has(x.toLowerCase()))) return true;
   const previas = normalizarRespuestas(antes.respuestas ?? []);
   return JSON.stringify(unirRespuestas(previas, l.respuestas)) !== JSON.stringify(previas);
 }

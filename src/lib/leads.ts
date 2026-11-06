@@ -9,6 +9,7 @@ import { mismoNombre } from "@/lib/formato";
 import { descifrar } from "@/lib/cifrado";
 import { pipelinesAgendanGhl } from "@/lib/ghl";
 import { conPais } from "@/lib/pais";
+import { unirEtiquetas } from "@/lib/etiquetas";
 
 // «+34 600-11-22-33», «34600112233» y «600 11 22 33» son el mismo teléfono: con 9 cifras o más
 // se comparan las últimas 9 (así el prefijo del país no cuenta). Decisión de Cristian, 9 oct 2026 (V2-12).
@@ -217,7 +218,8 @@ export async function guardarLeads(
   const tarjetasNuevas: { lead_id: string; pipeline_id: string; etapa_id: string | null }[] = [];
   const cambiosPorLead = actualizar.map(({ id, e }) => {
     const antes = previos.get(id);
-    const etiquetas = [...new Set([...(antes?.etiquetas ?? []), ...e.etiquetas])];
+    // 6 nov (plan GHL): sin repetir mayúsculas/minúsculas y sin volver de -completo a -incompleto
+    const etiquetas = unirEtiquetas(antes?.etiquetas, e.etiquetas);
     const respuestas = unirRespuestas(antes?.respuestas ?? [], e.respuestas);
     // Bloque A: la oferta se recalcula con los datos nuevos
     const oferta = calcularOferta({ etiquetas, fuente: antes?.fuente || e.extra?.fuente, respuestas });

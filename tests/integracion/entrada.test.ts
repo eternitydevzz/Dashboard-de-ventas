@@ -163,7 +163,9 @@ describe("Entrada → GHL por la API", () => {
     const t = u.pathname.match(/^\/contacts\/([^/]+)\/tags$/);
     if (t) {
       const c = ghl.contactos.find((x) => x.id === decodeURIComponent(t[1]))!;
-      c.tags = metodo === "DELETE" ? c.tags.filter((x) => !cuerpo.tags.includes(x)) : [...new Set([...c.tags, ...cuerpo.tags])];
+      // Como el GHL real (visto el 6 nov): guarda las etiquetas en minúsculas
+      const tags = (cuerpo.tags as string[]).map((x) => x.toLowerCase());
+      c.tags = metodo === "DELETE" ? c.tags.filter((x) => !tags.includes(x)) : [...new Set([...c.tags, ...tags])];
       return Response.json({ tags: c.tags }, { status: metodo === "DELETE" ? 200 : 201 });
     }
     if (u.pathname === "/opportunities/search") {
@@ -251,7 +253,7 @@ describe("Entrada → GHL por la API", () => {
     expect(ghl.upserts[0]).not.toHaveProperty("tags");
     expect(ghl.upserts[0]).toMatchObject({ locationId: "loc-1", email, firstName: "ana", source: "recursos" });
     const c = ghl.contactos.find((x) => x.email === email)!;
-    expect(c.tags).toEqual(["Biblioteca-form-incompleto"]);
+    expect(c.tags).toEqual(["biblioteca-form-incompleto"]);
     expect(c.customFields).toEqual([
       { id: "BPs2vrG7eqH7D3d5zJEf", value: "facebook" },
       { id: "q5wycj0YpQt8SVlLxXbQ", value: "biblio-nov" },
@@ -259,7 +261,7 @@ describe("Entrada → GHL por la API", () => {
     expect(ghl.opps).toEqual([{ id: expect.any(String), contactId: c.id, pipelineId: PIPE_GHL, pipelineStageId: COL_GHL }]);
     const l = await lead(email);
     expect(l.ghl_contact_id).toBe(c.id);
-    expect(l.etiquetas).toEqual(["recursos-ia", "Biblioteca-form-incompleto"]); // la misma etiqueta que en GHL
+    expect(l.etiquetas).toEqual(["recursos-ia", "biblioteca-form-incompleto"]); // la misma etiqueta que en GHL
     expect((await eventos(l.id))[0]).toMatchObject({ ghl_estado: "ok", ghl_error: null });
   });
 
@@ -285,12 +287,12 @@ describe("Entrada → GHL por la API", () => {
     expect((await enviarGhl()).enviados).toBe(1);
     expect(ghl.upserts.length - antes).toBe(1);
     const c = ghl.contactos.find((x) => x.email === email)!;
-    expect(c.tags).toEqual(["Biblioteca-form-completo"]);
+    expect(c.tags).toEqual(["biblioteca-form-completo"]);
     expect(c.customFields).toContainEqual({ id: "EsY9HSZfP5L1FT6h4nX2", value: "Tengo una agencia" });
     expect(c.customFields).toContainEqual({ id: "BPs2vrG7eqH7D3d5zJEf", value: "facebook" }); // el vacío del cuestionario no lo borra
     const l = await lead(email);
     expect((await eventos(l.id)).map((x) => x.ghl_estado)).toEqual(["ok", "ok"]);
-    expect(l.etiquetas).toContain("Biblioteca-form-completo");
+    expect(l.etiquetas).toContain("biblioteca-form-completo");
   });
 
   it("cuestionario tardío: se actualizan los campos y pasa de -incompleto a -completo, sin otra oportunidad", async () => {
@@ -299,11 +301,25 @@ describe("Entrada → GHL por la API", () => {
     await post(cuestionario(email));
     expect((await enviarGhl()).enviados).toBe(1);
     const c = ghl.contactos.find((x) => x.email === email)!;
-    expect(c.tags).toEqual(["Biblioteca-form-completo"]);
+    expect(c.tags).toEqual(["biblioteca-form-completo"]);
     expect(c.customFields).toContainEqual({ id: "EsY9HSZfP5L1FT6h4nX2", value: "Tengo una agencia" });
     expect(ghl.opps.length).toBe(opps);
     const l = await lead(email);
-    expect(l.etiquetas).toEqual(["recursos-ia", "Biblioteca-form-completo"]);
+    expect(l.etiquetas).toEqual(["recursos-ia", "biblioteca-form-completo"]);
+  });
+
+  it("la lectura de 60 s con la etiqueta vieja de GHL (-incompleto) no se la devuelve al lead completo (prueba real, 6 nov)", async () => {
+    const email = `${e.pref}-g1@ejemplo.test`;
+    const c = ghl.contactos.find((x) => x.email === email)!;
+    // La búsqueda de GHL tarda en ponerse al día: aún devuelve la etiqueta de antes, como cambio reciente
+    const real = c.tags;
+    c.tags = ["biblioteca-form-incompleto"];
+    c.dateUpdated = new Date().toISOString();
+    const r = await leerLeadsGhl(await proyectoGhl(), "tok", { fetchImpl: falsoGhl, ahora: new Date() });
+    c.tags = real;
+    expect(r.errores).toEqual([]);
+    const l = await lead(email);
+    expect(l.etiquetas).toEqual(["recursos-ia", "biblioteca-form-completo"]);
   });
 
   it("si GHL falla: 5 intentos, después «error» y UN email; con «Reintentar» termina en ok", async () => {

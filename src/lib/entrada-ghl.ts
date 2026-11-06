@@ -72,7 +72,8 @@ export function armarEnvioGhl(envios: Json[], config: ConfigGhl): EnvioGhl {
   }
 
   const completo = estaCompleto(envios, config.campoCompleto);
-  const base = (config.etiquetaBase ?? "").trim();
+  // En minúsculas, como las guarda GHL (visto en la prueba real del 6 nov): así es la misma en GHL y en el dashboard
+  const base = (config.etiquetaBase ?? "").trim().toLowerCase();
   const nombre = [lead.nombre, lead.apellido].filter(Boolean).join(" ") || lead.email || lead.telefono || "Lead";
 
   return {

@@ -75,7 +75,7 @@ describe("armarEnvioGhl", () => {
       { id: "BPs2vrG7eqH7D3d5zJEf", field_value: "facebook" },
       { id: "q5wycj0YpQt8SVlLxXbQ", field_value: "biblio-nov" },
     ]);
-    expect(e.etiqueta).toBe("Biblioteca-form-incompleto");
+    expect(e.etiqueta).toBe("biblioteca-form-incompleto");
     expect(e.quitar).toBeNull();
     expect(e.completo).toBe(false);
     expect(e.oportunidad).toEqual({ pipelineId: "dE7go9T3Mi2zbIT4sGME", etapaId: "9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d", nombre: "ana maria prueba lopez" });
@@ -84,8 +84,8 @@ describe("armarEnvioGhl", () => {
   it("registro + cuestionario: un solo envío completo, con las respuestas y quitando -incompleto", () => {
     const e = armarEnvioGhl([REGISTRO, CUESTIONARIO], CONFIG);
     expect(e.completo).toBe(true);
-    expect(e.etiqueta).toBe("Biblioteca-form-completo");
-    expect(e.quitar).toBe("Biblioteca-form-incompleto");
+    expect(e.etiqueta).toBe("biblioteca-form-completo");
+    expect(e.quitar).toBe("biblioteca-form-incompleto");
     expect(e.customFields).toEqual([
       { id: "EsY9HSZfP5L1FT6h4nX2", field_value: "Tengo una agencia" },
       { id: "aURzYuU0eAGE5rzVBwVa", field_value: "Ya automatizo cosas" },
@@ -93,6 +93,12 @@ describe("armarEnvioGhl", () => {
       { id: "BPs2vrG7eqH7D3d5zJEf", field_value: "facebook" },
       { id: "q5wycj0YpQt8SVlLxXbQ", field_value: "biblio-nov" },
     ]);
+  });
+
+  it("la etiqueta va en minúsculas, como la guarda GHL (prueba real del 6 nov)", () => {
+    const e = armarEnvioGhl([REGISTRO, CUESTIONARIO], { ...CONFIG, etiquetaBase: " Biblioteca-Form " });
+    expect(e.etiqueta).toBe("biblioteca-form-completo");
+    expect(e.quitar).toBe("biblioteca-form-incompleto");
   });
 
   it("nunca manda `tags` en el contacto (el upsert de GHL borraría todas las etiquetas)", () => {
@@ -121,8 +127,8 @@ describe("armarEnvioGhl", () => {
 
 describe("etiquetasApp", () => {
   it("añade la final y quita la contraria, sin repetir (sin mirar mayúsculas)", () => {
-    expect(etiquetasApp(["recursos-ia", "biblioteca-form-incompleto"], { etiqueta: "Biblioteca-form-completo", quitar: "Biblioteca-form-incompleto" })).toEqual(["recursos-ia", "Biblioteca-form-completo"]);
-    expect(etiquetasApp(["Biblioteca-form-completo"], { etiqueta: "Biblioteca-form-completo", quitar: null })).toEqual(["Biblioteca-form-completo"]);
+    expect(etiquetasApp(["recursos-ia", "Biblioteca-form-incompleto"], { etiqueta: "biblioteca-form-completo", quitar: "biblioteca-form-incompleto" })).toEqual(["recursos-ia", "biblioteca-form-completo"]);
+    expect(etiquetasApp(["Biblioteca-form-completo"], { etiqueta: "biblioteca-form-completo", quitar: null })).toEqual(["biblioteca-form-completo"]);
     expect(etiquetasApp(null, { etiqueta: null, quitar: null })).toEqual([]);
   });
 });

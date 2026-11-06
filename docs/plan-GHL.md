@@ -70,6 +70,9 @@
 - **El valor de `GHL_WEBHOOK_URL`:** en Vercel es una variable «sensitive» y no se puede leer. Por el workflow se sabe que es el de «0. AP - Biblioteca de recursos»; su id `/hooks/…` no se ve.
 - **Si el proyecto «Test» tiene GHL conectado y qué Entradas hay:** la lectura de Supabase de producción quedó bloqueada por permisos. Se mira en la fase 1 en el dashboard, con Playwright.
 
+## Cómo se trabaja (Cristian, 6 nov)
+- **Navegador: siempre Playwright** (GHL, el dashboard, Vercel…), con la sesión de Cristian. No el navegador integrado de la app.
+
 ## Fases (en orden; cada una se comprueba antes de pasar a la siguiente)
 
 ### Fase 1 · El dashboard hace en GHL lo que hacía el workflow (Claude, primero los tests)
