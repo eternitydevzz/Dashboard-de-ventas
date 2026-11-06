@@ -2,6 +2,8 @@
 
 > **Estado y pendientes:** [`plan.md`](plan.md) (1 dónde estamos · 2 plan por fases · 3 decisiones · 4 riesgos). Otra guía: [`GUIA-GHL.md`](GUIA-GHL.md).
 
+> **6 nov 2026:** la app está en la cuenta de pago de Vercel **«Eternity Group»** (`info-79696548s-projects`). La cuenta gratis la pausó por pasarse del límite y se transfirió el proyecto entero (variables, dominio y GitHub incluidos). Donde esta guía dice «Vercel», es esa cuenta.
+
 > Para Cristian (o el director). Paso a paso, de tu ordenador a una web a la que entra todo el equipo.
 > Escrita el 9 oct 2026; puesta al día el 11 oct 2026 con todo el 1.0 hecho (Biblioteca, horarios, reparto, agendar por link de GHL, comisiones por tramos, ficha de cada persona, reporte editable, onboarding de closers). Puesta al día otra vez el 12 oct 2026: **la app ya está publicada** (https://dashboard-de-ventas-iota.vercel.app), Resend verificado y probado (paso 4 bis), equipo y closers creados, leads de la Biblioteca subidos y GHL conectado (GUIA-GHL.md, sección «Cómo está montado en Maestria»). Lo marcado con **⚠ comprobar** no lo he podido ver con tus cuentas: el nombre exacto del botón puede cambiar un poco.
 
