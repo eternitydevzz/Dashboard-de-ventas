@@ -72,6 +72,15 @@
 
 ## Cómo se trabaja (Cristian, 6 nov)
 - **Navegador: siempre Playwright** (GHL, el dashboard, Vercel…), con la sesión de Cristian. No el navegador integrado de la app.
+- **Deep work fases 2 y 3 (Cristian, 6 nov, 19 h):** de seguido, sin interrumpirle. Permisos: subir y publicar la Biblioteca y el dashboard, poner variables en Vercel, crear/apagar Entradas, apagar con Playwright los workflows de GHL del cambio y crear leads de prueba reales (luego los borra él). Se salta la revisión entre fase 2 y 3 **si todo sale bien**; si algo falla, se para. En la agenda, reserva real de prueba y después se cancela. Al acabar, propuesta de diseño de la fase 4 (no se programa). **Dudas: se apuntan en «Dudas para Cristian» y se ven al final.**
+- Claude no borra datos ni toca permisos de seguridad aunque tenga permiso: eso queda en la lista de limpieza.
+
+## Dudas para Cristian (se ven al final)
+- **Cuentas viejas (Cristian, 6 nov: «solo Eternity»).** En el Mac ya solo queda Eternity: `gh` con `eternitydevzz` (cristianortiz33 desconectado), git global y de cada repo como `eternitydevzz`, git usa `gh` para las claves y el CLI de Vercel es `info-79696548`. **Falta y lo hace Cristian** (son permisos de cuentas, Claude no puede): quitar `cristianortiz33` de colaborador en GitHub (repos `Dashboard-de-ventas` y `biblioteca-maestria`, Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members). Lo que firmó antes esa cuenta (commits y despliegues viejos) no se puede borrar del historial sin reescribirlo.
+- **`BIBLIOTECA/build.py` es peligroso hoy:** al ejecutarlo rehace `index.html` desde una fuente vieja (vuelve «AI» donde ya se cambió a «IA» y quita el script `CM_HAS_ACCESS`). Lo ejecuté el 6 nov, lo vi en el diff y lo deshice sin subir nada. Hay que arreglar su fuente antes de volver a usarlo. (Para la fase 3 no hacía falta: `web/*.js` se sirve con `max-age=0, must-revalidate`.)
+- El workflow «0. AP - Biblioteca» (el que mandaba a la Entrada «GHL · Biblioteca») **no existe** en GHL ni en su carpeta; la Entrada no recibía nada desde el 16 oct. Se desactivó la Entrada igualmente.
+- Decisión de Claude: la Entrada «Web · Biblioteca agenda» mete los leads nuevos en «1. Biblioteca Recursos» del dashboard (los que ya están no se mueven). ¿Otro pipeline?
+- ¿Algún workflow o lista de GHL depende de la etiqueta `biblioteca recursos`? Con la fase 2 los leads nuevos de la Biblioteca ya no la llevan (llevan `biblioteca-form-…`). No comprobado.
 
 ## Fases (en orden; cada una se comprueba antes de pasar a la siguiente)
 
@@ -105,9 +114,11 @@
 #### Fase 1 · Estado (6 nov)
 - [x] Código, migración aplicada en producción y publicado (PR #9). Tests de GitHub en verde (302 unitarios, 289 de integración).
 - [x] Prueba real con la Entrada «Prueba GHL» y el contacto `info+pruebaghl@eternity.llc`: contacto, UTM, campo de situación, etiqueta, oportunidad en «1. Biblioteca Recursos» y cuestionario tardío (de `-incompleto` a `-completo`) bien en GHL. Sin duplicados ni «General».
-- [ ] **Arreglo de etiquetas** (PR #10): GHL guarda las etiquetas en minúsculas y la lectura de 60 s le devolvía al lead la `-incompleto` vieja. Falta: tests de GitHub, publicar y comprobarlo con el lead de prueba.
-- [ ] Prueba de fallo con un **pipeline inválido** en «Prueba GHL» (decisión de Cristian: no tocar el token de Maestria): 5 intentos, rojo, email y «Reintentar» → `ok`.
-- [ ] Informe final de la fase 1.
+- [x] **Arreglo de etiquetas** (PR #10, publicado): GHL guarda las etiquetas en minúsculas y la lectura de 60 s le devolvía al lead la `-incompleto` vieja. Comprobado con el lead de prueba: queda `recursos-ia`, `biblioteca-form-completo` tras la lectura.
+- [x] Prueba de fallo con un **pipeline inválido** en «Prueba GHL» (decisión de Cristian: no tocar el token de Maestria): 5 intentos (`404: Pipeline not found`), fila roja, email «GHL: un lead de «Prueba GHL» no ha llegado» entregado a info@ (Resend) y «Reintentar» → `ok`, con 1 sola oportunidad en GHL.
+- [x] Informe final de la fase 1 (6 nov).
+- [ ] Los reintentos van cada **2 min**, no cada 1 (el siguiente se programa a +60 s y la lectura llega unos ms antes). Mejora: programarlo a +50 s.
+- [ ] El aviso rojo de arriba del formulario («N envíos no llegaron a GHL») no lo vi en la prueba; la fila roja con «Reintentar» sí. Revisarlo.
 - [ ] **Limpieza (Cristian):** borrar en GHL el contacto «Prueba GHL Claude» y su oportunidad. Decidir si se apaga o se borra la Entrada «Prueba GHL» y el lead de prueba del dashboard (no se repartió a ningún caller).
 
 #### Pendientes apuntados (fuera de la fase 1; Cristian decide cuándo)
@@ -148,7 +159,34 @@
 - [ ] El webhook `2f05f800…` y su workflow **no se apagan**: los sigue usando `codigomaestria.com/agenda`. Solo deja de llegarle la rama BIBLIOTECA.
 - [ ] Preview, prueba con un lead (datos, respuestas y reserva), plan para volver atrás, y Cristian lo ve.
 
+#### Fase 2 · Estado (6 nov, deep work)
+- [x] Entrada «Web · Biblioteca registro» (`087b86d1…`): pipeline del dashboard «1. Biblioteca Recursos»; GHL `dE7go…` columna «Registrados» (`9cb965ae…`); 6 campos + 2 UTM; base `Biblioteca-form`; GHL encendido.
+- [x] `BIBLIOTECA/api/signup.js` → `DASHBOARD_ENTRADA_URL` (puesta en Vercel, Production y Preview). Etiquetas `biblioteca-form-incompleto/-completo` en minúsculas (como GHL); fuera `recursos-ia`. Tests `node --test tests/` 4/4. PR eternitydevzz/biblioteca-maestria#1, publicado el 6 nov a las 19:40 UTC.
+- [x] Preview con 3 leads reales (bib1 completo, bib2 incompleto, bib3 cuestionario tardío) y 1 en producción (bib4): en el dashboard 1 vez cada uno, en «1. Biblioteca Recursos», con su etiqueta y respuestas; en GHL contacto, 6 campos, UTM, etiqueta y oportunidad en «Registrados» (1 sola aunque haya varios envíos). Todos los envíos en `ok`.
+- [x] Cambio: «0. AP - Biblioteca de recursos» → Draft (Playwright, 19:48 UTC). Entrada «GHL · Biblioteca» desactivada. «0. AP - Biblioteca» no existe (ver dudas).
+- [x] Comprobado que los leads reales de la Biblioteca tampoco se reparten a callers hoy: sin cambio de comportamiento.
+- [ ] **7 nov:** mirar en el monedero de GHL que ya no hay `inbound_webhook` de la Biblioteca.
+- [ ] La primera semana: medir cuánto tardan en el cuestionario y ajustar la espera.
+- **Para volver atrás:** volver a publicar el commit `6041cce` de la Biblioteca en Vercel, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca».
+
+#### Fase 3 · Estado (6 nov): probada en preview, **NO publicada** (algo falló → se para)
+- [x] Entrada «Web · Biblioteca agenda» (`bc00a154…`): 9 campos, GHL `dE7go…` columna `77b3ce38…`, base `Biblioteca-agenda`, completo con `quiz_completed`. Recibe solo del preview.
+- [x] `web/programa.js` → la Entrada (rama `agenda-dashboard`, sin fusionar). En el preview, desde el navegador: `agenda_datos` 200 y `cuestionario` 200 (`quiz_completed=true`, `qualified=true`); reserva real el 12 nov 15:00 (Madrid), cita en el dashboard con closer y `confirmada`; cancelada en GHL a las 20:03 UTC.
+- [x] En GHL: contacto con `biblioteca-agenda-completo`, campos de la agenda y la cita.
+- [ ] **Fallo 1 (nuevo):** la oportunidad de la Biblioteca se queda en «Registrados». La rama BIBLIOTECA del workflow viejo la llevaba a `77b3ce38…`; el dashboard busca y, si ya hay una en ese pipeline, no hace nada. **Arreglo propuesto:** si ya existe y la Entrada tiene columna, moverla (`PUT /opportunities/{id}` con `pipelineStageId`, `opportunities.write`, ya en la especificación oficial). Con test.
+- [ ] **Fallo 2:** los workflows del calendario de GHL crearon además una oportunidad en «0. Agendas Orgánico - Agendan», y la cita le dio al lead una tarjeta en «0. Agendas General» del dashboard. **Ya pasaba a veces con el sistema viejo** (2 de los 4 leads reales con `agenda biblioteca` tienen tarjeta en General). Hipótesis sin comprobar: el workflow del calendario mira la etiqueta `agenda biblioteca` (que ponía la rama BIBLIOTECA). Hay que leer «2. Agendan llamada…» en GHL antes de decidir (¿poner también `agenda biblioteca`?).
+- **Para volver atrás:** no hace falta; producción sigue con el webhook `2f05f800…`.
+
 ### Fase 4 · Workflows visuales en el dashboard (estilo GHL)
+#### Propuesta de diseño (Claude, 6 nov) — para revisar con Cristian, no se programa hasta su visto bueno
+- **Qué es un workflow:** un disparador + una lista de pasos en orden (como GHL, pero en lista vertical, sin lienzo libre en la primera versión). Se guarda en una tabla `workflows` (JSON de pasos, versión, encendido/apagado).
+- **Disparadores (v1):** llega a una Entrada · se añade una etiqueta · cambia de columna en el dashboard · se agenda / cancela una cita.
+- **Acciones (v1):** crear/actualizar contacto en GHL (con campos unidos) · añadir/quitar etiqueta (GHL y dashboard) · crear o mover oportunidad en GHL · mover de columna en el dashboard · esperar X minutos · rama «si el campo… entonces…» (las reglas de hoy) · email con Resend.
+- **Motor:** cada lead que entra crea una ejecución (`workflow_ejecuciones`: paso actual, hora del siguiente paso, intentos, error). La lectura de cada 60 s avanza las que tocan, como hoy los envíos a GHL: mismos reintentos, aviso en rojo, email y «Reintentar».
+- **Pantalla:** Administración → Workflows: lista de workflows; dentro, tarjetas una debajo de otra con «+» entre pasos, el historial de cada lead (qué paso hizo y cuándo) y el interruptor.
+- **Migración:** «Qué hacer en GHL» de cada Entrada se convierte en su workflow (Entrada → esperar 1 min → contacto → etiqueta → oportunidad); las reglas de pipeline pasan a ramas.
+- **Subfases:** 4a motor + tabla, sin pantalla, rehaciendo la Biblioteca (mismo resultado que la fase 2) · 4b pantalla de solo lectura e historial · 4c edición · 4d disparadores de etiqueta, columna y cita.
+- **Preguntas para Cristian:** ¿lista vertical vale o quieres lienzo como GHL desde el principio? ¿Qué workflow de GHL quieres pasar primero después de la Biblioteca? ¿Los emails de las secuencias entran aquí o siguen fuera?
 - [ ] **Diseño primero, con Cristian, antes de programar.** Qué disparadores (llega a una Entrada, etiqueta, cambio de columna…), qué acciones (crear/actualizar en GHL, etiqueta, oportunidad, esperar, ramas por campo, email) y cómo se ve. Sale un plan propio por subfases.
 - [ ] Punto de partida: el formulario «Qué hacer en GHL» de la fase 1 pasa a ser el primer workflow (disparador «Entrada» → acciones). Las reglas de pipeline (`aplicarReglas`) pasan a ser ramas.
 - [ ] Primera pasada de punta a punta con datos reales: rehacer la Biblioteca como workflow visual y que dé lo mismo que en la fase 2.
