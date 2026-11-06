@@ -70,6 +70,9 @@
 - **El valor de `GHL_WEBHOOK_URL`:** en Vercel es una variable «sensitive» y no se puede leer. Por el workflow se sabe que es el de «0. AP - Biblioteca de recursos»; su id `/hooks/…` no se ve.
 - **Si el proyecto «Test» tiene GHL conectado y qué Entradas hay:** la lectura de Supabase de producción quedó bloqueada por permisos. Se mira en la fase 1 en el dashboard, con Playwright.
 
+## Cómo se trabaja (Cristian, 6 nov)
+- **Navegador: siempre Playwright** (GHL, el dashboard, Vercel…), con la sesión de Cristian. No el navegador integrado de la app.
+
 ## Fases (en orden; cada una se comprueba antes de pasar a la siguiente)
 
 ### Fase 1 · El dashboard hace en GHL lo que hacía el workflow (Claude, primero los tests)
@@ -98,6 +101,21 @@
   - lista de envíos con su estado.
 - [ ] Tests unitarios y de integración (`tests/integracion/entrada.test.ts`) en verde, y prueba de fallo con un token malo en «Test».
 - [ ] **Para volver atrás:** apagar el interruptor de la Entrada.
+
+#### Fase 1 · Estado (6 nov)
+- [x] Código, migración aplicada en producción y publicado (PR #9). Tests de GitHub en verde (302 unitarios, 289 de integración).
+- [x] Prueba real con la Entrada «Prueba GHL» y el contacto `info+pruebaghl@eternity.llc`: contacto, UTM, campo de situación, etiqueta, oportunidad en «1. Biblioteca Recursos» y cuestionario tardío (de `-incompleto` a `-completo`) bien en GHL. Sin duplicados ni «General».
+- [ ] **Arreglo de etiquetas** (PR #10): GHL guarda las etiquetas en minúsculas y la lectura de 60 s le devolvía al lead la `-incompleto` vieja. Falta: tests de GitHub, publicar y comprobarlo con el lead de prueba.
+- [ ] Prueba de fallo con un **pipeline inválido** en «Prueba GHL» (decisión de Cristian: no tocar el token de Maestria): 5 intentos, rojo, email y «Reintentar» → `ok`.
+- [ ] Informe final de la fase 1.
+- [ ] **Limpieza (Cristian):** borrar en GHL el contacto «Prueba GHL Claude» y su oportunidad. Decidir si se apaga o se borra la Entrada «Prueba GHL» y el lead de prueba del dashboard (no se repartió a ningún caller).
+
+#### Pendientes apuntados (fuera de la fase 1; Cristian decide cuándo)
+- [ ] La lectura de 60 s solo se lanza en proyectos con calendarios (`20261017120000_leer_ghl_cada_30s.sql`). Maestria los tiene; un proyecto sin calendarios nunca mandaría a GHL.
+- [ ] Riesgo de bucle: si se enciende «Mandar a GHL» en la Entrada «GHL · Biblioteca» (la que alimenta un workflow de GHL), los leads irían y volverían. No está bloqueado.
+- [ ] El llavero de macOS guarda una clave de GitHub de una cuenta sin identificar (`274756235`): un `git push` normal puede fallar con 403. Arreglo posible: `gh auth setup-git` (cambia la configuración global de git; con permiso de Cristian).
+- [ ] En el repo hay cambios de Cristian sin commit: 3 docs borrados (`Arreglar-dashboard.md`, `plan-historial-10oct.md`, `plan-historial-11oct.md`) y `manual-branding-rojo.md` nuevo.
+- [ ] La descripción de la integración «App Eternity (dashboard)» en GHL quedó vacía al añadir «Edit Opportunities» (antes decía «Solo lectura…», que ya no es verdad).
 
 ### Fase 2 · Punta a punta: registro de la Biblioteca
 - [ ] Entrada «Web · Biblioteca registro»:
