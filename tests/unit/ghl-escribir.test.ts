@@ -73,9 +73,9 @@ describe("etiquetas (POST y DELETE /contacts/{id}/tags)", () => {
 describe("crearOportunidadGhl (buscar y crear si no hay: decisión de Cristian, 6 nov)", () => {
   const base = { token: "t", locationId: "loc", contactId: "c1", pipelineId: "p1", etapaId: "e1", nombre: "Ana" };
 
-  it("si el contacto ya tiene una en ese pipeline, no crea otra", async () => {
-    const { f, llamadas } = falso([() => Response.json({ opportunities: [{ id: "o9", pipelineId: "p1", contactId: "c1" }] })]);
-    expect(await crearOportunidadGhl({ ...base, fetchImpl: f })).toEqual({ id: "o9", nueva: false });
+  it("si el contacto ya tiene una en ese pipeline y en esa columna, no hace nada más", async () => {
+    const { f, llamadas } = falso([() => Response.json({ opportunities: [{ id: "o9", pipelineId: "p1", pipelineStageId: "e1", contactId: "c1" }] })]);
+    expect(await crearOportunidadGhl({ ...base, fetchImpl: f })).toEqual({ id: "o9", nueva: false, movida: false });
     expect(llamadas).toHaveLength(1);
     expect(llamadas[0].url.pathname).toBe("/opportunities/search");
     expect(Object.fromEntries(llamadas[0].url.searchParams)).toMatchObject({ location_id: "loc", contact_id: "c1", pipeline_id: "p1" });
@@ -83,7 +83,7 @@ describe("crearOportunidadGhl (buscar y crear si no hay: decisión de Cristian, 
 
   it("si no tiene, la crea abierta en su pipeline y columna", async () => {
     const { f, llamadas } = falso([() => Response.json({ opportunities: [] }), () => Response.json({ opportunity: { id: "o1" } }, { status: 201 })]);
-    expect(await crearOportunidadGhl({ ...base, fetchImpl: f })).toEqual({ id: "o1", nueva: true });
+    expect(await crearOportunidadGhl({ ...base, fetchImpl: f })).toEqual({ id: "o1", nueva: true, movida: false });
     expect(llamadas[1].metodo).toBe("POST");
     expect(llamadas[1].url.pathname).toBe("/opportunities/");
     expect(llamadas[1].cabeceras.Version).toBe("2021-07-28");
@@ -92,8 +92,23 @@ describe("crearOportunidadGhl (buscar y crear si no hay: decisión de Cristian, 
 
   it("una oportunidad de otro pipeline no cuenta; sin columna, GHL elige la primera", async () => {
     const { f, llamadas } = falso([() => Response.json({ opportunities: [{ id: "o5", pipelineId: "otro" }] }), () => Response.json({ opportunity: { id: "o2" } })]);
-    expect(await crearOportunidadGhl({ ...base, etapaId: null, fetchImpl: f })).toEqual({ id: "o2", nueva: true });
+    expect(await crearOportunidadGhl({ ...base, etapaId: null, fetchImpl: f })).toEqual({ id: "o2", nueva: true, movida: false });
     expect(llamadas[1].cuerpo).not.toHaveProperty("pipelineStageId");
+  });
+
+  it("fase 3 (6 nov): si ya existe en otra columna del pipeline, la mueve a la de la Entrada (PUT, como la rama del workflow viejo)", async () => {
+    const { f, llamadas } = falso([() => Response.json({ opportunities: [{ id: "o9", pipelineId: "p1", pipelineStageId: "registrados" }] }), () => Response.json({ opportunity: { id: "o9" } })]);
+    expect(await crearOportunidadGhl({ ...base, fetchImpl: f })).toEqual({ id: "o9", nueva: false, movida: true });
+    expect(llamadas[1].metodo).toBe("PUT");
+    expect(llamadas[1].url.pathname).toBe("/opportunities/o9");
+    expect(llamadas[1].cabeceras.Version).toBe("2021-07-28");
+    expect(llamadas[1].cuerpo).toEqual({ pipelineStageId: "e1" });
+  });
+
+  it("sin columna en la Entrada, una que ya existe no se mueve", async () => {
+    const { f, llamadas } = falso([() => Response.json({ opportunities: [{ id: "o9", pipelineId: "p1", pipelineStageId: "registrados" }] })]);
+    expect(await crearOportunidadGhl({ ...base, etapaId: null, fetchImpl: f })).toEqual({ id: "o9", nueva: false, movida: false });
+    expect(llamadas).toHaveLength(1);
   });
 
   it("sin el permiso de oportunidades, el error lo dice", async () => {
