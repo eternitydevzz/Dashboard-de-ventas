@@ -355,6 +355,63 @@ export async function borrarEntrada(id: string) {
   });
 }
 
+// ---------- Entradas → GHL por la API (Plan GHL, fase 1, Cristian 6 nov 2026) ----------
+// «Qué hacer en GHL»: interruptor, campos unidos, pipeline y columna de GHL, etiqueta base, espera y campo de «completo».
+const idGhl = (x: unknown) => (typeof x === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(x.trim()) ? x.trim() : null);
+export type CambiosGhlEntrada = { activo: boolean; campos: Record<string, string>; pipeline_id: string | null; etapa_id: string | null; etiqueta_base: string; espera_seg: number; campo_completo: string };
+export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await entradaDelProyecto(id, proyecto.id);
+    const campos: Record<string, string> = {};
+    for (const [k, v] of Object.entries(c.campos && typeof c.campos === "object" ? c.campos : {})) {
+      const campo = String(k).trim().slice(0, 120);
+      const ghl = idGhl(v);
+      if (campo && ghl) campos[campo] = ghl;
+    }
+    const espera = Math.round(Number(c.espera_seg));
+    if (!Number.isFinite(espera) || espera < 0 || espera > 3600) throw new ErrorUsuario("La espera va de 0 a 3600 segundos.");
+    const pipeline = c.pipeline_id ? idGhl(c.pipeline_id) : null;
+    if (c.pipeline_id && !pipeline) throw new ErrorUsuario("El pipeline de GHL no es válido.");
+    const etapa = pipeline && c.etapa_id ? idGhl(c.etapa_id) : null;
+    const base = String(c.etiqueta_base ?? "").trim().slice(0, 80);
+    if (c.activo && !Object.keys(campos).length && !base && !pipeline) throw new ErrorUsuario("Para encender GHL, une al menos un campo, pon una etiqueta o elige un pipeline.");
+    if (c.activo) {
+      const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyecto.id).single();
+      if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Este proyecto no tiene GHL conectado (pestaña Integraciones GHL).");
+    }
+    await escribir(
+      db()
+        .from("entradas")
+        .update({ ghl_activo: !!c.activo, ghl_campos: campos, ghl_pipeline_id: pipeline, ghl_etapa_id: etapa, ghl_etiqueta_base: base || null, ghl_espera_seg: espera, ghl_campo_completo: String(c.campo_completo ?? "").trim().slice(0, 120) })
+        .eq("id", id),
+      "entradas"
+    );
+    refrescar();
+  });
+}
+
+// «Reintentar» un envío en rojo: vuelve a esperar con los intentos a cero; lo manda la siguiente lectura (≤ 1 min)
+export async function reintentarEnvioGhl(eventoId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: ev } = await db().from("webhook_eventos").select("id, entrada_id, lead_id, ghl_estado").eq("id", eventoId).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (!ev?.entrada_id || !ev.lead_id) throw new ErrorUsuario("Envío no encontrado.");
+    if (ev.ghl_estado !== "error") throw new ErrorUsuario("Este envío no está en error.");
+    // Todos los de ese lead en esa Entrada que estén en rojo vuelven juntos (es un solo envío a GHL)
+    await escribir(
+      db()
+        .from("webhook_eventos")
+        .update({ ghl_estado: "esperando", ghl_intentos: 0, ghl_error: null, ghl_enviar_en: new Date().toISOString() })
+        .eq("entrada_id", ev.entrada_id)
+        .eq("lead_id", ev.lead_id)
+        .eq("ghl_estado", "error"),
+      "webhook_eventos"
+    );
+    refrescar();
+  });
+}
+
 // ---------- GHL por API: calendarios de los closers (V2-3) ----------
 // El token solo se escribe; la pantalla nunca lo vuelve a enseñar entero.
 export async function guardarConexionGhl(token: string, locationId: string) {

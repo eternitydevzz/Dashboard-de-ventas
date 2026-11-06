@@ -5,7 +5,7 @@ import { Plus, Trash2, RefreshCw, Save } from "lucide-react";
 import { sinVaciar } from "@/components/sin-vaciar";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { Copiar } from "./cliente";
-import { borrarEntrada, crearEntrada, guardarEntrada, nuevaDireccionEntrada } from "./acciones";
+import { borrarEntrada, crearEntrada, guardarEntrada, guardarGhlEntrada, nuevaDireccionEntrada, reintentarEnvioGhl } from "./acciones";
 import { OPERADORES, type Regla } from "@/lib/entrada";
 import { confirmar } from "@/components/dialogos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
@@ -163,5 +163,150 @@ export function EditorEntrada({ entrada, pipelines }: { entrada: EntradaVista; p
         </button>
       </div>
     </div>
+  );
+}
+
+// ---------- Plan GHL, fase 1 (Cristian, 6 nov 2026): «Qué hacer en GHL» ----------
+// Lo que hacía el workflow con «Inbound Webhook», ahora por la API: contacto, campos, etiqueta y oportunidad.
+export type OpcionesGhl = {
+  campos: { id: string; name: string }[];
+  pipelines: { id: string; nombre: string; etapas: { id: string; nombre: string }[] }[];
+  error: string | null;
+};
+export type GhlDeEntrada = {
+  ghl_activo: boolean;
+  ghl_campos: Record<string, string>;
+  ghl_pipeline_id: string | null;
+  ghl_etapa_id: string | null;
+  ghl_etiqueta_base: string | null;
+  ghl_espera_seg: number;
+  ghl_campo_completo: string;
+};
+
+export function EditorGhlEntrada({
+  entradaId,
+  inicial,
+  camposEnvio,
+  opciones,
+  errores,
+}: {
+  entradaId: string;
+  inicial: GhlDeEntrada;
+  camposEnvio: string[];
+  opciones: OpcionesGhl | null;
+  errores: number;
+}) {
+  const { pendiente, error, ejecutar } = useAccion();
+  const [activo, setActivo] = useState(inicial.ghl_activo);
+  const [filas, setFilas] = useState<{ campo: string; id: string }[]>(Object.entries(inicial.ghl_campos ?? {}).map(([campo, id]) => ({ campo, id })));
+  const [pipeline, setPipeline] = useState(inicial.ghl_pipeline_id ?? "");
+  const [etapa, setEtapa] = useState(inicial.ghl_etapa_id ?? "");
+  const [base, setBase] = useState(inicial.ghl_etiqueta_base ?? "");
+  const [espera, setEspera] = useState(String(inicial.ghl_espera_seg ?? 60));
+  const [completo, setCompleto] = useState(inicial.ghl_campo_completo ?? "quiz_completed");
+  const lista = `campos-ghl-${entradaId}`;
+  const cambiarFila = (i: number, c: Partial<{ campo: string; id: string }>) => setFilas((fs) => fs.map((f, j) => (j === i ? { ...f, ...c } : f)));
+  const etapas = opciones?.pipelines.find((p) => p.id === pipeline)?.etapas ?? [];
+  const nombreCampo = (id: string) => opciones?.campos.find((c) => c.id === id)?.name;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="titulo-seccion">Qué hacer en GHL</div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" className="interruptor" checked={activo} disabled={!opciones} onChange={(e) => setActivo(e.target.checked)} /> Mandar a GHL
+        </label>
+      </div>
+      {errores > 0 && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{errores === 1 ? "1 envío no llegó" : `${errores} envíos no llegaron`} a GHL. Están en rojo abajo, con «Reintentar».</p>}
+      {!opciones ? (
+        <p className="text-sm text-texto-3">Este proyecto no tiene GHL conectado. Conéctalo en la pestaña «Integraciones GHL».</p>
+      ) : (
+        <>
+          <p className="text-xs text-texto-3">
+            El lead se guarda aquí al momento. Tras la espera, la app manda a GHL <b>un solo envío</b> con todo lo que ha llegado de esa persona: crea o actualiza el contacto, rellena los campos, pone la etiqueta
+            {base.trim() ? <> <code>{base.trim()}-completo</code> o <code>{base.trim()}-incompleto</code></> : " (si pones una base)"} y crea la oportunidad. Si falla, lo reintenta 5 veces y después avisa por email.
+          </p>
+          {opciones.error && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{opciones.error}</p>}
+
+          <div>
+            <div className="etiqueta-campo">Campos: lo que llega → campo de GHL (UTM incluidos)</div>
+            <datalist id={lista}>{camposEnvio.map((c) => <option key={c} value={c} />)}</datalist>
+            <ul className="space-y-2">
+              {filas.map((f, i) => (
+                <li key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <input className="campo" list={lista} placeholder="Campo del envío (p. ej. quiz.situacion)" value={f.campo} onChange={(e) => cambiarFila(i, { campo: e.target.value })} aria-label="Campo del envío" />
+                  <Desplegable className="campo" value={f.id} onChange={(e) => cambiarFila(i, { id: e.target.value })} aria-label="Campo de GHL">
+                    <option value="">Elige el campo de GHL</option>
+                    {f.id && !nombreCampo(f.id) && <option value={f.id}>{f.id} (no está en GHL)</option>}
+                    {opciones.campos.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Desplegable>
+                  <button type="button" className="rounded-md p-2 text-texto-3 hover:bg-mal-suave hover:text-mal" title="Quitar campo" onClick={() => setFilas((fs) => fs.filter((_, j) => j !== i))}>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button type="button" className="btn-secundario mt-2 text-xs" onClick={() => setFilas((fs) => [...fs, { campo: "", id: "" }])}>
+              <Plus className="h-3.5 w-3.5" /> Añadir campo
+            </button>
+          </div>
+
+          <div>
+            <div className="etiqueta-campo">Oportunidad en GHL (pipeline y columna)</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Desplegable className="campo" value={pipeline} onChange={(e) => { setPipeline(e.target.value); setEtapa(""); }} aria-label="Pipeline de GHL">
+                <option value="">Sin oportunidad</option>
+                {pipeline && !opciones.pipelines.some((p) => p.id === pipeline) && <option value={pipeline}>{pipeline} (no está en GHL)</option>}
+                {opciones.pipelines.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </Desplegable>
+              <Desplegable className="campo" value={etapa} disabled={!pipeline} onChange={(e) => setEtapa(e.target.value)} aria-label="Columna de GHL">
+                <option value="">Primera columna</option>
+                {etapa && !etapas.some((x) => x.id === etapa) && <option value={etapa}>{etapa} (no está en GHL)</option>}
+                {etapas.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+              </Desplegable>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <label className="block"><span className="etiqueta-campo">Etiqueta base</span><input className="campo" placeholder="Ej. Biblioteca-form" value={base} onChange={(e) => setBase(e.target.value)} /></label>
+            <label className="block"><span className="etiqueta-campo">Espera (segundos)</span><input className="campo" type="number" min={0} max={3600} value={espera} onChange={(e) => setEspera(e.target.value)} /></label>
+            <label className="block"><span className="etiqueta-campo">Completo si llega a true</span><input className="campo" list={lista} value={completo} onChange={(e) => setCompleto(e.target.value)} /></label>
+          </div>
+
+          {error && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{error}</p>}
+          <button
+            type="button"
+            className="btn-primario"
+            disabled={pendiente}
+            onClick={() =>
+              ejecutar(
+                () =>
+                  guardarGhlEntrada(entradaId, {
+                    activo,
+                    campos: Object.fromEntries(filas.filter((f) => f.campo.trim() && f.id).map((f) => [f.campo.trim(), f.id])),
+                    pipeline_id: pipeline || null,
+                    etapa_id: etapa || null,
+                    etiqueta_base: base,
+                    espera_seg: Number(espera),
+                    campo_completo: completo,
+                  }),
+                "Guardado lo de GHL"
+              )
+            }
+          >
+            <Save className="h-4 w-4" /> Guardar lo de GHL
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function ReintentarGhl({ eventoId }: { eventoId: string }) {
+  const { pendiente, ejecutar } = useAccion();
+  return (
+    <button type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => reintentarEnvioGhl(eventoId), "Se manda en la próxima lectura (menos de 1 min)")}>
+      <RefreshCw className="h-3.5 w-3.5" /> Reintentar
+    </button>
   );
 }

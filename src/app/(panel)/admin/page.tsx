@@ -8,7 +8,9 @@ import { Cabecera, Contenido, Seccion, Insignia, Avatar } from "@/components/ui"
 import { Plantilla, AnadirExistente, FormUsuario, FormProyecto, FormNuevoProyecto, LinkAgenda, Secreto } from "./cliente";
 import type { Perfil, Producto, Rol } from "@/lib/tipos";
 import { PLANTILLAS_GHL, CABECERA_SECRETO } from "@/lib/plantillas-ghl";
-import { NuevaEntrada, EditorEntrada } from "./entradas";
+import { NuevaEntrada, EditorEntrada, EditorGhlEntrada, ReintentarGhl, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
+import { camposGhl, pipelinesGhl } from "@/lib/ghl";
+import { descifrar } from "@/lib/cifrado";
 import { ConexionGhl, CalendarioCloser, UsuarioGhl } from "./ghl";
 import { reglasValidas } from "@/lib/entrada";
 import { cargarDatosPermisos } from "@/lib/permisos-datos";
@@ -36,7 +38,17 @@ const PESTANAS = [
   { v: "permisos", t: "Permisos" }, // H5: también el director con Administración
 ];
 
-type EventoEntrada = { id: string; entrada_id: string; lead_id: string | null; procesado: boolean; error: string | null; recibido_en: string; payload: Record<string, unknown> };
+type EventoEntrada = { id: string; entrada_id: string; lead_id: string | null; procesado: boolean; error: string | null; recibido_en: string; payload: Record<string, unknown>; ghl_estado?: "esperando" | "ok" | "error" | null; ghl_intentos?: number; ghl_error?: string | null };
+
+// Si GHL falla al pedir campos o pipelines, la pestaña se ve igual y el formulario lo dice
+async function cargarOpcionesGhl(token: string, locationId: string): Promise<OpcionesGhl> {
+  const [c, p] = await Promise.allSettled([camposGhl({ token, locationId }), pipelinesGhl({ token, locationId })]);
+  return {
+    campos: c.status === "fulfilled" ? [...c.value].sort((a, b) => a.name.localeCompare(b.name)) : [],
+    pipelines: p.status === "fulfilled" ? p.value.map((x) => ({ id: x.id, nombre: x.name, etapas: (x.stages ?? []).map((s) => ({ id: s.id, nombre: s.name })) })) : [],
+    error: c.status === "rejected" || p.status === "rejected" ? "No se pudieron leer los campos o pipelines de GHL. Recarga en un momento." : null,
+  };
+}
 
 // Nombres de campo que han llegado (también los de dentro de objetos, como «quiz.inversion»)
 function camposDe(eventos: EventoEntrada[]) {
@@ -101,20 +113,24 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   }
 
   // Entradas: solo se cargan en su pestaña
-  let entradas: { id: string; nombre: string; token: string; activa: boolean; pipeline_id: string | null; etapa_id: string | null; reglas: unknown }[] = [];
+  let entradas: ({ id: string; nombre: string; token: string; activa: boolean; pipeline_id: string | null; etapa_id: string | null; reglas: unknown } & Partial<GhlDeEntrada>)[] = [];
   let eventosEntrada: EventoEntrada[] = [];
   let pipes: { id: string; nombre: string; etapas: { id: string; nombre: string }[] }[] = [];
+  // Plan GHL, fase 1: campos y pipelines de GHL para «Qué hacer en GHL» (null = el proyecto no tiene GHL conectado)
+  let opcionesGhl: OpcionesGhl | null = null;
   if (tab === "entradas") {
-    const [{ data: en }, { data: pl }] = await Promise.all([
+    const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
       db().from("entradas").select("*").eq("proyecto_id", proyecto.id).order("creado_en"),
       db().from("pipelines").select("id, nombre, etapas(id, nombre, orden)").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden"),
+      db().from("proyectos").select("ghl_location_id, ghl_token").eq("id", proyecto.id).single(),
     ]);
     entradas = en ?? [];
     pipes = ((pl ?? []) as { id: string; nombre: string; etapas: { id: string; nombre: string; orden: number }[] }[]).map((p) => ({ ...p, etapas: [...p.etapas].sort((a, b) => a.orden - b.orden) }));
     if (entradas.length) {
-      const { data: ev } = await db().from("webhook_eventos").select("id, entrada_id, lead_id, procesado, error, recibido_en, payload").in("entrada_id", entradas.map((x) => x.id)).order("recibido_en", { ascending: false }).limit(200);
+      const { data: ev } = await db().from("webhook_eventos").select("id, entrada_id, lead_id, procesado, error, recibido_en, payload, ghl_estado, ghl_intentos, ghl_error").in("entrada_id", entradas.map((x) => x.id)).order("recibido_en", { ascending: false }).limit(200);
       eventosEntrada = (ev ?? []) as EventoEntrada[];
     }
+    if (pg?.ghl_token && pg.ghl_location_id) opcionesGhl = await cargarOpcionesGhl(descifrar(pg.ghl_token, "el token de GHL"), pg.ghl_location_id);
   }
 
   return (
@@ -282,6 +298,23 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                       pipelines={pipes}
                     />
                     <div className="mt-5 border-t border-borde pt-4">
+                      <EditorGhlEntrada
+                        entradaId={en.id}
+                        inicial={{
+                          ghl_activo: en.ghl_activo ?? false,
+                          ghl_campos: en.ghl_campos ?? {},
+                          ghl_pipeline_id: en.ghl_pipeline_id ?? null,
+                          ghl_etapa_id: en.ghl_etapa_id ?? null,
+                          ghl_etiqueta_base: en.ghl_etiqueta_base ?? null,
+                          ghl_espera_seg: en.ghl_espera_seg ?? 60,
+                          ghl_campo_completo: en.ghl_campo_completo ?? "quiz_completed",
+                        }}
+                        camposEnvio={camposDe(evs)}
+                        opciones={opcionesGhl}
+                        errores={evs.filter((x) => x.ghl_estado === "error").length}
+                      />
+                    </div>
+                    <div className="mt-5 border-t border-borde pt-4">
                       <div className="titulo-seccion mb-2">Últimos envíos recibidos ({evs.length})</div>
                       {evs.length === 0 ? (
                         <p className="text-sm text-texto-3">Todavía no ha llegado nada a esta dirección.</p>
@@ -294,10 +327,20 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                                   <span className="text-xs text-texto-3">{fechaHora(x.recibido_en, proyecto)}</span>
                                   <span className="truncate">{String(x.payload?.email || x.payload?.phone || x.payload?.name || "—")}</span>
                                   {x.procesado ? <Insignia tono="ok">Guardado</Insignia> : <Insignia tono="mal">{x.error ?? "Error"}</Insignia>}
+                                  {x.ghl_estado === "ok" && <Insignia tono="ok">GHL ok</Insignia>}
+                                  {x.ghl_estado === "esperando" && <Insignia>{x.ghl_intentos ? `GHL: reintento ${x.ghl_intentos + 1} de 5` : "GHL: esperando"}</Insignia>}
+                                  {x.ghl_estado === "error" && <Insignia tono="mal">GHL: error</Insignia>}
                                   {x.lead_id && <Link href={`/leads/${x.lead_id}`} className="ml-auto text-xs text-primario hover:underline">Ver lead</Link>}
                                 </summary>
+                                {x.ghl_estado === "esperando" && x.ghl_error && <p className="border-t border-borde px-3 py-2 text-xs text-texto-3">Último fallo: {x.ghl_error}</p>}
                                 <pre className="max-h-72 overflow-auto border-t border-borde p-3 text-xs">{JSON.stringify(x.payload, null, 2)}</pre>
                               </details>
+                              {x.ghl_estado === "error" && (
+                                <div className="flex flex-wrap items-center gap-2 rounded-b-lg border-t border-borde bg-mal-suave px-3 py-2 text-xs text-mal">
+                                  <span className="min-w-0 flex-1 break-words">No llegó a GHL tras {x.ghl_intentos ?? 0} intentos: {x.ghl_error ?? "sin motivo"}</span>
+                                  <ReintentarGhl eventoId={x.id} />
+                                </div>
+                              )}
                             </li>
                           ))}
                         </ul>
