@@ -4,6 +4,7 @@ import { guardarLeads, telefonoClave } from "@/lib/leads";
 import { dentroDelLimite } from "@/lib/limite";
 import { aplicarReglas, interpretar, reglasValidas } from "@/lib/entrada";
 import { crearEjecuciones } from "@/lib/workflows-motor";
+import { ipDelEnvio } from "@/lib/ip-envio";
 import type { Proyecto } from "@/lib/tipos";
 
 // Dirección de una landing («Entradas» en Administración). La landing manda aquí el mismo
@@ -25,7 +26,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
 
-type Entrada = { id: string; proyecto_id: string; nombre: string; pipeline_id: string | null; etapa_id: string | null; reglas: unknown; activa: boolean; ghl_activo?: boolean; ghl_espera_seg?: number | null };
+type Entrada = { id: string; proyecto_id: string; nombre: string; pipeline_id: string | null; etapa_id: string | null; reglas: unknown; activa: boolean; ghl_activo?: boolean; ghl_espera_seg?: number | null; envia_desde?: string | null };
 
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhooks/entrada/[token]">) {
   const { token } = await ctx.params;
@@ -72,7 +73,10 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
 
     // 3 · Las reglas deciden pipeline, columna y etiquetas (como el workflow de GHL)
     const destino = aplicarReglas(cuerpo, reglasValidas(entrada.reglas), { pipeline_id: entrada.pipeline_id, etapa_id: entrada.etapa_id });
-    const lead = { ...r.lead, etiquetas: [...new Set([...r.lead.etiquetas, ...destino.etiquetas])], extra: { fuente: r.fuente, evento: r.evento, seguimiento: r.seguimiento, quiz_score: r.quiz_score, datos: r.datos } };
+    // Plan GHL, punto 3 (Cristian, 7 nov): la IP de la persona, en el seguimiento (ver src/lib/ip-envio.ts)
+    const ip = ipDelEnvio({ cuerpo, cabecera: request.headers.get("x-forwarded-for"), enviaDesde: entrada.envia_desde ?? null });
+    const seguimiento = ip ? { ...r.seguimiento, ip } : r.seguimiento;
+    const lead = { ...r.lead, etiquetas: [...new Set([...r.lead.etiquetas, ...destino.etiquetas])], extra: { fuente: r.fuente, evento: r.evento, seguimiento, quiz_score: r.quiz_score, datos: r.datos } };
     await guardarLeads(proyecto, [lead], {
       pipelineId: destino.pipeline_id,
       etapaId: destino.etapa_id,
