@@ -4,6 +4,7 @@ import { FlaskConical, RefreshCw, Square, Undo2, Zap } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
+import { coincidenTexto } from "@/lib/workflows-vista";
 import { crearWorkflowDePrueba, devolverAHoy, pararWorkflow, pasarWorkflowAReal, reintentarEjecuciones } from "./acciones";
 
 // Workflows, 4a-1 (docs/plan-workflows.md, Cristian 7 nov 2026): en la tarjeta de cada Entrada, el botón
@@ -63,7 +64,7 @@ export function LineaWorkflow({ entradaId, workflow, puedeProbar }: { entradaId:
         <span className="min-w-0 flex-1">
           <FlaskConical className="mr-1 inline h-4 w-4" />
           <b>Workflow en prueba:</b>{" "}
-          {terminados ? <>{r.coinciden} de {terminados} {terminados === 1 ? "lead coincide" : "leads coinciden"}{bien ? " ✓" : ""}</> : "esperando el primer lead"}
+          {terminados ? <>{coincidenTexto(r.coinciden, terminados, "lead")}{bien ? " ✓" : ""}</> : "esperando el primer lead"}
           {r.esperando ? ` · ${r.esperando} esperando` : ""}
           {r.errores ? ` · ${r.errores} con error` : ""}
         </span>
@@ -78,7 +79,7 @@ export function LineaWorkflow({ entradaId, workflow, puedeProbar }: { entradaId:
           disabled={pendiente}
           onClick={() =>
             void confirmar(
-              `¿Pasar a real? Desde ahora el workflow manda a GHL y «Qué hacer en GHL» de la Entrada se apaga. Criterio acordado: 3 días en prueba, 20 leads de registro, todos los de agenda y 0 diferencias (ahora: ${r.coinciden} de ${terminados} coinciden). Se puede volver a lo de hoy cuando quieras.`
+              `¿Pasar a real? Desde ahora el workflow manda a GHL y «Qué hacer en GHL» de la Entrada se apaga. Criterio acordado: 3 días en prueba, 20 leads de registro, todos los de agenda y 0 diferencias (ahora: ${coincidenTexto(r.coinciden, terminados)}). Se puede volver a lo de hoy cuando quieras.`
             ).then((ok) => ok && ejecutar(() => pasarWorkflowAReal(workflow.id), "El workflow ya manda a GHL"))
           }
         >
