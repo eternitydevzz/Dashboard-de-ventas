@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/datos";
 import { descifrar } from "@/lib/cifrado";
 import { columnaCitasGhl, datosAgendaGhl, guardarLeads, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
+import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
 import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/lib/canal";
 import { mismoNombre } from "@/lib/formato";
@@ -218,10 +219,13 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       enApp.set(ev.id, creada as CitaApp); // si sale en otro calendario de esta misma lectura, ya no se crea dos veces
       await db().from("citas_sin_lead").update({ estado: "resuelta" }).eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ev.id);
       if (estado === "pendiente" || estado === "confirmada") {
-        // Plan GHL (Cristian, 16 oct): un lead que ya compró sigue «vendido» aunque reserve otra llamada
+        // Plan GHL (Cristian, 16 oct): un lead que ya compró sigue «vendido» aunque reserve otra llamada.
+        // C11 punto 15 (Callers, 7 nov): si estaba en confirma agenda o descartado, pasa a «reagendado» con su etiqueta.
         const { data: l } = await db().from("leads").select("estado_caller").eq("id", leadId).maybeSingle();
-        if (l?.estado_caller !== "vendido") {
-          await db().from("leads").update({ estado_caller: "agendado", ...(closerId ? { closer_id: closerId } : {}), llamar_en: null }).eq("id", leadId);
+        const tras = estadoTrasCitaGhl(l?.estado_caller);
+        if (tras) {
+          await db().from("leads").update({ estado_caller: tras.estado, ...(closerId ? { closer_id: closerId } : {}), llamar_en: null }).eq("id", leadId);
+          if (tras.etiqueta) await ponerEtiqueta(leadId, tras.etiqueta);
           if (calendario) for (const d of destinosCanal) await moverAAgendadosOrganico(proyecto.id, leadId, d.nombre);
           else await moverAAgendadosOrganico(proyecto.id, leadId, pipelineCita);
         }
@@ -273,8 +277,8 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
   return r;
 }
 
-// Añade una etiqueta al lead si no la tiene (sin tocar las demás)
-async function ponerEtiqueta(leadId: string, etiqueta: string) {
+// Añade una etiqueta al lead si no la tiene (sin tocar las demás). También la usa el webhook de citas.
+export async function ponerEtiqueta(leadId: string, etiqueta: string) {
   const { data } = await db().from("leads").select("etiquetas").eq("id", leadId).maybeSingle();
   const actuales = (data?.etiquetas ?? []) as string[];
   if (!data || actuales.includes(etiqueta)) return;

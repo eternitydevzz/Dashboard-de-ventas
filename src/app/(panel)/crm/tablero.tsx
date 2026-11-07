@@ -45,7 +45,7 @@ import { OfertaChip } from "@/components/oferta-chip";
 import { RepartirLeads } from "@/components/repartir-leads";
 import { Modal } from "@/components/modal";
 import { useToast } from "@/components/toasts";
-import { exigirOk } from "@/lib/resultado-cliente";
+import { avisoDe, exigirOk } from "@/lib/resultado-cliente";
 import Papa from "papaparse";
 import { CAMPOS, proponerCampo, type Campo } from "@/lib/csv";
 import type { Etapa, EstadoCaller, Pipeline, Producto, TipoPipeline } from "@/lib/tipos";
@@ -193,8 +193,10 @@ export function TableroCrm({
     setError("");
     iniciar(async () => {
       try {
-        await fn();
+        const r = await fn();
         if (mensaje) toast(mensaje);
+        const aviso = avisoDe(r);
+        if (aviso) toast(aviso, "error");
       } catch (e) {
         const texto = e instanceof Error ? e.message : "Algo falló.";
         setError(texto);
@@ -234,7 +236,7 @@ export function TableroCrm({
     setMoviendo((m) => ({ ...m, [id]: etapaId }));
     ejecutar(async () => {
       try {
-        await exigirOk(accion());
+        return await exigirOk(accion());
       } catch (e) {
         setMoviendo((m) => {
           const c = { ...m };

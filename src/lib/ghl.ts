@@ -191,10 +191,10 @@ export async function camposGhl(o: { token: string; locationId: string; fetchImp
 // · B (7 nov): solo se mueve si se pide (`mover`: la Entrada fija la columna). Si no, la que ya existe se queda donde
 //   está: al reservar, GHL la pasa a «Agendan» y un cuestionario reenviado no debe sacarla de ahí.
 type Json = Record<string, unknown>;
-async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "PUT" | "DELETE", ruta: string, cuerpo: Json, permiso: string) {
+async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "PUT" | "DELETE", ruta: string, cuerpo: Json, permiso: string, version = "2021-07-28") {
   const res = await fetchImpl(`${GHL_BASE}${ruta}`, {
     method: metodo,
-    headers: { Authorization: `Bearer ${token}`, Version: "2021-07-28", Accept: "application/json", "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${token}`, Version: version, Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(cuerpo),
     cache: "no-store",
   });
@@ -226,6 +226,20 @@ export async function crearOActualizarContactoGhl(o: {
   const c = j?.contact;
   if (typeof c?.id !== "string") throw new Error("GHL contestó sin id de contacto.");
   return { id: c.id, nuevo: j?.new === true, etiquetas: Array.isArray(c.tags) ? c.tags.map(String) : null };
+}
+
+// Encargo de Callers (C11 punto 13, Cristian 7 nov 2026): crear la cita en el calendario de GHL del closer cuando el
+// caller agenda en la app. Especificación oficial (apps/calendars.json): POST /calendars/events/appointments, Version
+// 2021-04-15, permiso calendars/events.write; obligatorios calendarId, locationId, contactId y startTime; devuelve `id`.
+// Sin `toNotify`: los avisos del calendario de GHL (email y SMS) se mandan como si el lead reservara solo (Cristian).
+export async function crearCitaGhl(o: { token: string; locationId: string; calendarId: string; contactId: string; inicio: Date; minutos: number; titulo: string; usuarioId?: string | null; fetchImpl?: Fetch }): Promise<string> {
+  const fin = new Date(o.inicio.getTime() + Math.max(5, o.minutos) * 60_000);
+  const cuerpo: Json = { calendarId: o.calendarId, locationId: o.locationId, contactId: o.contactId, startTime: o.inicio.toISOString(), endTime: fin.toISOString(), title: o.titulo.slice(0, 200), appointmentStatus: "confirmed" };
+  if (o.usuarioId) cuerpo.assignedUserId = o.usuarioId;
+  const j = await escribir(o.fetchImpl ?? fetch, o.token, "POST", "/calendars/events/appointments", cuerpo, "calendars/events.write", "2021-04-15");
+  const id = j?.id ?? j?.appointment?.id;
+  if (typeof id !== "string" || !id) throw new Error("GHL contestó sin id de cita.");
+  return id;
 }
 
 export async function anadirEtiquetasGhl(o: { token: string; contactId: string; etiquetas: string[]; fetchImpl?: Fetch }) {

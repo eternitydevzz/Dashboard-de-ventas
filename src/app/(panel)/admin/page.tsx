@@ -25,6 +25,7 @@ import { TablaPermisos, type DatosPermisos } from "./permisos";
 import { FichaPersona } from "@/app/(panel)/equipo/ficha";
 import { cargarEquipo } from "@/lib/equipo";
 import { HorariosEquipo, FormAjustes } from "./horarios";
+import { RotacionClosers } from "./rotacion-closers";
 import { RepartoPorcentaje } from "./reparto-pct";
 import { EditorTramos } from "./tramos";
 import { EditorPreguntas } from "./preguntas-reporte";
@@ -149,7 +150,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   if (tab === "permisos" || tab === "equipo") permisos = await cargarDatosPermisos(perfil, proyecto.id);
 
   const [{ data: miembros }, { data: productos }, { data: eventos }] = await Promise.all([
-    db().from("miembros_proyecto").select("orden, horario, calendario, reparto_pct, perfiles(*)").eq("proyecto_id", proyecto.id).order("orden"),
+    db().from("miembros_proyecto").select("orden, horario, calendario, reparto_pct, rotacion_pct, rotacion_cuenta, perfiles(*)").eq("proyecto_id", proyecto.id).order("orden"),
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).order("orden"),
     db().from("webhook_eventos").select("id, tipo, procesado, error, recibido_en").eq("proyecto_id", proyecto.id).order("recibido_en", { ascending: false }).limit(15),
   ]);
@@ -159,7 +160,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const miembroDe = new Map(eq.miembros.filter((x) => x.perfil_id).map((x) => [x.perfil_id as string, x]));
   const rango: Record<Rol, number> = { caller: 1, closer: 2, director: 3, ceo: 4 };
   const rolesQuePuedoDar = (["closer", "caller", "director", "ceo"] as Rol[]).filter((r) => rango[r] <= rango[perfil.rol]);
-  const filaDe = new Map(((miembros ?? []) as unknown as { horario: unknown; calendario: unknown; reparto_pct: number; perfiles: Perfil }[]).map((m) => [m.perfiles.id, m]));
+  const filaDe = new Map(((miembros ?? []) as unknown as { horario: unknown; calendario: unknown; reparto_pct: number; rotacion_pct: number; rotacion_cuenta: number; perfiles: Perfil }[]).map((m) => [m.perfiles.id, m]));
   const calendarioGeneral = ajustesValidos(proyecto.calendario);
   // Personas de otros proyectos que se pueden añadir a este (solo el CEO)
   let deFuera: { id: string; nombre: string; rol: string }[] = [];
@@ -292,6 +293,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                 soloHorario={proyecto.reparto_solo_horario}
                 callers={gente.filter((g) => g.rol === "caller" && g.activo && !g.es_prueba).map((g) => ({ id: g.id, nombre: g.nombre, pct: Number(filaDe.get(g.id)?.reparto_pct ?? 0), horario: !!horarioValido(filaDe.get(g.id)?.horario) }))}
               />
+            </Seccion>
+            <Seccion titulo="Rotación de closers («Agendado» del caller)">
+              <RotacionClosers closers={gente.filter((g) => g.rol === "closer" && g.activo && !g.es_prueba).map((g) => ({ id: g.id, nombre: g.nombre, pct: Number(filaDe.get(g.id)?.rotacion_pct ?? 0), cuenta: Number(filaDe.get(g.id)?.rotacion_cuenta ?? 0), horario: !!horarioValido(filaDe.get(g.id)?.horario) }))} />
             </Seccion>
             <Seccion titulo={`Horarios del equipo (hora de ${proyecto.zona_horaria})`} className="xl:col-span-2">
               <p className="mb-3 text-xs text-texto-3">Callers y closers ponen el suyo al entrar y lo cambian en «Mi perfil»; desde aquí puedes cambiar el de cualquiera. Los días sueltos (vacaciones, festivos) mandan sobre la semana.</p>
