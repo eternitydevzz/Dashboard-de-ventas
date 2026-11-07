@@ -11,6 +11,7 @@ import { cifrar, descifrar } from "@/lib/cifrado";
 import { reglasValidas } from "@/lib/entrada";
 import { datosLandingValidos, type DatosLanding } from "@/lib/entradas-panel";
 import { enviosDeEntrada, VER_MAS } from "@/lib/entradas-datos";
+import { workflowDeEntrada, type EntradaParaWorkflow } from "@/lib/workflows";
 import { SECCIONES_TODAS, NUNCA, ROLES_PERMISO, seccionesPermitidas } from "@/lib/permisos";
 import type { RolPermiso } from "@/lib/permisos-constantes";
 import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
@@ -475,6 +476,55 @@ async function validarGhl(proyectoId: string, c: CambiosGhlEntrada) {
       ghl_campo_completo: String(c.campo_completo ?? "").trim().slice(0, 120),
     };
   }
+}
+
+// ---------- Workflows, 4a-1 (docs/plan-workflows.md, Cristian 7 nov 2026) ----------
+// «Probar como workflow»: crea el workflow de la Entrada desde su «Qué hacer en GHL», en MODO PRUEBA (no llama a GHL:
+// solo compara con lo de hoy). Uno encendido por Entrada.
+export async function crearWorkflowDePrueba(entradaId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: en } = await db()
+      .from("entradas")
+      .select("id, nombre, ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_oportunidades, ghl_etiqueta_base, ghl_etiquetas_extra, ghl_espera_seg, ghl_campo_completo")
+      .eq("id", entradaId)
+      .eq("proyecto_id", proyecto.id)
+      .maybeSingle<EntradaParaWorkflow>();
+    if (!en) throw new ErrorUsuario("Entrada no encontrada.");
+    const { data: ya } = await db().from("workflows").select("id").eq("entrada_id", en.id).eq("encendido", true).limit(1);
+    if (ya?.length) throw new ErrorUsuario("Esta Entrada ya tiene un workflow en marcha.");
+    const w = workflowDeEntrada(en);
+    await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre: w.nombre.slice(0, 120), disparador: w.disparador, entrada_id: en.id, pasos: w.pasos, modo: "prueba" }), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// «Parar la prueba»: el workflow deja de recibir leads y lo que esperaba queda «parada»
+export async function pararWorkflow(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: w } = await db().from("workflows").select("id").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (!w) throw new ErrorUsuario("Workflow no encontrado.");
+    await escribir(db().from("workflows").update({ encendido: false, actualizado_en: new Date().toISOString() }).eq("id", workflowId), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// «Reintentar» las ejecuciones en error de un workflow: vuelven a esperar con los intentos a cero
+export async function reintentarEjecuciones(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: w } = await db().from("workflows").select("id").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (!w) throw new ErrorUsuario("Workflow no encontrado.");
+    await escribir(
+      db().from("workflow_ejecuciones").update({ estado: "esperando", intentos: 0, error: null, siguiente_en: new Date().toISOString() }).eq("workflow_id", workflowId).eq("estado", "error"),
+      "workflow_ejecuciones"
+    );
+    refrescar();
+    return { ok: true as const };
+  });
 }
 
 // «Reintentar» un envío en rojo: vuelve a esperar con los intentos a cero; lo manda la siguiente lectura (≤ 1 min)

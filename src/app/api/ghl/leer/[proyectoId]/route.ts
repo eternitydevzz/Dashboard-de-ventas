@@ -6,6 +6,7 @@ import { sincronizarCalendarios } from "@/lib/ghl-sync";
 import { leerLeadsGhl } from "@/lib/ghl-leads";
 import { descifrar } from "@/lib/cifrado";
 import { enviarPendientesGhl, type ResultadoEnvios } from "@/lib/ghl-envios";
+import { avanzarEjecuciones } from "@/lib/workflows-motor";
 import type { Proyecto } from "@/lib/tipos";
 
 // Plan GHL, fase 3 (Cristian, 16 oct 2026): el programador de Supabase llama aquí cada 30 s para leer las citas
@@ -42,6 +43,13 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
       if (envios.errores.length) console.error("[ghl-leer] envíos", proyectoId, envios.errores.slice(0, 3).join(" | "));
     } catch (e) {
       console.error("[ghl-leer] envíos", proyectoId, e instanceof Error ? e.message : e);
+    }
+    // Workflows, 4a-1 (7 nov 2026): avanzan los que ya tocan (en modo prueba no llaman a GHL). Un fallo no para la lectura.
+    try {
+      const wf = await avanzarEjecuciones(proyectoId);
+      if (wf.errores.length) console.error("[ghl-leer] workflows", proyectoId, wf.errores.slice(0, 3).join(" | "));
+    } catch (e) {
+      console.error("[ghl-leer] workflows", proyectoId, e instanceof Error ? e.message : e);
     }
     return leerLeads(proyectoId);
   };

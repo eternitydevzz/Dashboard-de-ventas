@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { guardarLeads, telefonoClave } from "@/lib/leads";
 import { dentroDelLimite } from "@/lib/limite";
 import { aplicarReglas, interpretar, reglasValidas } from "@/lib/entrada";
+import { crearEjecuciones } from "@/lib/workflows-motor";
 import type { Proyecto } from "@/lib/tipos";
 
 // Dirección de una landing («Entradas» en Administración). La landing manda aquí el mismo
@@ -88,6 +89,15 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
     // si llega el cuestionario; lo manda la lectura de cada 60 s (src/lib/ghl-envios.ts), un solo envío por lead.
     const ghl = entrada.ghl_activo && guardado?.id ? { ghl_estado: "esperando", ghl_enviar_en: new Date(Date.now() + (entrada.ghl_espera_seg ?? 60) * 1000).toISOString() } : {};
     if (evento) await db().from("webhook_eventos").update({ procesado: true, lead_id: guardado?.id ?? null, ...ghl }).eq("id", evento.id);
+    // 6 · Workflows, 4a-1 (Cristian, 7 nov 2026): si la Entrada tiene un workflow encendido, se crea su ejecución.
+    // Un fallo aquí NUNCA cambia la respuesta: el lead ya está guardado y lo de hoy sigue igual.
+    if (guardado?.id) {
+      try {
+        await crearEjecuciones({ proyectoId: proyecto.id, entradaId: entrada.id, leadId: guardado.id, envio: cuerpo });
+      } catch (e) {
+        console.error("[entrada] workflow:", e instanceof Error ? e.message : e);
+      }
+    }
     return responder({ ok: true });
   } catch (e) {
     console.error("[entrada] error:", e);
