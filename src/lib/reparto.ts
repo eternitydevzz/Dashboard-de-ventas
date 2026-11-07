@@ -9,7 +9,8 @@ export const MODOS_REPARTO: { v: ModoReparto; t: string; d: string }[] = [
   { v: "tope", t: "Con tope", d: "Nadie pasa de X leads sin trabajar (nuevos, no contesta y llamar luego)" },
 ];
 // Estados que cuentan como «sin trabajar» para el tope (criterio de Claude, apuntado en el plan)
-export const SIN_TRABAJAR = ["nuevo", "no_contesta", "llamar_luego"];
+// C11 (7 nov): los que aún hay que trabajar (llamar o escribir); criterio de Claude, apuntado en el plan
+export const SIN_TRABAJAR = ["nuevo", "llamado", "wsp_enviado", "no_responde", "seguimiento", "llamar_luego"];
 
 export type OpcionesReparto = { modo: ModoReparto; n?: number; porPersona?: number; tope?: number };
 

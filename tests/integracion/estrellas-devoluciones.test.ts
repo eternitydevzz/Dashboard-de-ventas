@@ -1,7 +1,7 @@
 // V2-0: estrellas del caller y del closer, y devoluciones.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { agendaPorLink, borrarEscenario, como, crearEscenario, db, falla, formulario, ok, type Escenario } from "../apoyo/escenario";
-import { marcarLinkEnviado, registrarLlamada, registrarVenta } from "@/app/(panel)/leads/acciones";
+import { registrarLlamada, registrarVenta } from "@/app/(panel)/leads/acciones";
 import { cambiarEstadoCita } from "@/app/(panel)/closer/acciones";
 import { registrarCobro, registrarDevolucion } from "@/app/(panel)/ventas/acciones";
 
@@ -16,23 +16,21 @@ const lead = async (id: string) => (await db.from("leads").select("*").eq("id", 
 const citaDe = async (leadId: string) => (await db.from("citas").select("*").eq("lead_id", leadId).order("creado_en", { ascending: false }).limit(1).single()).data!;
 
 describe("Estrellas del caller", () => {
-  it("«No contesta» pone 1 estrella sola", async () => {
+  it("C11: «Llamado» no toca las estrellas (F2: antes «No contesta» ponía 1★ encima)", async () => {
     como(e, e.p.callerA);
-    await ok(registrarLlamada(e.leads.LeadA, "no_contesta", ""));
-    expect((await lead(e.leads.LeadA)).estrellas_caller).toBe(1);
+    await ok(registrarLlamada(e.leads.LeadA, "llamado", ""));
+    expect((await lead(e.leads.LeadA)).estrellas_caller).toBeNull();
   });
-  it("«Llamar luego» y «No interesa» exigen elegir de 2 a 5", async () => {
+  it("«Llamar luego», «No interesa» y «Seguimiento» exigen elegir de 2 a 5", async () => {
     como(e, e.p.callerA);
-    await falla(registrarLlamada(e.leads.LeadA, "llamar_luego", "", "2026-10-20T10:00"), /de 2 a 5/);
-    await falla(registrarLlamada(e.leads.LeadA, "no_interesa", "", undefined, 1), /de 2 a 5/);
-    await falla(registrarLlamada(e.leads.LeadA, "no_interesa", "", undefined, 6), /de 2 a 5/);
-    await ok(registrarLlamada(e.leads.LeadA, "llamar_luego", "", "2026-10-20T10:00", 4));
+    await falla(registrarLlamada(e.leads.LeadA, "llamar_luego", ""), /de 2 a 5/);
+    await falla(registrarLlamada(e.leads.LeadA, "no_interesa", "", 1), /de 2 a 5/);
+    await falla(registrarLlamada(e.leads.LeadA, "seguimiento", "", 6), /de 2 a 5/);
+    await ok(registrarLlamada(e.leads.LeadA, "llamar_luego", "", 4));
     expect((await lead(e.leads.LeadA)).estrellas_caller).toBe(4);
   });
-  it("al enviar el link son obligatorias y pasan a la cita que llega de GHL (4.4, 11 oct)", async () => {
+  it("las estrellas del caller pasan a la cita que llega de GHL", async () => {
     como(e, e.p.callerA);
-    await falla(marcarLinkEnviado(e.leads.LeadA, undefined as never), /de 2 a 5/);
-    expect((await lead(e.leads.LeadA)).estrellas_caller).toBe(4); // no se tocó nada
     await agendaPorLink(e, e.leads.LeadA, e.p.callerA, e.p.closerA.id, "2026-10-21T10:00", 5);
     expect((await citaDe(e.leads.LeadA)).estrellas_caller).toBe(5);
     expect((await lead(e.leads.LeadA)).estrellas_caller).toBe(5);

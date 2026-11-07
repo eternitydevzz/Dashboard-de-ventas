@@ -42,10 +42,11 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
       rol === "caller"
         ? {
             llamadas: a.filter((x) => x.tipo === "llamada").length,
-            no_responden: a.filter((x) => x.tipo === "llamada" && x.resultado === "no_contesta").length,
+            // C11: «No responde» (y «No contesta» del historial de antes del 7 nov)
+            no_responden: a.filter((x) => x.resultado === "no_responde" || (x.tipo === "llamada" && x.resultado === "no_contesta")).length,
             agendas: agendas ?? 0,
             whatsapps: a.filter((x) => x.tipo === "whatsapp").length,
-            seguimientos: a.filter((x) => x.tipo === "llamada" && x.resultado === "llamar_luego").length,
+            seguimientos: a.filter((x) => x.resultado === "seguimiento" || x.resultado === "llamar_luego").length, // C11: Seguimiento y Llamar luego
           }
         : {
             llamadas_realizadas: c.filter((x) => ["cerrada", "seguimiento", "perdida"].includes(x.estado)).length,

@@ -93,12 +93,12 @@ describe("Citas", () => {
 });
 
 describe("Caller: llamar luego y volver a nuevo", () => {
-  it("«llamar luego» guarda la hora en la zona del proyecto y «volver a nuevo» la borra", async () => {
+  it("C11: «llamar luego» ya no guarda hora (punto 11) y «volver a nuevo» lo devuelve a «Leads»", async () => {
     como(e, e.p.callerA);
-    await ok(registrarLlamada(e.leads.LeadA, "llamar_luego", "Me dijo que a las 5", "2026-10-15T17:00", 3));
+    await ok(registrarLlamada(e.leads.LeadA, "llamar_luego", "Me dijo que a las 5", 3));
     let l = await leerLead(e.leads.LeadA);
     expect(l.estado_caller).toBe("llamar_luego");
-    expect(new Date(l.llamar_en).toISOString()).toBe("2026-10-15T21:00:00.000Z");
+    expect(l.llamar_en).toBeNull();
     await ok(volverANuevo(e.leads.LeadA));
     l = await leerLead(e.leads.LeadA);
     expect(l.estado_caller).toBe("nuevo");
@@ -106,7 +106,7 @@ describe("Caller: llamar luego y volver a nuevo", () => {
   });
   it("«no interesa» manda el lead a «Descartados»", async () => {
     como(e, e.p.callerA);
-    await ok(registrarLlamada(e.leads.LeadA, "no_interesa", "", undefined, 2));
+    await ok(registrarLlamada(e.leads.LeadA, "no_interesa", "", 2));
     expect((await leerLead(e.leads.LeadA)).etapa_id).toBe(e.etapas.Descartados);
   });
 });

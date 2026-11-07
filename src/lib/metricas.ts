@@ -1,3 +1,4 @@
+import { esContacto } from "@/lib/estados-caller";
 import "server-only";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { db, todas, equipo, conBajas, idsDePrueba, deVerdad } from "@/lib/datos";
@@ -41,7 +42,7 @@ async function cargarBaseDeLaBase(proyecto: Proyecto, conPrueba: boolean) {
       db().from("ventas").select("id, lead_id, vendedor_id, facturacion, cash_collected, fecha, producto_id, devuelto, devuelto_en").eq("proyecto_id", pid).order("id").range(a, b)
     ),
     todas<ActMin>((a, b) =>
-      db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", pid).in("tipo", ["llamada", "whatsapp"]).order("id").range(a, b)
+      db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", pid).or("tipo.in.(llamada,whatsapp),and(tipo.eq.cambio_etapa,resultado.not.is.null)").order("id").range(a, b) /* C11: también los resultados de los botones (contactos) */
     ),
     todas<PagoMin>((a, b) => db().from("pagos").select("importe, fecha, venta_id, ventas!inner(proyecto_id)").eq("ventas.proyecto_id", pid).order("id").range(a, b)),
     equipo(pid, conPrueba),
@@ -194,7 +195,7 @@ export function calcularVendedores(base: Base, rango: Rango) {
     .map((g) => {
       const acts = base.actividades.filter((a) => a.perfil_id === g.id && enRango(a.creado_en, rango));
       const llamadas = acts.filter((a) => a.tipo === "llamada").length;
-      const contactos = acts.filter((a) => a.tipo === "llamada" && a.resultado && a.resultado !== "no_contesta").length;
+      const contactos = acts.filter(esContacto).length; // C11 (punto 16): los que avanzan
       const agendas = base.citas.filter((c) => c.agendada_por === g.id && c.estado !== "reagendada" && enRango(c.creado_en, rango)).length;
       const ventas = base.ventas.filter((v) => v.vendedor_id === g.id && enRango(v.fecha, rango));
       const asignados = base.leads.filter((l) => l.caller_id === g.id).length;

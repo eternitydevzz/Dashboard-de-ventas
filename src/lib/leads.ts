@@ -329,6 +329,7 @@ export async function moverAAgendadosOrganico(proyectoId: string, leadId: string
 }
 
 export async function datosAgendaGhl(leadId: string): Promise<{ agendada_por: string | null; estrellas_caller: number | null }> {
-  const { data } = await db().from("leads").select("link_enviado_por, caller_id, estrellas_caller").eq("id", leadId).maybeSingle();
-  return { agendada_por: data?.link_enviado_por ?? data?.caller_id ?? null, estrellas_caller: data?.estrellas_caller ?? null };
+  // C11 (Cristian, 7 nov, punto 10): la agenda de GHL es del caller del lead (ya no de quien mandó el link)
+  const { data } = await db().from("leads").select("caller_id, estrellas_caller").eq("id", leadId).maybeSingle();
+  return { agendada_por: data?.caller_id ?? null, estrellas_caller: data?.estrellas_caller ?? null };
 }

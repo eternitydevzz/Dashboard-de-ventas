@@ -1,28 +1,25 @@
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
-import { Phone, CalendarCheck, MessageCircle, ShoppingCart, PhoneOff, Users, Trophy } from "lucide-react";
+import { Phone, CalendarCheck, CalendarDays, MessageCircle, UserCheck, Users, Trophy } from "lucide-react";
 import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { panelObjetivos } from "@/lib/objetivos";
 import { PanelObjetivos } from "@/components/barras-objetivos";
 import { db, todas, equipo } from "@/lib/datos";
-import { rangoDe, fechaHora, porcentaje, ahoraMs, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
+import { rangoDe, porcentaje, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
 import { kpisHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
-import { colaCaller, leerOrden, ordenarCola } from "@/lib/cola";
+import { colaCaller, cuentaPorEstado, leerOrden, ordenarCola } from "@/lib/cola";
+import { ESTADOS_CALLER, esContacto } from "@/lib/estados-caller";
 import { Cabecera, Contenido, Kpi, Vacio, Avatar } from "@/components/ui";
 import type { Lead, Producto } from "@/lib/tipos";
 import { ColaCaller } from "./cola";
 
-const PESTANAS = [
-  { v: "llamar", t: "Por llamar" },
-  { v: "luego", t: "Llamar luego" },
-  { v: "agendados", t: "Agendados" },
-  { v: "todos", t: "Todos" },
-];
+// C11 (7c.1): una pastilla por columna; la primera, «Leads» = toda la cola (no hay una solo para los nuevos)
+const FILTROS = [{ v: "todos", t: "Leads" }, ...ESTADOS_CALLER.filter((e) => e.v !== "nuevo").map((e) => ({ v: e.v, t: e.t }))];
 
-const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, llamar_en, creado_en, etiquetas, respuestas";
-type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas">;
+const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, creado_en, etiquetas, respuestas";
+type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "creado_en" | "etiquetas" | "respuestas">;
 
 export default async function CallerPage({ searchParams }: PageProps<"/caller">) {
   const { perfil, proyecto, tiene } = await exigirPagina("cola"); // H5
@@ -37,7 +34,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   ]);
   const callers = gente.filter((g) => g.rol === "caller");
   const caller = jefe ? callers.find((c) => c.id === sp.caller) ?? callers[0] : perfil;
-  const pestana = typeof sp.vista === "string" ? sp.vista : "llamar";
+  const filtro = typeof sp.columna === "string" && FILTROS.some((f) => f.v === sp.columna) ? sp.columna : "todos";
   const orden = leerOrden(sp.orden, sp.dir); // C2: orden de las cabeceras, en el servidor
 
   if (!caller) {
@@ -54,32 +51,35 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   // Velocidad (28 oct 2026, Cristian): solo las columnas que usa la cola (sin `datos` de GHL): 395 → 180 KB por carga
   const [leads, kpis, productos, scoring, panel] = await Promise.all([
     todas<LeadCola>((a, b) => db().from("leads").select(CAMPOS_COLA).eq("proyecto_id", proyecto.id).eq(comoCloser ? "closer_id" : "caller_id", caller.id).order("id").range(a, b)),
-    kpisHoyCola(proyecto.id, caller.id, hoy.desde!.toISOString()), // F4: citas y ventas, solo de este proyecto
+    kpisHoyCola(proyecto.id, caller.id, hoy.desde!.toISOString()), // F4: solo de este proyecto
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     db().from("scoring_ia").select("pesos").eq("proyecto_id", proyecto.id).maybeSingle(),
     panelObjetivos(proyecto, caller), // objetivos del caller que se está viendo, su racha y el del equipo (H3-H4)
   ]);
   const pesos = (scoring.data?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
-  const { acts, citas: citasHoy, ventas: ventasHoy } = kpis;
+  // KPIs de hoy (7c.1): Llamadas (botón «Llamado») · Contactos (los que avanzan, punto 16) · Agendas (% de los
+  // contactos) · WhatsApps (botón «Wsp enviado») · Confirmadas («Confirma Agenda»). Fuera «No contestan» y «Ventas» (F6).
+  const { acts, citas: agendasHoy } = kpis;
   const llamadas = acts.filter((a) => a.tipo === "llamada").length;
-  const noContesta = acts.filter((a) => a.tipo === "llamada" && a.resultado === "no_contesta").length;
+  const contactos = new Set(acts.filter(esContacto).map((a) => a.lead_id)).size;
   const whatsapps = acts.filter((a) => a.tipo === "whatsapp").length;
+  const confirmadas = acts.filter((a) => a.tipo === "cambio_etapa" && a.resultado === "confirma_agenda").length;
 
-  const ahora = ahoraMs();
-  const filtrados = ordenarCola(colaCaller(leads, pestana, ahora, pesos), orden); // C2: antes del corte de 300
-  const vencidos = leads.filter((l) => (l.estado_caller === "llamar_luego" || l.estado_caller === "link_enviado") && l.llamar_en && new Date(l.llamar_en).getTime() <= ahora);
+  const cuenta = cuentaPorEstado(leads);
+  const filtrados = ordenarCola(colaCaller(leads, filtro, pesos), orden); // C2: antes del corte de 300
   // Al navegador van los 300 primeros (los que se enseñan) y, si la dirección pide otro (?lead=), también ese
   const visibles = filtrados.slice(0, 300);
   const pedido = filtrados.find((l) => l.id === sp.lead);
   if (pedido && !visibles.includes(pedido)) visibles.push(pedido);
   const closers = gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }));
   const cortos = nombresCortos(callers); // F13: dos callers con el mismo nombre se distinguen
+  const enlaceFiltro = (v: string) => `/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), columna: v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`;
 
   return (
     <>
       <Cabecera
         titulo={jefe ? "Callers" : "Mis leads"}
-        subtitulo={jefe ? `Viendo la cola de ${caller.nombre}` : `${leads.length} leads asignados · ordenados por prioridad`}
+        subtitulo={jefe ? `Viendo la cola de ${caller.nombre}` : `${leads.length} leads asignados · elige a quién llamar`}
         acciones={
           <>
             {jefe && (
@@ -97,32 +97,23 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
         }
       />
       <Contenido>
-        {/* 25 oct 2026 (Cristian): sin refresco automático cada 60 s; la base se saturaba con el equipo trabajando */}
+        {/* 25 oct 2026 (Cristian): sin refresco automático cada 60 s; la base se saturaba con el equipo trabajando.
+            C11 (punto 11): sin aviso «Te tocan X llamadas»: ya no hay fechas */}
         <PanelObjetivos panel={panel} dinero={(n: number) => dinero(n, proyecto)} celebrar={jefe ? null : `${caller.id}-${hoyEnZona(proyecto.zona_horaria)}`} />
-        {vencidos.length > 0 && (
-          <Link href={`/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), vista: "llamar", lead: vencidos[0].id })}`} className="flex items-center gap-3 rounded-xl border border-aviso/40 bg-aviso-suave px-4 py-3 text-sm text-aviso hover:brightness-105">
-            <span className="text-lg">⏰</span>
-            <span className="flex-1">
-              <b>{/* F13: a un jefe que mira la cola de otro, no «Te tocan» */}{jefe ? `A ${cortos.get(caller.id) ?? caller.nombre} le ${vencidos.length === 1 ? "toca 1 llamada programada" : `tocan ${vencidos.length} llamadas programadas`}` : vencidos.length === 1 ? "Te toca 1 llamada programada" : `Te tocan ${vencidos.length} llamadas programadas`}</b>
-              {" "}· la primera: {`${vencidos[0].nombre} ${vencidos[0].apellido}`.trim()} ({fechaHora(vencidos[0].llamar_en!, proyecto)}). Están las primeras en «Por llamar».
-            </span>
-            <span className="font-medium">Llamar ahora →</span>
-          </Link>
-        )}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
-          <Kpi titulo="Llamadas hoy" valor={llamadas} icono={Phone} detalle={`${leads.length} leads asignados`} />
-          <Kpi titulo="No contestan" valor={noContesta} icono={PhoneOff} tono="mal" detalle={`${pct(porcentaje(noContesta, llamadas))} de las llamadas`} />
-          <Kpi titulo="Agendas hoy" valor={citasHoy} icono={CalendarCheck} tono="ok" detalle={`${pct(porcentaje(citasHoy, llamadas - noContesta))} de los contactos`} />
-          <Kpi titulo="WhatsApps hoy" valor={whatsapps} icono={MessageCircle} tono="ok" />
-          <Kpi titulo="Ventas low ticket hoy" valor={ventasHoy} icono={ShoppingCart} tono="oro" />
+          <Kpi titulo="Llamadas hoy" valor={llamadas} icono={Phone} detalle="botón «Llamado»" />
+          <Kpi titulo="Contactos hoy" valor={contactos} icono={UserCheck} detalle="los que avanzan" />
+          <Kpi titulo="Agendas hoy" valor={agendasHoy} icono={CalendarDays} tono="ok" detalle={`${pct(porcentaje(agendasHoy, contactos))} de los contactos`} />
+          <Kpi titulo="WhatsApps hoy" valor={whatsapps} icono={MessageCircle} tono="ok" detalle="botón «Wsp enviado»" />
+          <Kpi titulo="Confirmadas hoy" valor={confirmadas} icono={CalendarCheck} detalle="«Confirma Agenda»" />
         </div>
 
         <ColaCaller
           pestanas={
-            <div className="flex gap-1 border-b border-borde p-2">
-              {PESTANAS.map((p) => (
-                <Link prefetch={true} key={p.v} href={`/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), vista: p.v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`} className={`flex-1 rounded-md px-2 py-1.5 text-center text-xs font-medium ${pestana === p.v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
-                  {p.t}
+            <div className="flex gap-1.5 overflow-x-auto border-b border-borde p-2 [scrollbar-width:none]" role="group" aria-label="Filtrar por columna">
+              {FILTROS.map((f) => (
+                <Link prefetch={false} key={f.v} href={enlaceFiltro(f.v)} aria-pressed={filtro === f.v} className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold ${filtro === f.v ? "border-transparent bg-primario-suave text-primario" : "border-borde bg-panel-2 text-texto-2 hover:text-texto"}`}>
+                  {f.t} <span className="ml-1 tabular-nums">{cuenta[f.v] ?? 0}</span>
                 </Link>
               ))}
             </div>
@@ -131,7 +122,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           total={filtrados.length}
           asignados={leads.length}
           callerId={jefe ? caller.id : null}
-          pestana={pestana}
+          pestana={filtro}
           orden={orden}
           zona={proyecto.zona_horaria}
           conIA={!!pesos}

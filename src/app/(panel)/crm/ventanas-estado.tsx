@@ -1,15 +1,18 @@
 "use client";
 
-import { agendarCita, marcarLinkEnviado, registrarLlamada, registrarVenta } from "@/app/(panel)/leads/acciones";
+import { agendarCita, registrarLlamada, registrarVenta } from "@/app/(panel)/leads/acciones";
 import { FormVenta } from "@/components/acciones-lead";
 import { Modal } from "@/components/modal";
 import { SelectorEstrellas } from "@/components/estrellas";
 import type { Producto } from "@/lib/tipos";
 import { CamposCita } from "@/components/campos-cita";
+import { etiquetaEstado } from "@/lib/estados-caller";
 
-// Ventanas que se abren al soltar un lead en una columna unida a un estado (Paso H7). Son las mismas que
-// tenía el CRM del caller: cada una hace lo mismo que su botón (y el servidor mueve la tarjeta a esa columna).
-export type DestinoConVentana = "llamar_luego" | "link_enviado" | "agendado" | "no_interesa" | "vendido";
+// Ventanas de los resultados que piden datos (Paso H7; C11, plan Callers, 7 nov). Se abren al soltar un lead en su
+// columna del CRM y al pulsar su botón en «Mis leads» o en el guion. Estrellas como hoy (Cristian, 7 nov).
+// Sin fechas (punto 11): «Llamar luego» ya no pide cuándo. Sin «Link enviado» (desaparece).
+export type DestinoConVentana = "llamar_luego" | "seguimiento" | "no_interesa" | "agendado" | "vendido";
+export const CON_VENTANA: readonly string[] = ["llamar_luego", "seguimiento", "no_interesa", "agendado", "vendido"];
 
 export function VentanaEstado({
   lead,
@@ -17,7 +20,7 @@ export function VentanaEstado({
   closers,
   productos,
   moneda,
-  estrellasOpcionales,
+  esCaller,
   onCerrar,
   onGuardar,
 }: {
@@ -26,7 +29,7 @@ export function VentanaEstado({
   closers: { id: string; nombre: string }[];
   productos: Producto[];
   moneda: string;
-  estrellasOpcionales: boolean; // al agendar, solo el caller está obligado a poner estrellas
+  esCaller: boolean; // el caller: estrellas obligatorias al agendar y el closer lo pone la rotación
   onCerrar: () => void;
   onGuardar: (accion: () => Promise<unknown>, mensaje: string) => void;
 }) {
@@ -34,28 +37,13 @@ export function VentanaEstado({
     onGuardar(accion, mensaje);
     onCerrar();
   };
-  if (destino === "llamar_luego")
+  if (destino === "llamar_luego" || destino === "seguimiento" || destino === "no_interesa")
     return (
-      <Modal titulo={`Llamar luego a ${lead.nombre}`} onCerrar={onCerrar}>
-        <form
-          className="space-y-3"
-          action={(fd) => guardar(() => registrarLlamada(lead.id, "llamar_luego", String(fd.get("nota") ?? ""), String(fd.get("cuando") ?? ""), Number(fd.get("estrellas"))), `${lead.nombre} → Llamar luego`)}
-        >
-          <label className="block"><span className="etiqueta-campo">¿Cuándo?</span><input type="datetime-local" name="cuando" required className="campo" /></label>
-          <label className="block"><span className="etiqueta-campo">Nota</span><textarea name="nota" rows={3} className="campo" /></label>
+      <Modal titulo={`${lead.nombre} → ${etiquetaEstado(destino)}`} onCerrar={onCerrar}>
+        <form className="space-y-3" action={(fd) => guardar(() => registrarLlamada(lead.id, destino, String(fd.get("nota") ?? ""), Number(fd.get("estrellas"))), `${lead.nombre} → ${etiquetaEstado(destino)}`)}>
           <SelectorEstrellas quien="caller" />
+          <label className="block"><span className="etiqueta-campo">Nota (opcional)</span><textarea name="nota" rows={2} className="campo" placeholder={destino === "no_interesa" ? "Por qué no le interesa" : "Lo que te dijo, tal cual"} /></label>
           <button className="btn-primario w-full">Guardar</button>
-        </form>
-      </Modal>
-    );
-  // 4.4 (11 oct): soltar en «Link enviado» = su botón, con las estrellas de la llamada
-  if (destino === "link_enviado")
-    return (
-      <Modal titulo={`Link de agenda enviado a ${lead.nombre}`} onCerrar={onCerrar}>
-        <form className="space-y-3" action={(fd) => guardar(() => marcarLinkEnviado(lead.id, Number(fd.get("estrellas"))), `${lead.nombre} → Link enviado`)}>
-          <p className="text-sm text-texto-2">Si en 2 días no ha llegado su cita de GHL, vuelve a la cola del caller.</p>
-          <SelectorEstrellas quien="caller" />
-          <button className="btn-primario w-full">Marcar como enviado</button>
         </form>
       </Modal>
     );
@@ -65,23 +53,13 @@ export function VentanaEstado({
         <form
           className="space-y-3"
           action={(fd) =>
-            guardar(() => agendarCita(lead.id, String(fd.get("closer")), String(fd.get("fecha")), String(fd.get("nota") ?? ""), fd.get("estrellas") ? Number(fd.get("estrellas")) : undefined), `${lead.nombre} → Agendado`)
+            guardar(() => agendarCita(lead.id, String(fd.get("closer") ?? ""), String(fd.get("fecha")), String(fd.get("nota") ?? ""), fd.get("estrellas") ? Number(fd.get("estrellas")) : undefined), `${lead.nombre} → Agendado`)
           }
         >
-          <CamposCita closers={closers} id="ventana-estado-closer" />
-          <label className="block"><span className="etiqueta-campo">Nota para el closer</span><textarea name="nota" rows={3} className="campo" /></label>
-          <SelectorEstrellas quien="caller" opcional={estrellasOpcionales} />
+          <CamposCita closers={closers} id={`ventana-estado-closer-${lead.id}`} rotacion={esCaller} />
+          <label className="block"><span className="etiqueta-campo">Nota para el closer</span><textarea name="nota" rows={3} className="campo" placeholder="Situación, dolor, cifra…" /></label>
+          <SelectorEstrellas quien="caller" opcional={!esCaller} />
           <button className="btn-primario w-full">Agendar</button>
-        </form>
-      </Modal>
-    );
-  if (destino === "no_interesa")
-    return (
-      <Modal titulo={`${lead.nombre}: no le interesa`} onCerrar={onCerrar}>
-        <form className="space-y-3" action={(fd) => guardar(() => registrarLlamada(lead.id, "no_interesa", String(fd.get("nota") ?? ""), undefined, Number(fd.get("estrellas"))), `${lead.nombre} → No interesa`)}>
-          <SelectorEstrellas quien="caller" />
-          <label className="block"><span className="etiqueta-campo">Nota (opcional)</span><textarea name="nota" rows={2} className="campo" /></label>
-          <button className="btn-primario w-full">Guardar</button>
         </form>
       </Modal>
     );

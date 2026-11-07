@@ -1,3 +1,4 @@
+import { ETIQUETA_ESTADO } from "@/lib/estados-caller";
 import { CAMPOS_FICHA, limpiarFicha } from "@/lib/ficha-cualificacion";
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
@@ -26,8 +27,7 @@ const ICONO_ACT: Record<string, string> = {
   webhook: "⚡",
 };
 const RESULTADO: Record<string, string> = {
-  no_contesta: "No contesta",
-  llamar_luego: "Llamar luego",
+  ...ETIQUETA_ESTADO, // C11: los 12 estados (y los viejos del historial)
   no_interesa: "No interesa",
   contestado: "Contestó",
   agendada: "Agendada",
@@ -192,7 +192,6 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 <li className="flex items-center gap-2"><Globe className="h-4 w-4 text-texto-3" />{nombrePais(lead.pais)}</li>
                 <li className="flex items-center gap-2 break-all"><Mail className="h-4 w-4 shrink-0 text-texto-3" />{lead.email ?? "—"}</li>
                 <li className="flex flex-wrap items-center gap-1.5"><Tag className="h-4 w-4 text-texto-3" />{lead.etiquetas.length ? lead.etiquetas.map((t) => <Insignia key={t}>{t}</Insignia>) : "—"}</li>
-                {lead.llamar_en && <li className="text-aviso">Llamar el {fechaHora(lead.llamar_en, proyecto)}</li>}
                 <li><span className="mr-1.5 text-xs text-texto-3">Caller:</span><VerEstrellas n={lead.estrellas_caller} quien="caller" /></li>
               </ul>
               <div className="mt-4 border-t border-borde pt-4">

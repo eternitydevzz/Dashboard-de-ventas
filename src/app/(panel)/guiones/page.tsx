@@ -1,3 +1,4 @@
+import { ETIQUETA_ESTADO } from "@/lib/estados-caller";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
@@ -12,7 +13,8 @@ import { EditorGuion } from "./editor";
 
 // Fase 6 · Guiones de llamada (Cristian, 12 oct 2026): el CEO y los directores editan el guion del caller y el del
 // closer y revisan lo que marcó cada uno en sus llamadas.
-const RESULTADO: Record<string, string> = { no_contesta: "No contesta", luego: "Llamar luego", link: "Link enviado", agendar: "Agendar", no_interesa: "No interesa", venta: "Venta" };
+// C11: los resultados nuevos y los del historial de antes del 7 nov
+const RESULTADO: Record<string, string> = { ...ETIQUETA_ESTADO, luego: "Llamar luego", link: "Link enviado", agendar: "Agendar", venta: "Venta" };
 
 export default async function GuionesPage({ searchParams }: PageProps<"/guiones">) {
   const { perfil, proyecto } = await getSesion();

@@ -1,5 +1,6 @@
 "use server";
 
+import { ESTADOS_CALLER } from "@/lib/estados-caller";
 import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import Papa from "papaparse";
@@ -259,7 +260,7 @@ export async function unirEstado(etapaId: string, estado: string | null) {
     refrescar();
   });
 }
-const ESTADOS: EstadoCaller[] = ["nuevo", "no_contesta", "llamar_luego", "link_enviado", "agendado", "no_interesa", "vendido"];
+const ESTADOS: EstadoCaller[] = ESTADOS_CALLER.map((e) => e.v); // C11: los 12
 
 // Permisos de un pipeline (como GHL): por rol o por persona; null = lo de siempre. Solo CEO y director con Administración.
 export async function guardarPermisoPipeline(pipelineId: string, quien: { rol: string } | { perfilId: string }, nivel: string | null) {

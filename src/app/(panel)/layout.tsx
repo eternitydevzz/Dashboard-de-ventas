@@ -4,7 +4,6 @@ import { BarraLateral, type ItemMenu } from "@/components/barra-lateral";
 import { ProveedorToasts } from "@/components/toasts";
 import { Dialogos } from "@/components/dialogos";
 import { AvisosEnVivo } from "@/components/avisos-en-vivo";
-import { db } from "@/lib/datos";
 import { proyectoParaMenu } from "@/lib/formato";
 import { seccionesPermitidas, SECCIONES, type Seccion } from "@/lib/permisos";
 
@@ -20,18 +19,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
 
   const jefe = esJefe(perfil);
 
-  // Aviso al caller: «llamar luego» cuya hora ya ha llegado
-  let vencidos = 0;
-  if (perfil.rol === "caller") {
-    const { count } = await db()
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .eq("proyecto_id", proyecto.id)
-      .eq("caller_id", perfil.id)
-      .in("estado_caller", ["llamar_luego", "link_enviado"])
-      .lte("llamar_en", new Date().toISOString());
-    vencidos = count ?? 0;
-  }
+  // C11 (plan Callers, 7 nov, punto 11): sin número rojo de llamadas vencidas (ya no hay fechas). Una consulta menos.
   const secciones = await seccionesPermitidas(perfil, proyecto.id);
   const tiene = (x: Seccion) => secciones.has(x);
   const empresa: ItemMenu[] = SECCIONES.filter((s) => secciones.has(s.v)).map((s) => ({ href: `/${s.v}`, texto: s.t, icono: s.v }));
@@ -46,7 +34,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
         ...(tiene("kpis") || (jefe && tiene("funnel")) ? [{ href: "/kpis", texto: jefe ? "KPIs" : "Mis KPIs", icono: "kpis" as const }] : []),
         // H7: un solo CRM («Mi CRM» para caller y closer, con sus leads)
         ...(tiene("crm") ? [{ href: "/crm", texto: jefe ? "CRM" : "Mi CRM", icono: "crm" as const }] : []),
-        ...(tiene("cola") ? [{ href: "/caller", texto: jefe ? "Callers" : "Mis leads", icono: "caller" as const, exacto: true, insignia: vencidos }] : []),
+        ...(tiene("cola") ? [{ href: "/caller", texto: jefe ? "Callers" : "Mis leads", icono: "caller" as const, exacto: true }] : []),
         ...(tiene("agendas") ? [{ href: "/closer", texto: jefe ? "Agendas" : "Mis agendas", icono: "closer" as const }] : []),
         // Bloque 7 de 1.0: onboarding de los clientes de cada closer (aparte del onboarding de Clientes)
         ...(tiene("agendas") && (jefe || perfil.rol === "closer") ? [{ href: "/onboarding-closers", texto: jefe ? "Onboarding closers" : "Onboarding", icono: "onboarding" as const }] : []),

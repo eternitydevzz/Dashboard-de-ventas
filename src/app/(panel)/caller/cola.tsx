@@ -6,13 +6,14 @@ import type { MouseEvent, ReactNode } from "react";
 import { Inbox, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { fechaHora, ETIQUETA_ESTADO_CALLER, nombrePais } from "@/lib/formato";
 import type { CampoOrden, OrdenCola } from "@/lib/cola";
+import { colorEstado } from "@/lib/estados-caller";
 import { nivel } from "@/lib/prioridad";
 import { Seccion, Insignia, Vacio } from "@/components/ui";
 import { AccionesLead } from "@/components/acciones-lead";
 import type { Guion } from "@/lib/guiones";
 import type { Lead, Producto, Proyecto, Rol } from "@/lib/tipos";
 
-export type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas"> & { puntos: number };
+export type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "creado_en" | "etiquetas" | "respuestas"> & { puntos: number };
 
 // Velocidad (28 oct 2026, Cristian: «el equipo dice que va muy lento»): elegir un lead de la cola ya no pide la
 // página al servidor (medido: 0,52–0,64 s por clic, ~9 consultas y todos los leads cada vez). Los leads ya están
@@ -59,7 +60,7 @@ export function ColaCaller({
   const enlace = (leadId: string) => {
     const p = new URLSearchParams();
     if (callerId) p.set("caller", callerId);
-    p.set("vista", pestana);
+    p.set("columna", pestana);
     if (orden) {
       p.set("orden", orden.campo);
       p.set("dir", orden.dir === 1 ? "asc" : "desc");
@@ -71,7 +72,7 @@ export function ColaCaller({
   const enlaceOrden = (campo: CampoOrden) => {
     const p = new URLSearchParams();
     if (callerId) p.set("caller", callerId);
-    p.set("vista", pestana);
+    p.set("columna", pestana);
     p.set("orden", campo);
     p.set("dir", orden?.campo === campo && orden.dir === 1 ? "desc" : "asc");
     return `/caller?${p.toString()}`;
@@ -119,7 +120,7 @@ export function ColaCaller({
                   </div>
                   <div className="mt-0.5 flex items-center justify-between text-xs text-texto-3">
                     <span>{[l.telefono, nombrePais(l.pais), `entró ${fechaHora(l.creado_en, proyecto)}`].filter(Boolean).join(" · ")}</span>
-                    <span>{l.estado_caller === "llamar_luego" && l.llamar_en ? `⏰ ${fechaHora(l.llamar_en, proyecto)}` : l.estado_caller === "link_enviado" && l.llamar_en ? `🔗 Link enviado · insistir ${fechaHora(l.llamar_en, proyecto)}` : ETIQUETA_ESTADO_CALLER[l.estado_caller]}</span>
+                    <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: colorEstado(l.estado_caller) }} />{ETIQUETA_ESTADO_CALLER[l.estado_caller] ?? l.estado_caller}</span>
                   </div>
                 </a>
               </li>
@@ -154,6 +155,7 @@ export function ColaCaller({
                 guion={guion}
                 nombreLead={`${seleccionado.nombre} ${seleccionado.apellido}`.trim()}
                 miNombre={miNombre}
+                estado={seleccionado.estado_caller}
               />
             </div>
           </Seccion>

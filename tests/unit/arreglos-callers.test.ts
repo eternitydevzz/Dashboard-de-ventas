@@ -54,13 +54,13 @@ beforeEach(() => {
 describe("F3 · si falla guardar el estado, no dice «Guardado»", () => {
   it("falla el cambio de estado del lead: devuelve error y no apunta la llamada", async () => {
     respuesta["leads:update"] = fallo;
-    const r = await registrarLlamada("l1", "no_contesta", "");
+    const r = await registrarLlamada("l1", "llamado", "");
     expect(r).toMatchObject({ error: expect.any(String) });
     expect(inserts("actividades")).toHaveLength(0);
   });
   it("todo bien: no hay error y la llamada queda apuntada", async () => {
     respuesta["leads:update"] = { data: null, error: null };
-    const r = await registrarLlamada("l1", "no_contesta", "");
+    const r = await registrarLlamada("l1", "llamado", "");
     expect(r).toBeUndefined();
     expect(inserts("actividades")).toHaveLength(1);
   });
@@ -68,7 +68,7 @@ describe("F3 · si falla guardar el estado, no dice «Guardado»", () => {
     let n = 0;
     // la 1.ª escritura (estado) va bien; la 2.ª (columna «Descartados») falla
     Object.defineProperty(respuesta, "leads:update", { get: () => (n++ === 0 ? { data: null, error: null } : fallo) });
-    const r = await registrarLlamada("l1", "no_interesa", "", undefined, 3);
+    const r = await registrarLlamada("l1", "no_interesa", "", 3);
     expect(r).toMatchObject({ error: expect.any(String) });
   });
 });
@@ -86,17 +86,17 @@ describe("F22 · guardar las marcas del guion pide permiso de sección", () => {
   });
 });
 
-describe("F4 · KPIs de hoy de la cola: citas y ventas solo de este proyecto", () => {
-  it("las tres consultas filtran por proyecto y persona", async () => {
-    respuesta["actividades:select"] = { data: [{ tipo: "llamada", resultado: "no_contesta" }], error: null };
+describe("F4 · KPIs de hoy de la cola: solo de este proyecto", () => {
+  it("las consultas filtran por proyecto y persona (C11: sin ventas, F6)", async () => {
+    respuesta["actividades:select"] = { data: [{ tipo: "llamada", resultado: "llamado", lead_id: "l1" }], error: null };
     respuesta["citas:select"] = { data: null, error: null, count: 2 };
-    respuesta["ventas:select"] = { data: null, error: null, count: 1 };
     const k = await kpisHoyCola("p1", "u1", "2026-11-07T00:00:00.000Z");
-    expect(k).toEqual({ acts: [{ tipo: "llamada", resultado: "no_contesta" }], citas: 2, ventas: 1 });
-    for (const t of ["actividades", "citas", "ventas"]) {
+    expect(k).toEqual({ acts: [{ tipo: "llamada", resultado: "llamado", lead_id: "l1" }], citas: 2 });
+    for (const t of ["actividades", "citas"]) {
       const c = consultas.find((x) => x.tabla === t)!;
       expect(c.ops).toContainEqual(["eq", ["proyecto_id", "p1"]]);
     }
+    expect(consultas.some((c) => c.tabla === "ventas")).toBe(false);
   });
 });
 
