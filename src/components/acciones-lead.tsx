@@ -8,7 +8,7 @@ import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "@/app/(panel
 import { Modal } from "@/components/modal";
 import { SelectorEstrellas } from "@/components/estrellas";
 import { useToast } from "@/components/toasts";
-import { exigirOk } from "@/lib/resultado-cliente";
+import { avisoDe, exigirOk } from "@/lib/resultado-cliente";
 import type { Producto, Respuesta } from "@/lib/tipos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { GuionLlamada } from "@/components/guion-llamada";
@@ -28,8 +28,10 @@ export function useAccion() {
     setError("");
     iniciar(async () => {
       try {
-        await exigirOk(fn());
+        const r = await exigirOk(fn());
         if (mensaje) toast(mensaje);
+        const aviso = avisoDe(r);
+        if (aviso) toast(aviso, "error");
       } catch (e) {
         const texto = e instanceof Error ? e.message : "Algo falló.";
         setError(texto);
