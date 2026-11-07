@@ -8,7 +8,9 @@ import { Cabecera, Contenido, Seccion, Insignia, Avatar } from "@/components/ui"
 import { Plantilla, AnadirExistente, FormUsuario, FormProyecto, FormNuevoProyecto, LinkAgenda, Secreto } from "./cliente";
 import type { Perfil, Producto, Rol } from "@/lib/tipos";
 import { PLANTILLAS_GHL, CABECERA_SECRETO } from "@/lib/plantillas-ghl";
-import { NuevaEntrada, EditorEntrada, EditorGhlEntrada, ReintentarGhl, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
+import { NuevaEntrada, TarjetaEntrada, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
+import { haceCuanto, type DatosLanding } from "@/lib/entradas-panel";
+import { enviosDeEntrada, enviosEnRojo, resumenEntradas, ULTIMOS, type EnvioEntrada, type ResumenEntrada } from "@/lib/entradas-datos";
 import { camposGhl, columnasEnOrdenGhl, pipelinesGhl } from "@/lib/ghl";
 import { descifrar } from "@/lib/cifrado";
 import { ConexionGhl, CalendarioCloser, UsuarioGhl } from "./ghl";
@@ -38,7 +40,18 @@ const PESTANAS = [
   { v: "permisos", t: "Permisos" }, // H5: también el director con Administración
 ];
 
-type EventoEntrada = { id: string; entrada_id: string; lead_id: string | null; procesado: boolean; error: string | null; recibido_en: string; payload: Record<string, unknown>; ghl_estado?: "esperando" | "ok" | "error" | null; ghl_intentos?: number; ghl_error?: string | null };
+type EventoEntrada = EnvioEntrada;
+
+// Lo que responde la dirección de una Entrada (src/app/api/webhooks/entrada/[token]/route.ts)
+const RESPUESTAS: [string, string][] = [
+  ["200", "Guardado."],
+  ["400", "El JSON está mal escrito."],
+  ["404", "La dirección no existe o la entrada está apagada."],
+  ["413", "Demasiado grande (más de 500 KB)."],
+  ["422", "No trae email ni teléfono: el envío se guarda con el motivo, pero no crea lead."],
+  ["429", "Demasiados envíos (más de 300 por minuto): esperar y reintentar."],
+  ["500", "Error del dashboard: el envío se guarda con el motivo; reintentar."],
+];
 
 // Si GHL falla al pedir campos o pipelines, la pestaña se ve igual y el formulario lo dice
 async function cargarOpcionesGhl(token: string, locationId: string): Promise<OpcionesGhl> {
@@ -113,11 +126,14 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   }
 
   // Entradas: solo se cargan en su pestaña
-  let entradas: ({ id: string; nombre: string; token: string; activa: boolean; pipeline_id: string | null; etapa_id: string | null; reglas: unknown } & Partial<GhlDeEntrada>)[] = [];
-  let eventosEntrada: EventoEntrada[] = [];
+  let entradas: ({ id: string; nombre: string; token: string; activa: boolean; pipeline_id: string | null; etapa_id: string | null; reglas: unknown } & Partial<GhlDeEntrada> & Partial<DatosLanding>)[] = [];
   let pipes: { id: string; nombre: string; etapas: { id: string; nombre: string }[] }[] = [];
   // Plan GHL, fase 1: campos y pipelines de GHL para «Qué hacer en GHL» (null = el proyecto no tiene GHL conectado)
   let opcionesGhl: OpcionesGhl | null = null;
+  // Panel de endpoints (plan GHL, punto 0, 7 nov 2026): resumen de cada una, todos sus rojos y sus 15 últimos envíos
+  let resumen = new Map<string, ResumenEntrada>();
+  let rojos: EventoEntrada[] = [];
+  const ultimosDe = new Map<string, EventoEntrada[]>();
   if (tab === "entradas") {
     const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
       db().from("entradas").select("*").eq("proyecto_id", proyecto.id).order("creado_en"),
@@ -127,8 +143,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     entradas = en ?? [];
     pipes = ((pl ?? []) as { id: string; nombre: string; etapas: { id: string; nombre: string; orden: number }[] }[]).map((p) => ({ ...p, etapas: [...p.etapas].sort((a, b) => a.orden - b.orden) }));
     if (entradas.length) {
-      const { data: ev } = await db().from("webhook_eventos").select("id, entrada_id, lead_id, procesado, error, recibido_en, payload, ghl_estado, ghl_intentos, ghl_error").in("entrada_id", entradas.map((x) => x.id)).order("recibido_en", { ascending: false }).limit(200);
-      eventosEntrada = (ev ?? []) as EventoEntrada[];
+      const ids = entradas.map((x) => x.id);
+      const [r, ro, ...ult] = await Promise.all([resumenEntradas(proyecto.id), enviosEnRojo(ids), ...ids.map((id) => enviosDeEntrada(id, 0, ULTIMOS))]);
+      resumen = r;
+      rojos = ro;
+      ids.forEach((id, i) => ultimosDe.set(id, ult[i]));
     }
     if (pg?.ghl_token && pg.ghl_location_id) opcionesGhl = await cargarOpcionesGhl(descifrar(pg.ghl_token, "el token de GHL"), pg.ghl_location_id);
   }
@@ -283,76 +302,68 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
         {tab === "entradas" && (
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="space-y-5">
-              {entradas.length === 0 && (
-                <Seccion titulo="Entradas">
-                  <p className="text-sm text-texto-2">Cada landing tiene su propia dirección. La landing envía ahí el mismo JSON que manda a GHL; la app lo guarda <b>entero</b> y después lo interpreta (nombre, email, teléfono, respuestas, UTM…). Crea la primera a la derecha.</p>
-                </Seccion>
-              )}
+            <div className="min-w-0 space-y-4">
+              {/* Panel de endpoints (plan GHL, punto 0; boceto v2 aprobado por Cristian el 7 nov 2026) */}
+              <div className="rounded-2xl bg-primario-suave p-4 text-sm">
+                <p><b>Cada landing manda sus leads a su propia dirección.</b> Para conectar una landing nueva:</p>
+                <ol className="mt-2 list-decimal space-y-0.5 pl-5">
+                  <li>Créala en «Conectar una landing nueva».</li>
+                  <li>Pulsa «Copiar dirección» y pásasela al programador de la landing.</li>
+                  <li>Cuando llegue el primer lead, lo verás aquí.</li>
+                </ol>
+              </div>
               {entradas.map((en) => {
-                const evs = eventosEntrada.filter((x) => x.entrada_id === en.id);
+                const ultimos = ultimosDe.get(en.id) ?? [];
+                const suyosRojos = rojos.filter((x) => x.entrada_id === en.id);
+                const r = resumen.get(en.id) ?? { envios: 0, leads: 0, rojos: 0, ultimo: null };
                 return (
-                  <Seccion key={en.id} titulo={`${en.nombre}${en.activa ? "" : " · desactivada"}`}>
-                    <EditorEntrada
-                      entrada={{ id: en.id, nombre: en.nombre, url: `${origen}/api/webhooks/entrada/${en.token}`, activa: en.activa, pipeline_id: en.pipeline_id, etapa_id: en.etapa_id, reglas: reglasValidas(en.reglas), campos: camposDe(evs) }}
-                      pipelines={pipes}
-                    />
-                    <div className="mt-5 border-t border-borde pt-4">
-                      <EditorGhlEntrada
-                        entradaId={en.id}
-                        inicial={{
-                          ghl_activo: en.ghl_activo ?? false,
-                          ghl_campos: en.ghl_campos ?? {},
-                          ghl_pipeline_id: en.ghl_pipeline_id ?? null,
-                          ghl_etapa_id: en.ghl_etapa_id ?? null,
-                          ghl_oportunidades: Array.isArray(en.ghl_oportunidades) ? en.ghl_oportunidades : [],
-                          ghl_etiqueta_base: en.ghl_etiqueta_base ?? null,
-                          ghl_etiquetas_extra: Array.isArray(en.ghl_etiquetas_extra) ? en.ghl_etiquetas_extra : [],
-                          ghl_espera_seg: en.ghl_espera_seg ?? 60,
-                          ghl_campo_completo: en.ghl_campo_completo ?? "quiz_completed",
-                        }}
-                        camposEnvio={camposDe(evs)}
-                        opciones={opcionesGhl}
-                        errores={evs.filter((x) => x.ghl_estado === "error").length}
-                      />
-                    </div>
-                    <div className="mt-5 border-t border-borde pt-4">
-                      <div className="titulo-seccion mb-2">Últimos envíos recibidos ({evs.length})</div>
-                      {evs.length === 0 ? (
-                        <p className="text-sm text-texto-3">Todavía no ha llegado nada a esta dirección.</p>
-                      ) : (
-                        <ul className="space-y-1.5 text-sm">
-                          {evs.slice(0, 15).map((x) => (
-                            <li key={x.id} className="rounded-lg bg-panel-2">
-                              <details>
-                                <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-3 py-1.5">
-                                  <span className="text-xs text-texto-3">{fechaHora(x.recibido_en, proyecto)}</span>
-                                  <span className="truncate">{String(x.payload?.email || x.payload?.phone || x.payload?.name || "—")}</span>
-                                  {x.procesado ? <Insignia tono="ok">Guardado</Insignia> : <Insignia tono="mal">{x.error ?? "Error"}</Insignia>}
-                                  {x.ghl_estado === "ok" && <Insignia tono="ok">GHL ok</Insignia>}
-                                  {x.ghl_estado === "esperando" && <Insignia>{x.ghl_intentos ? `GHL: reintento ${x.ghl_intentos + 1} de 5` : "GHL: esperando"}</Insignia>}
-                                  {x.ghl_estado === "error" && <Insignia tono="mal">GHL: error</Insignia>}
-                                  {x.lead_id && <Link href={`/leads/${x.lead_id}`} className="ml-auto text-xs text-primario hover:underline">Ver lead</Link>}
-                                </summary>
-                                {x.ghl_estado === "esperando" && x.ghl_error && <p className="border-t border-borde px-3 py-2 text-xs text-texto-3">Último fallo: {x.ghl_error}</p>}
-                                <pre className="max-h-72 overflow-auto border-t border-borde p-3 text-xs">{JSON.stringify(x.payload, null, 2)}</pre>
-                              </details>
-                              {x.ghl_estado === "error" && (
-                                <div className="flex flex-wrap items-center gap-2 rounded-b-lg border-t border-borde bg-mal-suave px-3 py-2 text-xs text-mal">
-                                  <span className="min-w-0 flex-1 break-words">No llegó a GHL tras {x.ghl_intentos ?? 0} intentos: {x.ghl_error ?? "sin motivo"}</span>
-                                  <ReintentarGhl eventoId={x.id} />
-                                </div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </Seccion>
+                  <TarjetaEntrada
+                    key={en.id}
+                    entrada={{
+                      id: en.id,
+                      nombre: en.nombre,
+                      url: `${origen}/api/webhooks/entrada/${en.token}`,
+                      activa: en.activa,
+                      pipeline_id: en.pipeline_id,
+                      etapa_id: en.etapa_id,
+                      reglas: reglasValidas(en.reglas),
+                      campos: camposDe([...ultimos, ...suyosRojos]),
+                      landing: en.landing ?? null,
+                      formulario: en.formulario ?? null,
+                      envia_desde: en.envia_desde ?? null,
+                      archivo: en.archivo ?? null,
+                      ghl: {
+                        ghl_activo: en.ghl_activo ?? false,
+                        ghl_campos: en.ghl_campos ?? {},
+                        ghl_pipeline_id: en.ghl_pipeline_id ?? null,
+                        ghl_etapa_id: en.ghl_etapa_id ?? null,
+                        ghl_oportunidades: Array.isArray(en.ghl_oportunidades) ? en.ghl_oportunidades : [],
+                        ghl_etiqueta_base: en.ghl_etiqueta_base ?? null,
+                        ghl_etiquetas_extra: Array.isArray(en.ghl_etiquetas_extra) ? en.ghl_etiquetas_extra : [],
+                        ghl_espera_seg: en.ghl_espera_seg ?? 60,
+                        ghl_campo_completo: en.ghl_campo_completo ?? "quiz_completed",
+                      },
+                    }}
+                    resumen={r}
+                    ultimo={haceCuanto(r.ultimo)}
+                    rojos={suyosRojos}
+                    ultimos={ultimos}
+                    zona={proyecto.zona_horaria}
+                    pipelines={pipes}
+                    opciones={opcionesGhl}
+                  />
                 );
               })}
+              <details className="tarjeta p-4 sm:p-5">
+                <summary className="cursor-pointer text-sm font-semibold text-texto-2">Para el programador: qué responde el dashboard</summary>
+                <ul className="mt-3 divide-y divide-borde text-sm">
+                  {RESPUESTAS.map(([c, t]) => (
+                    <li key={c} className="flex gap-3 py-1.5"><code className="w-10 shrink-0 font-bold">{c}</code><span className="text-texto-2">{t}</span></li>
+                  ))}
+                </ul>
+              </details>
             </div>
-            <Seccion titulo="Nueva entrada">
+            <Seccion titulo="Conectar una landing nueva">
               <NuevaEntrada pipelines={pipes} />
             </Seccion>
           </div>

@@ -88,12 +88,12 @@ export function FormNuevoProyecto() {
   );
 }
 
-export function Copiar({ texto, etiqueta }: { texto: string; etiqueta: string }) {
+export function Copiar({ texto, etiqueta, className = "btn-secundario text-xs" }: { texto: string; etiqueta: string; className?: string }) {
   const [copiado, setCopiado] = useState(false);
   return (
     <button
       type="button"
-      className="btn-secundario text-xs"
+      className={className}
       onClick={async () => {
         await navigator.clipboard.writeText(texto);
         setCopiado(true);
