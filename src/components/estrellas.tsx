@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 import { ESCALA_CALLER, ESCALA_CLOSER } from "@/lib/estrellas";
 
 // Selector de estrellas para formularios (envía el campo `name`). Obligatorio.
-// quien = caller (elige de 2 a 5; el 1 lo pone «No contesta») o closer (de 1 a 5).
+// quien = caller (elige de 2 a 5) o closer (de 1 a 5). C11 (7 nov): ya no existe «No contesta», que ponía el 1.
 export function SelectorEstrellas({ quien, name = "estrellas", opcional = false }: { quien: "caller" | "closer"; name?: string; opcional?: boolean }) {
   const escala = quien === "caller" ? ESCALA_CALLER : ESCALA_CLOSER;
   const min = quien === "caller" ? 2 : 1;
@@ -45,7 +45,7 @@ export function SelectorEstrellas({ quien, name = "estrellas", opcional = false 
         })}
       </div>
       <p className={`mt-1 min-h-4 text-xs ${falta && !visto ? "font-medium text-mal" : "text-texto-2"}`}>
-        {visto ? `${visto}★ · ${escala[visto - 1]}` : falta ? "Elige las estrellas para poder guardar." : quien === "caller" ? "Elige de 2 a 5 (el 1 es «no contesta»)" : "Elige de 1 a 5"}
+        {visto ? `${visto}★ · ${escala[visto - 1]}` : falta ? "Elige las estrellas para poder guardar." : quien === "caller" ? "Elige de 2 a 5" : "Elige de 1 a 5"}
       </p>
     </fieldset>
   );

@@ -51,7 +51,9 @@ export function Modal({
   return (
     <Portal>
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-md ${claseFondo}`} onClick={onCerrar}>
-      <div className={`tarjeta ventana ${claseVentana ?? `w-full ${ancho} p-5`}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={titulo}>
+      {/* Prueba en la app (7 nov): una ventana más alta que la pantalla (p. ej. «Agendado» con el calendario) se cortaba
+          y no bajaba; ahora nunca pasa del alto de la pantalla y se desplaza por dentro */}
+      <div className={`tarjeta ventana ${claseVentana ?? `max-h-[calc(100dvh-2rem)] w-full overflow-y-auto overscroll-contain ${ancho} p-5`}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={titulo}>
         {cabecera ?? (
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{titulo}</h2>
