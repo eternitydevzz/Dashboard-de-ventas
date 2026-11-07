@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 16 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 17 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -67,9 +67,11 @@
 - **La landing solo manda datos.** Etiquetas, pipeline y GHL los decide el dashboard.
 - **JSON v1** (los nombres que el dashboard ya entiende hoy, para no romper nada): `template` (`v1`), `source` (landing), `form`, `step`, `event_id`, `submitted_at`; `name`, `first_name`, `last_name`, `email`, `phone`; `quiz` (`{ pregunta: respuesta }`), `quiz_completed`, `quiz_answered`, `quiz_score`; `page_url`, `referrer`, los 6 UTM, `fbclid`, `gclid`, `ttclid`; `ip`, `user_agent`, `language`, `timezone`. Fuera, respecto al webhook de GHL: `tags`, los `quiz_*` repetidos y `headers`.
 - **IP:** en el webhook de GHL la IP es la del servidor de GHL (`98.82.169.51`, Ashburn), no la de la persona. Desde el navegador el dashboard la lee él mismo; desde un servidor (como `api/signup.js`) la landing la manda en `ip`. Hoy el dashboard no la guarda: cambio pequeño, con test.
-- **Para el equipo:** `Template-landing.md` (qué es, JSON de ejemplo, tabla de campos y pasos), `templates/enviar-al-dashboard.js` (versión navegador y versión servidor, con reintentos y UTM) y la skill para Claude «conectar-web-al-dashboard». En la carpeta `Team` del repo de GitHub y con copia en local.
+- **Para el equipo:** `Template-landing.md` (qué es, JSON de ejemplo, tabla de campos y pasos), `templates/enviar-al-dashboard.js` (versión navegador y versión servidor, con reintentos y UTM) y la skill para Claude «conectar-web-al-dashboard». Todo en `app/Team/` (raíz del repo del dashboard, en GitHub), con copia en local en `PROYECTOS/GENERAL/VENTAS/Team/`. La skill también va en `Team/` y `~/.claude/skills/conectar-web-al-dashboard` apunta a ella.
 - **Skill a la vez que el template.** Cuando estén los workflows (fase 4), se actualiza su paso 2 («crear el workflow»).
-**Pasos:** tests primero (el dashboard entiende el JSON v1 y guarda la IP) → código pequeño en el dashboard (IP y campos nuevos) → los 3 archivos del equipo → PR → probar con un envío real de prueba → Cristian lo revisa.
+- **Las 2 landings de la Biblioteca (registro y agenda) se pasan al JSON v1 dentro de este punto** (repo `biblioteca-maestria`, su propio PR, con prueba real).
+- **Panel de endpoints en el dashboard** (Cristian, 7 nov): crear los endpoints nuevos y gestionarlos todos desde un mismo sitio, como el bloque 2 de la maqueta (cada Entrada con su landing, su formulario, desde dónde envía, su estado, la dirección con su clave, «Copiar dirección» y «Nueva dirección», y lo que responde el dashboard). Hoy ya existe Administración → Entradas (crear, copiar dirección, nueva dirección, reglas, GHL y últimos envíos): falta decidir si es ese mismo rediseñado o uno nuevo (ver «Para decidir»).
+**Pasos:** tests primero (el dashboard entiende el JSON v1 y guarda la IP) → código pequeño en el dashboard (IP y campos nuevos) → panel de endpoints → los 3 archivos del equipo y la skill en `Team/` → PR → pasar las 2 landings de la Biblioteca al JSON v1 → probar con envíos reales de prueba → Cristian lo revisa.
 
 ### 1 · Mejoras pequeñas (Claude)
 Una cada vez, con tests primero, **un PR por mejora** y comprobación.
@@ -132,8 +134,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 
 ## Para decidir (Cristian)
 - **`build.py`:** en revisión en otra sesión («Revisar build.py de la Biblioteca»).
-- **Template, dónde van los archivos:** ¿la carpeta `Team` va en la raíz del repo del dashboard (`app/Team/`)? ¿La copia local va en `PROYECTOS/GENERAL/VENTAS/Team/`? ¿La skill también dentro de `Team` (y `~/.claude/skills/` apunta a ella), en lugar de `app/.claude/skills/`?
-- **Template, landings que ya existen:** ¿se pasan al JSON v1 las dos de la Biblioteca (registro y agenda) dentro de este punto, o más adelante?
+- **Panel de endpoints:** (1) ¿es la pestaña de hoy, Administración → Entradas, rediseñada como la maqueta, o un panel nuevo aparte? (2) Además de lo de la maqueta, ¿cada endpoint enseña también cuántos leads y envíos ha recibido, cuándo llegó el último y si hay alguno en rojo? (3) ¿Un botón para copiar el JSON de ejemplo de esa landing, para pasárselo al equipo? (4) ¿Solo lo ven los jefes, como hoy Entradas?
 
 ---
 
