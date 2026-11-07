@@ -1,6 +1,16 @@
 // Panel de endpoints (plan GHL, punto 0, Cristian 7 nov 2026): lo que se calcula sin base de datos.
 import { describe, expect, it } from "vitest";
-import { datosLandingValidos, direccionCorta, haceCuanto, jsonEjemplo, estadoEntrada } from "@/lib/entradas-panel";
+import { datosLandingValidos, direccionCorta, haceCuanto, jsonEjemplo, estadoEntrada, leadsRecibidos } from "@/lib/entradas-panel";
+
+describe("leadsRecibidos: singular y plural (visto en producción el 7 nov: «1 lead recibidos»)", () => {
+  it("1 → singular", () => {
+    expect(leadsRecibidos(1)).toEqual({ cifra: "1 lead", texto: "recibido" });
+  });
+  it("0 y varios → plural", () => {
+    expect(leadsRecibidos(0)).toEqual({ cifra: "0 leads", texto: "recibidos" });
+    expect(leadsRecibidos(22)).toEqual({ cifra: "22 leads", texto: "recibidos" });
+  });
+});
 
 describe("datosLandingValidos: landing, formulario, desde dónde envía y archivo", () => {
   it("limpia espacios y deja en null lo vacío", () => {
