@@ -157,16 +157,37 @@ describe("modo real: las mismas llamadas a GHL que hoy", () => {
     await avanzarEjecuciones(e.proyecto.id, { ahora: dentroDe(1) });
     expect((await ejecucionesDe(email2()))[0]).toMatchObject({ estado: "esperando", intentos: 1, error: expect.stringMatching(/GHL/) });
   });
-  it("un paso «Mover en el dashboard» todavía no se puede hacer en real: lo dice", async () => {
+  it("«Mover en el dashboard» en real (Cristian, 7 nov): en su pipeline mueve el lead; en otro, su tarjeta", async () => {
     const l = await lead(email2());
-    const { data: x } = await db
-      .from("workflow_ejecuciones")
-      .insert({ workflow_id: workflowId, version: 1, pasos: [{ id: "m", tipo: "mover_dashboard", pipeline_id: e.pipeline.id, etapa_id: null }], proyecto_id: e.proyecto.id, lead_id: l.id, entrada_id: entradaId, siguiente_en: new Date().toISOString() })
-      .select("id")
-      .single();
+    const columnas = Object.values(e.etapas) as string[];
+    // Otro pipeline del proyecto con 2 columnas (la primera, por orden)
+    const { data: p2 } = await db.from("pipelines").insert({ proyecto_id: e.proyecto.id, nombre: "Biblioteca test mover", orden: 9 }).select("id").single();
+    const { data: cols } = await db.from("etapas").insert([{ pipeline_id: p2!.id, nombre: "Segunda", orden: 1 }, { pipeline_id: p2!.id, nombre: "Primera", orden: 0 }]).select("id, nombre");
+    const primera = cols!.find((c) => c.nombre === "Primera")!.id;
+    const pasos = [
+      { id: "m1", tipo: "mover_dashboard", pipeline_id: e.pipeline.id, etapa_id: columnas[1] },
+      { id: "m2", tipo: "mover_dashboard", pipeline_id: p2!.id, etapa_id: null },
+    ];
+    await db.from("leads").update({ pipeline_id: e.pipeline.id, etapa_id: columnas[0] }).eq("id", l.id);
+    const { data: x } = await db.from("workflow_ejecuciones").insert({ workflow_id: workflowId, version: 1, pasos, proyecto_id: e.proyecto.id, lead_id: l.id, entrada_id: entradaId, siguiente_en: new Date().toISOString() }).select("id").single();
     await avanzarEjecuciones(e.proyecto.id, { ahora: dentroDe(2), ghl: conGhl });
-    expect((await db.from("workflow_ejecuciones").select("error").eq("id", x!.id).single()).data!.error).toMatch(/Mover en el dashboard/);
+    expect((await db.from("workflow_ejecuciones").select("estado, error").eq("id", x!.id).single()).data).toEqual({ estado: "ok", error: null });
+    expect((await db.from("leads").select("pipeline_id, etapa_id").eq("id", l.id).single()).data).toEqual({ pipeline_id: e.pipeline.id, etapa_id: columnas[1] });
+    expect((await db.from("tarjetas_extra").select("etapa_id").eq("lead_id", l.id).eq("pipeline_id", p2!.id).single()).data!.etapa_id).toBe(primera);
     await db.from("workflow_ejecuciones").delete().eq("id", x!.id);
+  });
+  it("«Mover» a un pipeline de otro proyecto: error, no se mueve", async () => {
+    const l = await lead(email2());
+    const otro = await crearEscenario();
+    try {
+      const { data: x } = await db.from("workflow_ejecuciones").insert({ workflow_id: workflowId, version: 1, pasos: [{ id: "m", tipo: "mover_dashboard", pipeline_id: otro.pipeline.id, etapa_id: null }], proyecto_id: e.proyecto.id, lead_id: l.id, entrada_id: entradaId, siguiente_en: new Date().toISOString() }).select("id").single();
+      await avanzarEjecuciones(e.proyecto.id, { ahora: dentroDe(3), ghl: conGhl });
+      expect((await db.from("workflow_ejecuciones").select("error").eq("id", x!.id).single()).data!.error).toMatch(/pipeline/);
+      expect((await db.from("leads").select("pipeline_id").eq("id", l.id).single()).data!.pipeline_id).toBe(e.pipeline.id);
+      await db.from("workflow_ejecuciones").delete().eq("id", x!.id);
+    } finally {
+      await borrarEscenario(otro);
+    }
   });
 });
 

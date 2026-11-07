@@ -328,6 +328,25 @@ export async function moverAAgendadosOrganico(proyectoId: string, leadId: string
   }
 }
 
+// Workflows, «Mover en el dashboard» en modo real (Cristian, 7 nov 2026): lleva el lead a una columna de un pipeline del
+// proyecto (sin columna = la primera). Como moverAAgendadosOrganico: si el lead está en ese pipeline (o en ninguno), se
+// mueve el lead; si está en otro, se mueve (o se crea) su tarjeta 🔗 en ese pipeline.
+export async function moverLeadDashboard(proyectoId: string, leadId: string, pipelineId: string, etapaId: string | null) {
+  const { data: p } = await db().from("pipelines").select("id, etapas(id, orden)").eq("id", pipelineId).eq("proyecto_id", proyectoId).maybeSingle();
+  if (!p) throw new Error("Mover en el dashboard: ese pipeline no es de este proyecto");
+  const etapas = ((p.etapas ?? []) as { id: string; orden: number }[]).sort((a, b) => a.orden - b.orden);
+  const destino = etapaId ? etapas.find((e) => e.id === etapaId) : etapas[0];
+  if (!destino) throw new Error("Mover en el dashboard: esa columna no es de ese pipeline");
+  const { data: lead } = await db().from("leads").select("pipeline_id").eq("id", leadId).eq("proyecto_id", proyectoId).maybeSingle();
+  if (!lead) throw new Error("Mover en el dashboard: no se encontró el lead");
+  if (!lead.pipeline_id || lead.pipeline_id === pipelineId) {
+    await escribir(db().from("leads").update({ pipeline_id: pipelineId, etapa_id: destino.id }).eq("id", leadId), "leads");
+    return;
+  }
+  const creadas = await anadirTarjetas(proyectoId, [{ lead_id: leadId, pipeline_id: pipelineId, etapa_id: destino.id }]);
+  if (!creadas) await escribir(db().from("tarjetas_extra").update({ etapa_id: destino.id }).eq("lead_id", leadId).eq("pipeline_id", pipelineId), "tarjetas_extra");
+}
+
 export async function datosAgendaGhl(leadId: string): Promise<{ agendada_por: string | null; estrellas_caller: number | null }> {
   // C11 (Cristian, 7 nov, punto 10): la agenda de GHL es del caller del lead (ya no de quien mandó el link)
   const { data } = await db().from("leads").select("caller_id, estrellas_caller").eq("id", leadId).maybeSingle();
