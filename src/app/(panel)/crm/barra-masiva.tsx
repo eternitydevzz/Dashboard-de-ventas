@@ -8,6 +8,8 @@ import { Desplegable } from "@/components/eleccion";
 import { confirmar } from "@/components/dialogos";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { ETIQUETA_ESTADO_CALLER, nombrePais } from "@/lib/formato";
+import { CAMPOS_FICHA } from "@/lib/ficha-cualificacion";
+import { fichasParaExportar } from "@/app/(panel)/caller/ficha-acciones";
 import type { LeadTarjeta } from "./tablero";
 
 type Persona = { id: string; nombre: string };
@@ -46,8 +48,15 @@ export function BarraMasiva({
   const n = ids.length;
   const de = (x: string) => (x === "__ninguno" ? null : x);
 
-  function exportar() {
+  async function exportar() {
     const marcados = leads.filter((l) => seleccion.has(l.id));
+    // C6: con la ficha de cualificación del caller (columnas «Cualificación · …»)
+    let fichas: Awaited<ReturnType<typeof fichasParaExportar>> = {};
+    try {
+      fichas = await exigirOk(fichasParaExportar(marcados.map((l) => l.id)));
+    } catch {
+      fichas = {}; // sin fichas, se exporta lo de siempre
+    }
     const filas = marcados.map((l) => ({
       Nombre: l.nombre,
       Apellido: l.apellido,
@@ -60,6 +69,7 @@ export function BarraMasiva({
       Estado: ETIQUETA_ESTADO_CALLER[l.estado_caller as keyof typeof ETIQUETA_ESTADO_CALLER] ?? l.estado_caller,
       Etiquetas: l.etiquetas.join(", "),
       Entró: l.creado_en.slice(0, 10),
+      ...Object.fromEntries(CAMPOS_FICHA.map((c) => [`Cualificación · ${c.t}`, (fichas as Record<string, Record<string, string>>)[l.id]?.[c.k] ?? ""])),
     }));
     const csv = "﻿" + Papa.unparse(filas);
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -126,7 +136,7 @@ export function BarraMasiva({
       <button className="btn-secundario px-2.5 py-1.5 text-xs" disabled={!etiqueta.trim()} onClick={() => ejecutar(async () => { await exigirOk(cambiarEtiquetas(ids, [], [etiqueta])); setEtiqueta(""); }, `Etiqueta «${etiqueta.trim()}» quitada`)}>
         Quitar
       </button>
-      <button className="btn-secundario px-2.5 py-1.5 text-xs" onClick={exportar}>
+      <button className="btn-secundario px-2.5 py-1.5 text-xs" onClick={() => void exportar()}>
         <Download className="h-4 w-4" /> Exportar
       </button>
       {ceo && <button

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Copy, Lightbulb, Search, ShieldQuestion, Check } from "lucide-react";
+import { Copy, Lightbulb, Search, ShieldQuestion, Check, ClipboardList } from "lucide-react";
+import { PanelFicha, useFicha } from "@/components/ficha-cualificacion";
 import { Modal } from "@/components/modal";
 import { useToast } from "@/components/toasts";
 import { guardarMarcasGuion } from "@/app/(panel)/guiones/acciones";
@@ -36,6 +37,10 @@ export function GuionLlamada({
   const [paso, setPaso] = useState(guion.pasos[0]?.id ?? "");
   const [busca, setBusca] = useState("");
   const [abierta, setAbierta] = useState<string | null>(null);
+  // C6 (7c.2): la ficha de cualificación vive solo en el guion y se guarda siempre
+  const ficha = useFicha(leadId);
+  const [lado, setLado] = useState<"ficha" | "objeciones">("ficha");
+  const [aviso, setAviso] = useState("");
   const datos = { nombre: nombreLead.split(" ")[0], "tu nombre": miNombre };
   const { hechos, total } = resumenMarcas(guion, marcas);
   const objeciones = useMemo(() => {
@@ -52,7 +57,22 @@ export function GuionLlamada({
     });
   }
 
-  function terminar(clave: string) {
+  // Antes de seguir, la ficha tiene que estar guardada; si falla, el botón no sigue y sale «Reintentar» (7c.2)
+  async function conFichaGuardada(siguiente: () => void) {
+    setAviso("");
+    if (await ficha.guardar()) siguiente();
+    else {
+      setLado("ficha");
+      setAviso("No se pudo guardar la ficha de cualificación. Pulsa «Reintentar» y vuelve a probar.");
+    }
+  }
+
+  async function terminar(clave: string) {
+    if (!(await ficha.guardar())) {
+      setLado("ficha");
+      setAviso("No se pudo guardar la ficha de cualificación. Pulsa «Reintentar» y vuelve a probar.");
+      return;
+    }
     // Se guarda en segundo plano: el resultado se abre al momento
     void guardarMarcasGuion(leadId, marcas, clave).then((r) => {
       if (r && typeof r === "object" && "error" in r && r.error) toast(String(r.error), "error");
@@ -61,7 +81,7 @@ export function GuionLlamada({
   }
 
   return (
-    <Modal titulo={`Guion · ${nombreLead}`} onCerrar={onCerrar} ancho="max-w-5xl">
+    <Modal titulo={`Guion · ${nombreLead}`} onCerrar={() => void conFichaGuardada(onCerrar)} ancho="max-w-5xl">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-panel-2 px-4 py-3">
           <div>
@@ -131,7 +151,15 @@ export function GuionLlamada({
           </ol>
 
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold"><ShieldQuestion className="h-4 w-4 text-primario" /> Objeciones</div>
+            <div className="flex gap-1 rounded-xl border border-borde bg-panel-2 p-1" role="tablist" aria-label="Ayudas del guion">
+              {([["ficha", "Cualificación", ClipboardList], ["objeciones", "Objeciones", ShieldQuestion]] as const).map(([v, t, Icono]) => (
+                <button key={v} type="button" role="tab" aria-selected={lado === v} onClick={() => { setLado(v); void ficha.guardar(); }} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold ${lado === v ? "bg-panel text-primario shadow-sm" : "text-texto-2"}`}>
+                  <Icono className="h-3.5 w-3.5" /> {t}
+                </button>
+              ))}
+            </div>
+            {lado === "ficha" && <PanelFicha ficha={ficha} />}
+            {lado === "objeciones" && (<>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-3" />
               <input value={busca} onChange={(e) => setBusca(e.target.value)} className="campo pl-9" placeholder="Busca lo que te dice…" aria-label="Buscar objeción" />
@@ -147,14 +175,16 @@ export function GuionLlamada({
                 </div>
               ))}
             </div>
+            </>)}
           </div>
         </div>
 
         <div className="border-t border-borde pt-3">
+          {aviso && <p className="mb-2 rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal" role="alert">{aviso}</p>}
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-texto-3">¿Cómo ha ido?</div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {resultados.map((r) => (
-              <button key={r.clave} type="button" className="btn-secundario justify-center" onClick={() => terminar(r.clave)}>
+              <button key={r.clave} type="button" className="btn-secundario justify-center" onClick={() => void terminar(r.clave)}>
                 {r.icono} {r.texto}
               </button>
             ))}
