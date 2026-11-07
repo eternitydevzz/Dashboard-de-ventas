@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 20 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 21 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -16,7 +16,7 @@
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
 | **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`). 4a hecha (PR #38 y #40): la Biblioteca está en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. 4b hecha (PR #42, pestaña Workflows). 4c: editor hecho (PR #45); rehacer «2 . WH - FORM AGENDA GENERAL», aplazado por Cristian. Siguiente: 2 · Revisar todo con Cristian |
 | Revisión de todo con Cristian | Hecha el 7 nov: Cristian la dio por buena, sin cambios |
-| **Template de landings, skill y archivos del equipo** | **← Siguiente** (maqueta hecha) |
+| Template de landings, skill y archivos del equipo | Hecho el 7 nov (PR #55), salvo pasar las 2 landings de la Biblioteca al JSON v1: después del 10 nov |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
 | 6 · Landing de agenda de `codigomaestria.com` | Pendiente, **después** de los workflows visuales |
 | 6 · Optin | Pendiente |
@@ -119,7 +119,12 @@
 - **Skill a la vez que el template**, ya con los workflows hechos (su paso 2 es «crear el workflow»).
 - **Las 2 landings de la Biblioteca (registro y agenda) se pasan al JSON v1 dentro de este punto** (repo `biblioteca-maestria`, su propio PR, con prueba real), **pero después del 10 nov** (Cristian, 7 nov): no se cambia lo que reciben en mitad de sus días de prueba de los workflows. Se hace cuando Cristian decida «Pasar a real». **Ojo con agenda:** su Entrada lee las respuestas sueltas (`situacion`, `decisor`, `ingresos_mensuales`, `inversion`, `objetivo_12_meses`, `relacion_ia`, `urgencia`, `qualified`) y el JSON v1 las manda dentro de `quiz`: la landing y su Entrada (`quiz.situacion`…) se cambian juntas, y su workflow también. Registro ya lee `quiz.*`: no se rompe.
 - **IP** (Cristian, 7 nov): se guarda en el `seguimiento` del lead, junto a los UTM; sin cambiar la base.
-**Pasos:** tests primero (el dashboard entiende el JSON v1 y guarda la IP) → código pequeño en el dashboard (IP y campos nuevos; si no se hizo ya con el panel, ver «Para decidir») → los 3 archivos del equipo y la skill en `Team/` → PR → pasar las 2 landings de la Biblioteca al JSON v1 → probar con envíos reales de prueba → Cristian lo revisa.
+**HECHO el 7 nov (dashboard PR #55):**
+- **JSON v1:** el dashboard ya lo entendía; lo prueban `tests/unit/json-v1.test.ts` (con el mismo ejemplo que copia el panel) y `tests/integracion/json-v1-ip.test.ts`.
+- **IP** en el `seguimiento` del lead (`src/lib/ip-envio.ts`): la `ip` que manda la landing si es válida; si no, la de la petición solo cuando la Entrada envía desde el navegador; desde un servidor o «no lo sé», ninguna.
+- **Para el equipo, en `app/Team/`** (copia en `VENTAS/Team/`): `Template-landing.md`, `templates/enviar-al-dashboard.js` (navegador y servidor; `node --check` sin errores) y la skill `skills/conectar-web-al-dashboard`, enlazada en `~/.claude/skills/conectar-web-al-dashboard` (el enlace apunta a la carpeta del repo: si se cambia a una rama sin `Team/`, la skill desaparece hasta volver a `main`).
+- **Pendiente:** pasar las 2 landings de la Biblioteca al JSON v1, después del 10 nov (agenda: landing y Entrada juntas).
+**Pasos (de antes):** tests primero (el dashboard entiende el JSON v1 y guarda la IP) → código pequeño en el dashboard (IP y campos nuevos; si no se hizo ya con el panel, ver «Para decidir») → los 3 archivos del equipo y la skill en `Team/` → PR → pasar las 2 landings de la Biblioteca al JSON v1 → probar con envíos reales de prueba → Cristian lo revisa.
 
 ### 4 · Fase 6 · Landing de agenda de `codigomaestria.com` (Claude, con la skill y los workflows)
 - [ ] `codigomaestria.com/agenda` (`LANDINGS/Landing agenda/Landing-agendar.html`, hoy manda al webhook `2f05f800…`), **con una Entrada** y su workflow del dashboard. Hacer lo mismo que hace hoy su workflow de GHL con el formulario (ramas por `utm_source`, ver «Datos»): leerlo antes con Playwright. La página y el calendario siguen en GHL. **El cambio en la página lo hace Cristian:** Claude le da la dirección de la Entrada (`https://dashboard.eternity.llc/api/webhooks/entrada/<clave>`) y él la pone en GHL en lugar del webhook actual. Antes, Claude lee `Landing-agendar.html` y la pasa al JSON v1 del template. Con prueba, y Cristian la ve.
