@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 25 (7 nov 2026, 20:50 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 26 (7 nov 2026, 21:50 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -22,6 +22,7 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 | **Biblioteca en real** desde las 20:05 UTC: el primer lead real (20:18) y uno de prueba (20:12) llegaron a GHL por su workflow, ok a la primera | — | ✅ |
 | **«Mover en el dashboard» en modo real** | #59 | ✅ En producción |
 | **Workflows de la Biblioteca, versión 2** (Cristian, 7 nov), ver «Biblioteca: etiquetas y columnas» | — | ✅ Cargados a las 20:33 UTC. Los leads de los últimos 2 días pasaron por ellos: **26 de 26 ok, 0 errores** (registro 23, agenda 3 a las 20:40; los 3 de agenda en «Agendados» con `agenda-biblioteca` y `biblioteca`). A esos 23 leads se les quitaron en el dashboard las etiquetas antiguas (Cristian, 7 nov: solo esos, solo el dashboard; GHL las conserva) |
+| **Biblioteca en JSON v1** (registro y agenda), ver «Biblioteca: JSON v1» | dashboard #62, biblioteca-maestria #3 | ✅ Publicado a las 21:35 UTC y probado con 3 leads de prueba: dashboard, workflows y GHL bien |
 | Plan propio de workflows (`docs/plan-workflows.md`) y este plan, al día | #37, #39, #41, #43, #47, #50, #56 | ✅ |
 
 ## Lo que queda ahora (en orden)
@@ -29,30 +30,42 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 - [ ] **Renombrar en GHL las columnas de «1. Biblioteca Recursos»:** «Registrados» → «Form incompleto», «Form Agenda» → «Form completo» y «Agendado» → «Agendados» (Cristian, 7 nov: «renombra las de hoy»). Sus ids no cambian: el workflow ya las usa.
 - [ ] Poner el **calendario de GHL de cada closer** (Administración → Integraciones GHL). Hasta entonces, al agendar en la app sale un aviso en rojo (la cita se queda en la app).
 - [ ] Comprobar que la integración de GHL tiene el permiso de **escribir en calendarios** (`calendars/events.write`).
-- [ ] Borrar los leads de prueba: «Prueba Workflow 1» (`info+wf1@eternity.llc`) y los de antes (ver «Lo que hace Cristian»).
+- [ ] Borrar los leads de prueba (dashboard y GHL): «Prueba Workflow 1» (`info+wf1@eternity.llc`), «Prueba JsonVuno Siete/Ocho/Nueve» (`info+bib7`, `info+bib8`, `info+bib9@eternity.llc`) y los de antes (ver «Lo que hace Cristian»).
 
 **Claude, cuando toque:**
 - [ ] Con los calendarios puestos: una prueba agendando en la app con un lead de prueba y cancelar la cita.
 - [ ] Vigilar los primeros leads reales de la Biblioteca en real (Administración → Workflows → historial; Entradas sin rojos). Si algo va mal: «Volver a lo de hoy».
-- [ ] Pasar las 2 landings de la Biblioteca al JSON v1 (Cristian, 7 nov: ya, pero revisando antes todos los detalles). En agenda, la landing y su workflow (respuestas dentro de `quiz`) juntos.
 - [ ] Mejoras pequeñas, una a una, cada una con su PR (Cristian, 7 nov: «ya»). Ver «8 · Mejoras pequeñas».
 - [ ] Reintentar leer en GHL «2 . WH - FORM AGENDA GENERAL» con Playwright (Cristian, 7 nov: «inténtalo tú otra vez»).
 - [ ] **Para revisar luego con Cristian (7 nov):**
-  1. Las etiquetas antiguas van a volver en los leads nuevos de registro. La landing todavía manda `biblioteca-form-completo` / `biblioteca-form-incompleto` (`BIBLIOTECA/api/signup.js:54`). Se arregla al pasarla al JSON v1, que es el siguiente paso.
+  1. ~~Las etiquetas antiguas van a volver en los leads nuevos de registro~~ **Resuelto a las 21:35 UTC:** la landing ya no manda `tags` (JSON v1). Probado: los leads de prueba solo tienen las etiquetas nuevas.
   2. Error de Claude al escribir el plan v25: puso primero que la landing mandaba «biblioteca recursos». Lo comprobó antes de subirlo y lo corrigió.
 - [ ] **Pestaña «Etiquetas» en Administración, al lado de «Workflows»** (Cristian, 7 nov). Qué debe hacer exactamente (ver, renombrar, unir, borrar etiquetas…) está **por decidir con Cristian** antes del boceto.
 - [ ] Arreglo pequeño: «1 de 1 coinciden» → «1 de 1 coincide» en Workflows.
 - [ ] Siguiente fase por orden: landing de agenda de `codigomaestria.com` (necesita antes rehacer el workflow de agendas de GHL, aplazado).
 
 ## Biblioteca: etiquetas y columnas (Cristian, 7 nov)
-Versión 2 de sus 2 workflows (cargada el 7 nov a las 20:33 UTC). **Solo las etiquetas nuevas**; las de antes ya no se ponen (`biblioteca-form-…`, `biblioteca-agenda-…`, `biblioteca recursos`, `agenda biblioteca`). A los 23 leads de los últimos 2 días se les quitaron en el dashboard (20:45 UTC); los otros ~2100 leads con «biblioteca recursos» y GHL se quedan como estaban (Cristian, 7 nov). **Ojo:** mientras la landing de registro siga mandando `tags`, cada lead nuevo de registro trae otra vez `biblioteca-form-completo` o `biblioteca-form-incompleto` (`api/signup.js:54`); se acaba al pasarla al JSON v1 (sin `tags`).
+Versión 2 de sus 2 workflows (cargada el 7 nov a las 20:33 UTC). **Solo las etiquetas nuevas**; las de antes ya no se ponen (`biblioteca-form-…`, `biblioteca-agenda-…`, `biblioteca recursos`, `agenda biblioteca`). A los 23 leads de los últimos 2 días se les quitaron en el dashboard (20:45 UTC); los otros ~2100 leads con «biblioteca recursos» y GHL se quedan como estaban (Cristian, 7 nov). Desde el JSON v1 (21:35 UTC) la landing ya no manda `tags`: no vuelven.
 | Quién | Etiquetas | GHL «1. Biblioteca Recursos» | Dashboard «1. Biblioteca Recursos» |
 |---|---|---|---|
 | Registro, solo el primer formulario | `form-biblioteca-incompleto`, `biblioteca` | «Form incompleto» (hoy «Registrados», id `9cb965ae…`) | «Form incompleto» |
 | Registro con el cuestionario completo | `form-biblioteca-completo`, `biblioteca` (y se quita `form-biblioteca-incompleto`) | «Form completo» (hoy «Form Agenda», id `77b3ce38…`) | «Form completo» |
 | Agenda | `agenda-biblioteca`, `biblioteca` | «Agendados» (hoy «Agendado», id `f0c80531…`); **además**, como antes, «0. Agendas Biblioteca» y «0. Agendas General» | «Agendados» (si el lead está en otro pipeline, su tarjeta); además, como antes, «0. Agendas General» |
 - **Los leads de los últimos 2 días** (desde el 5 nov a las 20:05 UTC) vuelven a pasar por su workflow nuevo: 23 de registro y, 6 minutos después, 3 de agenda (para que acaben en «Agendados»).
-- **`source`:** pasa a «biblioteca» al cambiar las landings al JSON v1 (pendiente, ver «Lo que queda»).
+- **`source`:** registro «biblioteca»; agenda sigue «agenda-biblioteca» (Cristian, 7 nov).
+
+## Biblioteca: JSON v1 (hecho el 7 nov, 21:35 UTC)
+Decisiones de Cristian (7 nov), tras la revisión:
+- **Registro** (`api/signup.js`): `template` v1, `source` «biblioteca», `form` «registro», nombre y apellido, `submitted_at`, IP de la persona (antes no se guardaba), `user_agent` e idioma. Fuera `tags`, `quiz_*` sueltos y `ts`.
+- **Agenda** (`web/programa.js`): `template` v1, `form` «agenda», idioma y navegador; **`source` y `utm_source` siguen «agenda-biblioteca»**; las respuestas van dentro de `quiz` **con prefijo `agenda_`** (`situacion` e `inversion` se llaman igual que 2 preguntas del cuestionario de la Biblioteca: sin prefijo, pisaban esas respuestas y cambiaban la oferta del lead). El enlace del calendario de GHL no cambia.
+- **Dashboard antes (PR #62):** la fuente «biblioteca» cuenta como lead de la Biblioteca (oferta y resumen de KPIs). Sin esto, un registro sin cuestionario se quedaba sin oferta.
+- **Workflow de agenda, versión 3:** añade los campos `quiz.agenda_*` (mismos campos de GHL); los sueltos se quedan para quien tenga la página vieja abierta.
+- **Prueba en producción (21:35-21:45 UTC), con Playwright y la web real:**
+  - `info+bib7` (solo registro): oferta «membresia», IP, «Form incompleto», etiquetas `form-biblioteca-incompleto` y `biblioteca`.
+  - `info+bib8` (cuestionario completo): oferta «vip», 6 respuestas, «Form completo»; en GHL, sus 6 campos, `source` «biblioteca» y la oportunidad.
+  - `info+bib9` (agenda, sin reservar cita): sin oferta de Biblioteca (correcto), IP, tarjeta en «Agendados»; en GHL, sus 7 respuestas, `qualified` y 3 oportunidades.
+- **No probado:** el idioma desde el servidor (la prueba de registro se hizo con curl, que no lo manda; la de agenda, desde el navegador, sí lo trajo). El `?v=` de `programa.js` en `recursos.html` no se regeneró (`build.py`): quien tenga la página vieja abierta manda el formato viejo un rato, que el dashboard sigue entendiendo.
+- **Cómo volver atrás:** revertir el PR #3 de `biblioteca-maestria` (Vercel publica main). El dashboard y el workflow v3 entienden los 2 formatos: no hace falta tocarlos.
 - **Cuidado:** si un lead agenda y **después** termina el cuestionario de registro, su workflow de registro lo vuelve a «Form completo». Pasa poco (normalmente es al revés); si molesta, se añade al registro una rama «si ya agendó, no mover».
 
 ## Dónde estamos
@@ -66,7 +79,7 @@ Versión 2 de sus 2 workflows (cargada el 7 nov a las 20:33 UTC). **Solo las eti
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
 | 4 · Workflows visuales (motor y lienzo de lectura y edición) | Hecha en lo decidido (PR #38, #40, #42 y #45). La Biblioteca, en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. Rehacer «2 . WH - FORM AGENDA GENERAL», aplazado por Cristian. Detalle en `docs/plan-workflows.md` |
 | Revisión de todo con Cristian | Hecha el 7 nov: Cristian la dio por buena, sin cambios |
-| Template de landings, skill y archivos del equipo | Hecho el 7 nov (PR #55), salvo pasar las 2 landings de la Biblioteca al JSON v1: después del 10 nov |
+| Template de landings, skill y archivos del equipo | Hecho el 7 nov (PR #55); las 2 landings de la Biblioteca, en JSON v1 desde el 7 nov a las 21:35 UTC |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
 | **6 · Landing de agenda de `codigomaestria.com`** | **← Siguiente por orden.** Necesita antes rehacer «2 . WH - FORM AGENDA GENERAL» (aplazado por Cristian): Cristian decide cuándo |
 | 6 · Optin | Pendiente |
@@ -174,7 +187,7 @@ Versión 2 de sus 2 workflows (cargada el 7 nov a las 20:33 UTC). **Solo las eti
 - **JSON v1:** el dashboard ya lo entendía; lo prueban `tests/unit/json-v1.test.ts` (con el mismo ejemplo que copia el panel) y `tests/integracion/json-v1-ip.test.ts`.
 - **IP** en el `seguimiento` del lead (`src/lib/ip-envio.ts`): la `ip` que manda la landing si es válida; si no, la de la petición solo cuando la Entrada envía desde el navegador; desde un servidor o «no lo sé», ninguna.
 - **Para el equipo, en `app/Team/`** (copia en `VENTAS/Team/`): `Template-landing.md`, `templates/enviar-al-dashboard.js` (navegador y servidor; `node --check` sin errores) y la skill `skills/conectar-web-al-dashboard`, enlazada en `~/.claude/skills/conectar-web-al-dashboard` (el enlace apunta a la carpeta del repo: si se cambia a una rama sin `Team/`, la skill desaparece hasta volver a `main`).
-- **Pendiente:** pasar las 2 landings de la Biblioteca al JSON v1, después del 10 nov (agenda: landing y Entrada juntas).
+- **Hecho el 7 nov (21:35 UTC):** las 2 landings de la Biblioteca en JSON v1 (Cristian lo adelantó: «ya»). Ver «Biblioteca: JSON v1».
 **Pasos (de antes):** tests primero (el dashboard entiende el JSON v1 y guarda la IP) → código pequeño en el dashboard (IP y campos nuevos; si no se hizo ya con el panel, ver «Para decidir») → los 3 archivos del equipo y la skill en `Team/` → PR → pasar las 2 landings de la Biblioteca al JSON v1 → probar con envíos reales de prueba → Cristian lo revisa.
 
 ### 4 · Fase 6 · Landing de agenda de `codigomaestria.com` (Claude, con la skill y los workflows)
