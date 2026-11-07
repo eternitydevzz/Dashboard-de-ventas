@@ -42,6 +42,7 @@ export function ColaCaller({
   guion,
   miNombre,
   nombresPipeline,
+  puedeGrabar,
 }: {
   pestanas: ReactNode;
   leads: LeadCola[];
@@ -60,6 +61,7 @@ export function ColaCaller({
   guion: Guion;
   miNombre: string;
   nombresPipeline: Record<string, string>; // pipeline de origen del lead («Webinar 1»…), en la cabecera
+  puedeGrabar: boolean; // C10
 }) {
   const elegido = useSearchParams().get("lead");
   const [busca, setBusca] = useState("");
@@ -210,6 +212,7 @@ export function ColaCaller({
               guionAbierto={guionDe === seleccionado.id}
               onGuionAbierto={abrirGuion}
               onSiguiente={siguiente}
+              puedeGrabar={puedeGrabar}
               cabecera={
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl border border-white/30 bg-white/20 text-[15px] font-bold" aria-hidden>{iniciales(nombreDe(seleccionado))}</span>

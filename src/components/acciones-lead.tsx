@@ -12,6 +12,7 @@ import { exigirOk } from "@/lib/resultado-cliente";
 import type { Producto, Respuesta } from "@/lib/tipos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { GuionLlamada } from "@/components/guion-llamada";
+import { BotonGrabar, useGrabadora } from "@/components/grabadora";
 import type { Guion } from "@/lib/guiones";
 
 type Persona = { id: string; nombre: string };
@@ -87,8 +88,7 @@ export function AccionesLead({
   guionAbierto,
   onGuionAbierto,
   onSiguiente,
-  grabador,
-  botonGrabar,
+  puedeGrabar = false,
 }: {
   leadId: string;
   telefono: string | null;
@@ -111,9 +111,9 @@ export function AccionesLead({
   guionAbierto?: boolean; // cola: quién abre el guion lo decide la cola («Siguiente» lo abre en el siguiente)
   onGuionAbierto?: (abierto: boolean) => void;
   onSiguiente?: () => void;
-  grabador?: ReactNode; // C10: «Grabar» con su contador, en la cabecera del guion
-  botonGrabar?: ReactNode; // C10: «Grabar» en la cabecera del lead
+  puedeGrabar?: boolean; // C10: con la sección «Grabaciones», «Grabar» en la cabecera del lead y en el guion
 }) {
+  const grabadora = useGrabadora();
   const { pendiente, error, ok, ejecutar } = useAccion();
   const aviso = useToast();
   async function copiarLinkAgenda() {
@@ -151,7 +151,7 @@ export function AccionesLead({
           guion={guion}
           respuestas={respuestas}
           actual={estado}
-          grabador={grabador}
+          grabador={puedeGrabar ? <BotonGrabar leadId={leadId} nombre={nombre} /> : undefined}
           resultados={BOTONES_RESULTADO.map((k) => {
             const Icono = ICONO_RESULTADO[k];
             return { clave: k, texto: etiquetaEstado(k), icono: <Icono className="h-4 w-4 shrink-0" style={{ color: colorEstado(k) }} /> };
@@ -220,7 +220,12 @@ export function AccionesLead({
                 <ScrollText className="h-4 w-4" /> Guion
               </button>
             )}
-            {botonGrabar}
+            {/* C10 (7c.3): «Grabar» abre el guion y empieza a grabar */}
+            {puedeGrabar && grabadora && (
+              <button type="button" className={`${bv} !border-white !bg-white !text-[#b4202f]`} disabled={!!grabadora.grabando} onClick={() => { abrirGuion(true); void grabadora.empezar(leadId, nombre); }}>
+                <span className="h-2.5 w-2.5 rounded-full bg-[#d0303f]" /> {grabadora.grabando?.leadId === leadId ? "Grabando…" : "Grabar"}
+              </button>
+            )}
             {/* F9 (plan Callers): abrir WhatsApp ya no apunta nada; lo apunta el resultado «Wsp enviado» */}
             {telLimpio && <a href={`https://wa.me/${telLimpio}`} target="_blank" rel="noreferrer" className={bv} aria-label="WhatsApp"><MessageCircle className="h-4 w-4" /> Wsp</a>}
             {linkAgenda && <button type="button" className={bv} onClick={() => void copiarLinkAgenda()}><Link2 className="h-4 w-4" /> Copiar link agenda</button>}

@@ -48,6 +48,6 @@ describe("Permisos por sección", () => {
   });
 
   it("el CEO lo tiene todo siempre", async () => {
-    expect((await seccionesPermitidas(e.p.ceo, e.proyecto.id)).size).toBe(16); // todas las secciones (16 con «Manuales», C9)
+    expect((await seccionesPermitidas(e.p.ceo, e.proyecto.id)).size).toBe(17); // todas las secciones (17 con «Manuales» y «Grabaciones», C9 y C10)
   });
 });

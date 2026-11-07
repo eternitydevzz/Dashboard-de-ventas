@@ -26,7 +26,7 @@ describe("Regla: manda la persona, luego su rol, luego lo de siempre", () => {
     expect(calcularPermisos("caller", [{ seccion: "cola", permitido: false }], [{ seccion: "cola", permitido: true }]).has("cola")).toBe(true); // la persona manda
     expect(calcularPermisos("caller", [], [{ seccion: "finanzas", permitido: true }]).has("finanzas")).toBe(false); // nunca
     expect(calcularPermisos("director", [], [{ seccion: "mi_funnel", permitido: true }]).has("mi_funnel")).toBe(false); // no aplica
-    expect(calcularPermisos("ceo", [{ seccion: "funnel", permitido: false }], []).size).toBe(16); // el CEO, siempre todo (16 con «Manuales», C9)
+    expect(calcularPermisos("ceo", [{ seccion: "funnel", permitido: false }], []).size).toBe(17); // el CEO, siempre todo (17 con «Manuales» y «Grabaciones», C9 y C10)
   });
 });
 
@@ -68,7 +68,7 @@ describe("Inicio cuando quitan secciones", () => {
     expect(await rutaInicio(e.p.callerB, e.proyecto.id)).toBe("/caller");
     await ok(guardarPermisoPersona(e.p.callerB.id, "cola", false));
     expect(await rutaInicio(e.p.callerB, e.proyecto.id)).toBe("/mi-funnel");
-    for (const s of ["mi_funnel", "crm", "grabadas", "ranking", "recursos", "reportes", "manuales"]) await ok(guardarPermisoPersona(e.p.callerB.id, s, false));
+    for (const s of ["mi_funnel", "crm", "grabadas", "ranking", "recursos", "reportes", "manuales", "grabaciones"]) await ok(guardarPermisoPersona(e.p.callerB.id, s, false));
     expect(await rutaInicio(e.p.callerB, e.proyecto.id)).toBe("/sin-acceso");
   });
 

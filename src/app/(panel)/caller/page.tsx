@@ -137,6 +137,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           guion={guion}
           miNombre={perfil.nombre}
           nombresPipeline={nombresPipeline}
+          puedeGrabar={tiene.has("grabaciones")}
         />
       </Contenido>
     </>
