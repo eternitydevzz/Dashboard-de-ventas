@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 19 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 20 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -15,8 +15,8 @@
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
 | **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`). 4a hecha (PR #38 y #40): la Biblioteca está en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. 4b hecha (PR #42, pestaña Workflows). 4c: editor hecho (PR #45); rehacer «2 . WH - FORM AGENDA GENERAL», aplazado por Cristian. Siguiente: 2 · Revisar todo con Cristian |
-| Revisión de todo con Cristian | Pendiente |
-| Template de landings, skill y archivos del equipo | Pendiente (maqueta hecha) |
+| Revisión de todo con Cristian | Hecha el 7 nov: Cristian la dio por buena, sin cambios |
+| **Template de landings, skill y archivos del equipo** | **← Siguiente** (maqueta hecha) |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
 | 6 · Landing de agenda de `codigomaestria.com` | Pendiente, **después** de los workflows visuales |
 | 6 · Optin | Pendiente |
@@ -105,7 +105,8 @@
 - [x] 4a-1 (motor y modo prueba) hecha y publicada el 7 nov (PR #38). La Biblioteca está en prueba hasta al menos el 10 nov. Detalle y lo que falta en `docs/plan-workflows.md`.
 
 ### 2 · Revisar todo con Cristian
-- [ ] Repasar juntos el panel de endpoints y los workflows en el dashboard. Si está bien, se pasa al punto 3; si no, se apunta qué cambiar.
+- [x] Repasar juntos el panel de endpoints y los workflows en el dashboard. **Hecho el 7 nov:** Cristian la dio por buena, sin cambios, y pidió pasar al punto 3.
+- [x] Pasada de punta a punta con datos reales: registro de prueba en la Biblioteca (`info+wf1@eternity.llc`, teléfono (201) 555-0101) el 7 nov a las 18:35 UTC. Resultado en `docs/plan-workflows.md` («Días de prueba de la Biblioteca»). Nota: el navegador de Playwright tenía la cookie `cm_tiene_acceso=1` de las pruebas anteriores y la Biblioteca saltaba el formulario; se borró solo esa cookie.
 
 ### 3 · Template de landings, skill y archivos del equipo (Claude, después de la revisión)
 *Por qué:* que todas las landings manden **el mismo JSON** a **la misma dirección** (solo cambia la clave de cada Entrada), para compartirlo con el equipo y empezar a cambiar las landings. Va después del panel, los workflows y la revisión con Cristian. Maqueta visual: `VENTAS/maqueta-template-landing.html` (no está en el repo).
@@ -116,7 +117,8 @@
 - **IP:** en el webhook de GHL la IP es la del servidor de GHL (`98.82.169.51`, Ashburn), no la de la persona. Desde el navegador el dashboard la lee él mismo; desde un servidor (como `api/signup.js`) la landing la manda en `ip`. Hoy el dashboard no la guarda: cambio pequeño, con test.
 - **Para el equipo:** `Template-landing.md` (qué es, JSON de ejemplo, tabla de campos y pasos), `templates/enviar-al-dashboard.js` (versión navegador y versión servidor, con reintentos y UTM) y la skill para Claude «conectar-web-al-dashboard». Todo en `app/Team/` (raíz del repo del dashboard, en GitHub), con copia en local en `PROYECTOS/GENERAL/VENTAS/Team/`. La skill también va en `Team/` y `~/.claude/skills/conectar-web-al-dashboard` apunta a ella.
 - **Skill a la vez que el template**, ya con los workflows hechos (su paso 2 es «crear el workflow»).
-- **Las 2 landings de la Biblioteca (registro y agenda) se pasan al JSON v1 dentro de este punto** (repo `biblioteca-maestria`, su propio PR, con prueba real).
+- **Las 2 landings de la Biblioteca (registro y agenda) se pasan al JSON v1 dentro de este punto** (repo `biblioteca-maestria`, su propio PR, con prueba real), **pero después del 10 nov** (Cristian, 7 nov): no se cambia lo que reciben en mitad de sus días de prueba de los workflows. Se hace cuando Cristian decida «Pasar a real». **Ojo con agenda:** su Entrada lee las respuestas sueltas (`situacion`, `decisor`, `ingresos_mensuales`, `inversion`, `objetivo_12_meses`, `relacion_ia`, `urgencia`, `qualified`) y el JSON v1 las manda dentro de `quiz`: la landing y su Entrada (`quiz.situacion`…) se cambian juntas, y su workflow también. Registro ya lee `quiz.*`: no se rompe.
+- **IP** (Cristian, 7 nov): se guarda en el `seguimiento` del lead, junto a los UTM; sin cambiar la base.
 **Pasos:** tests primero (el dashboard entiende el JSON v1 y guarda la IP) → código pequeño en el dashboard (IP y campos nuevos; si no se hizo ya con el panel, ver «Para decidir») → los 3 archivos del equipo y la skill en `Team/` → PR → pasar las 2 landings de la Biblioteca al JSON v1 → probar con envíos reales de prueba → Cristian lo revisa.
 
 ### 4 · Fase 6 · Landing de agenda de `codigomaestria.com` (Claude, con la skill y los workflows)
@@ -165,10 +167,18 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 ## Lo que hace Cristian (Claude no puede)
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «6» (`info+bib1@` … `info+bib6@eternity.llc`). Sus citas (bib1 y bib6 el 12 nov, bib5 el 7 nov) ya están canceladas.
 - [ ] Borrar también en el dashboard esos leads de prueba.
+- [ ] Borrar en GHL y en el dashboard el lead de prueba del 7 nov «Prueba Workflow 1» (`info+wf1@eternity.llc`, teléfono +1 201 555 0101).
+- [ ] **Poner el calendario de GHL de cada closer** en Administración → Integraciones GHL → «Calendario de GHL de cada closer» (Cristian, 7 nov: «los pongo yo»). Hasta entonces, al agendar en la app sale el aviso «Agendado en la app, pero no en el calendario de GHL…» (la cita se queda en la app). Ver «Encargos de Callers».
+- [ ] **Comprobar que la integración «App Eternity (dashboard)» de GHL tiene el permiso de escribir en calendarios** (`calendars/events.write`). Sin él, GHL rechaza crear la cita y sale el aviso.
+- [ ] Después, una prueba con un lead de prueba (`info+…`, teléfono 555-01xx) agendando en la app con un closer que ya tenga calendario, y cancelar la cita (manda email y SMS).
 - [ ] Vigilar las primeras agendas reales (dashboard y GHL).
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
 - [ ] Poner otra vez la descripción de la integración «App Eternity (dashboard)» en GHL (quedó vacía; ya no es «solo lectura»).
 - [ ] Rellenar o descartar el aviso de GHL que pide el **Tax ID** de la cuenta (sale al abrir fichas de contacto; Claude lo cierra sin guardar nada).
+
+## Encargos de la sesión de Callers (hechos el 7 nov, con el OK de Cristian)
+- **«Reagendado» y respetar «vendido» (Callers C11 punto 15 y F21), PR #52:** una sola regla (`estadoTrasCitaGhl`, `src/lib/estado-cita-ghl.ts`) para el webhook de citas y la lectura de cada minuto: vendido no se toca; confirma agenda o descartado → «reagendado» con la etiqueta «Reagendado»; el resto → «agendado».
+- **La cita también en GHL al agendar en la app (Callers C11 punto 13), PR #53:** `agendarCita` crea la cita en el calendario de GHL del closer (`crearCitaEnGhl`, `src/lib/cita-en-ghl.ts`; API oficial `POST /calendars/events/appointments`, Version 2021-04-15) y guarda su id para que la lectura no la duplique. Decidido por Cristian: un calendario por closer; los avisos de GHL (email y SMS) se mandan; si no se puede, la cita se queda en la app, se apunta en el historial y se avisa. **No probado con GHL de verdad** (ver «Lo que hace Cristian»).
 
 ## Para decidir (Cristian)
 - **`build.py`:** en revisión en otra sesión («Revisar build.py de la Biblioteca»).

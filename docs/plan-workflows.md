@@ -1,6 +1,6 @@
 # Plan · Workflows en el dashboard (fase 4 del plan GHL)
 
-> Versión 5 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
+> Versión 6 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
 > **Estado:** aprobado por Cristian el 7 nov 2026 (también la propuesta para pasar la Biblioteca a real: 3 días, 20 leads de registro, todos los de agenda y 0 diferencias). **4a-1 hecha y publicada el 7 nov** (dashboard PR #38): los 2 workflows de la Biblioteca están **en modo prueba desde el 7 nov a las 16:06 UTC**. **4a-2 (modo real) hecha y publicada el 7 nov** (PR #40). Siguiente: ver el primer lead real en prueba y, al acabar los días de prueba, que Cristian decida «Pasar a real». Después, 4b.
 
 **Objetivo:** que el dashboard haga lo que hoy hacen los workflows de GHL (disparador → pasos), para dejar de depender de ellos. Primero se rehace lo que ya funciona (la Biblioteca) sin arriesgar sus leads; después se ve y se edita en un lienzo como el de GHL; al final, más disparadores.
@@ -96,6 +96,8 @@
 ### Días de prueba de la Biblioteca (desde el 7 nov, 16:06 UTC)
 - Criterio (Cristian): al menos 3 días (hasta el **10 nov, 16:06 UTC**), 20 leads de registro y todos los de agenda que lleguen, con **0 diferencias**. Si en esos días no llega ninguno de agenda, se completa con leads de prueba en la Entrada «Prueba GHL».
 - Dónde se mira: la línea de cada tarjeta en Administración → Entradas, o `workflow_ejecuciones` (`coincide`, y las diferencias en `registro`).
+- **Primer lead (de prueba), 7 nov:** registro real en la Biblioteca con `info+wf1@eternity.llc` a las 18:35:37 UTC. Llegó a la Entrada, se creó el lead en «1. Biblioteca Recursos» y, a la vez, su ejecución del workflow (esperando hasta las 18:40:38). A las 18:41:02 el camino de hoy lo mandó a GHL (**ok** a la primera; el lead guardó su contacto de GHL y las etiquetas `biblioteca-form-incompleto` y `biblioteca recursos`) y el workflow en prueba hizo su tramo y comparó: **coincide, 0 diferencias**. En Workflows: «1 de 1 coinciden». **Ojo:** este lead es de prueba; para el criterio de 20 leads de registro, contar solo los reales.
+- [ ] **Texto «1 de 1 coinciden».** En la lista de Workflows (`ChipModo` de `src/app/(panel)/admin/workflows.tsx`) sale en plural con 1 lead; debe decir «1 de 1 coincide». Muy pequeño (como el «1 lead recibidos» de Entradas).
 
 ## Subfase 4b · Lienzo de solo lectura (resumida)
 - **Administración → Workflows** (solo jefes): lista de workflows (nombre, disparador, encendido, modo, leads en curso).
@@ -142,7 +144,7 @@
 ## Lo que falta, en orden
 - [x] Cristian aprueba este plan (7 nov).
 - [x] 4a-1: tests primero → migración → motor → modo prueba de la Biblioteca → PR #38 → comprobado en producción (7 nov).
-- [ ] Ver el primer lead real en prueba (que se cree su ejecución y coincida).
+- [x] Ver el primer lead en prueba: registro de prueba el 7 nov, coincide con 0 diferencias (ver «Días de prueba de la Biblioteca»).
 - [x] 4a-2: modo real, «Pasar a real» y «Volver a lo de hoy» (PR #40, 7 nov).
 - [ ] Al acabar los días de prueba: Cristian decide el cambio a real de la Biblioteca.
 - [x] 4b: boceto glass (con la skill ui-ux-pro-max) aprobado → tests → código → PR #42 → comprobado en producción (7 nov).
