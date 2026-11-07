@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 14 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 15 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -62,11 +62,11 @@
 
 ### 1 · Mejoras pequeñas (Claude) ← siguiente
 Una cada vez, con tests primero, **un PR por mejora** y comprobación.
-- [ ] **URGENTE · `BIBLIOTECA/build.py` puede dejar la Biblioteca sin recoger leads.** Cristian no lo usa nunca, pero no puede existir la posibilidad. *Qué hace* (leído en el código, sin ejecutarlo): lee la copia vieja `original/*.html` y **reescribe** `index.html`, `recursos.html`, `repos.html` y `programa.html` de la web. Sin `--publicar` deja el formulario de registro con `endpoint: ''` («modo demo», no envía nada; líneas 78–79); también vuelve «AI» y quita `CM_HAS_ACCESS`. Si ese `index.html` se publicara, **los registros dejarían de llegar al dashboard**. *Cómo se arregla:* falta decidir (ver «Para decidir»). Es otro repo (`biblioteca-maestria`): su propio PR.
+- [ ] **URGENTE · `BIBLIOTECA/build.py` puede dejar la Biblioteca sin recoger leads.** Cristian no lo usa nunca, pero no puede existir la posibilidad. *Qué hace* (leído en el código, sin ejecutarlo): lee la copia vieja `original/*.html` y **reescribe** `index.html`, `recursos.html`, `repos.html` y `programa.html` de la web. Sin `--publicar` deja el formulario de registro con `endpoint: ''` («modo demo», no envía nada; líneas 78–79); también vuelve «AI» y quita `CM_HAS_ACCESS`. Si ese `index.html` se publicara, **los registros dejarían de llegar al dashboard**. *Cómo se arregla:* lo está revisando otra sesión, en la carpeta de la Biblioteca («Revisar build.py de la Biblioteca»): de dónde sale, si puede llegar a la web publicada y qué arreglo propone. Cristian decide allí. Es otro repo (`biblioteca-maestria`): su propio PR.
 - [ ] **IMPORTANTE · Menos llamadas a GHL por lead.** Hoy un lead hace hasta 8 llamadas; juntando, 3 a 5 (las columnas de GHL una vez por lectura y una sola búsqueda de oportunidades por contacto). Detalle en `docs/mejora-llamadas-ghl.md`. **Primero, revisar en la especificación de GHL** (`apps/opportunities.json`) **si hay una forma de crear varias oportunidades en una sola llamada** (no está comprobado).
 - [ ] **Envíos en rojo siempre visibles y «Ver más».** *Qué pasa:* en Administración → Entradas → cada Entrada → «Últimos envíos recibidos» solo salen los 15 últimos (`page.tsx`, `evs.slice(0, 15)`), y la página carga como mucho los 200 últimos envíos de todas las Entradas (`.limit(200)`). Un envío en rojo antiguo no se ve (pasó el 7 nov) y, con más de 200, ni se cuenta en el aviso. *Decidido:* (1) los envíos en rojo se buscan aparte, sin límite, y salen siempre arriba con su «Reintentar»; (2) debajo, los 15 últimos; (3) botón «Ver más» que carga 50 más cada vez (todos de golpe no: cada envío lleva el formulario entero). *Tests primero:* un rojo más antiguo que los 200 últimos sale con su botón; «Ver más» trae los siguientes.
 - [ ] **Reintentos cada 1 min de verdad.** Se vio el 6 nov que van cada 2 min. Arreglo propuesto: programar el siguiente intento a +50 s (hoy +60 s, `REINTENTAR_EN` en `src/lib/ghl-envios.ts`). Comprobar la causa con un test antes de cambiarlo.
-- [ ] **Bloquear el bucle.** *Qué es:* una Entrada puede recibir leads desde un workflow de GHL (como la vieja «GHL · Biblioteca»). Si además tuviera «Mandar a GHL» encendido, el dashboard escribiría en el contacto de GHL, eso podría volver a disparar el workflow, que mandaría otra vez al dashboard, y así sin parar (muchas llamadas y quizá cobros). Hoy no pasa (esa Entrada está desactivada). *Decidido:* (1) interruptor en la Entrada «La alimenta un workflow de GHL»; si está encendido, no deja encender «Mandar a GHL»; (2) **email a info@eternity.llc si ocurre** (cuándo exactamente: ver «Para decidir»).
+- [ ] **Bloquear el bucle.** *Qué es:* una Entrada puede recibir leads desde un workflow de GHL (como la vieja «GHL · Biblioteca»). Si además tuviera «Mandar a GHL» encendido, el dashboard escribiría en el contacto de GHL, eso podría volver a disparar el workflow, que mandaría otra vez al dashboard, y así sin parar (muchas llamadas y quizá cobros). Hoy no pasa (esa Entrada está desactivada). *Decidido:* (1) interruptor en la Entrada «La alimenta un workflow de GHL»; si está encendido, no deja encender «Mandar a GHL»; (2) **email a info@eternity.llc** en los dos casos: cuando alguien intenta encender «Mandar a GHL» en una Entrada marcada (y se bloquea) y cuando el dashboard ve que pasa de verdad (el mismo lead entra desde GHL justo después de que el dashboard se lo mandara).
 
 ### 2 · Fase 4 · Workflows visuales en el dashboard (plan propio antes de programar)
 *Qué es:* un apartado del dashboard para crear workflows como los de GHL (disparador → pasos), para dejar de depender de los workflows de GHL.
@@ -78,7 +78,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - **Motor:** cada lead crea una ejecución (`workflow_ejecuciones`: paso, hora del siguiente, intentos, error); la lectura de 60 s la avanza, con los mismos reintentos, aviso en rojo, email de aviso y «Reintentar» de hoy.
 - **Pantalla:** Administración → Workflows: el lienzo, el historial de cada lead (qué paso hizo y cuándo) y el interruptor.
 - **Migración:** «Qué hacer en GHL» de cada Entrada pasa a ser su workflow; las reglas de pipeline, ramas.
-- **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que hoy) · **lienzo para editar** antes de la landing de agenda (Cristian; si queda una subfase de «solo lectura», ver «Para decidir») · 4d disparadores de etiqueta, columna y cita, después de la landing.
+- **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que hoy) · 4b lienzo de solo lectura · 4c edición en el lienzo · 4d disparadores de etiqueta, columna y cita. **4a, 4b y 4c antes de la landing de agenda; 4d después** (Cristian).
 - [ ] Hacer el plan propio de la fase 4 con estas decisiones y enseñárselo a Cristian antes de programar.
 
 ### 3 · Fase 5 · Skill «conectar-web-al-dashboard» = el manual para landings (Claude, después de los workflows y el lienzo)
@@ -89,7 +89,11 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 ### 4 · Fase 6 · Landing de agenda de `codigomaestria.com` (Claude, con la skill y los workflows)
 - [ ] `codigomaestria.com/agenda` (`LANDINGS/Landing agenda/Landing-agendar.html`, hoy manda al webhook `2f05f800…`), **con una Entrada** y su workflow del dashboard. Hacer lo mismo que hace hoy su workflow de GHL con el formulario (ramas por `utm_source`, ver «Datos»): leerlo antes con Playwright. La página y el calendario siguen en GHL. **El cambio en la página lo hace Cristian:** Claude le da la dirección de la Entrada (`https://dashboard.eternity.llc/api/webhooks/entrada/<clave>`) y él la pone en GHL en lugar del webhook actual. Antes, Claude lee `Landing-agendar.html` para confirmar que el JSON que manda vale tal cual. Con prueba, y Cristian la ve.
 - [ ] Cuando ya no la use ninguna web, apagar el workflow «2 . WH - FORM AGENDA GENERAL» y su webhook (con permiso de Cristian).
-- [ ] **Pestaña «UTMs» en KPIs** (Cristian): al lado de «Leads» (KPIs → Leads · Funnel · Por persona · Objetivos), para ver de dónde viene cada lead con todos sus UTM. Hoy los UTM ya se guardan en cada lead (`seguimiento`: `utm_source`, `utm_campaign`, `fbclid`…). Qué enseña y cuándo se hace: ver «Para decidir».
+- [ ] **Pestaña «UTMs» en KPIs** (Cristian), **antes** de publicar la landing de agenda, para ver sus UTM desde el primer día. Al lado de «Leads» (KPIs → Leads · Funnel · Por persona · Objetivos) y **solo para jefes**, como «Leads». Un lugar donde se siguen **los UTM y las etiquetas, por landing (Entrada) y en general**:
+  - una tabla con cada lead, su landing, sus UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`) y sus etiquetas;
+  - filtros por fechas, por landing, por cada UTM y por etiqueta;
+  - arriba, totales por `utm_source`, por campaña y por etiqueta.
+  Hoy los UTM ya se guardan en cada lead (`seguimiento`) y las etiquetas en `etiquetas`. Plan propio corto (qué consultas y qué pantalla) antes de programar.
 
 ### 5 · Fase 6 · Optin y cierre de webhooks
 - [ ] **Optin** `LANDINGS/landing-codigomaestria/landing-ghl.html` (webhook `83c32b0a…`), con la skill.
@@ -121,10 +125,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - [ ] Rellenar o descartar el aviso de GHL que pide el **Tax ID** de la cuenta (sale al abrir fichas de contacto; Claude lo cierra sin guardar nada).
 
 ## Para decidir (Cristian)
-- **Bucle, cuándo llega el email:** (a) cuando alguien intenta encender «Mandar a GHL» en una Entrada marcada (y se bloquea); (b) cuando el dashboard ve que pasa de verdad (p. ej. el mismo lead entra desde GHL justo después de que el dashboard se lo mandara); o (c) los dos. Propuesta de Claude: (c).
-- **`build.py`, cómo se arregla:** (a) borrarlo junto con su copia vieja `original/` (no se usa nunca); o (b) dejarlo, pero que escriba en una carpeta aparte y no pueda tocar nunca `index.html` ni las otras páginas de la web. En los dos casos, propuesta de Claude: añadir una comprobación que falle antes de publicar si el `index.html` no manda a `/api/signup`.
-- **Pestaña «UTMs»:** (1) ¿qué enseña? Propuesta: una tabla con cada lead y sus UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`), filtros por fechas y por cada UTM, y arriba los totales por `utm_source` y por campaña; (2) ¿cuándo se hace? Propuesta: antes de la landing de agenda, para ver sus UTM desde el primer día; (3) ¿quién la ve? Hoy «Leads» solo la ven los jefes.
-- **Lienzo:** ¿se quita la subfase «lienzo de solo lectura» y se pasa directamente del motor al lienzo para editar? ¿O primero solo lectura y en seguida edición, las dos antes de la landing?
+- **`build.py`:** en revisión en otra sesión («Revisar build.py de la Biblioteca»).
 
 ---
 
