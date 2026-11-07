@@ -65,7 +65,9 @@ export function respuestasBiblioteca(rs: Respuesta[]): RespuestasBiblioteca {
 export function esDeBiblioteca(l: { etiquetas?: string[] | null; fuente?: string | null; respuestas?: Respuesta[] | null }) {
   const tags = (l.etiquetas ?? []).map((t) => t.toLowerCase());
   if (tags.includes("biblioteca recursos") || tags.includes("recursos-ia")) return true;
-  if ((l.fuente ?? "").toLowerCase() === "recursos") return true;
+  // JSON v1 (Cristian, 7 nov 2026): el registro de la Biblioteca manda source «biblioteca» y ya no manda etiquetas.
+  // La agenda («agenda-biblioteca») no cuenta: no es el cuestionario de la Biblioteca
+  if (["recursos", "biblioteca"].includes((l.fuente ?? "").trim().toLowerCase())) return true;
   return (l.respuestas ?? []).some((x) => POR_NOMBRE.has(limpio(x.pregunta)));
 }
 

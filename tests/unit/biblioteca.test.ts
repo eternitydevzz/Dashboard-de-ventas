@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import casosJson from "../apoyo/biblioteca-1005.json";
 import { calcularOferta, esDeBiblioteca, normalizarRespuestas, ofertaDe, PREGUNTAS_BIBLIOTECA, preguntaCanonica, respuestasBiblioteca, type ClavePregunta, type Oferta } from "@/lib/oferta";
 import { resumenBiblioteca } from "@/lib/biblioteca";
+import { interpretar } from "@/lib/entrada";
 
 type Caso = Record<ClavePregunta, string> & { pais: string; etiquetas: string[]; oferta: Oferta };
 const casos = (casosJson as { casos: Caso[] }).casos;
@@ -44,6 +45,22 @@ describe("Oferta", () => {
     expect(esDeBiblioteca({ fuente: "recursos" })).toBe(true);
     expect(calcularOferta({ etiquetas: ["webinar1"], respuestas: [] })).toBeNull();
     expect(calcularOferta({ etiquetas: ["biblioteca recursos"], respuestas: [] })).toBe("membresia");
+  });
+  // JSON v1 de la Biblioteca (Cristian, 7 nov): el registro manda source «biblioteca» y ya no manda `tags`
+  it("JSON v1: la fuente «biblioteca» también es de la Biblioteca (sin etiquetas ni respuestas)", () => {
+    expect(esDeBiblioteca({ fuente: "biblioteca", etiquetas: [], respuestas: [] })).toBe(true);
+    expect(esDeBiblioteca({ fuente: "Biblioteca" })).toBe(true);
+    expect(calcularOferta({ fuente: "biblioteca", etiquetas: [], respuestas: [] })).toBe("membresia");
+  });
+  it("JSON v1: la agenda (source «agenda-biblioteca», etiqueta «biblioteca») no cuenta como el cuestionario de la Biblioteca", () => {
+    expect(esDeBiblioteca({ fuente: "agenda-biblioteca", etiquetas: ["agenda-biblioteca", "biblioteca"], respuestas: [] })).toBe(false);
+  });
+  it("JSON v1: las respuestas de agenda dentro de quiz con prefijo agenda_ no pisan las de la Biblioteca", () => {
+    const { lead } = interpretar({ email: "a@b.test", quiz: { agenda_situacion: "Tengo mi propio negocio", agenda_inversion: "Más de $3,000" } });
+    const antes = [{ pregunta: texto.situacion, respuesta: "Tengo una agencia" }, { pregunta: texto.inversion, respuesta: "Sí, ya" }];
+    const r = normalizarRespuestas([...antes, ...lead.respuestas]);
+    expect(respuestasBiblioteca(r)).toMatchObject({ situacion: "Tengo una agencia", inversion: "Sí, ya" });
+    expect(r).toHaveLength(4);
   });
 });
 
