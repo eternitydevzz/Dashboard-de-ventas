@@ -59,6 +59,8 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
       grupo: "Día a día",
       items: [
         ...(tiene("recursos") ? [{ href: "/recursos", texto: "Links y recursos", icono: "recursos" as const }] : []),
+        // C9 (plan Callers, 7 nov): manuales de ventas, dentro de la app
+        ...(tiene("manuales") ? [{ href: "/manuales", texto: "Manuales", icono: "manuales" as const }] : []),
         ...(tiene("reportes") ? [{ href: "/reportes", texto: "Reportes", icono: "reportes" as const }] : []),
         // Fase 6: el guion de llamada lo editan el CEO y los directores (callers y closers lo ven al pulsar «Llamar»)
         ...(jefe ? [{ href: "/guiones", texto: "Guiones", icono: "guiones" as const }] : []),

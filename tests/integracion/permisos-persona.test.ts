@@ -68,7 +68,7 @@ describe("Inicio cuando quitan secciones", () => {
     expect(await rutaInicio(e.p.callerB, e.proyecto.id)).toBe("/caller");
     await ok(guardarPermisoPersona(e.p.callerB.id, "cola", false));
     expect(await rutaInicio(e.p.callerB, e.proyecto.id)).toBe("/mi-funnel");
-    for (const s of ["mi_funnel", "crm", "grabadas", "ranking", "recursos", "reportes"]) await ok(guardarPermisoPersona(e.p.callerB.id, s, false));
+    for (const s of ["mi_funnel", "crm", "grabadas", "ranking", "recursos", "reportes", "manuales"]) await ok(guardarPermisoPersona(e.p.callerB.id, s, false));
     expect(await rutaInicio(e.p.callerB, e.proyecto.id)).toBe("/sin-acceso");
   });
 

@@ -9,6 +9,7 @@ import { MAX_SUBIDA } from "@/lib/subir-cliente";
 const BUCKETS = {
   recursos: "pdf",
   importaciones: "csv",
+  manuales: "html", // C9 (plan Callers, 7 nov)
 } as const;
 export type BucketSubida = keyof typeof BUCKETS;
 
@@ -22,8 +23,9 @@ export async function limpiarSubidasHuerfanas(bucket: BucketSubida, proyectoId: 
   const viejos = archivos.filter((a) => a.created_at && ahora - new Date(a.created_at).getTime() > UN_DIA).map((a) => `${proyectoId}/${a.name}`);
   if (!viejos.length) return 0;
   let sobran = viejos;
-  if (bucket === "recursos") {
-    const { data: usados } = await db().from("recursos").select("archivo_path").eq("proyecto_id", proyectoId).not("archivo_path", "is", null);
+  // Los PDF de recursos y los .html de manuales se quedan mientras los use alguno (C9: si no, se borraría el manual)
+  if (bucket === "recursos" || bucket === "manuales") {
+    const { data: usados } = await db().from(bucket).select("archivo_path").eq("proyecto_id", proyectoId).not("archivo_path", "is", null);
     const enUso = new Set((usados ?? []).map((u) => u.archivo_path));
     sobran = viejos.filter((r) => !enUso.has(r));
   }

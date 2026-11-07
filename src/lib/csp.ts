@@ -22,3 +22,21 @@ export function politicaCsp(nonce: string, desarrollo = process.env.NODE_ENV ===
     ...(desarrollo ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }
+
+// C9 (plan Callers, 7 nov): los manuales son .html propios que se ven dentro de la app. Se sirven aparte
+// (/api/manuales/<id>) con esta política: «sandbox» sin allow-same-origin = origen propio y vacío, así que sus
+// scripts (índice, modo oscuro) corren pero no pueden leer la sesión, las cookies ni la página de la app, ni mandar
+// datos a ningún sitio (connect-src 'none'). Solo la app puede enmarcarlo (frame-ancestors 'self').
+export const CSP_VISOR = [
+  "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox",
+  "default-src 'none'",
+  "script-src 'unsafe-inline'",
+  "style-src 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com data:",
+  "img-src https: data: blob:",
+  "media-src https: data:",
+  "connect-src 'none'",
+  "form-action 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'self'",
+].join("; ");

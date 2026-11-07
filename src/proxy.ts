@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { politicaCsp } from "@/lib/csp";
+import { CSP_VISOR, politicaCsp } from "@/lib/csp";
 
 // Refresca la sesión de Supabase en cada petición y manda al login
 // a quien no ha iniciado sesión. Los permisos reales se comprueban
@@ -51,7 +51,8 @@ export async function proxy(request: NextRequest) {
     url.search = "";
     return NextResponse.redirect(url);
   }
-  response.headers.set("Content-Security-Policy", csp);
+  // C9: un manual (/api/manuales/<id>) va con su propia política, aislado de la app (lib/csp.ts)
+  response.headers.set("Content-Security-Policy", ruta.startsWith("/api/manuales/") ? CSP_VISOR : csp);
   return response;
 }
 

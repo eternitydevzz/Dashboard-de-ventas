@@ -8,12 +8,12 @@ export const MAX_SUBIDA = 15 * 1024 * 1024;
 export async function subirDelFormulario(
   fd: FormData,
   campo: string,
-  tipo: "application/pdf" | "text/csv",
+  tipo: "application/pdf" | "text/csv" | "text/html",
   preparar: () => Promise<{ ruta: string; url: string } | { error: string }>
 ) {
   const archivo = fd.get(campo);
   fd.delete(campo);
-  if (!(archivo instanceof File) || archivo.size === 0) throw new Error(tipo === "application/pdf" ? "Elige un PDF." : "Elige un archivo CSV.");
+  if (!(archivo instanceof File) || archivo.size === 0) throw new Error(tipo === "application/pdf" ? "Elige un PDF." : tipo === "text/html" ? "Elige un archivo .html." : "Elige un archivo CSV.");
   if (archivo.size > MAX_SUBIDA) throw new Error("El archivo pesa más de 15 MB.");
   const { ruta, url } = await exigirOk(preparar());
   let r: Response;

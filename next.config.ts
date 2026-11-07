@@ -34,7 +34,12 @@ const nextConfig: NextConfig = {
     staleTimes: { static: 300, dynamic: 300 },
   },
   async headers() {
-    return [{ source: "/(.*)", headers: cabeceras }];
+    // C9 (plan Callers, 7 nov): un manual (/api/manuales/<id>) se enmarca dentro de la propia app; el resto, nunca
+    const sinMarco = cabeceras.filter((c) => c.key !== "X-Frame-Options");
+    return [
+      { source: "/((?!api/manuales/).*)", headers: cabeceras },
+      { source: "/api/manuales/:id", headers: [...sinMarco, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+    ];
   },
 };
 
