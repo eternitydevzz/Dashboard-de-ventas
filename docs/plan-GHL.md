@@ -51,6 +51,7 @@
 | Si falla | 5 reintentos, después email a info@eternity.llc y aviso en rojo con «Reintentar» (Administración → Entradas) |
 | Emails de la Biblioteca y Meta | Fuera del plan |
 | Alcance | Solo Maestria |
+| Leads por lectura de 60 s | **10** (Cristian, 7 nov). Con 2 pipelines un lead hace hasta 8 llamadas a GHL: 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s). Antes 15 |
 
 ---
 
@@ -150,11 +151,11 @@
 - [ ] Gestionar tus cambios sin subir en el repo del dashboard: 3 docs borrados (`Arreglar-dashboard.md`, `plan-historial-10oct.md`, `plan-historial-11oct.md`) y `manual-branding-rojo.md` nuevo. Claude no los toca.
 
 ### 2 · Para decidir (Cristian)
-- **Lote de leads por lectura: 10 en vez de 15** (cambio de Claude en B, no estaba en el plan): con 2 pipelines un lead hace hasta 8 llamadas a GHL; 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s). ¿Se queda en 10?
 - **«Reintentar» escondido**: el envío en rojo no sale si es más antiguo que los 15 últimos (ver paso 6). ¿Se arregla ahora o con las mejoras pequeñas?
 - **Antes (sin cambios):** (La Entrada «Prueba GHL», `e5a2bfa9…`, se queda apagada: Claude la creó el 6 nov para probar el envío a GHL, incluida la prueba de fallo; no acepta envíos ni manda nada y sirve para repetir pruebas sin tocar las Entradas reales.)
 
 ### 3 · Mejoras pequeñas (Claude, después de A, B y C y antes de la skill)
+- [ ] **IMPORTANTE · Menos llamadas a GHL por lead** (Cristian, 7 nov): hoy hasta 8 por lead; juntando, 3 a 5. Todo explicado en `docs/mejora-llamadas-ghl.md`. **Revisar primero en la especificación de GHL si hay una forma de crear varias oportunidades en una sola llamada** (no está comprobado).
 - [ ] Los reintentos van cada 2 min, no cada 1: programar el siguiente a +50 s.
 - [ ] El aviso rojo de arriba del formulario («N envíos no llegaron a GHL») no se vio en la prueba; la fila roja con «Reintentar» sí. Revisarlo.
 - [ ] La lectura de 60 s solo se lanza en proyectos con calendarios (`20261017120000_leer_ghl_cada_30s.sql`). Un proyecto sin calendarios nunca mandaría a GHL.
