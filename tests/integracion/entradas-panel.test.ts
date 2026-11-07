@@ -26,8 +26,9 @@ beforeAll(async () => {
   // Panel A: 1 rojo muy antiguo (antes que los 205 de después), 205 envíos del lead «uno» y 1 del lead «dos»
   const filas = [
     { proyecto_id: e.proyecto.id, entrada_id: entradaId, lead_id: leads[1], tipo: "entrada: Panel A", payload: { email: "dos" }, procesado: true, ghl_estado: "error", ghl_intentos: 5, ghl_error: "401 token", recibido_en: minutosAtras(10_000) },
-    ...Array.from({ length: 205 }, (_, i) => ({ proyecto_id: e.proyecto.id, entrada_id: entradaId, lead_id: leads[0], tipo: "entrada: Panel A", payload: { email: "uno", n: i }, procesado: true, ghl_estado: "ok", recibido_en: minutosAtras(500 - i) })),
+    ...Array.from({ length: 205 }, (_, i) => ({ proyecto_id: e.proyecto.id, entrada_id: entradaId, lead_id: leads[0], tipo: "entrada: Panel A", payload: { email: "uno", n: i }, procesado: true, ghl_estado: "ok", ghl_intentos: 0, ghl_error: null, recibido_en: minutosAtras(500 - i) })),
   ];
+  // Todas las filas con las mismas columnas: en un insert de varias, la API pone null en las que faltan (no su valor por defecto)
   const { error } = await db.from("webhook_eventos").insert(filas);
   if (error) throw new Error(error.message);
 });
