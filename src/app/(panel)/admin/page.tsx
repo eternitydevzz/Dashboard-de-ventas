@@ -11,6 +11,8 @@ import { PLANTILLAS_GHL, CABECERA_SECRETO } from "@/lib/plantillas-ghl";
 import { NuevaEntrada, TarjetaEntrada, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
 import { haceCuanto, type DatosLanding } from "@/lib/entradas-panel";
 import { enviosDeEntrada, enviosEnRojo, resumenEntradas, ULTIMOS, type EnvioEntrada, type ResumenEntrada } from "@/lib/entradas-datos";
+import { resumenWorkflows } from "@/lib/workflows-motor";
+import type { WorkflowVista } from "./entradas-workflow";
 import { camposGhl, columnasEnOrdenGhl, pipelinesGhl } from "@/lib/ghl";
 import { descifrar } from "@/lib/cifrado";
 import { ConexionGhl, CalendarioCloser, UsuarioGhl } from "./ghl";
@@ -61,6 +63,26 @@ async function cargarOpcionesGhl(token: string, locationId: string): Promise<Opc
     pipelines: p.status === "fulfilled" ? p.value.map((x) => ({ id: x.id, nombre: x.name, etapas: columnasEnOrdenGhl(x.stages).map((s) => ({ id: s.id, nombre: s.name })) })) : [],
     error: c.status === "rejected" || p.status === "rejected" ? "No se pudieron leer los campos o pipelines de GHL. Recarga en un momento." : null,
   };
+}
+
+// Workflows 4a-1 (Cristian, 7 nov 2026): el workflow encendido de cada Entrada, su resumen y en qué no coincide
+// (las 20 últimas ejecuciones con diferencias, con la persona y la lista de diferencias de su comparación)
+async function cargarWorkflows(proyectoId: string) {
+  const m = new Map<string, WorkflowVista>();
+  const { data: wfs } = await db().from("workflows").select("id, entrada_id, modo").eq("proyecto_id", proyectoId).eq("encendido", true).not("entrada_id", "is", null);
+  if (!wfs?.length) return m;
+  const ids = wfs.map((w) => w.id);
+  const [res, { data: malas }] = await Promise.all([
+    resumenWorkflows(proyectoId),
+    db().from("workflow_ejecuciones").select("workflow_id, registro, leads(email, telefono, nombre)").in("workflow_id", ids).eq("estado", "ok").eq("coincide", false).order("actualizado_en", { ascending: false }).limit(20),
+  ]);
+  for (const w of wfs) {
+    const diferencias = ((malas ?? []) as unknown as { workflow_id: string; registro: { tipo: string; diferencias?: string[] }[]; leads: { email: string | null; telefono: string | null; nombre: string } | null }[])
+      .filter((x) => x.workflow_id === w.id)
+      .map((x) => ({ quien: x.leads?.email || x.leads?.telefono || x.leads?.nombre || "—", lista: [...x.registro].reverse().find((r) => r.tipo === "comparacion")?.diferencias ?? [] }));
+    m.set(w.entrada_id as string, { id: w.id, modo: w.modo, resumen: res.get(w.id) ?? { total: 0, coinciden: 0, no_coinciden: 0, esperando: 0, errores: 0 }, diferencias });
+  }
+  return m;
 }
 
 // Nombres de campo que han llegado (también los de dentro de objetos, como «quiz.inversion»)
@@ -134,6 +156,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   let resumen = new Map<string, ResumenEntrada>();
   let rojos: EventoEntrada[] = [];
   const ultimosDe = new Map<string, EventoEntrada[]>();
+  let workflowDe = new Map<string, WorkflowVista>(); // Workflows 4a-1: el workflow en marcha de cada Entrada
   if (tab === "entradas") {
     const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
       db().from("entradas").select("*").eq("proyecto_id", proyecto.id).order("creado_en"),
@@ -148,6 +171,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       resumen = r;
       rojos = ro;
       ids.forEach((id, i) => ultimosDe.set(id, ult[i]));
+      workflowDe = await cargarWorkflows(proyecto.id);
     }
     if (pg?.ghl_token && pg.ghl_location_id) opcionesGhl = await cargarOpcionesGhl(descifrar(pg.ghl_token, "el token de GHL"), pg.ghl_location_id);
   }
@@ -351,6 +375,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     zona={proyecto.zona_horaria}
                     pipelines={pipes}
                     opciones={opcionesGhl}
+                    workflow={workflowDe.get(en.id) ?? null}
                   />
                 );
               })}
