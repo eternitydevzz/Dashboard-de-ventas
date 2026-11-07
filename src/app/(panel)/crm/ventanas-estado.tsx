@@ -6,6 +6,7 @@ import { Modal } from "@/components/modal";
 import { SelectorEstrellas } from "@/components/estrellas";
 import type { Producto } from "@/lib/tipos";
 import { CamposCita } from "@/components/campos-cita";
+import { CalendarioAgenda } from "@/components/calendario-agenda";
 import { etiquetaEstado } from "@/lib/estados-caller";
 
 // Ventanas de los resultados que piden datos (Paso H7; C11, plan Callers, 7 nov). Se abren al soltar un lead en su
@@ -56,7 +57,8 @@ export function VentanaEstado({
             guardar(() => agendarCita(lead.id, String(fd.get("closer") ?? ""), String(fd.get("fecha")), String(fd.get("nota") ?? ""), fd.get("estrellas") ? Number(fd.get("estrellas")) : undefined), `${lead.nombre} → Agendado`)
           }
         >
-          <CamposCita closers={closers} id={`ventana-estado-closer-${lead.id}`} rotacion={esCaller} />
+          {/* El caller elige en el calendario las horas libres del closer de la rotación (maqueta 7c.3) */}
+          {esCaller ? <CalendarioAgenda /> : <CamposCita closers={closers} id={`ventana-estado-closer-${lead.id}`} />}
           <label className="block"><span className="etiqueta-campo">Nota para el closer</span><textarea name="nota" rows={3} className="campo" placeholder="Situación, dolor, cifra…" /></label>
           <SelectorEstrellas quien="caller" opcional={!esCaller} />
           <button className="btn-primario w-full">Agendar</button>
