@@ -91,6 +91,9 @@ describe("estadoEntrada: el estado en palabras", () => {
   it("con alguno en rojo no dice «todos llegaron»", () => {
     expect(estadoEntrada({ activa: true, ghl_activo: true, envios: 6, rojos: 1 }).ghl).toBeNull();
   });
+  it("workflows 4a-2: si lo manda su workflow en real, lo dice (aunque «Mandar a GHL» esté apagado)", () => {
+    expect(estadoEntrada({ activa: true, ghl_activo: false, envios: 3, rojos: 0, por_workflow: true }).ghl).toBe("Lo manda su workflow");
+  });
   it("activa sin GHL lo dice; sin envíos aún, espera el primero", () => {
     expect(estadoEntrada({ activa: true, ghl_activo: false, envios: 3, rojos: 0 }).ghl).toBe("No se manda a GHL");
     expect(estadoEntrada({ activa: true, ghl_activo: true, envios: 0, rojos: 0 })).toEqual({ tono: "ok", texto: "Esperando el primer lead", ghl: null });
