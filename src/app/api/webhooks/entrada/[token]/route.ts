@@ -5,6 +5,7 @@ import { dentroDelLimite } from "@/lib/limite";
 import { aplicarReglas, interpretar, reglasValidas } from "@/lib/entrada";
 import { crearEjecuciones } from "@/lib/workflows-motor";
 import { ipDelEnvio } from "@/lib/ip-envio";
+import { completarLeadDelEvento } from "@/lib/entrada-evento";
 import type { Proyecto } from "@/lib/tipos";
 
 // Dirección de una landing («Entradas» en Administración). La landing manda aquí el mismo
@@ -77,6 +78,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
     const ip = ipDelEnvio({ cuerpo, cabecera: request.headers.get("x-forwarded-for"), enviaDesde: entrada.envia_desde ?? null });
     const seguimiento = ip ? { ...r.seguimiento, ip } : r.seguimiento;
     const lead = { ...r.lead, etiquetas: [...new Set([...r.lead.etiquetas, ...destino.etiquetas])], extra: { fuente: r.fuente, evento: r.evento, seguimiento, quiz_score: r.quiz_score, datos: r.datos } };
+    // Mismo event_id que un envío anterior de esta Entrada sin email: se completa ese lead (no se crea otro)
+    await completarLeadDelEvento({ proyectoId: proyecto.id, entradaId: entrada.id, eventId: cuerpo.event_id, email: lead.email });
     await guardarLeads(proyecto, [lead], {
       pipelineId: destino.pipeline_id,
       etapaId: destino.etapa_id,
