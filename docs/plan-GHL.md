@@ -37,6 +37,9 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 - [ ] Pasar las 2 landings de la Biblioteca al JSON v1 (Cristian, 7 nov: ya, pero revisando antes todos los detalles). En agenda, la landing y su workflow (respuestas dentro de `quiz`) juntos.
 - [ ] Mejoras pequeñas, una a una, cada una con su PR (Cristian, 7 nov: «ya»). Ver «8 · Mejoras pequeñas».
 - [ ] Reintentar leer en GHL «2 . WH - FORM AGENDA GENERAL» con Playwright (Cristian, 7 nov: «inténtalo tú otra vez»).
+- [ ] **Para revisar luego con Cristian (7 nov):**
+  1. Las etiquetas antiguas van a volver en los leads nuevos de registro. La landing todavía manda `biblioteca-form-completo` / `biblioteca-form-incompleto` (`BIBLIOTECA/api/signup.js:54`). Se arregla al pasarla al JSON v1, que es el siguiente paso.
+  2. Error de Claude al escribir el plan v25: puso primero que la landing mandaba «biblioteca recursos». Lo comprobó antes de subirlo y lo corrigió.
 - [ ] **Pestaña «Etiquetas» en Administración, al lado de «Workflows»** (Cristian, 7 nov). Qué debe hacer exactamente (ver, renombrar, unir, borrar etiquetas…) está **por decidir con Cristian** antes del boceto.
 - [ ] Arreglo pequeño: «1 de 1 coinciden» → «1 de 1 coincide» en Workflows.
 - [ ] Siguiente fase por orden: landing de agenda de `codigomaestria.com` (necesita antes rehacer el workflow de agendas de GHL, aplazado).
