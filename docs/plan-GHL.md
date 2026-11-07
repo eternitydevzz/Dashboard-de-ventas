@@ -10,7 +10,7 @@
 | 0 · Leer la API y los workflows de GHL | Hecha |
 | 1 · El dashboard hace en GHL lo que hacía el workflow | Hecha y publicada (PR #9 y #10) |
 | 2 · Registro de la Biblioteca | Hecha y publicada (biblioteca-maestria PR #1). Falta el seguimiento |
-| 3 · Agenda de la Biblioteca | **Parada**: probada en preview, 2 fallos, sin publicar |
+| 3 · Agenda de la Biblioteca | Publicada (6 nov, 20:23 UTC). Falta el fallo 2 y vigilar |
 | 4 · Workflows visuales | Diseño propuesto, esperando a Cristian |
 | 5 · Skill | Pendiente |
 | 6 · Resto de webs | Pendiente |
@@ -38,8 +38,22 @@
 
 ## Lo que falta, en orden
 
+### 0 · URGENTE: la Biblioteca sin webhooks de GHL — HECHO el 6 nov
+**Cómo viajan los datos hoy (los dos formularios ya no usan webhooks de GHL):**
+- **Registro:** formulario → `biblioteca.codigomaestria.com/api/signup` (función de Vercel) → desde el servidor, POST al endpoint del dashboard `dashboard.eternity.llc/api/webhooks/entrada/<clave>` (Entrada «Web · Biblioteca registro», 2 intentos de 5 s). Publicado a las 19:40 UTC; probado en producción (bib4).
+- **Agenda:** navegador → POST directo al mismo tipo de endpoint (Entrada «Web · Biblioteca agenda», 3 intentos). Publicado a las 20:23 UTC (biblioteca-maestria PR #2); probado en producción (bib5: `agenda_datos` 200, `cuestionario` 200, reserva y cancelación).
+- En los dos casos el dashboard guarda el lead **al momento** y, al minuto, hace en GHL por la API: contacto, campos, etiqueta y oportunidad.
+- Los leads que se perdían eran de **antes del cambio** (con el webhook viejo), según Cristian.
+
+**Queda:**
+- [ ] **Fallo 1 de la agenda** (la oportunidad de la Biblioteca no pasaba a la columna de la agenda): arreglado en el dashboard (PR #13, `PUT /opportunities/{id}`). Comprobar con el próximo lead real de la agenda que la oportunidad pasa a `77b3ce38…`.
+- [ ] **Fallo 2:** los workflows del calendario de GHL crean otra oportunidad en «0. Agendas Orgánico - Agendan» y la cita da una tarjeta en «0. Agendas General» del dashboard (ya pasaba a veces antes: 2 de 4 leads reales). Leer el workflow «2. Agendan llamada» (`59e01558…`, carpeta «2. Agendas»; el 6 nov su editor se quedó en blanco en Playwright) y proponer el arreglo (¿añadir la etiqueta `agenda biblioteca`?).
+- [ ] **Vigilar 24 h (7 nov):** registros y agendas reales en Administración → Entradas (`ok`, sin rojos), en GHL, y el monedero sin `inbound_webhook` de la Biblioteca.
+- [ ] El webhook `2f05f800…` y su workflow «2 . WH - FORM AGENDA GENERAL» **no se apagan**: los usa `codigomaestria.com/agenda` (fase 6).
+- **Para volver atrás:** registro → volver a publicar `6041cce` de la Biblioteca, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca». Agenda → volver a publicar `bfcb006`.
+
 ### 1 · Lo que hace Cristian (Claude no puede)
-- [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@`), «Prueba Biblioteca 1» a «4» (`info+bib1@` … `info+bib4@eternity.llc`). La cita de bib1 ya está cancelada.
+- [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@`), «Prueba Biblioteca 1» a «5» (`info+bib1@` … `info+bib5@eternity.llc`). Las citas de bib1 y bib5 ya están canceladas.
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
 - [ ] Poner otra vez la descripción de la integración «App Eternity (dashboard)» en GHL (quedó vacía; ya no es «solo lectura»).
 - [ ] Tus cambios sin commit en el repo del dashboard: 3 docs borrados (`Arreglar-dashboard.md`, `plan-historial-10oct.md`, `plan-historial-11oct.md`) y `manual-branding-rojo.md` nuevo. ¿Se suben o se descartan?
@@ -51,27 +65,17 @@
 - [ ] El workflow «0. AP - Biblioteca» (mandaba a la Entrada «GHL · Biblioteca») no existe en GHL; la Entrada no recibía nada desde el 16 oct y está desactivada. ¿Se borró a propósito?
 - [ ] Las 3 preguntas de la fase 4 (abajo).
 
-### 3 · Fase 3 · Terminar la agenda de la Biblioteca (Claude)
-Hecho y probado en preview: Entrada «Web · Biblioteca agenda» (`bc00a154…`, recibe solo del preview) y `web/programa.js` en la rama `agenda-dashboard` de biblioteca-maestria (sin fusionar). Producción sigue con el webhook `2f05f800…`.
-- [ ] **Fallo 1:** la oportunidad de la Biblioteca se queda en «Registrados»; la rama BIBLIOTECA del workflow viejo la llevaba a la columna `77b3ce38…`. Arreglo: si ya existe en ese pipeline y la Entrada tiene columna, moverla (`PUT /opportunities/{id}` con `pipelineStageId`, `opportunities.write`). Tests primero, PR y publicar el dashboard.
-- [ ] **Fallo 2:** los workflows del calendario de GHL crean otra oportunidad en «0. Agendas Orgánico - Agendan» y la cita le da al lead una tarjeta en «0. Agendas General». Ya pasaba a veces antes (2 de 4 leads reales). Leer con Playwright el workflow «2. Agendan llamada…» (carpeta «2. Agendas») y proponer el arreglo (¿añadir también la etiqueta `agenda biblioteca`?).
-- [ ] Repetir la prueba en preview (datos, respuestas, reserva y cancelar), sin «Orgánico» ni «General».
-- [ ] Publicar: fusionar `agenda-dashboard`. **Para volver atrás:** volver a publicar el commit anterior de la Biblioteca.
-- [ ] El webhook `2f05f800…` y su workflow «2 . WH - FORM AGENDA GENERAL» **no se apagan**: los usa `codigomaestria.com/agenda`.
-
-### 4 · Seguimiento de la fase 2 (Claude)
-- [ ] **7 nov:** mirar con Playwright en el monedero de GHL que ya no hay `inbound_webhook` de la Biblioteca.
+### 3 · Seguimiento (Claude)
 - [ ] Hasta el 13 nov: medir con las horas de los envíos cuánto tarda la gente en el cuestionario y ajustar la espera (hoy 60 s) si hace falta.
-- **Para volver atrás (fase 2):** volver a publicar el commit `6041cce` de la Biblioteca en Vercel, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca».
 
-### 5 · Mejoras pequeñas apuntadas (Claude, cuando Cristian diga)
+### 4 · Mejoras pequeñas apuntadas (Claude, cuando Cristian diga)
 - [ ] Los reintentos van cada 2 min, no cada 1: programar el siguiente a +50 s.
 - [ ] El aviso rojo de arriba del formulario («N envíos no llegaron a GHL») no se vio en la prueba; la fila roja con «Reintentar» sí. Revisarlo.
 - [ ] La lectura de 60 s solo se lanza en proyectos con calendarios (`20261017120000_leer_ghl_cada_30s.sql`). Un proyecto sin calendarios nunca mandaría a GHL.
 - [ ] Bloquear el bucle: no dejar encender «Mandar a GHL» en una Entrada que alimenta un workflow de GHL.
 - [ ] `BIBLIOTECA/build.py` rehace `index.html` desde una fuente vieja (vuelve «AI» y quita `CM_HAS_ACCESS`): arreglar su fuente antes de volver a usarlo.
 
-### 6 · Fase 4 · Workflows visuales en el dashboard (diseño con Cristian antes de programar)
+### 5 · Fase 4 · Workflows visuales en el dashboard (diseño con Cristian antes de programar)
 **Propuesta (Claude, 6 nov):**
 - **Workflow** = un disparador + pasos en orden, en lista vertical (sin lienzo libre en la v1). Tabla `workflows` (pasos en JSON, versión, encendido).
 - **Disparadores v1:** llega a una Entrada · se añade una etiqueta · cambia de columna en el dashboard · se agenda / cancela una cita.
@@ -88,11 +92,11 @@ Hecho y probado en preview: Entrada «Web · Biblioteca agenda» (`bc00a154…`,
 
 Con sus respuestas sale el plan propio de la fase 4. Primera pasada de punta a punta: la Biblioteca como workflow, con el mismo resultado que hoy.
 
-### 7 · Fase 5 · Skill «conectar-web-al-dashboard» (Claude)
+### 6 · Fase 5 · Skill «conectar-web-al-dashboard» (Claude)
 - [ ] Con el caso real de la Biblioteca y `kit-creador-maestria:crear-skills`: regla de etiquetas, crear la Entrada (o el workflow) y unir campos, código para mandar desde el servidor y desde el navegador, lista de pruebas y cómo volver atrás.
 - [ ] En `app/.claude/skills/conectar-web-al-dashboard/`, con copia en `PROYECTOS/GENERAL/VENTAS/` y en `~/.claude/skills/`. Se prueba con la primera web de la fase 6.
 
-### 8 · Fase 6 · El resto de webs de Maestria, una a una
+### 7 · Fase 6 · El resto de webs de Maestria, una a una
 - [ ] Regalos 1 a 7 y `regalos-maestria` (webhook `37e6bc4c…`; antes, leer el workflow `AP - Regalos` `c3bd1ba2…`), landing de agenda (`2f05f800…`; replicar sus ramas por `utm_source`) y optin (`83c32b0a…`). Cada una con preview y prueba, y Cristian la ve.
 - [ ] Cristian apaga cada «Inbound Webhook» cuando todas sus webs están cambiadas.
 - [ ] A final de mes, `inbound_webhook` cerca de $0 en el monedero.
@@ -111,7 +115,7 @@ Con sus respuestas sale el plan propio de la fase 4. Primera pasada de punta a p
 | Entrada | Id | Estado |
 |---|---|---|
 | Web · Biblioteca registro | `087b86d1…` | Activa, GHL encendido. Recibe de biblioteca.codigomaestria.com (`DASHBOARD_ENTRADA_URL` en Vercel) |
-| Web · Biblioteca agenda | `bc00a154…` | Activa, GHL encendido. Solo la usa el preview de la agenda |
+| Web · Biblioteca agenda | `bc00a154…` | Activa, GHL encendido. Recibe de la agenda de biblioteca.codigomaestria.com (dirección en `web/programa.js`) |
 | GHL · Biblioteca | `b173a67a…` | Desactivada |
 | Prueba GHL | `e5a2bfa9…` | Apagada |
 
@@ -127,3 +131,22 @@ Con sus respuestas sale el plan propio de la fase 4. Primera pasada de punta a p
 - **La dirección de la Entrada de la agenda va en el navegador**, como antes el webhook: la frenan el límite de 300 por minuto y el filtro de email/teléfono.
 - **Límite de la API de GHL:** 100 llamadas cada 10 s; hasta 4 por lead. En un lanzamiento con picos, vigilarlo.
 - **Las citas reales mandan email y SMS** desde los workflows del calendario de GHL: en las pruebas, usar teléfonos de ficción (555-01xx) y cancelar la cita.
+
+---
+
+## Plan para conectar futuras landings (sin webhooks de GHL)
+Lo mismo que se hizo con la Biblioteca, en 7 pasos. Una landing cada vez; hasta que funciona en producción no se pasa a la siguiente.
+
+1. **Leer lo de hoy:** qué manda la landing (abrir el código y ver el JSON) y qué hace su workflow de GHL (con Playwright): campos, etiqueta, pipeline, columna y ramas.
+2. **Crear su Entrada** en Administración → Entradas: nombre `Web · <landing> <form>`, pipeline del dashboard y, en «Qué hacer en GHL», los campos unidos (UTM incluidos), pipeline y columna de GHL, etiqueta base `<web>-<form>` (en minúsculas) y espera (60 s si hay cuestionario después; si no, 0). Dejar «Mandar a GHL» apagado hasta la prueba.
+3. **Cambiar la landing:**
+   - si manda **desde el servidor** (como `api/signup.js`): variable `DASHBOARD_ENTRADA_URL` en Vercel (Production y Preview) y POST con 2 intentos y 5 s;
+   - si manda **desde el navegador** (como `programa.js`): la dirección de la Entrada en el código, con 3 intentos; el dashboard ya acepta CORS.
+   - En los dos casos, el mismo JSON de antes con la etiqueta nueva; fuera la URL del webhook de GHL.
+4. **Probar en el preview de Vercel** con leads de prueba (`info+<landing>N@eternity.llc` y teléfonos de ficción 555-01xx): completo, incompleto y tardío. Comprobar en el dashboard (1 lead, su pipeline, `ok`) y en GHL (contacto, campos, etiqueta y oportunidad). Si hay calendario, reservar y cancelar.
+5. **Encender** «Mandar a GHL», **publicar** la landing y **apagar** su workflow de GHL (o solo su rama, si el webhook lo comparten otras webs).
+6. **Probar una vez en producción** y vigilar 24 h (Administración → Entradas sin rojos; monedero de GHL).
+7. **Apuntar** cómo volver atrás (commit anterior de la landing + encender el workflow) y pasar los contactos de prueba a Cristian para borrarlos.
+
+Cuando exista la skill «conectar-web-al-dashboard» (fase 5), estos pasos van en ella; cuando existan los workflows del dashboard (fase 4), el paso 2 será crear el workflow.
+
