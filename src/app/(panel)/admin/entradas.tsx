@@ -12,6 +12,7 @@ import type { EnvioEntrada, ResumenEntrada } from "@/lib/entradas-datos";
 import { confirmar } from "@/components/dialogos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { EnviosEnRojo, UltimosEnvios } from "./entradas-envios";
+import { LineaWorkflow, type WorkflowVista } from "./entradas-workflow";
 import type { Proyecto } from "@/lib/tipos";
 
 type Pipe = { id: string; nombre: string; etapas: { id: string; nombre: string }[] };
@@ -134,8 +135,10 @@ export function TarjetaEntrada({
   zona,
   pipelines,
   opciones,
+  workflow,
 }: {
   entrada: EntradaVista;
+  workflow: WorkflowVista | null;
   resumen: ResumenEntrada;
   ultimo: string | null; // «hace 18 min» (calculado en el servidor)
   rojos: EnvioEntrada[];
@@ -144,7 +147,7 @@ export function TarjetaEntrada({
   pipelines: Pipe[];
   opciones: OpcionesGhl | null;
 }) {
-  const estado = estadoEntrada({ activa: entrada.activa, ghl_activo: entrada.ghl.ghl_activo, envios: resumen.envios, rojos: resumen.rojos });
+  const estado = estadoEntrada({ activa: entrada.activa, ghl_activo: entrada.ghl.ghl_activo, envios: resumen.envios, rojos: resumen.rojos, por_workflow: workflow?.modo === "real" });
   const viene = entrada.landing || entrada.formulario;
   return (
     <section className="tarjeta p-4 sm:p-5">
@@ -163,6 +166,7 @@ export function TarjetaEntrada({
         {estado.ghl && <span className={estado.ghl === "Todos llegaron a GHL" ? "font-medium text-ok" : "text-texto-3"}>{estado.ghl === "Todos llegaron a GHL" ? "✓ " : ""}{estado.ghl}</span>}
       </div>
       <EnviosEnRojo rojos={rojos} zona={zona} />
+      <LineaWorkflow entradaId={entrada.id} workflow={workflow} puedeProbar={entrada.ghl.ghl_activo} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <code className="min-w-0 flex-[1_1_260px] break-all rounded-lg border border-borde bg-panel-2 px-3 py-2.5 text-xs text-texto-3">{direccionCorta(entrada.url)}</code>
         <Copiar texto={entrada.url} etiqueta="Copiar dirección" className="btn-primario w-full sm:w-auto" />

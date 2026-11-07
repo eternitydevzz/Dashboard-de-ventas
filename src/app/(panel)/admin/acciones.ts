@@ -11,6 +11,7 @@ import { cifrar, descifrar } from "@/lib/cifrado";
 import { reglasValidas } from "@/lib/entrada";
 import { datosLandingValidos, type DatosLanding } from "@/lib/entradas-panel";
 import { enviosDeEntrada, VER_MAS } from "@/lib/entradas-datos";
+import { workflowDeEntrada, type EntradaParaWorkflow } from "@/lib/workflows";
 import { SECCIONES_TODAS, NUNCA, ROLES_PERMISO, seccionesPermitidas } from "@/lib/permisos";
 import type { RolPermiso } from "@/lib/permisos-constantes";
 import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
@@ -355,6 +356,7 @@ export async function guardarEntradaCompleta(id: string, c: { entrada: CambiosEn
     await entradaDelProyecto(id, proyecto.id);
     const fila = await validarEntrada(proyecto.id, c.entrada);
     const landing = datosLandingValidos(c.entrada);
+    if (c.ghl?.activo) await noLaMandaUnWorkflow(id);
     const ghl = c.ghl ? await validarGhl(proyecto.id, c.ghl) : {};
     await escribir(db().from("entradas").update({ ...fila, ...landing, ...ghl }).eq("id", id), "entradas");
     refrescar();
@@ -423,6 +425,7 @@ export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     await entradaDelProyecto(id, proyecto.id);
+    if (c.activo) await noLaMandaUnWorkflow(id);
     await escribir(db().from("entradas").update(await validarGhl(proyecto.id, c)).eq("id", id), "entradas");
     refrescar();
   });
@@ -475,6 +478,112 @@ async function validarGhl(proyectoId: string, c: CambiosGhlEntrada) {
       ghl_campo_completo: String(c.campo_completo ?? "").trim().slice(0, 120),
     };
   }
+}
+
+// ---------- Workflows, 4a-1 (docs/plan-workflows.md, Cristian 7 nov 2026) ----------
+// «Probar como workflow»: crea el workflow de la Entrada desde su «Qué hacer en GHL», en MODO PRUEBA (no llama a GHL:
+// solo compara con lo de hoy). Uno encendido por Entrada.
+export async function crearWorkflowDePrueba(entradaId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: en } = await db()
+      .from("entradas")
+      .select("id, nombre, ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_oportunidades, ghl_etiqueta_base, ghl_etiquetas_extra, ghl_espera_seg, ghl_campo_completo")
+      .eq("id", entradaId)
+      .eq("proyecto_id", proyecto.id)
+      .maybeSingle<EntradaParaWorkflow>();
+    if (!en) throw new ErrorUsuario("Entrada no encontrada.");
+    const { data: ya } = await db().from("workflows").select("id").eq("entrada_id", en.id).eq("encendido", true).limit(1);
+    if (ya?.length) throw new ErrorUsuario("Esta Entrada ya tiene un workflow en marcha.");
+    const w = workflowDeEntrada(en);
+    await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre: w.nombre.slice(0, 120), disparador: w.disparador, entrada_id: en.id, pasos: w.pasos, modo: "prueba" }), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// «Parar la prueba»: el workflow deja de recibir leads y lo que esperaba queda «parada»
+export async function pararWorkflow(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: w } = await db().from("workflows").select("id").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (!w) throw new ErrorUsuario("Workflow no encontrado.");
+    await escribir(db().from("workflows").update({ encendido: false, actualizado_en: new Date().toISOString() }).eq("id", workflowId), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// ---------- Workflows, 4a-2: pasar a real y volver a lo de hoy (Cristian, 7 nov 2026) ----------
+// Nunca deben mandar los dos ni ninguno. Al pasar a real: primero el workflow a «real» y después se apaga «Mandar a GHL»
+// de la Entrada (si eso falla, el workflow vuelve a «prueba»). Un momento con los dos encendidos solo repetiría llamadas
+// que no duplican nada en GHL (el contacto se actualiza, las etiquetas no se repiten y la oportunidad se busca antes).
+// Lo que esperaba para GHL por el camino de hoy pasa a mandarlo su ejecución del workflow.
+async function workflowConEntrada(workflowId: string, proyectoId: string) {
+  const { data: w } = await db().from("workflows").select("id, entrada_id, modo, encendido").eq("id", workflowId).eq("proyecto_id", proyectoId).maybeSingle();
+  if (!w?.entrada_id) throw new ErrorUsuario("Workflow no encontrado.");
+  return w as { id: string; entrada_id: string; modo: string; encendido: boolean };
+}
+
+export async function pasarWorkflowAReal(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const w = await workflowConEntrada(workflowId, proyecto.id);
+    if (!w.encendido || w.modo !== "prueba") throw new ErrorUsuario("Solo se puede pasar a real un workflow en prueba y en marcha.");
+    const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyecto.id).single();
+    if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Este proyecto no tiene GHL conectado (pestaña Integraciones GHL).");
+    const ahora = new Date().toISOString();
+    await escribir(db().from("workflows").update({ modo: "real", actualizado_en: ahora }).eq("id", w.id), "workflows");
+    const { error } = await db().from("entradas").update({ ghl_activo: false }).eq("id", w.entrada_id);
+    if (error) {
+      await db().from("workflows").update({ modo: "prueba", actualizado_en: ahora }).eq("id", w.id);
+      throw new ErrorUsuario("No se pudo apagar «Mandar a GHL» de la Entrada: el workflow sigue en prueba. Inténtalo de nuevo.");
+    }
+    await escribir(db().from("webhook_eventos").update({ ghl_estado: null, ghl_error: "Lo manda su workflow" }).eq("entrada_id", w.entrada_id).eq("ghl_estado", "esperando"), "webhook_eventos");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// «Volver a lo de hoy»: la Entrada vuelve a mandar con «Qué hacer en GHL», el workflow se para (queda en prueba) y lo que
+// su ejecución tenía esperando lo manda el camino de hoy en la próxima lectura.
+export async function devolverAHoy(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const w = await workflowConEntrada(workflowId, proyecto.id);
+    if (w.modo !== "real") throw new ErrorUsuario("Este workflow no está en real.");
+    const ahora = new Date().toISOString();
+    await escribir(db().from("entradas").update({ ghl_activo: true }).eq("id", w.entrada_id), "entradas");
+    await escribir(db().from("workflows").update({ modo: "prueba", encendido: false, actualizado_en: ahora }).eq("id", w.id), "workflows");
+    const { data: pend } = await db().from("workflow_ejecuciones").select("lead_id").eq("workflow_id", w.id).eq("estado", "esperando");
+    for (const leadId of [...new Set((pend ?? []).map((x) => x.lead_id as string))]) {
+      const { data: ult } = await db().from("webhook_eventos").select("id").eq("entrada_id", w.entrada_id).eq("lead_id", leadId).eq("procesado", true).order("recibido_en", { ascending: false }).limit(1).maybeSingle();
+      if (ult) await escribir(db().from("webhook_eventos").update({ ghl_estado: "esperando", ghl_intentos: 0, ghl_error: null, ghl_enviar_en: ahora }).eq("id", ult.id), "webhook_eventos");
+    }
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// Con su workflow en real, la Entrada no puede volver a «Mandar a GHL» por su cuenta (mandarían los dos)
+async function noLaMandaUnWorkflow(entradaId: string) {
+  const { data } = await db().from("workflows").select("id").eq("entrada_id", entradaId).eq("encendido", true).eq("modo", "real").limit(1);
+  if (data?.length) throw new ErrorUsuario("Esta Entrada la manda su workflow (modo real). Para volver a «Qué hacer en GHL», usa «Volver a lo de hoy» en la línea del workflow.");
+}
+
+// «Reintentar» las ejecuciones en error de un workflow: vuelven a esperar con los intentos a cero
+export async function reintentarEjecuciones(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: w } = await db().from("workflows").select("id").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (!w) throw new ErrorUsuario("Workflow no encontrado.");
+    await escribir(
+      db().from("workflow_ejecuciones").update({ estado: "esperando", intentos: 0, error: null, siguiente_en: new Date().toISOString() }).eq("workflow_id", workflowId).eq("estado", "error"),
+      "workflow_ejecuciones"
+    );
+    refrescar();
+    return { ok: true as const };
+  });
 }
 
 // «Reintentar» un envío en rojo: vuelve a esperar con los intentos a cero; lo manda la siguiente lectura (≤ 1 min)

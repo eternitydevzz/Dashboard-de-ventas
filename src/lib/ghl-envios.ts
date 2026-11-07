@@ -10,7 +10,7 @@ import "server-only";
 // (`ghl_etiquetas_extra`). Si el contacto de GHL ya es de otro lead del proyecto (mismo teléfono, otro email: GHL los
 // une, el dashboard no), el envío queda «ok», este lead no guarda el id y su historial lo apunta.
 import { db } from "@/lib/datos";
-import { armarEnvioGhl, etiquetasApp } from "@/lib/entrada-ghl";
+import { armarEnvioGhl, etiquetasApp, type EnvioGhl } from "@/lib/entrada-ghl";
 import { anadirEtiquetasGhl, crearOActualizarContactoGhl, crearOportunidadGhl, pipelinesGhl, primeraColumnaGhl, quitarEtiquetasGhl } from "@/lib/ghl";
 import { enviarEmail, urlApp } from "@/lib/email";
 
@@ -137,6 +137,14 @@ async function enviarLead(proyectoId: string, locationId: string, token: string,
       campoCompleto: entrada.ghl_campo_completo ?? "",
     }
   );
+  await mandarEnvioGhl({ proyectoId, locationId, token, envio, leadId, fetchImpl });
+}
+
+// Lo que se hace en GHL con un envío ya calculado (hoy, desde la Entrada; desde la 4a-2, también desde un workflow en
+// modo real): contacto → etiquetas → quitar → oportunidades → el lead guarda su contacto de GHL y sus etiquetas.
+// `quitarExtra`: etiquetas que un paso «Quitar etiqueta» del workflow quita además de `-incompleto`.
+export async function mandarEnvioGhl(o: { proyectoId: string; locationId: string; token: string; envio: EnvioGhl; leadId: string; quitarExtra?: string[]; fetchImpl?: Fetch }) {
+  const { proyectoId, locationId, token, envio, leadId, fetchImpl } = o;
   if (!envio.contacto.email && !envio.contacto.phone) throw new Error("El lead no tiene email ni teléfono para GHL");
 
   const c = await crearOActualizarContactoGhl({ token, locationId, contacto: envio.contacto, customFields: envio.customFields, fetchImpl });
@@ -144,6 +152,8 @@ async function enviarLead(proyectoId: string, locationId: string, token: string,
   // Solo si la tiene (o si GHL no dijo cuáles tiene): así no se gasta una llamada en cada lead completo
   const q = envio.quitar?.toLowerCase();
   if (envio.quitar && (!c.etiquetas || c.etiquetas.some((t) => t.toLowerCase() === q))) await quitarEtiquetasGhl({ token, contactId: c.id, etiquetas: [envio.quitar], fetchImpl });
+  const extra = [...new Set((o.quitarExtra ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean))];
+  if (extra.length) await quitarEtiquetasGhl({ token, contactId: c.id, etiquetas: extra, fetchImpl });
   // Sin columna fijada: la primera de GHL (una sola lectura de pipelines por lead) y la que ya existe no se mueve
   const sinColumna = envio.oportunidades.some((o) => !o.etapaId);
   const pipelines = sinColumna ? await pipelinesGhl({ token, locationId, fetchImpl }) : [];

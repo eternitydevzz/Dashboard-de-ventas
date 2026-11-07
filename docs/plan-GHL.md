@@ -14,7 +14,7 @@
 | 2 · Registro de la Biblioteca sin webhook | Hecha (biblioteca-maestria PR #1) |
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
-| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`); en curso: 4a |
+| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`). 4a hecha (PR #38 y #40): la Biblioteca está en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. Después, 4b |
 | Revisión de todo con Cristian | Pendiente |
 | Template de landings, skill y archivos del equipo | Pendiente (maqueta hecha) |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
@@ -101,7 +101,8 @@
 - **Migración:** «Qué hacer en GHL» de cada Entrada pasa a ser su workflow; las reglas de pipeline, ramas.
 - **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que hoy) · 4b lienzo de solo lectura · 4c edición en el lienzo · 4d disparadores de etiqueta, columna y cita. **4a, 4b y 4c antes de la landing de agenda; 4d después** (Cristian).
 - [x] Hacer el plan propio de la fase 4 con estas decisiones: **`docs/plan-workflows.md`** (7 nov). Allí están las decisiones nuevas de Cristian (lienzo con HTML y CSS sin dependencias, modo de prueba en paralelo para la Biblioteca, 4a en detalle), el motor, las tablas, los tests y lo que falta.
-- [x] Cristian aprueba `docs/plan-workflows.md` (7 nov). Siguiente: 4a.
+- [x] Cristian aprueba `docs/plan-workflows.md` (7 nov).
+- [x] 4a-1 (motor y modo prueba) hecha y publicada el 7 nov (PR #38). La Biblioteca está en prueba hasta al menos el 10 nov. Detalle y lo que falta en `docs/plan-workflows.md`.
 
 ### 2 · Revisar todo con Cristian
 - [ ] Repasar juntos el panel de endpoints y los workflows en el dashboard. Si está bien, se pasa al punto 3; si no, se apunta qué cambiar.
