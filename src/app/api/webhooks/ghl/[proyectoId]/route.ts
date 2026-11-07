@@ -3,6 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { columnaCitasGhl, datosAgendaGhl, guardarLeads, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave, type LeadEntrada } from "@/lib/leads";
+import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
+import { ponerEtiqueta } from "@/lib/ghl-sync";
 import { dentroDelLimite } from "@/lib/limite";
 import { interpretar } from "@/lib/entrada";
 import type { Proyecto } from "@/lib/tipos";
@@ -144,8 +146,15 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       if (yaExiste) await db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id);
       else
         await escribir(db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: lead.id, closer_id: closerId, ...(await datosAgendaGhl(lead.id)), fecha: fecha.toISOString(), origen: "ghl", ghl_cita_id: ghlCitaId }), "citas");
-      await escribir(db().from("leads").update({ estado_caller: "agendado", llamar_en: null, ...(closerId ? { closer_id: closerId } : {}) }).eq("id", lead.id), "leads");
-      await moverAAgendadosOrganico(proyecto.id, lead.id, pipelineCita);
+      // F21 y C11 punto 15 (Callers, 7 nov): la misma regla que la lectura de cada minuto. Vendido no se toca;
+      // confirma agenda o descartado → «reagendado» con su etiqueta; el resto → «agendado».
+      const { data: actual } = await db().from("leads").select("estado_caller").eq("id", lead.id).maybeSingle();
+      const tras = estadoTrasCitaGhl(actual?.estado_caller);
+      if (tras) {
+        await escribir(db().from("leads").update({ estado_caller: tras.estado, llamar_en: null, ...(closerId ? { closer_id: closerId } : {}) }).eq("id", lead.id), "leads");
+        if (tras.etiqueta) await ponerEtiqueta(lead.id, tras.etiqueta);
+        await moverAAgendadosOrganico(proyecto.id, lead.id, pipelineCita);
+      }
       await escribir(db().from("actividades").insert({ proyecto_id: proyecto.id, lead_id: lead.id, tipo: "cita", resultado: "agendada", nota: "Cita agendada en el calendario de GHL" }), "actividades");
     } else if (tipo === "cambio_etapa") {
       const lead = await buscarOCrearLead(proyecto, body);
