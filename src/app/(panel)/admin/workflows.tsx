@@ -2,14 +2,14 @@
 // Solo lectura: la lista, el lienzo (cajas de arriba abajo, ramas una al lado de otra; en el móvil, una debajo de otra) y
 // el historial de los últimos 50 leads. Sin JavaScript en el navegador: se elige el workflow con un enlace (?wf=).
 import Link from "next/link";
-import { Check, Clock, FlaskConical, GitBranch, MoveRight, Tag, Target, User, X, Zap } from "lucide-react";
+import { Check, Clock, FlaskConical, GitBranch, MoveRight, Pencil, Tag, Target, User, X, Zap } from "lucide-react";
 import type { Paso, Disparador } from "@/lib/workflows";
 import { condicionTexto, describirPaso, disparadorTexto, estadoEjecucion, pasosDelRegistro, type Icono, type Nombres, type Tono } from "@/lib/workflows-vista";
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
 import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
 
-export type WorkflowFila = { id: string; nombre: string; disparador: Disparador; pasos: Paso[]; modo: string; encendido: boolean };
+export type WorkflowFila = { id: string; nombre: string; disparador: Disparador; pasos: Paso[]; modo: string; encendido: boolean; version: number };
 export type EjecucionFila = { id: string; estado: string; coincide: boolean | null; creado_en: string; siguiente_en: string; registro: { tipo?: string; pasos?: string[]; hora?: string; diferencias?: string[] }[]; quien: string };
 
 const ICONOS: Record<Icono, { C: typeof Zap; color: string }> = {
@@ -96,6 +96,7 @@ export function VistaWorkflows({
   ejecuciones,
   nombres,
   proyecto,
+  editor,
 }: {
   workflows: WorkflowFila[];
   resumen: Map<string, ResumenWorkflow>;
@@ -103,6 +104,7 @@ export function VistaWorkflows({
   ejecuciones: EjecucionFila[];
   nombres: Nombres;
   proyecto: Pick<Proyecto, "zona_horaria">;
+  editor?: React.ReactNode; // 4c: el editor, en lugar del lienzo de solo lectura
 }) {
   if (!workflows.length)
     return (
@@ -139,6 +141,7 @@ export function VistaWorkflows({
 
       {elegido && disp && (
         <div className="grid min-w-0 gap-5">
+          {editor ?? (
           <section className="tarjeta min-w-0 p-4 sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
@@ -164,7 +167,11 @@ export function VistaWorkflows({
               <Nodo icono="rayo" clave="Cuando" titulo={disp.titulo} detalle={disp.detalle} disparador />
               <Pasos pasos={elegido.pasos} n={nombres} />
             </div>
+            <div className="mt-4 flex justify-end">
+              <Link href={`/admin?tab=workflows&wf=${elegido.id}&editar=1`} className="btn-primario"><Pencil className="h-4 w-4" /> Editar</Link>
+            </div>
           </section>
+          )}
 
           <section className="tarjeta min-w-0 p-4 sm:p-5">
             <div className="mb-1 text-xs font-semibold text-texto-3">Historial · últimos 50 leads</div>

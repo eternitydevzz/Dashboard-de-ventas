@@ -12,6 +12,7 @@ import { reglasValidas } from "@/lib/entrada";
 import { datosLandingValidos, type DatosLanding } from "@/lib/entradas-panel";
 import { enviosDeEntrada, VER_MAS } from "@/lib/entradas-datos";
 import { workflowDeEntrada, type EntradaParaWorkflow } from "@/lib/workflows";
+import { mismoContenido, pasosValidos } from "@/lib/workflows-editar";
 import { SECCIONES_TODAS, NUNCA, ROLES_PERMISO, seccionesPermitidas } from "@/lib/permisos";
 import type { RolPermiso } from "@/lib/permisos-constantes";
 import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
@@ -509,6 +510,37 @@ export async function pararWorkflow(workflowId: string) {
     const { data: w } = await db().from("workflows").select("id").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!w) throw new ErrorUsuario("Workflow no encontrado.");
     await escribir(db().from("workflows").update({ encendido: false, actualizado_en: new Date().toISOString() }).eq("id", workflowId), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// ---------- Workflows, 4c: guardar desde el editor y encender (Cristian, 7 nov 2026) ----------
+// Guardar: valida los pasos (pasosValidos) y, si cambian, sube la versión. Las ejecuciones en curso terminan con los
+// pasos que guardaron al empezar (columna `pasos` de workflow_ejecuciones).
+export async function guardarWorkflow(workflowId: string, pasos: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data: w } = await db().from("workflows").select("id, pasos, version, modo").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (!w) throw new ErrorUsuario("Workflow no encontrado.");
+    const limpios = pasosValidos(pasos);
+    if (w.modo === "real" && JSON.stringify(limpios).includes('"mover_dashboard"')) throw new ErrorUsuario("«Mover en el dashboard» todavía no se puede hacer en modo real: quítalo o vuelve a prueba.");
+    if (mismoContenido(limpios, w.pasos)) return { ok: true as const, version: w.version as number };
+    const version = (w.version as number) + 1;
+    await escribir(db().from("workflows").update({ pasos: limpios, version, actualizado_en: new Date().toISOString() }).eq("id", w.id), "workflows");
+    refrescar();
+    return { ok: true as const, version };
+  });
+}
+
+// Encender un workflow parado (en prueba). No, si su Entrada ya tiene otro en marcha.
+export async function encenderWorkflow(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const w = await workflowConEntrada(workflowId, proyecto.id);
+    const { data: otros } = await db().from("workflows").select("id").eq("entrada_id", w.entrada_id).eq("encendido", true).neq("id", w.id).limit(1);
+    if (otros?.length) throw new ErrorUsuario("Su Entrada ya tiene otro workflow en marcha: para ese primero.");
+    await escribir(db().from("workflows").update({ encendido: true, actualizado_en: new Date().toISOString() }).eq("id", w.id), "workflows");
     refrescar();
     return { ok: true as const };
   });
