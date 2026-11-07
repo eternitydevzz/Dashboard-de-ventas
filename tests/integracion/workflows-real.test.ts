@@ -49,7 +49,8 @@ const falsoGhl = (async (url: string, init?: { method?: string; body?: string })
   }
   if (u.pathname === "/opportunities/search") {
     const q = u.searchParams;
-    return Response.json({ opportunities: ghl.opps.filter((o) => o.contactId === q.get("contact_id") && o.pipelineId === q.get("pipeline_id")), meta: {} });
+    // Como el GHL real (apps/opportunities.json): pipeline_id es un filtro opcional; sin él, todas las del contacto
+    return Response.json({ opportunities: ghl.opps.filter((o) => o.contactId === q.get("contact_id") && (!q.get("pipeline_id") || o.pipelineId === q.get("pipeline_id"))), meta: {} });
   }
   if (u.pathname === "/opportunities/" && metodo === "POST") {
     const o = { id: `o${++n}`, contactId: cuerpo.contactId, pipelineId: cuerpo.pipelineId, pipelineStageId: cuerpo.pipelineStageId };

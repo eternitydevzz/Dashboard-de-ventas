@@ -1,6 +1,6 @@
 # Mejora · Menos llamadas a GHL por lead
 
-> Creado el 7 nov 2026 a petición de Cristian. Es una mejora pequeña, **fuera de A, B y C**: todavía no se ha hecho nada.
+> Creado el 7 nov 2026 a petición de Cristian. **Hecho el 7 nov** (Cristian: «haz tú todo»): una sola búsqueda de oportunidades por contacto cuando tiene 2 o más pipelines, y las columnas de GHL una vez por vuelta (envíos de las Entradas y workflows en real). `MAX_LEADS_POR_LECTURA` sigue en 10: volver a 15 lo decide Cristian.
 
 ## Qué pasa hoy
 - Cada 60 s, el dashboard manda a GHL los leads cuya espera (5 min) ya terminó. Lo hace `src/lib/ghl-envios.ts`.
@@ -27,7 +27,7 @@
 Con 5 llamadas por lead, 15 leads por vuelta son 75 llamadas, por debajo de 100: **se podría volver a 15 leads por vuelta**.
 
 ## Pendiente de revisar en GHL
-- [ ] **Revisar si GHL tiene alguna forma de crear varias oportunidades en una sola llamada** (por ejemplo, una acción en bloque). No está comprobado. Mirarlo en la especificación oficial (`github.com/GoHighLevel/highlevel-api-docs`, `apps/opportunities.json`) antes de decidir. Si existe, el total por lead bajaría todavía más.
+- [x] **¿Se pueden crear varias oportunidades en una sola llamada?** **No** (comprobado el 7 nov en `apps/opportunities.json`, rama main): solo hay `POST /opportunities/` (una) y `POST /opportunities/upsert` (una, sin contacto). Tampoco hay acción en bloque.
 
 ## Cómo se haría (cuando Cristian lo decida)
 1. Tests primero (`tests/integracion/entrada.test.ts`): contar las llamadas al GHL falso por lead (pipelines una vez por vuelta y una sola búsqueda de oportunidades).

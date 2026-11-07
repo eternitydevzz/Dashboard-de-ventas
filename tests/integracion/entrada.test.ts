@@ -136,7 +136,7 @@ describe("Entradas (landings → app)", () => {
 describe("Entrada → GHL por la API", () => {
   type Contacto = { id: string; email: string; phone?: string; firstName?: string; tags: string[]; customFields: { id: string; value: string }[]; dateAdded: string; dateUpdated: string; source?: string };
   // `porTelefono`: como el GHL real de Maestria, reconoce también por teléfono (caso C); apagado en el resto (mismo teléfono en todos)
-  const ghl = { contactos: [] as Contacto[], opps: [] as { id: string; contactId: string; pipelineId: string; pipelineStageId?: string }[], upserts: [] as Record<string, unknown>[], falla: false, porTelefono: false, lecturasPipelines: 0 };
+  const ghl = { contactos: [] as Contacto[], opps: [] as { id: string; contactId: string; pipelineId: string; pipelineStageId?: string }[], upserts: [] as Record<string, unknown>[], falla: false, porTelefono: false, lecturasPipelines: 0, busquedas: 0 };
   // Plan GHL, B (7 nov): los 2 pipelines de agendas de GHL, con sus columnas (en desorden: manda `position`)
   const AG_BIB = "wym2Ue4VUqkhsFoQJ5PK";
   const AG_GEN = "zuQjPVJNbPpRlL0voy6d";
@@ -177,6 +177,7 @@ describe("Entrada → GHL por la API", () => {
       return Response.json({ tags: c.tags }, { status: metodo === "DELETE" ? 200 : 201 });
     }
     if (u.pathname === "/opportunities/search") {
+      ghl.busquedas++;
       const q = u.searchParams;
       return Response.json({ opportunities: ghl.opps.filter((o) => (!q.get("contact_id") || o.contactId === q.get("contact_id")) && (!q.get("pipeline_id") || o.pipelineId === q.get("pipeline_id"))), meta: {} });
     }
@@ -434,8 +435,11 @@ describe("Entrada → GHL por la API", () => {
       const email = `${e.pref}-ag1@ejemplo.test`;
       expect((await enviar(agenda(email), tokenAgenda)).status).toBe(200);
       const lecturas = ghl.lecturasPipelines;
+      const busquedas = ghl.busquedas;
       expect(await enviarGhl()).toMatchObject({ enviados: 1, errores: [] });
-      expect(ghl.lecturasPipelines).toBeGreaterThan(lecturas); // la primera columna se busca en GHL
+      expect(ghl.lecturasPipelines).toBe(lecturas + 1); // la primera columna se busca en GHL, una vez
+      // Mejora «menos llamadas» (Cristian, 7 nov): 2 pipelines, UNA sola búsqueda de oportunidades (antes, 2)
+      expect(ghl.busquedas).toBe(busquedas + 1);
       const c = ghl.contactos.find((x) => x.email === email)!;
       const opps = ghl.opps.filter((o) => o.contactId === c.id);
       expect(opps.map((o) => [o.pipelineId, o.pipelineStageId]).sort()).toEqual([
@@ -448,6 +452,18 @@ describe("Entrada → GHL por la API", () => {
       expect(l.pipeline_id).toBe(pipes["0. Agendas General"]);
       expect(l.etiquetas).toEqual(["Canal: Biblioteca", "biblioteca-agenda-incompleto", "agenda biblioteca"]);
       expect((await eventosAgenda(l.id))[0]).toMatchObject({ ghl_estado: "ok" });
+    });
+
+    it("menos llamadas (7 nov): 2 leads en la misma vuelta leen las columnas de GHL UNA vez", async () => {
+      expect((await enviar({ ...agenda(`${e.pref}-ag2@ejemplo.test`), phone: "+584220000004" }, tokenAgenda)).status).toBe(200);
+      expect((await enviar({ ...agenda(`${e.pref}-ag3@ejemplo.test`), phone: "+584220000003" }, tokenAgenda)).status).toBe(200);
+      const lecturas = ghl.lecturasPipelines;
+      expect(await enviarGhl()).toMatchObject({ enviados: 2, errores: [] });
+      expect(ghl.lecturasPipelines).toBe(lecturas + 1);
+      for (const em of ["ag2", "ag3"]) {
+        const c = ghl.contactos.find((x) => x.email === `${e.pref}-${em}@ejemplo.test`)!;
+        expect(ghl.opps.filter((o) => o.contactId === c.id).map((o) => o.pipelineId).sort()).toEqual([AG_BIB, AG_GEN].sort());
+      }
     });
 
     it("si GHL ya la pasó a «Agendan», reenviar el cuestionario NO la mueve ni crea otra", async () => {
