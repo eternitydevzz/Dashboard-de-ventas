@@ -1,7 +1,7 @@
 # Plan · Workflows en el dashboard (fase 4 del plan GHL)
 
 > Versión 1 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
-> **Estado:** plan escrito, **pendiente de que Cristian lo apruebe**. No hay código.
+> **Estado:** **aprobado por Cristian el 7 nov 2026**, también la propuesta de «Para decidir» para pasar la Biblioteca a real (3 días, 20 leads de registro, todos los de agenda y 0 diferencias). Siguiente: 4a.
 
 **Objetivo:** que el dashboard haga lo que hoy hacen los workflows de GHL (disparador → pasos), para dejar de depender de ellos. Primero se rehace lo que ya funciona (la Biblioteca) sin arriesgar sus leads; después se ve y se edita en un lienzo como el de GHL; al final, más disparadores.
 
@@ -87,7 +87,7 @@
 - Se añade una etiqueta · cambia de columna en el dashboard · se agenda o cancela una cita. Plan corto propio antes de programar.
 
 ## Para decidir (Cristian)
-- **Cuándo pasar la Biblioteca de prueba a real.** Propuesta de Claude: al menos **3 días** en prueba, con **20 leads de registro** y **todos los de agenda que lleguen**, y **0 diferencias**. La agenda recibe pocos (6 envíos de 3 leads hasta el 7 nov): si en 3 días no llega ninguno, se completa con leads de prueba (`info+…@eternity.llc`, teléfonos 555-01xx) en la Entrada «Prueba GHL».
+- **Cuándo pasar la Biblioteca de prueba a real.** Aprobado por Cristian (7 nov): al menos **3 días** en prueba, con **20 leads de registro** y **todos los de agenda que lleguen**, y **0 diferencias**. La agenda recibe pocos (6 envíos de 3 leads hasta el 7 nov): si en 3 días no llega ninguno, se completa con leads de prueba (`info+…@eternity.llc`, teléfonos 555-01xx) en la Entrada «Prueba GHL».
 - **Leer «2 . WH - FORM AGENDA GENERAL» en GHL.** El 7 nov se intentó con Playwright: la lista de workflows cargó (publicado; 387 contactos han entrado y 347 siguen activos; id `6dd710da-d0bb-4a54-9cdf-87a9c0236c65`), pero el editor del workflow se quedó cargando en 2 intentos de más de 25 s. Hace falta antes de 4c, no para 4a: se reintenta entonces o Cristian manda capturas de sus ramas.
 - **Los 347 contactos «activos» en ese workflow de GHL:** no se sabe en qué paso están (quizá en una espera). Mirarlo al leerlo, antes de apagarlo algún día.
 
@@ -97,7 +97,7 @@
 - **Una versión nueva con un fallo:** los leads que ya iban siguen con la suya; se arregla con otra versión o apagando el workflow.
 
 ## Lo que falta, en orden
-- [ ] Cristian aprueba este plan.
+- [x] Cristian aprueba este plan (7 nov).
 - [ ] 4a: tests primero → migración (con permiso, en producción antes de publicar) → motor → modo prueba de la Biblioteca → PR → comprobar en producción → días en prueba → Cristian decide el cambio a real.
 - [ ] 4b: boceto → aprobado → tests → código → PR → comprobar.
 - [ ] 4c: leer el workflow de GHL → boceto → aprobado → tests → código → PR → comprobar.
