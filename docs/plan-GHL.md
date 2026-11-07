@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 22 (7 nov 2026, 19:50 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 23 (7 nov 2026, 20:10 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -12,7 +12,7 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 |---|---|---|
 | **Panel de endpoints** (Administración → Entradas): tarjeta por landing, envíos en rojo siempre visibles, «Ver más», un solo «Guardar», aviso de cambios sin guardar, crear con 5 preguntas | #33, #36 | ✅ En producción |
 | **Workflows 4a · motor y modo prueba:** cada lead de la Biblioteca pasa también por su workflow, que calcula lo que haría sin tocar GHL y lo compara con lo de hoy | #38 | ✅ En producción. Biblioteca en prueba desde las 16:06 UTC |
-| **Workflows 4a · modo real:** «Pasar a real» y «Volver a lo de hoy» (mismas llamadas a GHL que hoy) | #40 | ✅ En producción. **Sin usar todavía** (lo decide Cristian) |
+| **Workflows 4a · modo real:** «Pasar a real» y «Volver a lo de hoy» (mismas llamadas a GHL que hoy) | #40 | ✅ **La Biblioteca (registro y agenda) pasó a real el 7 nov a las 20:05 UTC** (Cristian: «todo a workflows»): desde entonces la manda a GHL su workflow; «Mandar a GHL» de sus Entradas, apagado |
 | **Workflows 4b · pestaña Workflows** (estilo glass): lista, lienzo e historial | #42 | ✅ En producción |
 | **Workflows 4c · editor en el lienzo:** «+» entre cajas, panel, versiones, encender/apagar | #45 | ✅ En producción (sin guardar nada en los de la Biblioteca) |
 | **Pasada de punta a punta** con un registro de prueba en la Biblioteca (`info+wf1@eternity.llc`): llega, GHL ok y el workflow coincide con **0 diferencias** | — | ✅ Comprobado a las 18:41 UTC |
@@ -29,8 +29,10 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 
 **Claude, cuando toque:**
 - [ ] Con los calendarios puestos: una prueba agendando en la app con un lead de prueba y cancelar la cita.
-- [ ] **10 nov, 16:06 UTC:** mirar los días de prueba de la Biblioteca (20 leads de registro reales, todos los de agenda y 0 diferencias) para que Cristian decida «Pasar a real».
-- [ ] Después del 10 nov: pasar las 2 landings de la Biblioteca al JSON v1 (en agenda, la landing y su Entrada juntas).
+- [ ] Vigilar los primeros leads reales de la Biblioteca en real (Administración → Workflows → historial; Entradas sin rojos). Si algo va mal: «Volver a lo de hoy».
+- [ ] Pasar las 2 landings de la Biblioteca al JSON v1 (Cristian, 7 nov: ya, pero revisando antes todos los detalles). En agenda, la landing y su workflow (respuestas dentro de `quiz`) juntos.
+- [ ] Mejoras pequeñas, una a una, cada una con su PR (Cristian, 7 nov: «ya»). Ver «8 · Mejoras pequeñas».
+- [ ] Reintentar leer en GHL «2 . WH - FORM AGENDA GENERAL» con Playwright (Cristian, 7 nov: «inténtalo tú otra vez»).
 - [ ] Arreglo pequeño: «1 de 1 coinciden» → «1 de 1 coincide» en Workflows.
 - [ ] Siguiente fase por orden: landing de agenda de `codigomaestria.com` (necesita antes rehacer el workflow de agendas de GHL, aplazado).
 
@@ -85,6 +87,7 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 | Agendas en GHL | Oportunidad en «0. Agendas Biblioteca» y en «0. Agendas General» (en General tienen que estar todas), en su primera columna («Form»). La de «0. Agendas Orgánico» que crea el calendario está bien. Con la espera de 5 min, si la persona reserva antes, las oportunidades se crean después y **se quedan en «Form»**: se deja así |
 | Registro en GHL | Oportunidad en «1. Biblioteca Recursos → Registrados»; ahí se queda aunque la persona agende |
 | Leads por lectura de 60 s | **10** (antes 15). Un lead hace hasta 8 llamadas a GHL: 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s) |
+| **Siempre con workflow** | (Cristian, 7 nov) Toda landing se conecta con su **workflow** del dashboard (Administración → Workflows), no con «Qué hacer en GHL» de la Entrada: da más información (historial por lead) y deja ramas. La Biblioteca pasó a real el 7 nov a las 20:05 UTC sin esperar a los 3 días de prueba |
 | Agendas de `codigomaestria.com` | El calendario sigue en GHL. Lo que se trae al dashboard es el **formulario** de cada agenda: sus UTM, sus etiquetas y a dónde va cada lead, igual que lo hace hoy GHL |
 
 ---
@@ -216,7 +219,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 
 ## Para decidir (Cristian)
 - **`build.py`:** en revisión en otra sesión («Revisar build.py de la Biblioteca»).
-- **Mejoras pequeñas:** ¿cuándo? (incluye las nuevas del 7 nov: campos sugeridos, aviso `leads_pkey` y el formulario que se resetea) (antes iban justo después de A, B y C; con el orden nuevo no tienen sitio decidido).
+- **Mejoras pequeñas:** decidido (Cristian, 7 nov): ya, una a una. (antes iban justo después de A, B y C; con el orden nuevo no tienen sitio decidido).
 
 ---
 

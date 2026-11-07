@@ -93,7 +93,10 @@
 - **No probado con GHL de verdad:** el modo real solo se ha probado con el GHL de mentira de los tests. La primera vez será cuando Cristian pulse «Pasar a real».
 - **Fallos míos en esta subfase:** el test de integración preparó el proyecto sin token de GHL (8 tests en rojo en cadena); al arreglarlo, un comentario tapó el filtro del proyecto (se corrigió antes de que corriera: esa ronda quedó cancelada).
 
-### Días de prueba de la Biblioteca (desde el 7 nov, 16:06 UTC)
+### La Biblioteca, EN REAL desde el 7 nov a las 20:05 UTC
+Cristian decidió no esperar a los 3 días («todo a workflows»): con un lead de prueba coincidiendo con 0 diferencias, se pulsó «Pasar a real» en las 2 (antes se comprobó que los pasos de cada workflow eran exactamente la configuración de su Entrada). En la base: los 2 workflows en `real`, las 2 Entradas con «Mandar a GHL» apagado y ningún envío esperando por el camino de antes. Desde entonces, cada lead lo manda a GHL su workflow. Para volver: «Volver a lo de hoy» en la línea del workflow.
+
+### Días de prueba de la Biblioteca (desde el 7 nov, 16:06 UTC) (ya no aplica: pasó a real antes)
 - Criterio (Cristian): al menos 3 días (hasta el **10 nov, 16:06 UTC**), 20 leads de registro y todos los de agenda que lleguen, con **0 diferencias**. Si en esos días no llega ninguno de agenda, se completa con leads de prueba en la Entrada «Prueba GHL».
 - Dónde se mira: la línea de cada tarjeta en Administración → Entradas, o `workflow_ejecuciones` (`coincide`, y las diferencias en `registro`).
 - **Primer lead (de prueba), 7 nov:** registro real en la Biblioteca con `info+wf1@eternity.llc` a las 18:35:37 UTC. Llegó a la Entrada, se creó el lead en «1. Biblioteca Recursos» y, a la vez, su ejecución del workflow (esperando hasta las 18:40:38). A las 18:41:02 el camino de hoy lo mandó a GHL (**ok** a la primera; el lead guardó su contacto de GHL y las etiquetas `biblioteca-form-incompleto` y `biblioteca recursos`) y el workflow en prueba hizo su tramo y comparó: **coincide, 0 diferencias**. En Workflows: «1 de 1 coinciden». **Ojo:** este lead es de prueba; para el criterio de 20 leads de registro, contar solo los reales.

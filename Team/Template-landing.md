@@ -90,10 +90,10 @@ Es el mismo que da el botón **«Para el programador» → «Copiar ejemplo de l
 
 ## Pasos para conectar una landing nueva
 1. **Leer lo de hoy:** qué manda la landing y qué hace su workflow de GHL (campos, etiqueta, pipeline, columna y ramas).
-2. **Crear su Entrada** en Administración → Entradas → «Conectar una landing nueva» (nombre, landing, formulario, desde dónde envía y pipeline). Después, en «Cambiar ajustes» → «Qué hacer en GHL»: campos, pipelines de GHL, etiqueta base y espera de 5 min. **«Mandar a GHL» apagado hasta probar.** Si hace falta lo que hacía un workflow de GHL con ramas, «Probar como workflow» y editarlo en Administración → Workflows.
+2. **Crear su Entrada y su workflow** (siempre con workflow, decisión de Cristian del 7 nov). En Administración → Entradas → «Conectar una landing nueva» (nombre, landing, formulario, desde dónde envía y pipeline). En «Cambiar ajustes» → «Qué hacer en GHL»: campos, pipelines de GHL, etiqueta base y espera de 5 min, **con «Mandar a GHL» apagado**. Después, **«Probar como workflow»** en su tarjeta, y en Administración → Workflows se ajusta (ramas, más pasos) hasta que haga lo mismo que su workflow de GHL.
 3. **Cambiar la landing** para que mande el JSON v1 a su dirección con `enviar-al-dashboard.js` (navegador o servidor). Fuera la URL del webhook de GHL.
 4. **Probar** con leads de prueba (`info+<landing>N@eternity.llc`, teléfonos 555-01xx): en el dashboard (1 lead, su pipeline, envío en verde) y en GHL (contacto, campos, etiquetas, oportunidades).
-5. **Encender** «Mandar a GHL», **publicar** la landing y **apagar** su workflow de GHL (o solo su rama).
+5. Con las pruebas bien (el workflow en prueba «coincide»), **«Pasar a real»** el workflow, **publicar** la landing y **apagar** su workflow de GHL (o solo su rama).
 6. **Vigilar 24 h**: Administración → Entradas sin envíos en rojo.
 7. **Apuntar cómo volver atrás** y pasar los contactos de prueba a Cristian para borrarlos.
 
