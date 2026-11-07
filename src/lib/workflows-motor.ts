@@ -8,8 +8,9 @@ import "server-only";
 // - Si falla: 5 intentos (uno por lectura) y después «error» con «Reintentar». En prueba no se manda email (Cristian).
 // - 4a-2, MODO REAL (Cristian, 7 nov): cada tramo hace sus pasos de GHL con `mandarEnvioGhl`, las MISMAS llamadas que
 //   hoy hace «Qué hacer en GHL». Al 5.º fallo, además, email a info@eternity.llc (como hoy). «Mover en el dashboard»
-//   todavía no se hace en real (lo dice el error).
+//   mueve el lead (o su tarjeta) en el dashboard (Cristian, 7 nov).
 import { db } from "@/lib/datos";
+import { moverLeadDashboard } from "@/lib/leads";
 import { armarEnvioGhl } from "@/lib/entrada-ghl";
 import { avisarPorEmail, mandarEnvioGhl, type Avisar } from "@/lib/ghl-envios";
 import { aplanarPasos, compararEnvios, configDePasos, envioDeWorkflow, tramos, type Paso, type PasoSimple } from "@/lib/workflows";
@@ -135,13 +136,14 @@ async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: Gh
   const ts = tramos(aplanarPasos(ej.pasos, envios));
   const actual = ts[ej.tramo];
   const pasos: PasoSimple[] = actual?.pasos ?? [];
-  if (pasos.some((p) => p.tipo === "mover_dashboard")) throw new Error("«Mover en el dashboard» todavía no se puede hacer en modo real");
   const deGhl = pasos.filter((p) => p.tipo === "contacto_ghl" || p.tipo === "etiquetas_ghl" || p.tipo === "oportunidad_ghl" || p.tipo === "quitar_etiqueta_ghl");
   if (deGhl.length) {
     const envio = armarEnvioGhl(envios, configDePasos(deGhl));
     const quitarExtra = deGhl.flatMap((p) => (p.tipo === "quitar_etiqueta_ghl" ? [p.etiqueta] : []));
     await mandarEnvioGhl({ proyectoId, locationId: ghl.locationId, token: ghl.token, envio, leadId: ej.lead_id, quitarExtra, fetchImpl: ghl.fetchImpl });
   }
+  // «Mover en el dashboard» (Cristian, 7 nov): después de GHL, en el orden del tramo
+  for (const p of pasos) if (p.tipo === "mover_dashboard") await moverLeadDashboard(proyectoId, ej.lead_id, p.pipeline_id, p.etapa_id);
   const registro = [...ej.registro, { tipo: "tramo", tramo: ej.tramo, pasos: pasos.map((p) => `${p.id} (${p.tipo})`), hora: ahora.toISOString(), modo: "real" }];
   const siguiente = ts[ej.tramo + 1];
   if (siguiente) return { tramo: ej.tramo + 1, siguiente_en: enSegundos(ahora, siguiente.espera), intentos: 0, error: null, registro };

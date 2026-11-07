@@ -60,10 +60,10 @@ describe("guardar el workflow", () => {
     }
     expect((await leer()).version).toBe(2);
   });
-  it("en modo real no deja guardar «Mover en el dashboard» (aún no se hace en real)", async () => {
+  it("en modo real ya deja guardar «Mover en el dashboard» (Cristian, 7 nov)", async () => {
     await db.from("workflows").update({ modo: "real" }).eq("id", wfId);
     como(e, e.p.ceo);
-    expect(await guardarWorkflow(wfId, [{ id: "m", tipo: "mover_dashboard", pipeline_id: e.pipeline.id, etapa_id: null }])).toMatchObject({ error: expect.stringMatching(/Mover en el dashboard/) });
+    expect(await guardarWorkflow(wfId, [{ id: "m", tipo: "mover_dashboard", pipeline_id: e.pipeline.id, etapa_id: null }])).toMatchObject({ ok: true });
     await db.from("workflows").update({ modo: "prueba" }).eq("id", wfId);
   });
 });

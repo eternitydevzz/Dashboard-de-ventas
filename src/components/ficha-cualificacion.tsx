@@ -111,10 +111,11 @@ export function useFicha(leadId: string) {
 
 export function PanelFicha({ ficha }: { ficha: ReturnType<typeof useFicha> }) {
   const { campos, estado, cambiar, guardar } = ficha;
+  // Cristian (7 nov, tras verla en la app): toda la ficha dentro de un recuadro azul clarito, para remarcarla
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 rounded-2xl border border-primario/25 bg-primario-suave p-3">
       <div className="flex min-h-6 items-center justify-between gap-2">
-        <span className="titulo-seccion">Ficha de cualificación</span>
+        <span className="titulo-seccion !text-primario">Ficha de cualificación</span>
         <span className="text-xs text-texto-3" aria-live="polite">
           {estado === "cargando" && "Cargando…"}
           {estado === "guardando" && "Guardando…"}
@@ -133,9 +134,9 @@ export function PanelFicha({ ficha }: { ficha: ReturnType<typeof useFicha> }) {
             <div key={c.k} className={c.largo ? "col-span-2" : ""}>
               <label htmlFor={id} className="etiqueta-campo">{c.t}</label>
               {c.largo ? (
-                <textarea id={id} rows={2} className="campo resize-y py-1.5" value={campos[c.k] ?? ""} disabled={estado === "cargando"} onChange={(e) => cambiar(c.k, e.target.value)} placeholder={c.k === "nota" ? "Lo que quieras apuntar de esta llamada…" : ""} />
+                <textarea id={id} rows={2} className="campo resize-y !bg-panel py-1.5" value={campos[c.k] ?? ""} disabled={estado === "cargando"} onChange={(e) => cambiar(c.k, e.target.value)} placeholder={c.k === "nota" ? "Lo que quieras apuntar de esta llamada…" : ""} />
               ) : (
-                <input id={id} className="campo py-1.5" value={campos[c.k] ?? ""} disabled={estado === "cargando"} onChange={(e) => cambiar(c.k, e.target.value)} />
+                <input id={id} className="campo !bg-panel py-1.5" value={campos[c.k] ?? ""} disabled={estado === "cargando"} onChange={(e) => cambiar(c.k, e.target.value)} />
               )}
             </div>
           );
