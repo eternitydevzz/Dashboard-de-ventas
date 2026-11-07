@@ -134,8 +134,16 @@ describe("Entradas (landings → app)", () => {
 // creación de oportunidades, y la búsqueda de contactos de la lectura de 60 s. El GHL falso reconoce al contacto por
 // email, como Maestria (allowDuplicateContact = false).
 describe("Entrada → GHL por la API", () => {
-  type Contacto = { id: string; email: string; firstName?: string; tags: string[]; customFields: { id: string; value: string }[]; dateAdded: string; dateUpdated: string; source?: string };
-  const ghl = { contactos: [] as Contacto[], opps: [] as { id: string; contactId: string; pipelineId: string; pipelineStageId?: string }[], upserts: [] as Record<string, unknown>[], falla: false };
+  type Contacto = { id: string; email: string; phone?: string; firstName?: string; tags: string[]; customFields: { id: string; value: string }[]; dateAdded: string; dateUpdated: string; source?: string };
+  // `porTelefono`: como el GHL real de Maestria, reconoce también por teléfono (caso C); apagado en el resto (mismo teléfono en todos)
+  const ghl = { contactos: [] as Contacto[], opps: [] as { id: string; contactId: string; pipelineId: string; pipelineStageId?: string }[], upserts: [] as Record<string, unknown>[], falla: false, porTelefono: false, lecturasPipelines: 0 };
+  // Plan GHL, B (7 nov): los 2 pipelines de agendas de GHL, con sus columnas (en desorden: manda `position`)
+  const AG_BIB = "wym2Ue4VUqkhsFoQJ5PK";
+  const AG_GEN = "zuQjPVJNbPpRlL0voy6d";
+  const PIPELINES_GHL = [
+    { id: AG_BIB, name: "0. Agendas Biblioteca", stages: [{ id: "bib-agendan", name: "Agendan", position: 1 }, { id: "bib-form", name: "Form", position: 0 }] },
+    { id: AG_GEN, name: "0. Agendas General", stages: [{ id: "gen-form", name: "Form", position: 0 }, { id: "gen-agendan", name: "Agendan", position: 1 }] },
+  ];
   const avisos: { entrada: string; lead: string; error: string }[] = [];
   const avisar = async (a: { entrada: string; lead: string; error: string }) => void avisos.push(a);
   const PIPE_GHL = "dE7go9T3Mi2zbIT4sGME";
@@ -150,9 +158,9 @@ describe("Entrada → GHL por la API", () => {
     const ahoraIso = new Date().toISOString();
     if (u.pathname === "/contacts/upsert") {
       ghl.upserts.push(cuerpo);
-      let c = ghl.contactos.find((x) => x.email === cuerpo.email);
+      let c = ghl.contactos.find((x) => x.email === cuerpo.email || (ghl.porTelefono && !!cuerpo.phone && x.phone === cuerpo.phone));
       const nuevo = !c;
-      if (!c) ghl.contactos.push((c = { id: `${e.pref}-c${++n}`, email: cuerpo.email, tags: [], customFields: [], dateAdded: ahoraIso, dateUpdated: ahoraIso }));
+      if (!c) ghl.contactos.push((c = { id: `${e.pref}-c${++n}`, email: cuerpo.email, phone: cuerpo.phone, tags: [], customFields: [], dateAdded: ahoraIso, dateUpdated: ahoraIso }));
       if ("tags" in cuerpo) c.tags = cuerpo.tags; // así se comporta GHL: borra todas
       c.firstName = cuerpo.firstName ?? c.firstName;
       c.source = cuerpo.source ?? c.source;
@@ -191,7 +199,10 @@ describe("Entrada → GHL por la API", () => {
       return Response.json({ contacts: lista.slice(0, b.pageLimit), total: lista.length });
     }
     if (/^\/locations\/[^/]+\/customFields$/.test(u.pathname)) return Response.json({ customFields: [] });
-    if (u.pathname === "/opportunities/pipelines") return Response.json({ pipelines: [] });
+    if (u.pathname === "/opportunities/pipelines") {
+      ghl.lecturasPipelines++;
+      return Response.json({ pipelines: PIPELINES_GHL });
+    }
     const c1 = u.pathname.match(/^\/contacts\/([^/]+)$/);
     if (c1) {
       const c = ghl.contactos.find((x) => x.id === decodeURIComponent(c1[1]));
@@ -386,5 +397,92 @@ describe("Entrada → GHL por la API", () => {
     await post(registro(otro));
     expect((await eventos((await lead(otro)).id))[0].ghl_estado).toBeNull();
     await db.from("entradas").update({ ghl_activo: true }).eq("id", entradaGhl);
+  });
+  // ---------- Plan GHL, B y C (Cristian, 7 nov 2026) ----------
+  describe("agenda de la Biblioteca: 2 pipelines de GHL y etiquetas fijas", () => {
+    let tokenAgenda: string;
+    let entradaAgenda: string;
+    const agenda = (email: string) => ({ name: "eva prueba", first_name: "eva", email, phone: "+584220000002", step: "agenda_datos", source: "agenda", utm_source: "agenda-biblioteca" });
+    const eventosAgenda = async (leadId: string) => (await db.from("webhook_eventos").select("*").eq("entrada_id", entradaAgenda).eq("lead_id", leadId).order("recibido_en")).data!;
+
+    beforeAll(async () => {
+      const { data } = await db
+        .from("entradas")
+        .insert({
+          proyecto_id: e.proyecto.id,
+          nombre: "Web · Biblioteca agenda (test)",
+          pipeline_id: pipes["0. Agendas General"],
+          reglas: [{ campo: "utm_source", operador: "igual", valor: "agenda-biblioteca", etiqueta: "Canal: Biblioteca" }],
+          ghl_activo: true,
+          ghl_pipeline_id: null,
+          ghl_oportunidades: [
+            { pipeline_id: AG_BIB, etapa_id: null },
+            { pipeline_id: AG_GEN, etapa_id: null },
+          ],
+          ghl_etiqueta_base: "biblioteca-agenda",
+          ghl_etiquetas_extra: ["agenda biblioteca"],
+        })
+        .select()
+        .single();
+      tokenAgenda = data!.token;
+      entradaAgenda = data!.id;
+    });
+
+    it("una oportunidad en cada pipeline, en su primera columna leída de GHL; etiquetas fijas en GHL y en el lead", async () => {
+      const email = `${e.pref}-ag1@ejemplo.test`;
+      expect((await enviar(agenda(email), tokenAgenda)).status).toBe(200);
+      const lecturas = ghl.lecturasPipelines;
+      expect(await enviarGhl()).toMatchObject({ enviados: 1, errores: [] });
+      expect(ghl.lecturasPipelines).toBeGreaterThan(lecturas); // la primera columna se busca en GHL
+      const c = ghl.contactos.find((x) => x.email === email)!;
+      const opps = ghl.opps.filter((o) => o.contactId === c.id);
+      expect(opps.map((o) => [o.pipelineId, o.pipelineStageId]).sort()).toEqual([
+        [AG_BIB, "bib-form"],
+        [AG_GEN, "gen-form"],
+      ]);
+      expect(opps.some((o) => o.pipelineId === PIPE_GHL)).toBe(false); // nada en «1. Biblioteca Recursos»
+      expect(c.tags).toEqual(["biblioteca-agenda-incompleto", "agenda biblioteca"]);
+      const l = await lead(email);
+      expect(l.pipeline_id).toBe(pipes["0. Agendas General"]);
+      expect(l.etiquetas).toEqual(["Canal: Biblioteca", "biblioteca-agenda-incompleto", "agenda biblioteca"]);
+      expect((await eventosAgenda(l.id))[0]).toMatchObject({ ghl_estado: "ok" });
+    });
+
+    it("si GHL ya la pasó a «Agendan», reenviar el cuestionario NO la mueve ni crea otra", async () => {
+      const email = `${e.pref}-ag1@ejemplo.test`;
+      const c = ghl.contactos.find((x) => x.email === email)!;
+      for (const o of ghl.opps.filter((x) => x.contactId === c.id)) o.pipelineStageId = o.pipelineId === AG_BIB ? "bib-agendan" : "gen-agendan";
+      expect((await enviar({ ...agenda(email), step: "cuestionario", quiz_completed: true }, tokenAgenda)).status).toBe(200);
+      expect(await enviarGhl()).toMatchObject({ enviados: 1, errores: [] });
+      const opps = ghl.opps.filter((o) => o.contactId === c.id);
+      expect(opps.map((o) => o.pipelineStageId).sort()).toEqual(["bib-agendan", "gen-agendan"]);
+      expect(c.tags).toEqual(["agenda biblioteca", "biblioteca-agenda-completo"]);
+    });
+
+    it("C: si el contacto de GHL ya es de otro lead (mismo teléfono, otro email), el envío queda ok y se apunta en el historial", async () => {
+      ghl.porTelefono = true;
+      try {
+        const primero = `${e.pref}-c1@ejemplo.test`;
+        const segundo = `${e.pref}-c2@ejemplo.test`;
+        const tel = "+584220007112";
+        await post({ ...registro(primero), phone: tel });
+        expect(await enviarGhl()).toMatchObject({ enviados: 1, errores: [] });
+        const l1 = await lead(primero);
+        expect(l1.ghl_contact_id).toBeTruthy();
+        await post({ ...registro(segundo), phone: tel });
+        const r = await enviarGhl();
+        expect(r).toMatchObject({ enviados: 1, errores: [] });
+        const l2 = await lead(segundo);
+        expect(l2.ghl_contact_id).toBeNull(); // no choca con el primero (leads_proyecto_id_ghl_contact_id_key)
+        expect(l2.etiquetas).toContain("biblioteca-form-incompleto");
+        expect((await eventos(l2.id))[0]).toMatchObject({ ghl_estado: "ok", ghl_error: null });
+        const { data: act } = await db.from("actividades").select("nota").eq("lead_id", l2.id).like("nota", "%mismo contacto de GHL%");
+        expect(act).toHaveLength(1);
+        expect(act![0].nota).toContain(primero);
+        expect(avisos).toHaveLength(1); // sin email de aviso nuevo
+      } finally {
+        ghl.porTelefono = false;
+      }
+    });
   });
 });

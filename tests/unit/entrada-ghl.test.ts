@@ -78,7 +78,7 @@ describe("armarEnvioGhl", () => {
     expect(e.etiqueta).toBe("biblioteca-form-incompleto");
     expect(e.quitar).toBeNull();
     expect(e.completo).toBe(false);
-    expect(e.oportunidad).toEqual({ pipelineId: "dE7go9T3Mi2zbIT4sGME", etapaId: "9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d", nombre: "ana maria prueba lopez" });
+    expect(e.oportunidades).toEqual([{ pipelineId: "dE7go9T3Mi2zbIT4sGME", etapaId: "9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d", nombre: "ana maria prueba lopez" }]);
   });
 
   it("registro + cuestionario: un solo envío completo, con las respuestas y quitando -incompleto", () => {
@@ -110,7 +110,7 @@ describe("armarEnvioGhl", () => {
     const e = armarEnvioGhl([REGISTRO], { ...CONFIG, etiquetaBase: " ", pipelineId: null, campos: { utm_source: "", "quiz.situacion": "X1", lista: "X2" } });
     expect(e.etiqueta).toBeNull();
     expect(e.quitar).toBeNull();
-    expect(e.oportunidad).toBeNull();
+    expect(e.oportunidades).toEqual([]);
     expect(e.customFields).toEqual([]);
   });
 
@@ -121,7 +121,43 @@ describe("armarEnvioGhl", () => {
       { id: "E1", field_value: "30" },
     ]);
     expect(e.contacto).toEqual({ email: "x@y.test" });
-    expect(e.oportunidad?.nombre).toBe("x@y.test");
+    expect(e.oportunidades[0]?.nombre).toBe("x@y.test");
+  });
+});
+
+// Plan GHL, B (Cristian, 7 nov): la agenda de la Biblioteca va a 2 pipelines de GHL y pone una etiqueta vieja fija
+describe("armarEnvioGhl · varias oportunidades y etiquetas fijas", () => {
+  const AGENDAS = [
+    { pipeline_id: "wym2Ue4VUqkhsFoQJ5PK", etapa_id: null },
+    { pipeline_id: "zuQjPVJNbPpRlL0voy6d", etapa_id: null },
+  ];
+
+  it("con una lista de pipelines sale una oportunidad por cada uno (sin columna = la primera, sin mover)", () => {
+    const e = armarEnvioGhl([REGISTRO], { ...CONFIG, oportunidades: AGENDAS });
+    expect(e.oportunidades).toEqual([
+      { pipelineId: "wym2Ue4VUqkhsFoQJ5PK", etapaId: null, nombre: "ana maria prueba lopez" },
+      { pipelineId: "zuQjPVJNbPpRlL0voy6d", etapaId: null, nombre: "ana maria prueba lopez" },
+    ]);
+  });
+
+  it("la lista manda sobre el pipeline de siempre; repetidos y vacíos fuera", () => {
+    const e = armarEnvioGhl([REGISTRO], { ...CONFIG, oportunidades: [...AGENDAS, { pipeline_id: "wym2Ue4VUqkhsFoQJ5PK", etapa_id: "x" }, { pipeline_id: " ", etapa_id: null }] });
+    expect(e.oportunidades.map((o) => o.pipelineId)).toEqual(["wym2Ue4VUqkhsFoQJ5PK", "zuQjPVJNbPpRlL0voy6d"]);
+  });
+
+  it("con la lista vacía, la oportunidad de siempre (compatible con lo que hay)", () => {
+    const e = armarEnvioGhl([REGISTRO], { ...CONFIG, oportunidades: [] });
+    expect(e.oportunidades).toEqual([{ pipelineId: "dE7go9T3Mi2zbIT4sGME", etapaId: "9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d", nombre: "ana maria prueba lopez" }]);
+    expect(armarEnvioGhl([REGISTRO], { ...CONFIG, pipelineId: null }).oportunidades).toEqual([]);
+  });
+
+  it("las etiquetas fijas salen en el envío (en minúsculas, sin repetir) y en las del lead; nunca se quitan", () => {
+    const e = armarEnvioGhl([REGISTRO, CUESTIONARIO], { ...CONFIG, etiquetaBase: "biblioteca-agenda", etiquetasExtra: ["Agenda Biblioteca", " agenda biblioteca ", ""] });
+    expect(e.etiquetas).toEqual(["biblioteca-agenda-completo", "agenda biblioteca"]);
+    expect(e.quitar).toBe("biblioteca-agenda-incompleto");
+    expect(etiquetasApp(["biblioteca-agenda-incompleto"], e)).toEqual(["biblioteca-agenda-completo", "agenda biblioteca"]);
+    // Sin etiqueta base, solo las fijas
+    expect(armarEnvioGhl([REGISTRO], { ...CONFIG, etiquetaBase: null, etiquetasExtra: ["biblioteca recursos"] }).etiquetas).toEqual(["biblioteca recursos"]);
   });
 });
 

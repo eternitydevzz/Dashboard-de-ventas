@@ -18,6 +18,9 @@ describe("canalDeOrigen", () => {
 
   it("acepta los alias y la errata «bibliotec»", () => {
     expect(canalDeOrigen(null, "bibliotec")).toBe("biblioteca");
+    // Plan GHL, A (Cristian, 7 nov): la agenda de la Biblioteca manda `agenda-biblioteca` (cita real del 28 oct salió «otro»)
+    expect(canalDeOrigen(null, "agenda-biblioteca")).toBe("biblioteca");
+    expect(canalDeOrigen("https://codigomaestria.com/agenda?utm_source=Agenda-Biblioteca")).toBe("biblioteca");
     expect(canalDeOrigen(null, "instagram")).toBe("ig");
     expect(canalDeOrigen(null, "youtube")).toBe("yt");
     expect(canalDeOrigen("https://codigomaestria.com/agenda?utm_source=p1")).toBe("p1"); // Píldora 1 (como en GHL)
