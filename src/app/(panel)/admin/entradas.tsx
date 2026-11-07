@@ -7,7 +7,7 @@ import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { Copiar } from "./cliente";
 import { borrarEntrada, cambiarActivaEntrada, crearEntrada, guardarEntradaCompleta, nuevaDireccionEntrada } from "./acciones";
 import { OPERADORES, type Regla } from "@/lib/entrada";
-import { direccionCorta, estadoEntrada, jsonEjemplo, type DatosLanding } from "@/lib/entradas-panel";
+import { direccionCorta, estadoEntrada, jsonEjemplo, leadsRecibidos, type DatosLanding } from "@/lib/entradas-panel";
 import type { EnvioEntrada, ResumenEntrada } from "@/lib/entradas-datos";
 import { confirmar } from "@/components/dialogos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
@@ -158,7 +158,7 @@ export function TarjetaEntrada({
         <p className="mt-1 text-sm text-texto-3">Sin landing apuntada (se pone en «Cambiar ajustes»).</p>
       )}
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-        <span><b>{resumen.leads === 1 ? "1 lead" : `${resumen.leads} leads`}</b> recibidos</span>
+        <span><b>{leadsRecibidos(resumen.leads).cifra}</b> {leadsRecibidos(resumen.leads).texto}</span>
         {ultimo && <span>Último: <b>{ultimo}</b></span>}
         {estado.ghl && <span className={estado.ghl === "Todos llegaron a GHL" ? "font-medium text-ok" : "text-texto-3"}>{estado.ghl === "Todos llegaron a GHL" ? "✓ " : ""}{estado.ghl}</span>}
       </div>
