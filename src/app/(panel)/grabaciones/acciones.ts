@@ -29,7 +29,7 @@ export async function guardarGrabacion(leadId: string, ruta: string, duracionSeg
     const { data: hay } = await db().storage.from("grabaciones").list(carpeta, { search: archivo, limit: 1 });
     if (!hay?.some((x) => x.name === archivo)) throw new ErrorUsuario("No se encontró el audio subido. Vuelve a grabar.");
     const { data, error } = await db()
-      .from("grabaciones")
+      .from("grabaciones_caller")
       .insert({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, archivo_path: ruta, tipo: tipoGrabacion(ruta), duracion_seg: Math.max(0, Math.round(Number(duracionSeg) || 0)) })
       .select("id")
       .single();
@@ -45,7 +45,7 @@ export async function guardarTranscripcion(id: string, texto: string) {
     const { perfil, proyecto } = await exigirSeccion("grabaciones");
     if (!esJefe(perfil)) throw new ErrorUsuario("Solo el CEO y los directores suben transcripciones.");
     const t = transcripcionValida(texto);
-    await escribir(db().from("grabaciones").update({ transcripcion: t, transcrita_en: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyecto.id), "grabaciones");
+    await escribir(db().from("grabaciones_caller").update({ transcripcion: t, transcrita_en: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyecto.id), "grabaciones");
     revalidatePath("/grabaciones");
   });
 }

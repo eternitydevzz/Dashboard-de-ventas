@@ -1,9 +1,10 @@
 -- C10 · Sección «Grabaciones» (plan Callers, 7 nov 2026): el caller graba la llamada con el micrófono de su ordenador
 -- desde el guion. Cada grabación queda unida al lead con el que empezó. Se guardan siempre (no se borran solas).
 -- El caller escucha las suyas y los jefes todas; la transcripción la suben Cristian y Claude a mano (texto o .txt).
--- No comparte nada con «Llamadas de GHL» (llamadas_ghl). Solo añade cosas.
+-- No comparte nada con «Llamadas de GHL» (llamadas_ghl) ni con las de Fathom de los closers (tabla `grabaciones`).
+-- Solo añade cosas.
 
-create table public.grabaciones (
+create table public.grabaciones_caller (
   id uuid primary key default gen_random_uuid(),
   proyecto_id uuid not null references public.proyectos (id) on delete cascade,
   lead_id uuid references public.leads (id) on delete set null,
@@ -15,10 +16,10 @@ create table public.grabaciones (
   transcrita_en timestamptz,
   creado_en timestamptz not null default now()
 );
-create index grabaciones_proyecto on public.grabaciones (proyecto_id, creado_en desc);
-create index grabaciones_perfil on public.grabaciones (perfil_id, creado_en desc);
+create index grabaciones_caller_proyecto on public.grabaciones_caller (proyecto_id, creado_en desc);
+create index grabaciones_caller_perfil on public.grabaciones_caller (perfil_id, creado_en desc);
 
-alter table public.grabaciones enable row level security;
+alter table public.grabaciones_caller enable row level security;
 
 -- Espacio privado para el audio (50 MB por archivo, el máximo del plan gratis de Supabase)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

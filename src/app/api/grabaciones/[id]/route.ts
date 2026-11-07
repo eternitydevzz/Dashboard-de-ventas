@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { perfil, proyecto } = await getSesion();
   if (!(await puedeSeccion(perfil, proyecto.id, "grabaciones"))) return new Response("Sin acceso", { status: 403 });
   const { id } = await params;
-  const { data: g } = await db().from("grabaciones").select("archivo_path, perfil_id, creado_en").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
+  const { data: g } = await db().from("grabaciones_caller").select("archivo_path, perfil_id, creado_en").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
   if (!g || (!esJefe(perfil) && g.perfil_id !== perfil.id)) return new Response("Grabación no encontrada", { status: 404 });
   const descargar = req.nextUrl.searchParams.has("descargar");
   const nombre = `grabacion-${g.creado_en.slice(0, 16).replace(/[:T]/g, "-")}.${g.archivo_path.split(".").pop()}`;

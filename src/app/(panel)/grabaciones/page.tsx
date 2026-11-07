@@ -12,7 +12,7 @@ export default async function GrabacionesPage({ searchParams }: PageProps<"/grab
   const jefe = esJefe(perfil);
   const sp = await searchParams;
   let q = db()
-    .from("grabaciones")
+    .from("grabaciones_caller")
     .select("id, lead_id, perfil_id, duracion_seg, transcripcion, creado_en, leads(nombre, apellido), perfiles(nombre)")
     .eq("proyecto_id", proyecto.id)
     .order("creado_en", { ascending: false })
