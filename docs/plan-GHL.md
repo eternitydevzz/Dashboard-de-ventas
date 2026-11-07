@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 26 (7 nov 2026, 21:50 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 27 (7 nov 2026, 23:00 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -23,7 +23,8 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 | **«Mover en el dashboard» en modo real** | #59 | ✅ En producción |
 | **Workflows de la Biblioteca, versión 2** (Cristian, 7 nov), ver «Biblioteca: etiquetas y columnas» | — | ✅ Cargados a las 20:33 UTC. Los leads de los últimos 2 días pasaron por ellos: **26 de 26 ok, 0 errores** (registro 23, agenda 3 a las 20:40; los 3 de agenda en «Agendados» con `agenda-biblioteca` y `biblioteca`). A esos 23 leads se les quitaron en el dashboard las etiquetas antiguas (Cristian, 7 nov: solo esos, solo el dashboard; GHL las conserva) |
 | **Biblioteca en JSON v1** (registro y agenda), ver «Biblioteca: JSON v1» | dashboard #62, biblioteca-maestria #3 | ✅ Publicado a las 21:35 UTC y probado con 3 leads de prueba: dashboard, workflows y GHL bien |
-| Plan propio de workflows (`docs/plan-workflows.md`) y este plan, al día | #37, #39, #41, #43, #47, #50, #56 | ✅ |
+| **Landing software-demo** (services.eternity.llc) conectada: Entrada, workflow en real, GHL «3. DFY AI Services», ver «Landing software-demo» | dashboard #64, #69 · services-eternity `9584686` | ✅ En real desde las 22:58 UTC. Probado con `info+servicios5`: dashboard, workflow «coincide» y GHL bien |
+| Plan propio de workflows (`docs/plan-workflows.md`) y este plan, al día | #37, #39, #41, #43, #47, #50, #56, #69 | ✅ |
 
 ## Lo que queda ahora (en orden)
 **Cristian (en GHL y en el dashboard):**
@@ -31,8 +32,12 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 - [ ] Poner el **calendario de GHL de cada closer** (Administración → Integraciones GHL). Hasta entonces, al agendar en la app sale un aviso en rojo (la cita se queda en la app).
 - [ ] Comprobar que la integración de GHL tiene el permiso de **escribir en calendarios** (`calendars/events.write`).
 - [ ] Borrar los leads de prueba (dashboard y GHL): «Prueba Workflow 1» (`info+wf1@eternity.llc`), «Prueba JsonVuno Siete/Ocho/Nueve» (`info+bib7`, `info+bib8`, `info+bib9@eternity.llc`) y los de antes (ver «Lo que hace Cristian»).
+- [ ] **software-demo:** borrar «Prueba Servicios Cinco» (`info+servicios5@eternity.llc`, 201-555-0115) en el dashboard y en GHL (contacto `r37qg6twsiPhcXbopBIy` y su oportunidad en DFY). servicios1-4 ya están borrados (no llegaron a GHL).
+- [ ] **software-demo:** decidir el closer de las citas del calendario «Funnel DFY Softwares» (hoy entran en la app sin closer).
 
 **Claude, cuando toque:**
+- [ ] Vigilar 24 h la landing software-demo en real (Workflows → historial; Entradas sin rojos). Si algo va mal: «Volver a lo de hoy».
+- [ ] software-demo: los que reservan → «Agenda» y etiqueta `agenda-demo` (en el dashboard y en GHL). Necesita el disparador «se agenda una cita» (4d, plan corto propio antes).
 - [ ] Con los calendarios puestos: una prueba agendando en la app con un lead de prueba y cancelar la cita.
 - [ ] Vigilar los primeros leads reales de la Biblioteca en real (Administración → Workflows → historial; Entradas sin rojos). Si algo va mal: «Volver a lo de hoy».
 - [ ] Mejoras pequeñas, una a una, cada una con su PR (Cristian, 7 nov: «ya»). Ver «8 · Mejoras pequeñas».
@@ -67,6 +72,17 @@ Decisiones de Cristian (7 nov), tras la revisión:
 - **No probado:** el idioma desde el servidor (la prueba de registro se hizo con curl, que no lo manda; la de agenda, desde el navegador, sí lo trajo). El `?v=` de `programa.js` en `recursos.html` no se regeneró (`build.py`): quien tenga la página vieja abierta manda el formato viejo un rato, que el dashboard sigue entendiendo.
 - **Cómo volver atrás:** revertir el PR #3 de `biblioteca-maestria` (Vercel publica main). El dashboard y el workflow v3 entienden los 2 formatos: no hace falta tocarlos.
 - **Cuidado:** si un lead agenda y **después** termina el cuestionario de registro, su workflow de registro lo vuelve a «Form completo». Pasa poco (normalmente es al revés); si molesta, se añade al registro una rama «si ya agendó, no mover».
+
+## Landing software-demo (services.eternity.llc/software-demo) · 7 nov 2026
+Landing nueva de servicios (repo `eternitydevzz/services-eternity`, Vercel `eternity-services`). Antes no mandaba a ningún sitio: `api/lead.js` reenviaba a `CRM_WEBHOOK_URL` y esa variable no existía (cada paso daba 500).
+- **Landing (commit `9584686`):** `api/lead.js` (servidor) manda cada paso (5) a la Entrada con el JSON v1: `source` «software-demo», `form` «demo», `step` `paso-1`…`paso-5`, mismo `event_id`, `quiz {idea, capital}`, `quiz_completed` en el paso 5, `valor` (punto medio del tramo, como el calendario), `fbp`, `fbc`, UTM, `ip`. `CRM_WEBHOOK_URL` = dirección de la Entrada, en Vercel **solo Production** (sensible; Preview no se pudo poner sin escribir la clave en la línea de comandos).
+- **Entrada «Web · software-demo demo»** (`7462dbbb…`): servidor, dashboard «3. DFY AI Services → Form optin». «Qué hacer en GHL»: 13 campos (`quiz.idea` → Idea del software, `quiz.capital` → Capital disponible, `valor` → Valor lead, 5 UTM, `fbclid`, `gclid` → google_gclid, `fbp`, `fbc`, `event_id`), oportunidad «3. DFY AI Services → Form optin», etiqueta base `software-demo-demo`, espera 300 s. «Mandar a GHL» encendido a las 22:47 UTC y workflow (`033ef58d…`) en prueba: con `servicios5`, «coincide» y en GHL contacto, 13 campos, etiqueta `software-demo-demo-completo` y oportunidad «3. DFY → Form optin». **Workflow pasado a real el 7 nov a las 22:58 UTC (Cristian)**: desde entonces lo manda a GHL el workflow y «Mandar a GHL» de la Entrada está apagado. Volver: «Volver a lo de hoy» en su tarjeta.
+- **GHL (hecho por Claude con Playwright, con el OK de Cristian):** «3. DFY AI Services» = Form optin · Agenda (antes «Agendado», mismo id) · Seguimiento. Campos nuevos de contacto: Idea del software, fbp, fbc, event_id.
+- **Dashboard PR #64:** la Entrada junta en 1 lead los envíos con el mismo `event_id` (los pasos 1-2 solo traen teléfono). Antes salían 2 leads por persona.
+- **Calendario de la demo** (`CTsw97wT6aXtUYEQoVeA`, «Funnel DFY Softwares») añadido a `proyectos.ghl_calendarios` de Maestria (21:44 UTC): sus citas entran en la app («0. Agendas General → Agendan»). Entró 1 cita real (10 nov) **sin closer**: su usuario de GHL no es de ningún closer de la app.
+- **Pruebas en producción** (`info+servicios1…5@eternity.llc`, 201-555-0111…0115): 1 lead por persona (después del PR #64), en «Form optin», con respuestas, UTM e IP, envíos sin errores. servicios1 salió partido en 2 (antes del PR). Cristian borró servicios1-4.
+- **Pendiente:** «Agenda» + etiqueta `agenda-demo` para los que reservan (necesita el disparador «se agenda una cita», 4d). Vigilar 24 h los primeros leads reales en real (Workflows → historial; Entradas sin rojos). Closer de las citas de la demo.
+- **Cómo volver atrás:** en services-eternity, revertir `9584686` (vuelve a dar 500, como antes); apagar «Mandar a GHL» o la Entrada; quitar `CTsw97wT6aXtUYEQoVeA` de `proyectos.ghl_calendarios`; en GHL renombrar «Agenda» → «Agendado» si hiciera falta. PR #64 se puede revertir sin tocar datos.
 
 ## Dónde estamos
 
@@ -237,6 +253,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «6» (`info+bib1@` … `info+bib6@eternity.llc`). Sus citas (bib1 y bib6 el 12 nov, bib5 el 7 nov) ya están canceladas.
 - [ ] Borrar también en el dashboard esos leads de prueba.
 - [ ] Borrar en GHL y en el dashboard el lead de prueba del 7 nov «Prueba Workflow 1» (`info+wf1@eternity.llc`, teléfono +1 201 555 0101).
+- [ ] Borrar «Prueba Servicios Cinco» (`info+servicios5@eternity.llc`) en el dashboard y en GHL (contacto `r37qg6twsiPhcXbopBIy` y su oportunidad en «3. DFY AI Services»).
 - [ ] **Poner el calendario de GHL de cada closer** en Administración → Integraciones GHL → «Calendario de GHL de cada closer» (Cristian, 7 nov: «los pongo yo»). Hasta entonces, al agendar en la app sale el aviso «Agendado en la app, pero no en el calendario de GHL…» (la cita se queda en la app). Ver «Encargos de Callers».
 - [ ] **Comprobar que la integración «App Eternity (dashboard)» de GHL tiene el permiso de escribir en calendarios** (`calendars/events.write`). Sin él, GHL rechaza crear la cita y sale el aviso.
 - [ ] Después, una prueba con un lead de prueba (`info+…`, teléfono 555-01xx) agendando en la app con un closer que ya tenga calendario, y cancelar la cita (manda email y SMS).
