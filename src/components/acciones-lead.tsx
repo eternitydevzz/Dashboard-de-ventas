@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, Phone, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
+import { useState, useTransition, type ReactNode } from "react";
+import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, Phone, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
 import { anadirNota, confirmarAgenda, registrarLlamada, registrarVenta, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
-import { BOTONES_RESULTADO, colorEstado, etiquetaEstado, type BotonResultado } from "@/lib/estados-caller";
+import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado, type BotonResultado } from "@/lib/estados-caller";
 import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "@/app/(panel)/crm/ventanas-estado";
 import { Modal } from "@/components/modal";
 import { SelectorEstrellas } from "@/components/estrellas";
 import { useToast } from "@/components/toasts";
 import { exigirOk } from "@/lib/resultado-cliente";
-import type { Producto } from "@/lib/tipos";
+import type { Producto, Respuesta } from "@/lib/tipos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { GuionLlamada } from "@/components/guion-llamada";
 import type { Guion } from "@/lib/guiones";
@@ -63,6 +63,8 @@ export const ICONO_RESULTADO: Record<BotonResultado, LucideIcon> = {
 
 // Botones del lead (cola, guion y ficha completa). C11: los 9 resultados mueven el lead a su columna de «Callers»;
 // los que piden datos (estrellas, fecha) abren su ventana, la misma que al soltar en el CRM.
+// C5 (maqueta, 7c.1): `variante="cola"` = cabecera azul con Guion · Grabar · Wsp · Copiar link agenda · Recursos · Nota
+// y la tarjeta «¿Cómo ha ido?» con 9 baldosas y «Mover a». En la ficha completa del lead, como siempre.
 export function AccionesLead({
   leadId,
   telefono,
@@ -79,6 +81,14 @@ export function AccionesLead({
   nombreLead = "",
   miNombre = "",
   estado,
+  variante = "ficha",
+  cabecera,
+  respuestas,
+  guionAbierto,
+  onGuionAbierto,
+  onSiguiente,
+  grabador,
+  botonGrabar,
 }: {
   leadId: string;
   telefono: string | null;
@@ -95,6 +105,14 @@ export function AccionesLead({
   nombreLead?: string;
   miNombre?: string;
   estado?: string; // columna actual del lead: su botón se ve marcado
+  variante?: "ficha" | "cola";
+  cabecera?: ReactNode; // cola: los datos del lead, dentro de la cabecera azul
+  respuestas?: Respuesta[]; // pestaña «Form» del guion
+  guionAbierto?: boolean; // cola: quién abre el guion lo decide la cola («Siguiente» lo abre en el siguiente)
+  onGuionAbierto?: (abierto: boolean) => void;
+  onSiguiente?: () => void;
+  grabador?: ReactNode; // C10: «Grabar» con su contador, en la cabecera del guion
+  botonGrabar?: ReactNode; // C10: «Grabar» en la cabecera del lead
 }) {
   const { pendiente, error, ok, ejecutar } = useAccion();
   const aviso = useToast();
@@ -112,6 +130,9 @@ export function AccionesLead({
   const telLimpio = (telefono ?? "").replace(/[^\d]/g, "");
   const productosVisibles = rol === "caller" ? [] : productos; // el caller no registra ventas (Cristian, 12 oct)
   const nombre = nombreLead || "este lead";
+  const controlado = guionAbierto !== undefined;
+  const verGuion = controlado ? guionAbierto : modal === "guion";
+  const abrirGuion = (b: boolean) => (controlado ? onGuionAbierto?.(b) : setModal(b ? "guion" : null));
 
   function resultado(clave: string) {
     if (CON_VENTANA.includes(clave)) return setVentana(clave as DestinoConVentana);
@@ -119,71 +140,27 @@ export function AccionesLead({
     ejecutar(() => registrarLlamada(leadId, clave as ResultadoSimple, ""), `Guardado: ${etiquetaEstado(clave)}`);
   }
 
-  const boton = "btn-secundario justify-start";
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {guion && (
-          <button type="button" className="btn-primario" onClick={() => setModal("guion")}>
-            <ScrollText className="h-4 w-4" /> Guion
-          </button>
-        )}
-        {/* F9 (plan Callers): abrir WhatsApp ya no apunta nada; lo apunta el resultado «Wsp enviado» */}
-        {telLimpio && (
-          <a href={`https://wa.me/${telLimpio}`} target="_blank" rel="noreferrer" className={`${boton} text-ok`}>
-            <MessageCircle className="h-4 w-4" /> Wsp
-          </a>
-        )}
-        {linkAgenda && (
-          <button type="button" className={boton} onClick={() => void copiarLinkAgenda()}>
-            <Link2 className="h-4 w-4 text-primario" /> Copiar link agenda
-          </button>
-        )}
-        <button className={boton} disabled={pendiente} onClick={() => setModal("nota")}>
-          <StickyNote className="h-4 w-4 text-texto-3" /> Nota
-        </button>
-        {productosVisibles.length > 0 && (
-          <button className={boton} disabled={pendiente} onClick={() => setModal("venta")}>
-            <ShoppingCart className="h-4 w-4 text-oro" /> Registrar venta
-          </button>
-        )}
-      </div>
-
-      <div>
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-texto-3">¿Cómo ha ido?</div>
-        <div className={`grid gap-2 ${compacto ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
-          {BOTONES_RESULTADO.map((k) => {
-            const Icono = ICONO_RESULTADO[k];
-            const actual = estado === k;
-            return (
-              <button key={k} type="button" className={`${boton} ${actual ? "border-primario bg-primario-suave text-primario" : ""}`} aria-current={actual ? "true" : undefined} disabled={pendiente} onClick={() => resultado(k)}>
-                <Icono className="h-4 w-4" style={{ color: colorEstado(k) }} /> {etiquetaEstado(k)}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <Mensajes error={error} ok={ok} />
-
-      {modal === "guion" && guion && (
+  const ventanas = (
+    <>
+      {verGuion && guion && (
         <GuionLlamada
           leadId={leadId}
           nombreLead={nombre}
           telefono={telefono}
           miNombre={miNombre}
           guion={guion}
+          respuestas={respuestas}
+          actual={estado}
+          grabador={grabador}
           resultados={BOTONES_RESULTADO.map((k) => {
             const Icono = ICONO_RESULTADO[k];
-            return { clave: k, texto: etiquetaEstado(k), icono: <Icono className="h-4 w-4" style={{ color: colorEstado(k) }} /> };
+            return { clave: k, texto: etiquetaEstado(k), icono: <Icono className="h-4 w-4 shrink-0" style={{ color: colorEstado(k) }} /> };
           })}
-          onResultado={(clave) => {
-            setModal(null);
-            resultado(clave);
-          }}
-          onCerrar={() => setModal(null)}
+          onResultado={resultado}
+          onSiguiente={onSiguiente}
+          onCerrar={() => abrirGuion(false)}
         />
       )}
-
       {ventana && (
         <VentanaEstado
           lead={{ id: leadId, nombre }}
@@ -228,6 +205,118 @@ export function AccionesLead({
           </div>
         </Modal>
       )}
+    </>
+  );
+
+  if (variante === "cola") {
+    const bv = "inline-flex items-center gap-1.5 rounded-[10px] border border-white/30 bg-white/15 px-2.5 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-white/25 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-white";
+    return (
+      <>
+        <section className="relative rounded-[18px] bg-gradient-to-br from-[#2b59d1] to-[#3f6ee6] px-4 pb-3 pt-3.5 text-white shadow-[0_10px_30px_-16px_rgb(43_89_209/0.6)] sm:px-[18px]" aria-label="Lead elegido">
+          {cabecera}
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-white/20 pt-3" role="toolbar" aria-label="Herramientas">
+            {guion && (
+              <button type="button" className={`${bv} !border-white !bg-white !text-[#1f3fa0]`} onClick={() => abrirGuion(true)}>
+                <ScrollText className="h-4 w-4" /> Guion
+              </button>
+            )}
+            {botonGrabar}
+            {/* F9 (plan Callers): abrir WhatsApp ya no apunta nada; lo apunta el resultado «Wsp enviado» */}
+            {telLimpio && <a href={`https://wa.me/${telLimpio}`} target="_blank" rel="noreferrer" className={bv} aria-label="WhatsApp"><MessageCircle className="h-4 w-4" /> Wsp</a>}
+            {linkAgenda && <button type="button" className={bv} onClick={() => void copiarLinkAgenda()}><Link2 className="h-4 w-4" /> Copiar link agenda</button>}
+            <a href="/recursos" target="_blank" rel="noreferrer" className={bv}><FolderOpen className="h-4 w-4" /> Recursos</a>
+            <button type="button" className={bv} onClick={() => setModal("nota")}><StickyNote className="h-4 w-4" /> Nota</button>
+            {productosVisibles.length > 0 && <button type="button" className={bv} onClick={() => setModal("venta")}><ShoppingCart className="h-4 w-4" /> Venta</button>}
+          </div>
+        </section>
+
+        <section className="tarjeta px-4 py-4 sm:px-5">
+          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2.5">
+            <div>
+              <h3 className="text-[15px] font-semibold">¿Cómo ha ido?</h3>
+              <span className="text-xs text-texto-3">Un clic = mueve el lead a esa columna</span>
+            </div>
+            <label className="flex items-center gap-2 text-[12.5px] font-semibold text-texto-2">
+              Mover a
+              <select className="campo w-auto py-1.5" value={estado ?? ""} disabled={pendiente} onChange={(e) => e.target.value && e.target.value !== estado && resultado(e.target.value)}>
+                {ESTADOS_CALLER.filter((x) => x.v !== "vendido").map((x) => <option key={x.v} value={x.v}>{x.t}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {BOTONES_RESULTADO.map((k) => {
+              const Icono = ICONO_RESULTADO[k];
+              const actual = estado === k;
+              const c = colorEstado(k);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  aria-current={actual ? "true" : undefined}
+                  disabled={pendiente}
+                  onClick={() => resultado(k)}
+                  style={{ ["--c" as string]: c }}
+                  className={`flex min-h-[60px] items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-[13.5px] font-bold transition active:scale-[0.98] ${actual ? "border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_10%,var(--panel-2))] shadow-[inset_0_0_0_1px_var(--c)]" : "border-borde bg-panel-2 hover:border-[color-mix(in_srgb,var(--c)_55%,transparent)]"}`}
+                >
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] ${actual ? "bg-[var(--c)] text-white" : "bg-[color-mix(in_srgb,var(--c)_15%,transparent)] text-[var(--c)]"}`}>
+                    <Icono className="h-[18px] w-[18px]" />
+                  </span>
+                  {etiquetaEstado(k)}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3"><Mensajes error={error} ok={ok} /></div>
+        </section>
+        {ventanas}
+      </>
+    );
+  }
+
+  const boton = "btn-secundario justify-start";
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {guion && (
+          <button type="button" className="btn-primario" onClick={() => abrirGuion(true)}>
+            <ScrollText className="h-4 w-4" /> Guion
+          </button>
+        )}
+        {telLimpio && (
+          <a href={`https://wa.me/${telLimpio}`} target="_blank" rel="noreferrer" className={`${boton} text-ok-texto`}>
+            <MessageCircle className="h-4 w-4" /> Wsp
+          </a>
+        )}
+        {linkAgenda && (
+          <button type="button" className={boton} onClick={() => void copiarLinkAgenda()}>
+            <Link2 className="h-4 w-4 text-primario" /> Copiar link agenda
+          </button>
+        )}
+        <button className={boton} disabled={pendiente} onClick={() => setModal("nota")}>
+          <StickyNote className="h-4 w-4 text-texto-3" /> Nota
+        </button>
+        {productosVisibles.length > 0 && (
+          <button className={boton} disabled={pendiente} onClick={() => setModal("venta")}>
+            <ShoppingCart className="h-4 w-4 text-oro-texto" /> Registrar venta
+          </button>
+        )}
+      </div>
+      <div>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-texto-3">¿Cómo ha ido?</div>
+        <div className={`grid gap-2 ${compacto ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+          {BOTONES_RESULTADO.map((k) => {
+            const Icono = ICONO_RESULTADO[k];
+            const actual = estado === k;
+            return (
+              <button key={k} type="button" className={`${boton} ${actual ? "border-primario bg-primario-suave text-primario" : ""}`} aria-current={actual ? "true" : undefined} disabled={pendiente} onClick={() => resultado(k)}>
+                <Icono className="h-4 w-4" style={{ color: colorEstado(k) }} /> {etiquetaEstado(k)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <Mensajes error={error} ok={ok} />
+      {ventanas}
     </div>
   );
 }

@@ -11,15 +11,16 @@ import { kpisHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
 import { colaCaller, cuentaPorEstado, leerOrden, ordenarCola } from "@/lib/cola";
 import { ESTADOS_CALLER, esContacto } from "@/lib/estados-caller";
-import { Cabecera, Contenido, Kpi, Vacio, Avatar } from "@/components/ui";
+import { Cabecera, Contenido, Vacio, Avatar } from "@/components/ui";
+import type { LucideIcon } from "lucide-react";
 import type { Lead, Producto } from "@/lib/tipos";
 import { ColaCaller } from "./cola";
 
 // C11 (7c.1): una pastilla por columna; la primera, «Leads» = toda la cola (no hay una solo para los nuevos)
 const FILTROS = [{ v: "todos", t: "Leads" }, ...ESTADOS_CALLER.filter((e) => e.v !== "nuevo").map((e) => ({ v: e.v, t: e.t }))];
 
-const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, creado_en, etiquetas, respuestas";
-type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "creado_en" | "etiquetas" | "respuestas">;
+const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, creado_en, etiquetas, respuestas, pipeline_id"; // C5: + pipeline (su nombre sale en la cabecera del lead)
+type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id">;
 
 export default async function CallerPage({ searchParams }: PageProps<"/caller">) {
   const { perfil, proyecto, tiene } = await exigirPagina("cola"); // H5
@@ -49,13 +50,15 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const hoy = rangoDe("hoy", proyecto.zona_horaria);
   // Velocidad (17 oct 2026): los objetivos van con el resto de consultas (antes, después)
   // Velocidad (28 oct 2026, Cristian): solo las columnas que usa la cola (sin `datos` de GHL): 395 → 180 KB por carga
-  const [leads, kpis, productos, scoring, panel] = await Promise.all([
+  const [leads, kpis, productos, scoring, panel, pipelines] = await Promise.all([
     todas<LeadCola>((a, b) => db().from("leads").select(CAMPOS_COLA).eq("proyecto_id", proyecto.id).eq(comoCloser ? "closer_id" : "caller_id", caller.id).order("id").range(a, b)),
     kpisHoyCola(proyecto.id, caller.id, hoy.desde!.toISOString()), // F4: solo de este proyecto
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     db().from("scoring_ia").select("pesos").eq("proyecto_id", proyecto.id).maybeSingle(),
     panelObjetivos(proyecto, caller), // objetivos del caller que se está viendo, su racha y el del equipo (H3-H4)
+    db().from("pipelines").select("id, nombre").eq("proyecto_id", proyecto.id), // C5: nombre del pipeline de origen
   ]);
+  const nombresPipeline = Object.fromEntries((pipelines.data ?? []).map((x) => [x.id, x.nombre.replace(/^\d+\.\s*/, "")]));
   const pesos = (scoring.data?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
   // KPIs de hoy (7c.1): Llamadas (botón «Llamado») · Contactos (los que avanzan, punto 16) · Agendas (% de los
   // contactos) · WhatsApps (botón «Wsp enviado») · Confirmadas («Confirma Agenda»). Fuera «No contestan» y «Ventas» (F6).
@@ -100,12 +103,12 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
         {/* 25 oct 2026 (Cristian): sin refresco automático cada 60 s; la base se saturaba con el equipo trabajando.
             C11 (punto 11): sin aviso «Te tocan X llamadas»: ya no hay fechas */}
         <PanelObjetivos panel={panel} dinero={(n: number) => dinero(n, proyecto)} celebrar={jefe ? null : `${caller.id}-${hoyEnZona(proyecto.zona_horaria)}`} />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
-          <Kpi titulo="Llamadas hoy" valor={llamadas} icono={Phone} detalle="botón «Llamado»" />
-          <Kpi titulo="Contactos hoy" valor={contactos} icono={UserCheck} detalle="los que avanzan" />
-          <Kpi titulo="Agendas hoy" valor={agendasHoy} icono={CalendarDays} tono="ok" detalle={`${pct(porcentaje(agendasHoy, contactos))} de los contactos`} />
-          <Kpi titulo="WhatsApps hoy" valor={whatsapps} icono={MessageCircle} tono="ok" detalle="botón «Wsp enviado»" />
-          <Kpi titulo="Confirmadas hoy" valor={confirmadas} icono={CalendarCheck} detalle="«Confirma Agenda»" />
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" aria-label="Tus números de hoy">
+          <KpiCola titulo="Llamadas hoy" valor={llamadas} nota="botón «Llamado»" color="#2b59d1" icono={Phone} />
+          <KpiCola titulo="Contactos hoy" valor={contactos} nota="los que avanzan" color="#7c4ddb" icono={UserCheck} />
+          <KpiCola titulo="Agendas hoy" valor={agendasHoy} nota={`${pct(porcentaje(agendasHoy, contactos))} de los contactos`} color="#15924a" icono={CalendarDays} />
+          <KpiCola titulo="WhatsApps hoy" valor={whatsapps} nota="botón «Wsp enviado»" color="#16a34a" icono={MessageCircle} />
+          <KpiCola titulo="Confirmadas hoy" valor={confirmadas} nota="«Confirma Agenda»" color="#0891b2" icono={CalendarCheck} ultimo />
         </div>
 
         <ColaCaller
@@ -113,7 +116,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
             <div className="flex gap-1.5 overflow-x-auto border-b border-borde p-2 [scrollbar-width:none]" role="group" aria-label="Filtrar por columna">
               {FILTROS.map((f) => (
                 <Link prefetch={false} key={f.v} href={enlaceFiltro(f.v)} aria-pressed={filtro === f.v} className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold ${filtro === f.v ? "border-transparent bg-primario-suave text-primario" : "border-borde bg-panel-2 text-texto-2 hover:text-texto"}`}>
-                  {f.t} <span className="ml-1 tabular-nums">{cuenta[f.v] ?? 0}</span>
+                  {f.t}<span className={`ml-1.5 rounded-full px-1.5 text-[11px] tabular-nums ${filtro === f.v ? "bg-primario-boton text-white" : "bg-panel text-texto-2"}`}>{cuenta[f.v] ?? 0}</span>
                 </Link>
               ))}
             </div>
@@ -133,8 +136,23 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           moneda={proyecto.moneda}
           guion={guion}
           miNombre={perfil.nombre}
+          nombresPipeline={nombresPipeline}
         />
       </Contenido>
     </>
+  );
+}
+
+// C5 (7c.1, maqueta): etiqueta en mayúsculas, número grande, nota debajo e icono en un círculo de su color
+function KpiCola({ titulo, valor, nota, color, icono: Icono, ultimo = false }: { titulo: string; valor: number; nota: string; color: string; icono: LucideIcon; ultimo?: boolean }) {
+  return (
+    <div className={`tarjeta relative flex min-w-0 flex-col rounded-2xl px-3.5 py-2.5 ${ultimo ? "col-span-2 lg:col-span-1" : ""}`}>
+      <span className="pr-10 text-[10.5px] font-bold uppercase leading-tight tracking-[0.12em] text-texto-2">{titulo}</span>
+      <b className="mt-1 text-2xl leading-tight tabular-nums">{valor}</b>
+      <small className="text-[11px] text-texto-3">{nota}</small>
+      <i className="absolute right-3 top-2.5 grid h-8 w-8 place-items-center rounded-full" style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }} aria-hidden>
+        <Icono className="h-4 w-4" />
+      </i>
+    </div>
   );
 }

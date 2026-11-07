@@ -29,6 +29,11 @@
   --aviso: #c46a08;
   --aviso-suave: #fdf0e1;
   --morado: #7c4ddb;
+  /* 7c.4 (plan Callers, 7 nov): texto de chips con 4,5:1 (AA) sobre su fondo suave; antes verde 3,56 · naranja 3,46 · oro 2,67 */
+  --ok-texto: #0f7a3d;
+  --aviso-texto: #9a4f00;
+  --oro-texto: #8a5a00;
+  --primario-boton: #2b59d1; /* fondo de los botones azules con texto blanco */
   --sombra: 0 1px 2px rgb(15 26 51 / 0.04), 0 8px 32px rgb(15 26 51 / 0.08);
   --marca-eternity: #7b1a22;
   --desenfoque: 30px;
@@ -59,6 +64,10 @@
   --aviso: #f0a24a;
   --aviso-suave: #2c1d0d;
   --morado: #a07cf5;
+  --ok-texto: #3ccf7a;
+  --aviso-texto: #f0a24a;
+  --oro-texto: #e5ac35;
+  --primario-boton: #3a64d8; /* 7c.4: blanco sobre #4f7cf0 daba 3,84; sobre este, 5,3 */
   --sombra: 0 10px 40px rgb(0 0 0 / 0.35);
 }
 
@@ -84,6 +93,10 @@
   --color-aviso: var(--aviso);
   --color-aviso-suave: var(--aviso-suave);
   --color-morado: var(--morado);
+  --color-ok-texto: var(--ok-texto);
+  --color-aviso-texto: var(--aviso-texto);
+  --color-oro-texto: var(--oro-texto);
+  --color-primario-boton: var(--primario-boton);
   --color-eternity: var(--marca-eternity);
   --color-apagado: var(--apagado);
   --font-sans: var(--font-geist-sans);
@@ -153,7 +166,7 @@ body,
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primario {
-    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 bg-primario text-white shadow-[0_6px_20px_-6px_rgb(43_89_209/0.6)] hover:bg-primario-2;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 bg-primario-boton text-white shadow-[0_6px_20px_-6px_rgb(43_89_209/0.6)] hover:bg-primario-2;
   }
   .btn-secundario {
     @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 vidrio border border-borde text-texto hover:bg-panel-2;
