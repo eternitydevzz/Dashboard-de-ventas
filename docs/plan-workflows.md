@@ -1,6 +1,6 @@
 # Plan · Workflows en el dashboard (fase 4 del plan GHL)
 
-> Versión 4 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
+> Versión 5 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
 > **Estado:** aprobado por Cristian el 7 nov 2026 (también la propuesta para pasar la Biblioteca a real: 3 días, 20 leads de registro, todos los de agenda y 0 diferencias). **4a-1 hecha y publicada el 7 nov** (dashboard PR #38): los 2 workflows de la Biblioteca están **en modo prueba desde el 7 nov a las 16:06 UTC**. **4a-2 (modo real) hecha y publicada el 7 nov** (PR #40). Siguiente: ver el primer lead real en prueba y, al acabar los días de prueba, que Cristian decida «Pasar a real». Después, 4b.
 
 **Objetivo:** que el dashboard haga lo que hoy hacen los workflows de GHL (disparador → pasos), para dejar de depender de ellos. Primero se rehace lo que ya funciona (la Biblioteca) sin arriesgar sus leads; después se ve y se edita en un lienzo como el de GHL; al final, más disparadores.
@@ -117,6 +117,15 @@
 - **Rehacer «2 . WH - FORM AGENDA GENERAL»** con una rama por `utm_source` (YouTube, BIBLIOTECA, Instagram, P1, Callers, Email, Webinar, DFY y «otro»), cada una con su pipeline y su etiqueta. **Antes, leerlo entero en GHL** (ver «Para decidir»).
 - Antes de programar: boceto que Cristian aprueba.
 
+### 4c · Editor HECHO el 7 nov (dashboard PR #45, `0acbd64`)
+- **Pantalla:** «Editar» en Administración → Workflows (`?editar=1`), con el boceto aprobado: «+» entre cajas con los 7 tipos de paso (también dentro de cada camino de una rama), elegir y quitar cajas (con confirmación), panel de la caja elegida (minutos, campos de GHL, etiquetas, pipeline y columna de GHL o del dashboard, caminos de la rama), un solo «Guardar versión N», «Descartar», aviso de cambios sin guardar (también al salir), encender/apagar y prueba/real con confirmación.
+- **Servidor:** `guardarWorkflow` valida con `pasosValidos` (tipos, ids, 0-7 días, pipeline obligatorio, ramas de 1-10 caminos y 3 niveles, 60 pasos) y sube la versión solo si cambian (las ejecuciones en curso terminan con su versión); en real no deja «Mover en el dashboard». `encenderWorkflow` no enciende si su Entrada ya tiene otro en marcha.
+- **Código:** `src/lib/workflows-editar.ts` (rutas, insertar/cambiar/quitar, `pasoNuevo`, `pasosValidos`, `mismoContenido`), `src/app/(panel)/admin/workflows-editor.tsx`, acciones en `acciones.ts`.
+- **Pruebas:** unitarios `workflows-editar.test.ts` (14) e integración `workflows-editar.test.ts` (7); GitHub: integración 341/341 y unitarios 423/423.
+- **Fallo encontrado por los tests:** guardar sin cambios subía la versión, porque Postgres (`jsonb`) reordena las claves y la comparación por texto fallaba. Arreglado con `mismoContenido` (compara sin mirar el orden de las claves), con test.
+- **Producción (7 nov, 18:07 UTC), sin guardar nada** (los workflows de la Biblioteca están en sus días de prueba): el editor abre con «Versión 1» y «Guardar» desactivado; el «+» abre y cierra el menú de tipos; al elegir la oportunidad, el panel enseña «1. Biblioteca Recursos» y «Registrados»; sin errores en la consola; sin scroll horizontal a 1440 px ni a 390 px (con el menú abierto). Los 2 workflows siguen en versión 1, en prueba.
+- **No probado en producción:** guardar una versión, editar una rama y encender/apagar desde el editor (solo en los tests de integración), para no tocar los workflows de la Biblioteca durante su prueba.
+
 ## Subfase 4d · Más disparadores (después de la landing de agenda)
 - Se añade una etiqueta · cambia de columna en el dashboard · se agenda o cancela una cita. Plan corto propio antes de programar.
 
@@ -137,5 +146,6 @@
 - [x] 4a-2: modo real, «Pasar a real» y «Volver a lo de hoy» (PR #40, 7 nov).
 - [ ] Al acabar los días de prueba: Cristian decide el cambio a real de la Biblioteca.
 - [x] 4b: boceto glass (con la skill ui-ux-pro-max) aprobado → tests → código → PR #42 → comprobado en producción (7 nov).
-- [ ] 4c: leer el workflow de GHL → boceto → aprobado → tests → código → PR → comprobar.
+- [x] 4c (editor): boceto aprobado → tests → código → PR #45 → comprobado en producción (7 nov).
+- [ ] 4c: rehacer «2 . WH - FORM AGENDA GENERAL» en el editor. **Aplazado por Cristian (7 nov): «no es necesario por ahora».** Cuando se retome: el editor de GHL se queda cargando con Playwright (4 intentos el 7 nov), así que hará falta que Cristian mande capturas de sus ramas.
 - [ ] Después, el punto 4 del plan GHL (landing de agenda), y luego 4d.
