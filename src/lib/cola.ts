@@ -1,6 +1,7 @@
 import { puntosLead } from "@/lib/prioridad";
 import type { Pesos } from "@/lib/cualificacion";
 import type { Lead } from "@/lib/tipos";
+import { nombrePais } from "@/lib/formato";
 
 export type PestanaCola = "llamar" | "luego" | "agendados" | "todos";
 
@@ -31,4 +32,30 @@ export function colaCaller<T extends Pick<Lead, "estado_caller" | "llamar_en" | 
       if (nuevoA !== nuevoB) return nuevoB - nuevoA;
       return b.creado_en.localeCompare(a.creado_en);
     });
+}
+
+// C2 (plan Callers, 7 nov; 7c.1): las cabeceras Nombre · País · Prioridad · Entró ordenan en el servidor, sobre
+// todos los leads del caller y antes del corte de 300 (así «Prioridad» pone arriba todas las A). Sin orden elegido,
+// se queda el de siempre (colaCaller). Un clic = dir 1: A→Z, las A primero, y en «Entró» los más recientes arriba.
+export type CampoOrden = "nombre" | "pais" | "prio" | "entro";
+export type OrdenCola = { campo: CampoOrden; dir: 1 | -1 };
+const CAMPOS: CampoOrden[] = ["nombre", "pais", "prio", "entro"];
+
+export function leerOrden(campo: unknown, dir: unknown): OrdenCola | null {
+  if (typeof campo !== "string" || !CAMPOS.includes(campo as CampoOrden)) return null;
+  return { campo: campo as CampoOrden, dir: dir === "desc" ? -1 : 1 };
+}
+
+const texto = (a: string, b: string) => a.localeCompare(b, "es", { sensitivity: "base" });
+
+export function ordenarCola<T extends Pick<Lead, "nombre" | "apellido" | "pais" | "creado_en"> & { puntos: number }>(leads: T[], orden: OrdenCola | null): T[] {
+  if (!orden) return leads;
+  const { campo, dir } = orden;
+  const comparar = (a: T, b: T) => {
+    if (campo === "nombre") return texto(`${a.nombre} ${a.apellido}`.trim(), `${b.nombre} ${b.apellido}`.trim());
+    if (campo === "pais") return texto(nombrePais(a.pais), nombrePais(b.pais));
+    if (campo === "prio") return b.puntos - a.puntos; // más puntos = A = arriba
+    return b.creado_en.localeCompare(a.creado_en); // más recientes arriba
+  };
+  return [...leads].sort((a, b) => dir * comparar(a, b));
 }

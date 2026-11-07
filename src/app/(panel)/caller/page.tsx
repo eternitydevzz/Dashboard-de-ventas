@@ -9,7 +9,7 @@ import { db, todas, equipo } from "@/lib/datos";
 import { rangoDe, fechaHora, porcentaje, ahoraMs, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
 import { kpisHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
-import { colaCaller } from "@/lib/cola";
+import { colaCaller, leerOrden, ordenarCola } from "@/lib/cola";
 import { Cabecera, Contenido, Kpi, Vacio, Avatar } from "@/components/ui";
 import type { Lead, Producto } from "@/lib/tipos";
 import { ColaCaller } from "./cola";
@@ -38,6 +38,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const callers = gente.filter((g) => g.rol === "caller");
   const caller = jefe ? callers.find((c) => c.id === sp.caller) ?? callers[0] : perfil;
   const pestana = typeof sp.vista === "string" ? sp.vista : "llamar";
+  const orden = leerOrden(sp.orden, sp.dir); // C2: orden de las cabeceras, en el servidor
 
   if (!caller) {
     return (
@@ -65,7 +66,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const whatsapps = acts.filter((a) => a.tipo === "whatsapp").length;
 
   const ahora = ahoraMs();
-  const filtrados = colaCaller(leads, pestana, ahora, pesos);
+  const filtrados = ordenarCola(colaCaller(leads, pestana, ahora, pesos), orden); // C2: antes del corte de 300
   const vencidos = leads.filter((l) => (l.estado_caller === "llamar_luego" || l.estado_caller === "link_enviado") && l.llamar_en && new Date(l.llamar_en).getTime() <= ahora);
   // Al navegador van los 300 primeros (los que se enseñan) y, si la dirección pide otro (?lead=), también ese
   const visibles = filtrados.slice(0, 300);
@@ -120,7 +121,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           pestanas={
             <div className="flex gap-1 border-b border-borde p-2">
               {PESTANAS.map((p) => (
-                <Link prefetch={true} key={p.v} href={`/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), vista: p.v })}`} className={`flex-1 rounded-md px-2 py-1.5 text-center text-xs font-medium ${pestana === p.v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
+                <Link prefetch={true} key={p.v} href={`/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), vista: p.v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`} className={`flex-1 rounded-md px-2 py-1.5 text-center text-xs font-medium ${pestana === p.v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
                   {p.t}
                 </Link>
               ))}
@@ -131,6 +132,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           asignados={leads.length}
           callerId={jefe ? caller.id : null}
           pestana={pestana}
+          orden={orden}
           zona={proyecto.zona_horaria}
           conIA={!!pesos}
           closers={closers}

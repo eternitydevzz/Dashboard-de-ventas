@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { MouseEvent, ReactNode } from "react";
-import { Inbox } from "lucide-react";
+import { Inbox, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { fechaHora, ETIQUETA_ESTADO_CALLER, nombrePais } from "@/lib/formato";
+import type { CampoOrden, OrdenCola } from "@/lib/cola";
 import { nivel } from "@/lib/prioridad";
 import { Seccion, Insignia, Vacio } from "@/components/ui";
 import { AccionesLead } from "@/components/acciones-lead";
@@ -24,6 +25,7 @@ export function ColaCaller({
   asignados,
   callerId,
   pestana,
+  orden,
   zona,
   conIA,
   closers,
@@ -40,6 +42,7 @@ export function ColaCaller({
   asignados: number;
   callerId: string | null; // solo para los jefes, que miran la cola de otro
   pestana: string;
+  orden: OrdenCola | null;
   zona: Proyecto["zona_horaria"];
   conIA: boolean;
   closers: { id: string; nombre: string }[];
@@ -57,9 +60,28 @@ export function ColaCaller({
     const p = new URLSearchParams();
     if (callerId) p.set("caller", callerId);
     p.set("vista", pestana);
+    if (orden) {
+      p.set("orden", orden.campo);
+      p.set("dir", orden.dir === 1 ? "asc" : "desc");
+    }
     p.set("lead", leadId);
     return `/caller?${p.toString()}`;
   };
+  // C2: cada cabecera ordena en el servidor (sobre todos los leads); otro clic, al revés
+  const enlaceOrden = (campo: CampoOrden) => {
+    const p = new URLSearchParams();
+    if (callerId) p.set("caller", callerId);
+    p.set("vista", pestana);
+    p.set("orden", campo);
+    p.set("dir", orden?.campo === campo && orden.dir === 1 ? "desc" : "asc");
+    return `/caller?${p.toString()}`;
+  };
+  const CABECERAS: { campo: CampoOrden; t: string; ayuda: string }[] = [
+    { campo: "nombre", t: "Nombre", ayuda: "de la A a la Z" },
+    { campo: "pais", t: "País", ayuda: "de la A a la Z" },
+    { campo: "prio", t: "Prioridad", ayuda: "primero las A" },
+    { campo: "entro", t: "Entró", ayuda: "los más recientes primero" },
+  ];
   const elegir = (e: MouseEvent<HTMLAnchorElement>, leadId: string) => {
     // Con Cmd/Ctrl, Mayús o la rueda, el navegador hace lo suyo (abrir en otra pestaña)
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -71,7 +93,19 @@ export function ColaCaller({
     <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
       <div className="tarjeta flex max-h-[calc(100vh-280px)] min-h-96 flex-col overflow-hidden">
         {pestanas}
-        <div className="border-b border-borde px-3 py-2 text-xs text-texto-3">{total} leads</div>
+        <div className="flex flex-wrap items-center gap-1 border-b border-borde px-2 py-1.5" role="group" aria-label="Ordenar la lista">
+          {CABECERAS.map((c) => {
+            const on = orden?.campo === c.campo;
+            const Flecha = on ? (orden.dir === 1 ? ArrowUp : ArrowDown) : ArrowUpDown;
+            return (
+              <Link key={c.campo} href={enlaceOrden(c.campo)} title={`Ordenar por ${c.t.toLowerCase()}: ${c.ayuda}${on ? " (clic: al revés)" : ""}`} aria-current={on ? "true" : undefined} className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${on ? "bg-primario-suave text-primario" : "text-texto-3 hover:text-primario"}`}>
+                {c.t} <Flecha className="h-3 w-3" />
+              </Link>
+            );
+          })}
+        </div>
+        {/* F7: avisa cuando no se pintan todos */}
+        <div className="border-b border-borde px-3 py-2 text-xs text-texto-3">{total} leads{total > leads.length ? ` · se ven los ${leads.length} primeros: ordena o cambia de pestaña para ver otros` : ""}</div>
         <ul className="flex-1 divide-y divide-borde overflow-y-auto">
           {leads.length === 0 && <li><Vacio icono={Inbox} texto="Nada por aquí. ¡Buen trabajo!" /></li>}
           {leads.map((l) => {
@@ -84,7 +118,7 @@ export function ColaCaller({
                     <Insignia tono={n.tono}>{n.texto}</Insignia>
                   </div>
                   <div className="mt-0.5 flex items-center justify-between text-xs text-texto-3">
-                    <span>{l.telefono}{l.telefono && ` · ${nombrePais(l.pais)}`}</span>
+                    <span>{[l.telefono, nombrePais(l.pais), `entró ${fechaHora(l.creado_en, proyecto)}`].filter(Boolean).join(" · ")}</span>
                     <span>{l.estado_caller === "llamar_luego" && l.llamar_en ? `⏰ ${fechaHora(l.llamar_en, proyecto)}` : l.estado_caller === "link_enviado" && l.llamar_en ? `🔗 Link enviado · insistir ${fechaHora(l.llamar_en, proyecto)}` : ETIQUETA_ESTADO_CALLER[l.estado_caller]}</span>
                   </div>
                 </a>
