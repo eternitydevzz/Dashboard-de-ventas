@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 import { crearEscenario, borrarEscenario, como, db, type Escenario } from "../apoyo/escenario";
 import { enviarPendientesGhl } from "@/lib/ghl-envios";
 import { leerLeadsGhl } from "@/lib/ghl-leads";
-import { reintentarEnvioGhl } from "@/app/(panel)/admin/acciones";
+import { guardarGhlEntrada, reintentarEnvioGhl } from "@/app/(panel)/admin/acciones";
 import type { Proyecto } from "@/lib/tipos";
 import { POST, OPTIONS } from "@/app/api/webhooks/entrada/[token]/route";
 import { BIBLIOTECA, OPTIN } from "../apoyo/envios";
@@ -483,6 +483,36 @@ describe("Entrada → GHL por la API", () => {
       } finally {
         ghl.porTelefono = false;
       }
+    });
+
+    it("«Guardar lo de GHL» valida la lista de pipelines y las etiquetas fijas", async () => {
+      como(e, e.p.ceo);
+      const base = { activo: false, campos: {}, etiqueta_base: "biblioteca-agenda", espera_seg: 300, campo_completo: "quiz_completed" };
+      // Un pipeline con un id raro no se guarda
+      expect(await guardarGhlEntrada(entradaAgenda, { ...base, oportunidades: [{ pipeline_id: "no vale!", etapa_id: null }], etiquetas_extra: [] })).toMatchObject({ error: expect.stringMatching(/pipeline/i) });
+      const r = await guardarGhlEntrada(entradaAgenda, {
+        ...base,
+        oportunidades: [
+          { pipeline_id: AG_BIB, etapa_id: null },
+          { pipeline_id: AG_GEN, etapa_id: "" },
+          { pipeline_id: AG_BIB, etapa_id: "bib-form" }, // repetido: fuera
+          { pipeline_id: "", etapa_id: null }, // vacío: fuera
+        ],
+        etiquetas_extra: [" Agenda Biblioteca ", "agenda biblioteca", ""],
+      });
+      expect(r).toBeUndefined();
+      const { data } = await db.from("entradas").select("ghl_oportunidades, ghl_etiquetas_extra, ghl_pipeline_id, ghl_etapa_id, ghl_espera_seg").eq("id", entradaAgenda).single();
+      expect(data).toEqual({
+        ghl_oportunidades: [
+          { pipeline_id: AG_BIB, etapa_id: null },
+          { pipeline_id: AG_GEN, etapa_id: null },
+        ],
+        ghl_etiquetas_extra: ["agenda biblioteca"],
+        // El primero también en las columnas de antes: si se vuelve al código anterior, sigue creando una oportunidad
+        ghl_pipeline_id: AG_BIB,
+        ghl_etapa_id: null,
+        ghl_espera_seg: 300,
+      });
     });
   });
 });
