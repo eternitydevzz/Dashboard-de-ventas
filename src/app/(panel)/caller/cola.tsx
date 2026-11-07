@@ -220,6 +220,7 @@ export function ColaCaller({
               onSiguiente={siguiente}
               puedeGrabar={puedeGrabar}
               cabecera={
+                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5">
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl border border-white/30 bg-white/20 text-[15px] font-bold" aria-hidden>{iniciales(nombreDe(seleccionado))}</span>
                   <div className="min-w-0">
@@ -228,13 +229,15 @@ export function ColaCaller({
                     <div className="mt-0.5 break-words text-xs text-white/85">
                       {[nombrePais(seleccionado.pais), seleccionado.email, `Entró el ${dia.format(new Date(seleccionado.creado_en))}, ${hora.format(new Date(seleccionado.creado_en))}`, seleccionado.pipeline_id ? nombresPipeline[seleccionado.pipeline_id] : null].filter(Boolean).join(" · ")}
                     </div>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  </div>
+                </div>
+                  {/* Cristian (7 nov): estado y prioridad arriba a la derecha (en el móvil, debajo del nombre) */}
+                  <div className="flex flex-wrap gap-1.5 sm:justify-end">
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-2.5 py-0.5 text-[11.5px] font-bold">
                         <span className="h-2 w-2 rounded-full shadow-[0_0_0_1.5px_#fff]" style={{ background: colorEstado(seleccionado.estado_caller) }} />
                         {ETIQUETA_ESTADO_CALLER[seleccionado.estado_caller] ?? seleccionado.estado_caller}
                       </span>
                       <span className="rounded-full border border-white/30 bg-white/15 px-2.5 py-0.5 text-[11.5px] font-bold">Prioridad {letra(seleccionado.puntos)} · {seleccionado.puntos} pts{conIA ? " · IA" : ""}</span>
-                    </div>
                   </div>
                 </div>
               }
