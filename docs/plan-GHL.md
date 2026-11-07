@@ -113,7 +113,20 @@
 6. **Datos:** cita real del 28 oct → canal `biblioteca` y su lead «Canal: Otro» → «Canal: Biblioteca». «Reintentar» el envío en rojo del caso C (`0b087aa6…`).
 7. **Prueba real** con `info+bib6@eternity.llc` y teléfono de ficción 555-01xx: formulario de la agenda, reserva **comprobando el día elegido antes de confirmar** (el 6 nov una reserva de prueba cayó al día siguiente por un clic mal dado) y cancelación. Comprobar dashboard (el lead sigue en su pipeline y tiene tarjeta en «0. Agendas General», «Canal: Biblioteca», `ok`) y GHL (2 oportunidades, etiquetas `biblioteca-agenda-…` y `agenda biblioteca`, y si al pasar los 5 min de espera quedan en «Agendan» o en la primera columna).
 
-**Para volver atrás:** registro → volver a publicar `6041cce` de la Biblioteca, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca». Agenda → volver a publicar `bfcb006`. El webhook `2f05f800…` y su workflow «2 . WH - FORM AGENDA GENERAL» **no se apagan**: los usa `codigomaestria.com/agenda`.
+**Avance de A, B y C (7 nov, rama `abc-agenda-ghl`, PR #21):**
+- [x] **Paso 1 · Tests primero.** Unitarios (`canal.test.ts`, `entrada-ghl.test.ts`): 8 en rojo antes del código. Integración (`entrada.test.ts`: 2 pipelines con su primera columna, no mover la que ya está en «Agendan», etiquetas fijas, caso C y validación de «Guardar lo de GHL»): en rojo en GitHub (commit `078acfd`) porque las columnas nuevas aún no existían.
+- [x] **Paso 2 · Código y migración** `20261107090000_entradas_ghl_varias.sql` (commit `f2a1f4b`). Cómo funciona ahora:
+  - `ghl_oportunidades` vacía = el pipeline de siempre (`ghl_pipeline_id`). Al guardar desde el formulario, el primero de la lista se copia también en `ghl_pipeline_id`/`ghl_etapa_id`: si se vuelve al código anterior, sigue creando una oportunidad.
+  - Columna «Primera columna»: el código la lee de GHL (`GET /opportunities/pipelines`, la de menor `position`) y **no mueve** una oportunidad que ya existe. Con una columna elegida, sí la mueve (como antes).
+  - En el formulario, «Primera columna» enseña el nombre real que da GHL, p. ej. «Primera columna («Form»)».
+  - Etiquetas fijas: en minúsculas, se añaden en GHL y en el lead, nunca se quitan.
+  - Caso C: si el contacto de GHL ya es de otro lead, el envío queda `ok`, este lead no guarda el id y su historial dice «Es el mismo contacto de GHL que el lead <email> (<id de GHL>)».
+  - **Cambio que no estaba escrito en el plan (Claude):** la lectura de 60 s manda como mucho **10 leads** (antes 15). Con 2 pipelines sin columna, un lead hace hasta 8 llamadas a GHL (antes 4): 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s). Si hay más, van en la lectura siguiente.
+
+- [x] **Paso 3 · Migración en producción** (7 nov, antes de fusionar): `supabase db push --dry-run` (solo esa migración, proyecto `crbwqaxpeexeonffuiyo`) y `supabase db push`. Comprobado por la API: las 4 Entradas tienen `ghl_oportunidades = []` y `ghl_etiquetas_extra = []`.
+- Paso 4 · Tests de GitHub en verde con el código (run `42352811795`: unitarios 312/312, integración 295/295) y build de Vercel ok. Falta fusionar.
+
+**Para volver atrás:** registro → volver a publicar `6041cce` de la Biblioteca, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca». Agenda → volver a publicar `bfcb006`. El webhook `2f05f800…` y su workflow «2 . WH - FORM AGENDA GENERAL» **no se apagan**: los usa `codigomaestria.com/agenda`. A, B y C → revertir el PR #21 en GitHub (las 2 columnas nuevas se pueden quedar: el código de antes no las lee) y volver a poner en la Entrada de la agenda el pipeline de GHL «1. Biblioteca Recursos → Form Agenda» y el del dashboard «1. Biblioteca Recursos».
 
 ### 1 · Lo que hace Cristian (Claude no puede)
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «5» (`info+bib1@` … `info+bib5@eternity.llc`). Sus citas (bib1 el 12 nov y bib5 el 7 nov) ya están canceladas.

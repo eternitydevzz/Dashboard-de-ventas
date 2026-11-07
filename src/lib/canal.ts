@@ -38,6 +38,7 @@ const ALIAS: Record<string, Canal> = {
   mail: "email",
   biblioteca: "biblioteca",
   bibliotec: "biblioteca",
+  "agenda-biblioteca": "biblioteca", // Plan GHL, A (Cristian, 7 nov): lo que manda la agenda de la Biblioteca
   webinar: "webinar",
   dfy: "dfy",
 };
