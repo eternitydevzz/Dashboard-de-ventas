@@ -70,7 +70,12 @@ export function ColaCaller({
   const ficha = useRef<HTMLDivElement>(null);
   const q = busca.trim().toLowerCase();
   const filas = useMemo(() => (q ? leads.filter((l) => nombreDe(l).toLowerCase().includes(q) || (l.telefono ?? "").replace(/\s/g, "").includes(q.replace(/\s/g, ""))) : leads), [leads, q]);
-  const seleccionado = leads.find((l) => l.id === elegido) ?? filas[0] ?? null;
+  // Revisión del 7 nov: si el lead elegido sale de la lista al cambiarlo de columna (p. ej. con la pastilla «Leads
+  // nuevos» puesta), se queda en pantalla (y su guion abierto) en vez de saltar a otro a mitad de la llamada
+  const [ultimo, setUltimo] = useState<LeadCola | null>(null);
+  const encontrado = leads.find((l) => l.id === elegido);
+  if (encontrado && encontrado !== ultimo) setUltimo(encontrado); // patrón de React: se ajusta al pintar, sin efecto
+  const seleccionado = encontrado ?? (elegido && ultimo?.id === elegido ? ultimo : null) ?? filas[0] ?? null;
   const dia = useMemo(() => new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: zona }), [zona]);
   const hora = useMemo(() => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: zona }), [zona]);
 

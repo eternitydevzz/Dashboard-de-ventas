@@ -18,6 +18,9 @@ describe("C11 · estados del caller", () => {
     expect(esContacto({ tipo: "whatsapp", resultado: "wsp_enviado" })).toBe(false);
     expect(esContacto({ tipo: "cambio_etapa", resultado: "no_responde" })).toBe(false);
     expect(esContacto({ tipo: "cambio_etapa", resultado: null })).toBe(false); // mover a mano en el CRM
+    // Revisión del 7 nov: «Agendado» con su botón apunta una cita (no un cambio de columna) y también es contacto
+    expect(esContacto({ tipo: "cita", resultado: "agendada" })).toBe(true);
+    expect(esContacto({ tipo: "cita", resultado: null })).toBe(false);
   });
   it("historial de antes del 7 nov: una llamada contestada sigue contando como contacto", () => {
     expect(esContacto({ tipo: "llamada", resultado: "llamar_luego" })).toBe(true);

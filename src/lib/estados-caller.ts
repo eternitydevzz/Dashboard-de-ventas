@@ -30,6 +30,7 @@ export const CON_ESTRELLAS: ReadonlySet<string> = new Set(["llamar_luego", "no_i
 // antes, «llamada» con su resultado (todo menos «no_contesta» era contestar).
 export function esContacto(a: { tipo: string; resultado: string | null }) {
   if (a.tipo === "cambio_etapa") return !!a.resultado && AVANZAN.has(a.resultado);
+  if (a.tipo === "cita") return a.resultado === "agendada"; // «Agendado» con su botón (agendarCita)
   if (a.tipo === "llamada") return !!a.resultado && a.resultado !== "no_contesta" && a.resultado !== "llamado";
   return false;
 }
