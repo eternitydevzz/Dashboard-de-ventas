@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 4 (6 nov 2026, noche). **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
+> Versión 5 (7 nov 2026, 05:15 UTC). **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
 > `git show a924227:docs/plan-GHL.md`.
 
 ## Dónde estamos
@@ -10,7 +10,7 @@
 | 0 · Leer la API y los workflows de GHL | Hecha |
 | 1 · El dashboard hace en GHL lo que hacía el workflow | Hecha y publicada (PR #9 y #10) |
 | 2 · Registro de la Biblioteca | Hecha y publicada (biblioteca-maestria PR #1). Falta el seguimiento |
-| 3 · Agenda de la Biblioteca | Publicada (6 nov, 20:23 UTC). Falta el fallo 2 y vigilar |
+| 3 · Agenda de la Biblioteca | Publicada (6 nov, 20:23 UTC). Aún sin agendas reales; falta el fallo 2 |
 | 4 · Workflows visuales | Diseño propuesto, esperando a Cristian |
 | 5 · Skill | Pendiente |
 | 6 · Resto de webs | Pendiente |
@@ -38,17 +38,23 @@
 
 ## Lo que falta, en orden
 
-### 0 · URGENTE: la Biblioteca sin webhooks de GHL — HECHO el 6 nov
+### 0 · La Biblioteca sin webhooks de GHL — hecho el 6 nov; revisión del 7 nov
 **Cómo viajan los datos hoy (los dos formularios ya no usan webhooks de GHL):**
 - **Registro:** formulario → `biblioteca.codigomaestria.com/api/signup` (función de Vercel) → desde el servidor, POST al endpoint del dashboard `dashboard.eternity.llc/api/webhooks/entrada/<clave>` (Entrada «Web · Biblioteca registro», 2 intentos de 5 s). Publicado a las 19:40 UTC; probado en producción (bib4).
 - **Agenda:** navegador → POST directo al mismo tipo de endpoint (Entrada «Web · Biblioteca agenda», 3 intentos). Publicado a las 20:23 UTC (biblioteca-maestria PR #2); probado en producción (bib5: `agenda_datos` 200, `cuestionario` 200, reserva y cancelación).
 - En los dos casos el dashboard guarda el lead **al momento** y, al minuto, hace en GHL por la API: contacto, campos, etiqueta y oportunidad.
 - Los leads que se perdían eran de **antes del cambio** (con el webhook viejo), según Cristian.
 
-**Queda:**
+**Revisión del 7 nov (05:10 UTC), con datos de producción:**
+- Registro: **21 envíos reales** desde las 20:19 UTC del 6 nov (último 04:53 UTC). Todos guardados en el dashboard; **20 en `ok` en GHL y 1 en `error`** (abajo).
+- Agenda: **0 envíos reales** todavía (solo la prueba bib5).
+- Monedero de GHL: **sin comprobar** (la página de facturación de GHL salía en blanco en Playwright).
+
+**Queda, de más a menos importante:**
+- [ ] **Fallo nuevo (registro, 1 de 21): la misma persona se registra dos veces con emails distintos y el mismo teléfono** (6 nov, 23:06 y 23:07 UTC, teléfono …7112). El dashboard crea 2 leads (los reconoce por email) y GHL 1 contacto (lo reconoce también por teléfono). Al guardar el contacto de GHL en el segundo lead choca con el primero (`leads_proyecto_id_ghl_contact_id_key`) → 5 intentos → rojo y email. **En GHL no se perdió nada** (el fallo es después de contacto, etiqueta y oportunidad). Arreglo propuesto: si ese contacto de GHL ya es de otro lead, no fallar: dejar el envío en `ok`, no guardar el id en el segundo lead y apuntar en su historial «mismo contacto de GHL que …». Después, darle a «Reintentar» al envío en rojo (evento `0b087aa6…`). ¿Unir los 2 leads del dashboard? → decide Cristian.
 - [ ] **Fallo 1 de la agenda** (la oportunidad de la Biblioteca no pasaba a la columna de la agenda): arreglado en el dashboard (PR #13, `PUT /opportunities/{id}`). Comprobar con el próximo lead real de la agenda que la oportunidad pasa a `77b3ce38…`.
 - [ ] **Fallo 2:** los workflows del calendario de GHL crean otra oportunidad en «0. Agendas Orgánico - Agendan» y la cita da una tarjeta en «0. Agendas General» del dashboard (ya pasaba a veces antes: 2 de 4 leads reales). Leer el workflow «2. Agendan llamada» (`59e01558…`, carpeta «2. Agendas»; el 6 nov su editor se quedó en blanco en Playwright) y proponer el arreglo (¿añadir la etiqueta `agenda biblioteca`?).
-- [ ] **Vigilar 24 h (7 nov):** registros y agendas reales en Administración → Entradas (`ok`, sin rojos), en GHL, y el monedero sin `inbound_webhook` de la Biblioteca.
+- [ ] **Vigilar (7 nov, tarde):** primeras agendas reales en `ok`; monedero de GHL sin `inbound_webhook` de la Biblioteca desde el 6 nov 19:40 UTC.
 - [ ] El webhook `2f05f800…` y su workflow «2 . WH - FORM AGENDA GENERAL» **no se apagan**: los usa `codigomaestria.com/agenda` (fase 6).
 - **Para volver atrás:** registro → volver a publicar `6041cce` de la Biblioteca, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca». Agenda → volver a publicar `bfcb006`.
 
