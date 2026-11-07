@@ -68,6 +68,17 @@ Decisiones de Cristian (7 nov), tras la revisión:
 - **Cómo volver atrás:** revertir el PR #3 de `biblioteca-maestria` (Vercel publica main). El dashboard y el workflow v3 entienden los 2 formatos: no hace falta tocarlos.
 - **Cuidado:** si un lead agenda y **después** termina el cuestionario de registro, su workflow de registro lo vuelve a «Form completo». Pasa poco (normalmente es al revés); si molesta, se añade al registro una rama «si ya agendó, no mover».
 
+## Landing software-demo (services.eternity.llc/software-demo) · 7 nov 2026
+Landing nueva de servicios (repo `eternitydevzz/services-eternity`, Vercel `eternity-services`). Antes no mandaba a ningún sitio: `api/lead.js` reenviaba a `CRM_WEBHOOK_URL` y esa variable no existía (cada paso daba 500).
+- **Landing (commit `9584686`):** `api/lead.js` (servidor) manda cada paso (5) a la Entrada con el JSON v1: `source` «software-demo», `form` «demo», `step` `paso-1`…`paso-5`, mismo `event_id`, `quiz {idea, capital}`, `quiz_completed` en el paso 5, `valor` (punto medio del tramo, como el calendario), `fbp`, `fbc`, UTM, `ip`. `CRM_WEBHOOK_URL` = dirección de la Entrada, en Vercel **solo Production** (sensible; Preview no se pudo poner sin escribir la clave en la línea de comandos).
+- **Entrada «Web · software-demo demo»** (`7462dbbb…`): servidor, dashboard «3. DFY AI Services → Form optin». «Qué hacer en GHL»: 13 campos (`quiz.idea` → Idea del software, `quiz.capital` → Capital disponible, `valor` → Valor lead, 5 UTM, `fbclid`, `gclid` → google_gclid, `fbp`, `fbc`, `event_id`), oportunidad «3. DFY AI Services → Form optin», etiqueta base `software-demo-demo`, espera 300 s. **«Mandar a GHL» encendido el 7 nov a las 22:47 UTC** (Cristian) y su workflow en **prueba** (`033ef58d…`).
+- **GHL (hecho por Claude con Playwright, con el OK de Cristian):** «3. DFY AI Services» = Form optin · Agenda (antes «Agendado», mismo id) · Seguimiento. Campos nuevos de contacto: Idea del software, fbp, fbc, event_id.
+- **Dashboard PR #64:** la Entrada junta en 1 lead los envíos con el mismo `event_id` (los pasos 1-2 solo traen teléfono). Antes salían 2 leads por persona.
+- **Calendario de la demo** (`CTsw97wT6aXtUYEQoVeA`, «Funnel DFY Softwares») añadido a `proyectos.ghl_calendarios` de Maestria (21:44 UTC): sus citas entran en la app («0. Agendas General → Agendan»). Entró 1 cita real (10 nov) **sin closer**: su usuario de GHL no es de ningún closer de la app.
+- **Pruebas en producción** (`info+servicios1…5@eternity.llc`, 201-555-0111…0115): 1 lead por persona (después del PR #64), en «Form optin», con respuestas, UTM e IP, envíos sin errores. servicios1 salió partido en 2 (antes del PR). Cristian borró servicios1-4.
+- **Pendiente:** «Agenda» + etiqueta `agenda-demo` para los que reservan (necesita el disparador «se agenda una cita», 4d). «Pasar a real» el workflow, con el OK de Cristian. Closer de las citas de la demo.
+- **Cómo volver atrás:** en services-eternity, revertir `9584686` (vuelve a dar 500, como antes); apagar «Mandar a GHL» o la Entrada; quitar `CTsw97wT6aXtUYEQoVeA` de `proyectos.ghl_calendarios`; en GHL renombrar «Agenda» → «Agendado» si hiciera falta. PR #64 se puede revertir sin tocar datos.
+
 ## Dónde estamos
 
 | Fase | Estado |
