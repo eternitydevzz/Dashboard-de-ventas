@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 6 (7 nov 2026, 06 h UTC). **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
+> Versión 7 (7 nov 2026, con las respuestas de Cristian antes de A, B y C). **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
 > `git show a924227:docs/plan-GHL.md`.
 
 ## Dónde estamos
@@ -57,8 +57,9 @@
 - *Decisión de Cristian:* en el dashboard, todas las agendas van a **«0. Agendas General»** (como se decidió el 17 oct, `canal.ts`), con su etiqueta **«Canal: Biblioteca»**. Antes de reservar, en la columna **«Form»**; al reservar, la cita la pasa a «Agendan» (como hoy).
 - *Arreglo:*
   1. Entrada «Web · Biblioteca agenda» → pipeline del dashboard «0. Agendas General», columna «Form». Los leads que ya existen (de la Biblioteca) ganan su tarjeta en General, como hoy.
-  2. `canal.ts`: `agenda-biblioteca` → canal Biblioteca, con test.
-  3. Corregir a «Biblioteca» el canal de la cita real del 28 oct (y la etiqueta «Canal: Otro» de su lead, si la tiene).
+  2. **«Canal: Biblioteca» desde el formulario** (Cristian: sí, aunque no reserve), con una regla de la Entrada (`utm_source` igual a `agenda-biblioteca` → etiqueta «Canal: Biblioteca»). Sin código.
+  3. `canal.ts`: `agenda-biblioteca` → canal Biblioteca, con test (para la cita).
+  4. Corregir a «Biblioteca» el canal de la cita real del 28 oct y su etiqueta «Canal: Otro» → «Canal: Biblioteca» (Cristian: sí).
 
 **B · Oportunidades de la agenda en GHL** (Claude, tests primero)
 - *Decisión de Cristian:* en GHL, quien agenda desde la Biblioteca tiene oportunidad en **«0. Agendas Biblioteca»** (`wym2Ue4VUqkhsFoQJ5PK`) **y** en **«0. Agendas General»** (`zuQjPVJNbPpRlL0voy6d`): «en General tienen que aparecer siempre todas». Deja de usarse «1. Biblioteca Recursos → Form Agenda». La oportunidad extra que crean los workflows del calendario en «0. Agendas Orgánico» **está bien así** (no se toca).
@@ -66,7 +67,10 @@
   1. Migración: `entradas.ghl_oportunidades jsonb` = lista de `{ pipeline_id, etapa_id }` (si está vacía, se usa el pipeline de siempre: compatible con lo que hay).
   2. `entrada-ghl.ts` y `ghl-envios.ts`: una oportunidad por cada pipeline de la lista (buscar → crear o mover a su columna).
   3. Administración → Entradas: «Oportunidades en GHL» como lista con «Añadir pipeline».
-  4. Configurar la Entrada de la agenda con los 2 pipelines. **Columna en cada uno:** la equivalente a «Form» (ver en el formulario; GHL no se dejó leer el 7 nov).
+  4. Configurar la Entrada de la agenda con los 2 pipelines, **en la primera columna de cada uno** (Cristian). Para no depender de cómo elige GHL, el código busca el id de la primera columna con `GET /opportunities/pipelines`.
+  5. **Al reservar, GHL ya mueve las oportunidades a «Agendan»** (Cristian): el dashboard no hace nada más.
+  6. La oportunidad del registro en «1. Biblioteca Recursos → Registrados» **se queda ahí** cuando la persona agenda (Cristian).
+  7. **Etiquetas viejas también en GHL** (Cristian, por si algún workflow o lista las usa): el registro pone además `biblioteca recursos` y la agenda `agenda biblioteca`. Migración: `entradas.ghl_etiquetas_extra text[]` (fijas, se añaden siempre; nunca se quitan).
 - *Comprobar:* con el primer lead real de la agenda, 1 oportunidad en «0. Agendas Biblioteca» y 1 en «0. Agendas General» (más la de «Orgánico» del calendario), y ninguna nueva en «1. Biblioteca Recursos».
 
 **C · La misma persona con dos emails y el mismo teléfono** (Claude, tests primero)
@@ -84,13 +88,13 @@
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@`), «Prueba Biblioteca 1» a «5» (`info+bib1@` … `info+bib5@eternity.llc`). Las citas de bib1 y bib5 ya están canceladas.
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
 - [ ] Poner otra vez la descripción de la integración «App Eternity (dashboard)» en GHL (quedó vacía; ya no es «solo lectura»).
-- [ ] Tus cambios sin commit en el repo del dashboard: 3 docs borrados (`Arreglar-dashboard.md`, `plan-historial-10oct.md`, `plan-historial-11oct.md`) y `manual-branding-rojo.md` nuevo. ¿Se suben o se descartan?
+- [ ] Tus cambios sin commit en el repo del dashboard (3 docs borrados y `manual-branding-rojo.md`): **Claude no los toca** (Cristian, 7 nov).
 
 ### 2 · Para decidir (Cristian)
-- [ ] Entrada «Prueba GHL»: está apagada. ¿Se queda o se borra (con su lead de prueba)?
-- [ ] ¿Algún workflow o lista de GHL depende de la etiqueta `biblioteca recursos`? Los leads nuevos de la Biblioteca ya no la llevan.
-- [ ] El workflow «0. AP - Biblioteca» (mandaba a la Entrada «GHL · Biblioteca») no existe en GHL; la Entrada no recibía nada desde el 16 oct y está desactivada. ¿Se borró a propósito?
-- [ ] Las 3 preguntas de la fase 4 (abajo).
+- [ ] Entrada «Prueba GHL»: Cristian pregunta qué hace y para qué sirve (explicado el 7 nov) → decide si se queda o se borra.
+- [x] Etiqueta `biblioteca recursos`: se vuelve a poner en GHL (ver B.7).
+- [ ] El workflow «0. AP - Biblioteca» no existe en GHL; Cristian no sabe si se borró a propósito. La Entrada «GHL · Biblioteca» no recibía nada desde el 16 oct y está desactivada: no se hace nada.
+- [x] Fase 4: respuestas abajo.
 
 ### 3 · Seguimiento (Claude)
 - [ ] Hasta el 13 nov: medir con las horas de los envíos cuánto tarda la gente en el cuestionario y ajustar la espera (hoy 60 s) si hace falta.
@@ -104,18 +108,18 @@
 
 ### 5 · Fase 4 · Workflows visuales en el dashboard (diseño con Cristian antes de programar)
 **Propuesta (Claude, 6 nov):**
-- **Workflow** = un disparador + pasos en orden, en lista vertical (sin lienzo libre en la v1). Tabla `workflows` (pasos en JSON, versión, encendido).
+- **Workflow** = un disparador + pasos en orden, dibujado en un lienzo como GHL. Tabla `workflows` (pasos en JSON, versión, encendido).
 - **Disparadores v1:** llega a una Entrada · se añade una etiqueta · cambia de columna en el dashboard · se agenda / cancela una cita.
 - **Acciones v1:** crear/actualizar contacto en GHL · añadir/quitar etiqueta · crear o mover oportunidad · mover de columna en el dashboard · esperar · rama «si el campo…» · email con Resend.
 - **Motor:** cada lead crea una ejecución (`workflow_ejecuciones`: paso, hora del siguiente, intentos, error); la lectura de 60 s la avanza, con los mismos reintentos, aviso y «Reintentar» de hoy.
-- **Pantalla:** Administración → Workflows, con tarjetas, «+» entre pasos, historial por lead e interruptor.
+- **Pantalla:** Administración → Workflows, en **lienzo como GHL** (decisión de Cristian), con historial por lead e interruptor.
 - **Migración:** «Qué hacer en GHL» de cada Entrada pasa a ser su workflow; las reglas de pipeline, ramas.
 - **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que la fase 2) · 4b pantalla de solo lectura · 4c edición · 4d disparadores de etiqueta, columna y cita.
 
-**Preguntas para Cristian:**
-- [ ] ¿Lista vertical vale, o lienzo como GHL desde el principio?
-- [ ] ¿Qué workflow de GHL pasamos primero después de la Biblioteca?
-- [ ] ¿Los emails de las secuencias entran aquí o siguen fuera?
+**Respuestas de Cristian (7 nov):**
+- **Lienzo como GHL** (cajas y flechas), no lista vertical. Cambia la pantalla de la propuesta y es más trabajo: su plan propio lo tiene en cuenta.
+- **Emails de las secuencias: siguen fuera.**
+- Primer workflow después de la Biblioteca: **la landing de agenda** (`codigomaestria.com/agenda`, webhook `2f05f800…`). **Antes de pasar más landings, un manual para todas las landings** (ver «Manual para landings»).
 
 Con sus respuestas sale el plan propio de la fase 4. Primera pasada de punta a punta: la Biblioteca como workflow, con el mismo resultado que hoy.
 
@@ -185,4 +189,7 @@ Cuando exista la skill «conectar-web-al-dashboard» (fase 5), estos pasos van e
 - Cuál se queda (¿el más antiguo?) y qué se junta: emails (¿un campo de emails secundarios?), respuestas, etiquetas, citas, ventas, actividades, tarjetas, reparto/caller.
 - Automático al entrar o un botón «Unir» en la ficha del lead (Cristian revisa antes). Unir implica **borrar** un lead: lo confirma Cristian.
 - Buscar cuántos duplicados hay hoy (por teléfono) antes de elegir.
+
+## Manual para landings (Cristian, 7 nov: antes de pasar más landings)
+- [ ] Hacer un manual para conectar cualquier landing al dashboard sin webhooks de GHL, fácil de seguir. Base: «Plan para conectar futuras landings» (arriba) y lo aprendido con la Biblioteca (etiquetas en minúsculas, etiquetas viejas por compatibilidad, varios pipelines de GHL, `Canal: …`, pruebas con 555-01xx y cancelar citas). Pendiente de que Cristian confirme formato y sitio.
 
