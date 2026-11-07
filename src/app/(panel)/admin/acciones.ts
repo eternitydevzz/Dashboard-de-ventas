@@ -9,6 +9,8 @@ import { preguntasValidas } from "@/lib/reportes";
 import { db, equipo, escribir } from "@/lib/datos";
 import { cifrar, descifrar } from "@/lib/cifrado";
 import { reglasValidas } from "@/lib/entrada";
+import { datosLandingValidos, type DatosLanding } from "@/lib/entradas-panel";
+import { enviosDeEntrada, VER_MAS } from "@/lib/entradas-datos";
 import { SECCIONES_TODAS, NUNCA, ROLES_PERMISO, seccionesPermitidas } from "@/lib/permisos";
 import type { RolPermiso } from "@/lib/permisos-constantes";
 import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
@@ -314,24 +316,70 @@ export async function crearEntrada(_prev: Res, fd: FormData): Promise<Res> {
     const nombre = texto(fd, "nombre");
     if (!nombre) throw new ErrorUsuario("Pon un nombre (por ejemplo, el de la landing).");
     const destino = await destinoValido(proyecto.id, texto(fd, "pipeline_id") || null, texto(fd, "etapa_id") || null);
-    const { error } = await db().from("entradas").insert({ proyecto_id: proyecto.id, nombre, ...destino });
+    // Panel de endpoints (7 nov): de qué landing y formulario es, y desde dónde envía
+    const landing = datosLandingValidos({ landing: fd.get("landing"), formulario: fd.get("formulario"), envia_desde: fd.get("envia_desde") });
+    const { error } = await db().from("entradas").insert({ proyecto_id: proyecto.id, nombre, ...destino, ...landing });
     if (error) throw new ErrorUsuario(error.message);
     refrescar();
-    return { ok: "Entrada creada. Copia su dirección y pégala en la landing." };
+    return { ok: "Entrada creada. Su dirección está en la lista: cópiala y pásasela al programador de la landing." };
   });
   return r;
 }
 
-export async function guardarEntrada(id: string, cambios: { nombre: string; pipeline_id: string | null; etapa_id: string | null; reglas: unknown; activa: boolean }) {
+// Comprueba nombre, destino y reglas y devuelve lo que se escribe (sin escribir nada)
+type CambiosEntrada = { nombre: string; pipeline_id: string | null; etapa_id: string | null; reglas: unknown };
+async function validarEntrada(proyectoId: string, cambios: CambiosEntrada) {
+  if (!String(cambios.nombre ?? "").trim()) throw new ErrorUsuario("Pon un nombre.");
+  const destino = await destinoValido(proyectoId, cambios.pipeline_id, cambios.etapa_id);
+  const reglas = reglasValidas(cambios.reglas);
+  for (const r of reglas) if (r.pipeline_id || r.etapa_id) await destinoValido(proyectoId, r.pipeline_id ?? null, r.etapa_id ?? null);
+  return { nombre: String(cambios.nombre).trim(), ...destino, reglas };
+}
+
+export async function guardarEntrada(id: string, cambios: CambiosEntrada & { activa: boolean }) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     await entradaDelProyecto(id, proyecto.id);
-    if (!cambios.nombre.trim()) throw new ErrorUsuario("Pon un nombre.");
-    const destino = await destinoValido(proyecto.id, cambios.pipeline_id, cambios.etapa_id);
-    const reglas = reglasValidas(cambios.reglas);
-    for (const r of reglas) if (r.pipeline_id || r.etapa_id) await destinoValido(proyecto.id, r.pipeline_id ?? null, r.etapa_id ?? null);
-    await escribir(db().from("entradas").update({ nombre: cambios.nombre.trim(), ...destino, reglas, activa: cambios.activa }).eq("id", id), "entradas");
+    const fila = await validarEntrada(proyecto.id, cambios);
+    await escribir(db().from("entradas").update({ ...fila, activa: cambios.activa }).eq("id", id), "entradas");
     refrescar();
+  });
+}
+
+// Panel de endpoints (Cristian, 7 nov): UN solo «Guardar» por Entrada. Primero se comprueba todo (Entrada, datos de la
+// landing y lo de GHL) y después se escribe en una sola actualización: o se guarda todo o no se guarda nada.
+// `ghl` = null cuando el proyecto no tiene GHL conectado: lo de GHL no se toca.
+export async function guardarEntradaCompleta(id: string, c: { entrada: CambiosEntrada & Partial<Record<keyof DatosLanding, unknown>>; ghl: CambiosGhlEntrada | null }) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await entradaDelProyecto(id, proyecto.id);
+    const fila = await validarEntrada(proyecto.id, c.entrada);
+    const landing = datosLandingValidos(c.entrada);
+    const ghl = c.ghl ? await validarGhl(proyecto.id, c.ghl) : {};
+    await escribir(db().from("entradas").update({ ...fila, ...landing, ...ghl }).eq("id", id), "entradas");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// «Apagar esta entrada» / «Encender»: solo cambia «activa» (apagada, la dirección responde 404)
+export async function cambiarActivaEntrada(id: string, activa: boolean) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await entradaDelProyecto(id, proyecto.id);
+    await escribir(db().from("entradas").update({ activa: !!activa }).eq("id", id), "entradas");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// «Ver más»: los 50 envíos siguientes de una Entrada (no refresca la página: solo lee)
+export async function masEnviosEntrada(id: string, desde: number) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await entradaDelProyecto(id, proyecto.id);
+    const n = Math.max(0, Math.floor(Number(desde) || 0));
+    return { ok: true as const, datos: await enviosDeEntrada(id, n, VER_MAS) };
   });
 }
 
@@ -375,6 +423,14 @@ export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     await entradaDelProyecto(id, proyecto.id);
+    await escribir(db().from("entradas").update(await validarGhl(proyecto.id, c)).eq("id", id), "entradas");
+    refrescar();
+  });
+}
+
+// Comprueba «Qué hacer en GHL» y devuelve lo que se escribe (sin escribir nada)
+async function validarGhl(proyectoId: string, c: CambiosGhlEntrada) {
+  {
     const campos: Record<string, string> = {};
     for (const [k, v] of Object.entries(c.campos && typeof c.campos === "object" ? c.campos : {})) {
       const campo = String(k).trim().slice(0, 120);
@@ -403,29 +459,22 @@ export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
     const base = String(c.etiqueta_base ?? "").trim().slice(0, 80);
     if (c.activo && !Object.keys(campos).length && !base && !oportunidades.length && !extra.length) throw new ErrorUsuario("Para encender GHL, une al menos un campo, pon una etiqueta o elige un pipeline.");
     if (c.activo) {
-      const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyecto.id).single();
+      const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyectoId).single();
       if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Este proyecto no tiene GHL conectado (pestaña Integraciones GHL).");
     }
-    await escribir(
-      db()
-        .from("entradas")
-        .update({
-          ghl_activo: !!c.activo,
-          ghl_campos: campos,
-          ghl_oportunidades: oportunidades,
-          // El primero también en las columnas de antes: si se vuelve al código anterior, sigue creando una oportunidad
-          ghl_pipeline_id: oportunidades[0]?.pipeline_id ?? null,
-          ghl_etapa_id: oportunidades[0]?.etapa_id ?? null,
-          ghl_etiqueta_base: base || null,
-          ghl_etiquetas_extra: extra,
-          ghl_espera_seg: espera,
-          ghl_campo_completo: String(c.campo_completo ?? "").trim().slice(0, 120),
-        })
-        .eq("id", id),
-      "entradas"
-    );
-    refrescar();
-  });
+    return {
+      ghl_activo: !!c.activo,
+      ghl_campos: campos,
+      ghl_oportunidades: oportunidades,
+      // El primero también en las columnas de antes: si se vuelve al código anterior, sigue creando una oportunidad
+      ghl_pipeline_id: oportunidades[0]?.pipeline_id ?? null,
+      ghl_etapa_id: oportunidades[0]?.etapa_id ?? null,
+      ghl_etiqueta_base: base || null,
+      ghl_etiquetas_extra: extra,
+      ghl_espera_seg: espera,
+      ghl_campo_completo: String(c.campo_completo ?? "").trim().slice(0, 120),
+    };
+  }
 }
 
 // «Reintentar» un envío en rojo: vuelve a esperar con los intentos a cero; lo manda la siguiente lectura (≤ 1 min)

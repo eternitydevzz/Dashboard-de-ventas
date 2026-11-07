@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 18 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 19 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -13,8 +13,8 @@
 | 1 · El dashboard hace en GHL lo que hacía el workflow | Hecha (PR #9 y #10) |
 | 2 · Registro de la Biblioteca sin webhook | Hecha (biblioteca-maestria PR #1) |
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
-| **Panel de endpoints en el dashboard** | **← Siguiente** |
-| 4 · Workflows visuales (motor y lienzo de lectura y edición) | Pendiente. Diseño decidido; falta su plan propio |
+| Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
+| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`); en curso: 4a |
 | Revisión de todo con Cristian | Pendiente |
 | Template de landings, skill y archivos del equipo | Pendiente (maqueta hecha) |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
@@ -23,7 +23,7 @@
 | Unir leads duplicados | Pendiente |
 | Al final | Proyectos sin calendarios · mover `codigomaestria.com` de GHL a Vercel |
 
-**Orden (Cristian, 7 nov: «vamos por partes»):** panel de endpoints → workflows visuales con su lienzo (fase 4) → revisar todo con Cristian → si está bien, template, skill y archivos del equipo → landing de agenda (fase 6) → optin (fase 6) → unir duplicados → al final, proyectos sin calendarios y mover `codigomaestria.com` a Vercel. Regalos: de momento no. Solo Maestria.
+**Orden (Cristian, 7 nov: «vamos por partes»):** panel de endpoints (hecho) → workflows visuales con su lienzo (fase 4) → revisar todo con Cristian → si está bien, template, skill y archivos del equipo → landing de agenda (fase 6) → optin (fase 6) → unir duplicados → al final, proyectos sin calendarios y mover `codigomaestria.com` a Vercel. Regalos: de momento no. Solo Maestria.
 
 ## Cómo funciona hoy (la Biblioteca)
 - **Registro:** formulario → `biblioteca.codigomaestria.com/api/signup` (función de Vercel) → desde el servidor, POST a la Entrada «Web · Biblioteca registro» del dashboard (2 intentos de 5 s).
@@ -62,10 +62,32 @@
 
 ## Lo que falta, en orden
 
-### 0 · Panel de endpoints en el dashboard (Claude) ← siguiente
-*Qué es:* un sitio en el dashboard para **crear los endpoints nuevos y gestionarlos todos juntos** (Cristian, 7 nov), como el bloque 2 de la maqueta `VENTAS/maqueta-template-landing.html`: cada Entrada con su landing, su formulario, desde dónde envía, su estado, la dirección con su clave, «Copiar dirección» y «Nueva dirección», y lo que responde el dashboard (200, 400, 404, 413, 422, 429).
-*Hoy:* ya existe Administración → Entradas (`src/app/(panel)/admin/page.tsx` y `entradas.tsx`): crear, copiar dirección, nueva dirección, reglas, «Qué hacer en GHL» y últimos envíos.
-*Antes de programar:* contestar las preguntas del panel en «Para decidir», enseñar a Cristian un boceto y que lo apruebe. Tests primero, PR y comprobación en el dashboard con Playwright.
+### 0 · Panel de endpoints en el dashboard (Claude) — HECHO el 7 nov (dashboard PR #33, `8c83d6b`)
+*Qué es:* Administración → Entradas rediseñada para **crear los endpoints nuevos y gestionarlos todos juntos**, pensada para un principiante. Boceto v2 aprobado por Cristian el 7 nov.
+**Decidido por Cristian (7 nov):**
+- Es la pestaña de siempre (Administración → Entradas), rediseñada; no un panel aparte. Solo la ven los jefes, como antes (`puedeAdmin`).
+- Cada Entrada enseña sus leads recibidos, cuándo llegó el último y si alguno no llegó a GHL.
+- Botón «Copiar ejemplo de lo que tiene que mandar» (JSON v1, sin la clave).
+- La mejora «Envíos en rojo siempre visibles y "Ver más"» va dentro del panel (hecha).
+- Que el dashboard entienda el JSON v1 y guarde la IP **va con el punto 3**, no con el panel.
+- Columnas nuevas en `entradas`: `landing`, `formulario`, `envia_desde` (navegador / servidor / vacío = «no lo sé») y `archivo`. El endpoint no las lee.
+- **Un solo «Guardar»** por Entrada (antes había dos: «Guardar» y «Guardar lo de GHL»). Comprueba todo y escribe todo junto: o se guarda todo o nada.
+- **Guardado a mano** (no automático) con aviso «Tienes cambios sin guardar» y aviso del navegador antes de salir o recargar.
+- «Archivo» se rellena en «Cambiar ajustes» y se ve en «Para el programador»; al crear solo se preguntan 5 cosas.
+**Cómo es:**
+- Arriba, 3 pasos para conectar una landing. Cada Entrada es una tarjeta: nombre, estado en palabras («Recibiendo leads», «Apagada: no recibe nada», «Esperando el primer lead»), de qué landing y formulario viene, leads recibidos, último envío, «✓ Todos llegaron a GHL» y «Copiar dirección» (la dirección se ve cortada, `…/entrada/7c1e…a90f`, y se copia entera).
+- Si algún envío no llegó a GHL: caja roja con cada uno y su «Reintentar», aunque sea antiguo (antes solo se veían entre los 200 últimos).
+- Desplegables: «Ver los últimos leads» (15 y «Ver más» de 50 en 50), «Cambiar ajustes» (nombre, landing, reglas y «Qué hacer en GHL» como antes, un «Guardar» y, aparte, con confirmación: «Cambiar la dirección», «Apagar/Encender» y «Borrar») y «Para el programador».
+- Abajo, «Para el programador: qué responde el dashboard»: 200, 400, 404, 413, 422 (guarda el envío, no crea lead), 429 y 500 (leído en `route.ts`).
+- «Conectar una landing nueva»: 5 preguntas numeradas (nombre, landing, formulario, desde dónde envía, pipeline).
+**Código:** `src/app/(panel)/admin/page.tsx`, `entradas.tsx`, `entradas-envios.tsx`, `acciones.ts` (`guardarEntradaCompleta`, `cambiarActivaEntrada`, `masEnviosEntrada`), `src/lib/entradas-panel.ts`, `src/lib/entradas-datos.ts`. Migración `20261107140000_panel_entradas.sql` (solo añade): las 4 columnas, función `resumen_entradas` (envíos, leads distintos, rojos y último en una consulta; solo `service_role`) e índice de envíos en rojo. Rellenó las 4 columnas en las 2 Entradas de la Biblioteca.
+**Pruebas (7 nov):**
+- Tests primero: `tests/unit/entradas-panel.test.ts` (16) y `tests/integracion/entradas-panel.test.ts` (14). GitHub: unitarios 328/328 e integración 309/309.
+- Migración aplicada en producción antes de fusionar (`db push --dry-run` → solo esta; después `db push`). En producción, la función responde a `service_role` y da **401** a una clave pública.
+- Producción con Playwright: el panel sale publicado; cifras iguales a la base (registro 22 leads / 44 envíos, agenda 3 / 6, GHL · Biblioteca 474 / 499, Prueba GHL 1 / 4); sin errores en la consola; ninguna clave entera a la vista; **sin scroll horizontal** a 1440 px y a 390 px (también con todo desplegado).
+- En «Prueba GHL»: cambiar «Landing» → sale el aviso → «Guardar» → en la base `landing = prueba` y el resto de lo de GHL igual; después se dejó vacía otra vez. «Ver más» en el registro: de 15 a 44 y el botón desaparece.
+- Las 2 Entradas reales: misma configuración que antes (activas, GHL, 300 s, sus etiquetas) y sin rojos. Desde la publicación (14:47 UTC) aún no había llegado ningún lead real; se comprobó que sus direcciones responden con el código nuevo mandando un JSON mal escrito → **400** (la Entrada existe y está activa; no se guarda nada) y 0 envíos nuevos creados.
+**No probado:** el aviso del navegador al salir con cambios sin guardar (Playwright no enseña ese diálogo); «Cambiar la dirección», «Apagar» y «Borrar» en producción (no se tocaron); crear una Entrada nueva en producción (probado solo en los tests de integración).
 
 ### 1 · Fase 4 · Workflows visuales en el dashboard (plan propio antes de programar)
 *Qué es:* un apartado del dashboard para crear workflows como los de GHL (disparador → pasos), para dejar de depender de los workflows de GHL.
@@ -78,7 +100,8 @@
 - **Pantalla:** Administración → Workflows: el lienzo, el historial de cada lead (qué paso hizo y cuándo) y el interruptor.
 - **Migración:** «Qué hacer en GHL» de cada Entrada pasa a ser su workflow; las reglas de pipeline, ramas.
 - **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que hoy) · 4b lienzo de solo lectura · 4c edición en el lienzo · 4d disparadores de etiqueta, columna y cita. **4a, 4b y 4c antes de la landing de agenda; 4d después** (Cristian).
-- [ ] Hacer el plan propio de la fase 4 con estas decisiones y enseñárselo a Cristian antes de programar.
+- [x] Hacer el plan propio de la fase 4 con estas decisiones: **`docs/plan-workflows.md`** (7 nov). Allí están las decisiones nuevas de Cristian (lienzo con HTML y CSS sin dependencias, modo de prueba en paralelo para la Biblioteca, 4a en detalle), el motor, las tablas, los tests y lo que falta.
+- [x] Cristian aprueba `docs/plan-workflows.md` (7 nov). Siguiente: 4a.
 
 ### 2 · Revisar todo con Cristian
 - [ ] Repasar juntos el panel de endpoints y los workflows en el dashboard. Si está bien, se pasa al punto 3; si no, se apunta qué cambiar.
@@ -128,7 +151,11 @@
 Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - [ ] **URGENTE · `BIBLIOTECA/build.py` puede dejar la Biblioteca sin recoger leads.** Cristian no lo usa nunca, pero no puede existir la posibilidad. *Qué hace* (leído en el código, sin ejecutarlo): lee la copia vieja `original/*.html` y **reescribe** `index.html`, `recursos.html`, `repos.html` y `programa.html` de la web. Sin `--publicar` deja el formulario de registro con `endpoint: ''` («modo demo», no envía nada; líneas 78–79); también vuelve «AI» y quita `CM_HAS_ACCESS`. Si ese `index.html` se publicara, **los registros dejarían de llegar al dashboard**. *Cómo se arregla:* lo está revisando otra sesión, en la carpeta de la Biblioteca («Revisar build.py de la Biblioteca»): de dónde sale, si puede llegar a la web publicada y qué arreglo propone. Cristian decide allí. Es otro repo (`biblioteca-maestria`): su propio PR.
 - [ ] **IMPORTANTE · Menos llamadas a GHL por lead.** Hoy un lead hace hasta 8 llamadas; juntando, 3 a 5 (las columnas de GHL una vez por lectura y una sola búsqueda de oportunidades por contacto). Detalle en `docs/mejora-llamadas-ghl.md`. **Primero, revisar en la especificación de GHL** (`apps/opportunities.json`) **si hay una forma de crear varias oportunidades en una sola llamada** (no está comprobado).
-- [ ] **Envíos en rojo siempre visibles y «Ver más».** *Qué pasa:* en Administración → Entradas → cada Entrada → «Últimos envíos recibidos» solo salen los 15 últimos (`page.tsx`, `evs.slice(0, 15)`), y la página carga como mucho los 200 últimos envíos de todas las Entradas (`.limit(200)`). Un envío en rojo antiguo no se ve (pasó el 7 nov) y, con más de 200, ni se cuenta en el aviso. *Decidido:* (1) los envíos en rojo se buscan aparte, sin límite, y salen siempre arriba con su «Reintentar»; (2) debajo, los 15 últimos; (3) botón «Ver más» que carga 50 más cada vez (todos de golpe no: cada envío lleva el formulario entero). *Tests primero:* un rojo más antiguo que los 200 últimos sale con su botón; «Ver más» trae los siguientes.
+- [x] **Envíos en rojo siempre visibles y «Ver más».** Hecho dentro del panel de endpoints (punto 0, PR #33).
+- [x] **Texto «1 lead recibidos».** Arreglado el 7 nov (dashboard PR #36, `083a2f8`): con 1 lead pone «1 lead recibido» (`leadsRecibidos` en `src/lib/entradas-panel.ts`, con test). Comprobado en producción con Playwright en «Prueba GHL».
+- [ ] **Campos sugeridos en «Reglas» y «Qué hacer en GHL».** Desde el panel, la lista de campos que se sugieren sale de los 15 últimos envíos y los rojos (antes, de hasta 200). Un campo que la landing mandó hace tiempo y ya no manda no sale en la lista (se puede escribir a mano). Si molesta: guardar en la Entrada los nombres de campo vistos.
+- [ ] **Aviso `leads_pkey` en los tests de integración.** El registro de GitHub enseña `[acción] error inesperado: duplicate key value violates unique constraint "leads_pkey"`. No hace fallar ningún test y también sale en `main` antes del panel (run `42373520151`). Buscar qué test lo provoca y si es solo del test o puede pasar en producción.
+- [ ] **El formulario de Entradas «se resetea solo».** Visto el 7 nov; no se pudo repetir (149 s sin perder nada, con clics normales). Hipótesis sin comprobar: ese día hubo 12 publicaciones en Vercel (PR #21 a #32) y, cuando la página abierta es de una publicación anterior, Next.js recarga la página entera (`node_modules/next/dist/docs/01-app/02-guides/self-hosting.md`, «Version Skew»). Desde el panel, si hay cambios sin guardar, el navegador avisa antes de recargar. Si vuelve a pasar: mirar si coincidió con una publicación.
 - [ ] **Reintentos cada 1 min de verdad.** Se vio el 6 nov que van cada 2 min. Arreglo propuesto: programar el siguiente intento a +50 s (hoy +60 s, `REINTENTAR_EN` en `src/lib/ghl-envios.ts`). Comprobar la causa con un test antes de cambiarlo.
 - [ ] **Bloquear el bucle.** *Qué es:* una Entrada puede recibir leads desde un workflow de GHL (como la vieja «GHL · Biblioteca»). Si además tuviera «Mandar a GHL» encendido, el dashboard escribiría en el contacto de GHL, eso podría volver a disparar el workflow, que mandaría otra vez al dashboard, y así sin parar (muchas llamadas y quizá cobros). Hoy no pasa (esa Entrada está desactivada). *Decidido:* (1) interruptor en la Entrada «La alimenta un workflow de GHL»; si está encendido, no deja encender «Mandar a GHL»; (2) **email a info@eternity.llc** en los dos casos: cuando alguien intenta encender «Mandar a GHL» en una Entrada marcada (y se bloquea) y cuando el dashboard ve que pasa de verdad (el mismo lead entra desde GHL justo después de que el dashboard se lo mandara).
 
@@ -144,8 +171,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 
 ## Para decidir (Cristian)
 - **`build.py`:** en revisión en otra sesión («Revisar build.py de la Biblioteca»).
-- **Panel de endpoints:** (1) ¿es la pestaña de hoy, Administración → Entradas, rediseñada como la maqueta, o un panel nuevo aparte? (2) Además de lo de la maqueta, ¿cada endpoint enseña cuántos leads y envíos ha recibido, cuándo llegó el último y si hay alguno en rojo? (3) ¿Un botón para copiar el JSON de ejemplo de esa landing, para pasárselo al equipo? (4) ¿Solo lo ven los jefes, como hoy Entradas? (5) ¿Se hace a la vez la mejora «Envíos en rojo siempre visibles y "Ver más"» (es la misma pantalla)? (6) ¿Que el dashboard entienda el JSON v1 y guarde la IP va con el panel o con el punto 3?
-- **Mejoras pequeñas:** ¿cuándo? (antes iban justo después de A, B y C; con el orden nuevo no tienen sitio decidido).
+- **Mejoras pequeñas:** ¿cuándo? (incluye las nuevas del 7 nov: campos sugeridos, aviso `leads_pkey` y el formulario que se resetea) (antes iban justo después de A, B y C; con el orden nuevo no tienen sitio decidido).
 
 ---
 
@@ -164,6 +190,8 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 | Web · Biblioteca agenda | `bc00a154…` | Activa, GHL encendido, espera 300 s. Dashboard «0. Agendas General → Form» y regla `utm_source` igual a `agenda-biblioteca` → «Canal: Biblioteca». GHL «0. Agendas Biblioteca» y «0. Agendas General», primera columna («Form»). Etiqueta base `Biblioteca-agenda`, fija `agenda biblioteca`. Recibe de `web/programa.js` |
 | GHL · Biblioteca | `b173a67a…` | Desactivada. La alimentaba el workflow «0. AP - Biblioteca», que ya no existe en GHL; no recibe nada desde el 16 oct |
 | Prueba GHL | `e5a2bfa9…` | Apagada. Se queda para repetir pruebas sin tocar las Entradas reales |
+
+Desde el panel (7 nov), registro y agenda tienen apuntado en el dashboard: landing `biblioteca`, formulario `registro` / `agenda`, envía desde servidor (`api/signup.js`) / navegador (`web/programa.js`).
 
 **Pipelines de GHL:**
 - «1. Biblioteca Recursos» `dE7go9T3Mi2zbIT4sGME`: «Registrados» `9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d`, «Form Agenda» `77b3ce38-39b2-446d-b734-f38bc29c88e2` (ya no se usa), «Agendado» `f0c80531-c23f-4af5-b0a2-03c4095b432a`.
