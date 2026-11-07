@@ -65,7 +65,7 @@ const conGhl = { locationId: "loc-test", token: "tok", fetchImpl: falsoGhl, avis
 
 beforeAll(async () => {
   e = await crearEscenario();
-  await db.from("proyectos").update({ ghl_location_id: "loc-test" }).eq("id", e.proyecto.id);
+  await db.from("proyectos").update({ ghl_location_id: "loc-test", ghl_token: "token-de-prueba-no-real" }) // «Pasar a real» exige GHL conectado; el motor recibe el token aparte (conGhl).eq("id", e.proyecto.id);
   const { data, error } = await db.from("entradas").insert({ proyecto_id: e.proyecto.id, nombre: "WF agenda", pipeline_id: e.pipeline.id, ...CONFIG_GHL }).select("id, token").single();
   if (error) throw new Error(error.message);
   token = data!.token;
