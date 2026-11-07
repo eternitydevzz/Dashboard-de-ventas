@@ -13,6 +13,8 @@ import { haceCuanto, type DatosLanding } from "@/lib/entradas-panel";
 import { enviosDeEntrada, enviosEnRojo, resumenEntradas, ULTIMOS, type EnvioEntrada, type ResumenEntrada } from "@/lib/entradas-datos";
 import { resumenWorkflows } from "@/lib/workflows-motor";
 import type { WorkflowVista } from "./entradas-workflow";
+import { VistaWorkflows, type EjecucionFila, type WorkflowFila } from "./workflows";
+import type { Nombres } from "@/lib/workflows-vista";
 import { camposGhl, columnasEnOrdenGhl, pipelinesGhl } from "@/lib/ghl";
 import { descifrar } from "@/lib/cifrado";
 import { ConexionGhl, CalendarioCloser, UsuarioGhl } from "./ghl";
@@ -38,6 +40,7 @@ const PESTANAS = [
   { v: "comisiones", t: "Comisiones" }, // 1.0 bloque 4: tramos
   { v: "reportes", t: "Reportes" }, // 1.0 bloque 7: preguntas del reporte
   { v: "entradas", t: "Entradas (landings)" },
+  { v: "workflows", t: "Workflows" }, // Plan de workflows 4b (7 nov 2026): solo lectura
   { v: "integraciones", t: "Integraciones GHL" },
   { v: "permisos", t: "Permisos" }, // H5: también el director con Administración
 ];
@@ -83,6 +86,35 @@ async function cargarWorkflows(proyectoId: string) {
     m.set(w.entrada_id as string, { id: w.id, modo: w.modo, resumen: res.get(w.id) ?? { total: 0, coinciden: 0, no_coinciden: 0, esperando: 0, errores: 0 }, diferencias });
   }
   return m;
+}
+
+// Workflows 4b (7 nov 2026): la lista, el elegido (?wf=), su historial (50 últimos) y los nombres para el lienzo
+async function cargarVistaWorkflows(proyectoId: string, wf: string | undefined) {
+  const [{ data: wfs }, resumen, { data: en }, { data: pl }, { data: pg }] = await Promise.all([
+    db().from("workflows").select("id, nombre, disparador, pasos, modo, encendido").eq("proyecto_id", proyectoId).order("encendido", { ascending: false }).order("creado_en"),
+    resumenWorkflows(proyectoId),
+    db().from("entradas").select("id, nombre").eq("proyecto_id", proyectoId),
+    db().from("pipelines").select("id, nombre, etapas(id, nombre)").eq("proyecto_id", proyectoId),
+    db().from("proyectos").select("ghl_location_id, ghl_token").eq("id", proyectoId).single(),
+  ]);
+  const workflows = (wfs ?? []) as WorkflowFila[];
+  const elegido = workflows.find((w) => w.id === wf) ?? workflows[0] ?? null;
+  const nombres: Nombres = {
+    entradas: Object.fromEntries((en ?? []).map((x) => [x.id, x.nombre])),
+    pipelinesDashboard: Object.fromEntries(((pl ?? []) as { id: string; nombre: string; etapas: { id: string; nombre: string }[] }[]).map((p) => [p.id, { nombre: p.nombre, etapas: Object.fromEntries(p.etapas.map((e) => [e.id, e.nombre])) }])),
+    pipelinesGhl: {},
+  };
+  // Los nombres de los pipelines de GHL solo si el workflow tiene oportunidades (es una llamada a GHL)
+  if (elegido && JSON.stringify(elegido.pasos).includes("oportunidad_ghl") && pg?.ghl_token && pg.ghl_location_id) {
+    const o = await cargarOpcionesGhl(descifrar(pg.ghl_token, "el token de GHL"), pg.ghl_location_id);
+    nombres.pipelinesGhl = Object.fromEntries(o.pipelines.map((p) => [p.id, { nombre: p.nombre, etapas: Object.fromEntries(p.etapas.map((e) => [e.id, e.nombre])) }]));
+  }
+  let ejecuciones: EjecucionFila[] = [];
+  if (elegido) {
+    const { data: ej } = await db().from("workflow_ejecuciones").select("id, estado, coincide, creado_en, siguiente_en, registro, leads(email, telefono, nombre)").eq("workflow_id", elegido.id).order("creado_en", { ascending: false }).limit(50);
+    ejecuciones = ((ej ?? []) as unknown as (Omit<EjecucionFila, "quien"> & { leads: { email: string | null; telefono: string | null; nombre: string } | null })[]).map(({ leads, ...x }) => ({ ...x, quien: leads?.email || leads?.telefono || leads?.nombre || "Lead borrado" }));
+  }
+  return { workflows, resumen, elegido, ejecuciones, nombres };
 }
 
 // Nombres de campo que han llegado (también los de dentro de objetos, como «quiz.inversion»)
@@ -157,6 +189,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   let rojos: EventoEntrada[] = [];
   const ultimosDe = new Map<string, EventoEntrada[]>();
   let workflowDe = new Map<string, WorkflowVista>(); // Workflows 4a-1: el workflow en marcha de cada Entrada
+  const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined) : null;
   if (tab === "entradas") {
     const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
       db().from("entradas").select("*").eq("proyecto_id", proyecto.id).order("creado_en"),
@@ -393,6 +426,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             </Seccion>
           </div>
         )}
+
+        {tab === "workflows" && vistaWf && <VistaWorkflows {...vistaWf} proyecto={proyecto} />}
 
         {tab === "integraciones" && (
           <div className="grid gap-5 xl:grid-cols-2">
