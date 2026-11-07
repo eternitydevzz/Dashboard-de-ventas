@@ -98,7 +98,7 @@ export function GuionLlamada({
       titulo={`Guion · ${nombreLead}`}
       onCerrar={cerrar}
       claseFondo="p-0 sm:p-6"
-      claseVentana="flex h-dvh w-full flex-col overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-[920px] sm:rounded-[20px]"
+      claseVentana="flex h-dvh w-full flex-col [--panel:#ffffff]! dark:[--panel:#121c3a]! overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-[920px] sm:rounded-[20px]"
       cabecera={
         <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-4 py-3 sm:px-5">
           <div className="min-w-0 flex-1">

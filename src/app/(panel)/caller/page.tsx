@@ -113,7 +113,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
 
         <ColaCaller
           pestanas={
-            <div className="flex gap-1.5 overflow-x-auto border-b border-borde p-2 [scrollbar-width:none]" role="group" aria-label="Filtrar por columna">
+            <div className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-borde p-2 [scrollbar-width:none]" role="group" aria-label="Filtrar por columna">
               {FILTROS.map((f) => (
                 <Link prefetch={false} key={f.v} href={enlaceFiltro(f.v)} aria-pressed={filtro === f.v} className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold ${filtro === f.v ? "border-transparent bg-primario-suave text-primario" : "border-borde bg-panel-2 text-texto-2 hover:text-texto"}`}>
                   {f.t}<span className={`ml-1.5 rounded-full px-1.5 text-[11px] tabular-nums ${filtro === f.v ? "bg-primario-boton text-white" : "bg-panel text-texto-2"}`}>{cuenta[f.v] ?? 0}</span>

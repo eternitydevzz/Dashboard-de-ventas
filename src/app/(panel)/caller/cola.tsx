@@ -141,7 +141,8 @@ export function ColaCaller({
     <div className="grid items-start gap-[18px] min-[1100px]:grid-cols-[492px_minmax(0,1fr)]">
       <aside className="tarjeta flex flex-col overflow-hidden min-[1100px]:sticky min-[1100px]:top-4 min-[1100px]:max-h-[calc(100vh-32px)]">
         {pestanas}
-        <div className="relative border-b border-borde px-2.5 py-2">
+        {/* Revisión en la app (7 nov): sin shrink-0, la columna aplastaba las pastillas y el buscador a 1440 px */}
+        <div className="relative shrink-0 border-b border-borde px-2.5 py-2">
           <Search className="pointer-events-none absolute left-[21px] top-1/2 h-4 w-4 -translate-y-1/2 text-texto-3" />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} className="campo pl-[34px]" placeholder="Buscar por nombre o teléfono…" aria-label="Buscar por nombre o teléfono" />
         </div>
@@ -193,7 +194,7 @@ export function ColaCaller({
           </table>
         </div>
         {/* F7: avisa cuando no se pintan todos */}
-        <div className="border-t border-borde px-3.5 py-2.5 text-xs text-texto-3">{total} leads{total > leads.length ? ` · se ven los ${leads.length} primeros: ordena o filtra para ver otros` : ""}{q ? ` · ${filas.length} con «${busca.trim()}»` : ""}</div>
+        <div className="shrink-0 border-t border-borde px-3.5 py-2.5 text-xs text-texto-3">{total} leads{total > leads.length ? ` · se ven los ${leads.length} primeros: ordena o filtra para ver otros` : ""}{q ? ` · ${filas.length} con «${busca.trim()}»` : ""}</div>
       </aside>
 
       <div ref={ficha} className="flex min-w-0 scroll-mt-4 flex-col gap-4">
