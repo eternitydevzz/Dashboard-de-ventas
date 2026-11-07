@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 15 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 16 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -13,15 +13,15 @@
 | 1 · El dashboard hace en GHL lo que hacía el workflow | Hecha (PR #9 y #10) |
 | 2 · Registro de la Biblioteca sin webhook | Hecha (biblioteca-maestria PR #1) |
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
-| **Mejoras pequeñas** | **← Siguiente** |
-| 4 · Workflows visuales (motor y lienzo para editar) | Pendiente. Diseño decidido; falta su plan propio |
-| 5 · Skill «conectar-web-al-dashboard» (el manual de landings) | Pendiente, **después** de los workflows y el lienzo |
+| **Template de landings + skill** | **← Siguiente** (maqueta hecha) |
+| Mejoras pequeñas | Pendiente |
+| 4 · Workflows visuales (motor y lienzo de lectura y edición) | Pendiente. Diseño decidido; falta su plan propio |
 | 6 · Landing de agenda de `codigomaestria.com` | Pendiente, **después** de los workflows visuales |
 | 6 · Optin | Pendiente |
 | Unir leads duplicados | Pendiente |
 | Al final | Proyectos sin calendarios · mover `codigomaestria.com` de GHL a Vercel |
 
-**Orden (Cristian):** mejoras pequeñas → workflows visuales con su lienzo para editar (fase 4) → skill (fase 5) → landing de agenda (fase 6) → optin (fase 6) → unir duplicados → al final, proyectos sin calendarios y mover `codigomaestria.com` a Vercel. Regalos: de momento no. Solo Maestria.
+**Orden (Cristian):** template de landings y skill → mejoras pequeñas → workflows visuales con su lienzo (fase 4; después se actualiza la skill) → landing de agenda (fase 6) → optin (fase 6) → unir duplicados → al final, proyectos sin calendarios y mover `codigomaestria.com` a Vercel. Regalos: de momento no. Solo Maestria.
 
 ## Cómo funciona hoy (la Biblioteca)
 - **Registro:** formulario → `biblioteca.codigomaestria.com/api/signup` (función de Vercel) → desde el servidor, POST a la Entrada «Web · Biblioteca registro» del dashboard (2 intentos de 5 s).
@@ -60,7 +60,18 @@
 
 ## Lo que falta, en orden
 
-### 1 · Mejoras pequeñas (Claude) ← siguiente
+### 0 · Template de landings + skill (Claude) ← siguiente
+*Por qué:* que todas las landings manden **el mismo JSON** a **la misma dirección** (solo cambia la clave de cada Entrada), para compartirlo con el equipo y empezar a cambiar las landings. Va antes que todo lo demás (Cristian, 7 nov). Maqueta visual: `VENTAS/maqueta-template-landing.html` (no está en el repo).
+**Decidido:**
+- **Dirección:** una por landing, como hoy: `https://dashboard.eternity.llc/api/webhooks/entrada/<clave>`. Si una clave se filtra, se cambia solo esa.
+- **La landing solo manda datos.** Etiquetas, pipeline y GHL los decide el dashboard.
+- **JSON v1** (los nombres que el dashboard ya entiende hoy, para no romper nada): `template` (`v1`), `source` (landing), `form`, `step`, `event_id`, `submitted_at`; `name`, `first_name`, `last_name`, `email`, `phone`; `quiz` (`{ pregunta: respuesta }`), `quiz_completed`, `quiz_answered`, `quiz_score`; `page_url`, `referrer`, los 6 UTM, `fbclid`, `gclid`, `ttclid`; `ip`, `user_agent`, `language`, `timezone`. Fuera, respecto al webhook de GHL: `tags`, los `quiz_*` repetidos y `headers`.
+- **IP:** en el webhook de GHL la IP es la del servidor de GHL (`98.82.169.51`, Ashburn), no la de la persona. Desde el navegador el dashboard la lee él mismo; desde un servidor (como `api/signup.js`) la landing la manda en `ip`. Hoy el dashboard no la guarda: cambio pequeño, con test.
+- **Para el equipo:** `Template-landing.md` (qué es, JSON de ejemplo, tabla de campos y pasos), `templates/enviar-al-dashboard.js` (versión navegador y versión servidor, con reintentos y UTM) y la skill para Claude «conectar-web-al-dashboard». En la carpeta `Team` del repo de GitHub y con copia en local.
+- **Skill a la vez que el template.** Cuando estén los workflows (fase 4), se actualiza su paso 2 («crear el workflow»).
+**Pasos:** tests primero (el dashboard entiende el JSON v1 y guarda la IP) → código pequeño en el dashboard (IP y campos nuevos) → los 3 archivos del equipo → PR → probar con un envío real de prueba → Cristian lo revisa.
+
+### 1 · Mejoras pequeñas (Claude)
 Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - [ ] **URGENTE · `BIBLIOTECA/build.py` puede dejar la Biblioteca sin recoger leads.** Cristian no lo usa nunca, pero no puede existir la posibilidad. *Qué hace* (leído en el código, sin ejecutarlo): lee la copia vieja `original/*.html` y **reescribe** `index.html`, `recursos.html`, `repos.html` y `programa.html` de la web. Sin `--publicar` deja el formulario de registro con `endpoint: ''` («modo demo», no envía nada; líneas 78–79); también vuelve «AI» y quita `CM_HAS_ACCESS`. Si ese `index.html` se publicara, **los registros dejarían de llegar al dashboard**. *Cómo se arregla:* lo está revisando otra sesión, en la carpeta de la Biblioteca («Revisar build.py de la Biblioteca»): de dónde sale, si puede llegar a la web publicada y qué arreglo propone. Cristian decide allí. Es otro repo (`biblioteca-maestria`): su propio PR.
 - [ ] **IMPORTANTE · Menos llamadas a GHL por lead.** Hoy un lead hace hasta 8 llamadas; juntando, 3 a 5 (las columnas de GHL una vez por lectura y una sola búsqueda de oportunidades por contacto). Detalle en `docs/mejora-llamadas-ghl.md`. **Primero, revisar en la especificación de GHL** (`apps/opportunities.json`) **si hay una forma de crear varias oportunidades en una sola llamada** (no está comprobado).
@@ -81,13 +92,8 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que hoy) · 4b lienzo de solo lectura · 4c edición en el lienzo · 4d disparadores de etiqueta, columna y cita. **4a, 4b y 4c antes de la landing de agenda; 4d después** (Cristian).
 - [ ] Hacer el plan propio de la fase 4 con estas decisiones y enseñárselo a Cristian antes de programar.
 
-### 3 · Fase 5 · Skill «conectar-web-al-dashboard» = el manual para landings (Claude, después de los workflows y el lienzo)
-*Por qué:* que conectar una landing nueva sea fácil y siempre igual. Es una **skill** (instrucciones que Claude sigue paso a paso), no un documento. Va después de los workflows porque su paso 2 será «crear el workflow» y se prueba en seguida con la landing de agenda.
-- [ ] Con el caso real de la Biblioteca y `kit-creador-maestria:crear-skills`. Contenido: los 7 pasos de «Cómo conectar una landing» (abajo) y lo aprendido con la Biblioteca: etiquetas `<web>-<form>-completo/-incompleto` en minúsculas; etiquetas viejas como etiquetas fijas; varios pipelines de GHL por Entrada en su primera columna (leer su nombre en el formulario antes de guardar); agendas en los dos sitios (su pipeline y «0. Agendas General → Form») con «Canal: …» desde una regla de la Entrada; espera de 5 min en todas las Entradas; el `utm_source` de la landing tiene que existir en `src/lib/canal.ts`; el contacto de GHL puede ser de otro lead (mismo teléfono); pruebas con `info+…@eternity.llc` y teléfonos 555-01xx; comprobar el día antes de reservar y cancelar la cita; aplicar migraciones antes de publicar; cómo volver atrás.
-- [ ] Una sola copia, en `app/.claude/skills/conectar-web-al-dashboard/`; `~/.claude/skills/conectar-web-al-dashboard` apunta a ella con un enlace. Se prueba con la landing de agenda.
-
-### 4 · Fase 6 · Landing de agenda de `codigomaestria.com` (Claude, con la skill y los workflows)
-- [ ] `codigomaestria.com/agenda` (`LANDINGS/Landing agenda/Landing-agendar.html`, hoy manda al webhook `2f05f800…`), **con una Entrada** y su workflow del dashboard. Hacer lo mismo que hace hoy su workflow de GHL con el formulario (ramas por `utm_source`, ver «Datos»): leerlo antes con Playwright. La página y el calendario siguen en GHL. **El cambio en la página lo hace Cristian:** Claude le da la dirección de la Entrada (`https://dashboard.eternity.llc/api/webhooks/entrada/<clave>`) y él la pone en GHL en lugar del webhook actual. Antes, Claude lee `Landing-agendar.html` para confirmar que el JSON que manda vale tal cual. Con prueba, y Cristian la ve.
+### 3 · Fase 6 · Landing de agenda de `codigomaestria.com` (Claude, con la skill y los workflows)
+- [ ] `codigomaestria.com/agenda` (`LANDINGS/Landing agenda/Landing-agendar.html`, hoy manda al webhook `2f05f800…`), **con una Entrada** y su workflow del dashboard. Hacer lo mismo que hace hoy su workflow de GHL con el formulario (ramas por `utm_source`, ver «Datos»): leerlo antes con Playwright. La página y el calendario siguen en GHL. **El cambio en la página lo hace Cristian:** Claude le da la dirección de la Entrada (`https://dashboard.eternity.llc/api/webhooks/entrada/<clave>`) y él la pone en GHL en lugar del webhook actual. Antes, Claude lee `Landing-agendar.html` y la pasa al JSON v1 del template. Con prueba, y Cristian la ve.
 - [ ] Cuando ya no la use ninguna web, apagar el workflow «2 . WH - FORM AGENDA GENERAL» y su webhook (con permiso de Cristian).
 - [ ] **Pestaña «UTMs» en KPIs** (Cristian), **antes** de publicar la landing de agenda, para ver sus UTM desde el primer día. Al lado de «Leads» (KPIs → Leads · Funnel · Por persona · Objetivos) y **solo para jefes**, como «Leads». Un lugar donde se siguen **los UTM y las etiquetas, por landing (Entrada) y en general**:
   - una tabla con cada lead, su landing, sus UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`) y sus etiquetas;
@@ -95,14 +101,14 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
   - arriba, totales por `utm_source`, por campaña y por etiqueta.
   Hoy los UTM ya se guardan en cada lead (`seguimiento`) y las etiquetas en `etiquetas`. Plan propio corto (qué consultas y qué pantalla) antes de programar.
 
-### 5 · Fase 6 · Optin y cierre de webhooks
+### 4 · Fase 6 · Optin y cierre de webhooks
 - [ ] **Optin** `LANDINGS/landing-codigomaestria/landing-ghl.html` (webhook `83c32b0a…`), con la skill.
 - Regalos 1 a 7 y `regalos-maestria` (webhook `37e6bc4c…`, workflow `AP - Regalos` `c3bd1ba2…`): **de momento no**.
 - [ ] Apagar cada «Inbound Webhook» cuando todas sus webs estén cambiadas (Claude con Playwright, con permiso de Cristian).
 - [ ] A final de mes, `inbound_webhook` cerca de $0 en el monedero.
 - [ ] Actualizar `docs/GUIA-GHL.md` y `docs/plan.md`.
 
-### 6 · Unir leads duplicados
+### 5 · Unir leads duplicados
 **Contexto:** el dashboard reconoce a una persona por su contacto de GHL, por su email o, si no tiene email, por su teléfono (`src/lib/leads.ts`). GHL la reconoce por email **o** teléfono. Así, quien se registra con dos emails y el mismo teléfono queda como **2 leads en el dashboard y 1 contacto en GHL** (caso real: leads `e7cc481b…` y `c407dcf9…`, contacto `oIEMl9RNaQEANZQnLWEb`). El envío ya no falla (el segundo lead no guarda el id de GHL y su historial lo apunta), pero siguen siendo 2 leads. Hoy se quedan los 2.
 **Qué hay que decidir y diseñar (con Cristian, antes de programar):**
 - Cuándo se consideran el mismo: ¿mismo teléfono (normalizado con `telefonoClave`)? ¿mismo contacto de GHL?
@@ -110,7 +116,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - Automático al entrar o un botón «Unir» en la ficha del lead (Cristian revisa antes). Unir implica **borrar** un lead: lo confirma Cristian.
 - Buscar cuántos duplicados hay hoy (por teléfono) antes de elegir.
 
-### 7 · Al final
+### 6 · Al final
 - [ ] **Proyectos sin calendarios.** La lectura de 60 s solo se lanza en proyectos con calendarios (`20261017120000_leer_ghl_cada_30s.sql`): un proyecto sin calendarios nunca mandaría a GHL. Hoy no afecta (Maestria tiene calendarios).
 - [ ] **Mover `codigomaestria.com` de GHL a Vercel.**
 
@@ -126,6 +132,8 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 
 ## Para decidir (Cristian)
 - **`build.py`:** en revisión en otra sesión («Revisar build.py de la Biblioteca»).
+- **Template, dónde van los archivos:** ¿la carpeta `Team` va en la raíz del repo del dashboard (`app/Team/`)? ¿La copia local va en `PROYECTOS/GENERAL/VENTAS/Team/`? ¿La skill también dentro de `Team` (y `~/.claude/skills/` apunta a ella), en lugar de `app/.claude/skills/`?
+- **Template, landings que ya existen:** ¿se pasan al JSON v1 las dos de la Biblioteca (registro y agenda) dentro de este punto, o más adelante?
 
 ---
 
@@ -173,7 +181,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 ---
 
 ## Cómo conectar una landing (sin webhooks de GHL)
-Lo mismo que se hizo con la Biblioteca, en 7 pasos. Una landing cada vez; hasta que funciona en producción no se pasa a la siguiente. Cuando exista la skill (fase 5), estos pasos van en ella; cuando existan los workflows del dashboard (fase 4), el paso 2 será crear el workflow.
+Lo mismo que se hizo con la Biblioteca, en 7 pasos. Una landing cada vez; hasta que funciona en producción no se pasa a la siguiente. Estos pasos van en la skill «conectar-web-al-dashboard» (punto 0); cuando existan los workflows del dashboard (fase 4), el paso 2 será crear el workflow.
 
 1. **Leer lo de hoy:** qué manda la landing (abrir el código y ver el JSON) y qué hace su workflow de GHL (con Playwright): campos, etiqueta, pipeline, columna y ramas.
 2. **Crear su Entrada** en Administración → Entradas: nombre `Web · <landing> <form>`, pipeline del dashboard y, en «Qué hacer en GHL», los campos unidos (UTM incluidos), sus pipelines de GHL («Añadir pipeline»), etiqueta base `<web>-<form>` (en minúsculas), etiquetas fijas si hacen falta y espera de 5 min. Dejar «Mandar a GHL» apagado hasta la prueba.
