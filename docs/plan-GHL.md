@@ -14,7 +14,7 @@
 | 2 · Registro de la Biblioteca sin webhook | Hecha (biblioteca-maestria PR #1) |
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
-| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Diseño decidido; falta su plan propio |
+| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`); en curso: 4a |
 | Revisión de todo con Cristian | Pendiente |
 | Template de landings, skill y archivos del equipo | Pendiente (maqueta hecha) |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
@@ -100,7 +100,8 @@
 - **Pantalla:** Administración → Workflows: el lienzo, el historial de cada lead (qué paso hizo y cuándo) y el interruptor.
 - **Migración:** «Qué hacer en GHL» de cada Entrada pasa a ser su workflow; las reglas de pipeline, ramas.
 - **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que hoy) · 4b lienzo de solo lectura · 4c edición en el lienzo · 4d disparadores de etiqueta, columna y cita. **4a, 4b y 4c antes de la landing de agenda; 4d después** (Cristian).
-- [ ] Hacer el plan propio de la fase 4 con estas decisiones y enseñárselo a Cristian antes de programar.
+- [x] Hacer el plan propio de la fase 4 con estas decisiones: **`docs/plan-workflows.md`** (7 nov). Allí están las decisiones nuevas de Cristian (lienzo con HTML y CSS sin dependencias, modo de prueba en paralelo para la Biblioteca, 4a en detalle), el motor, las tablas, los tests y lo que falta.
+- [x] Cristian aprueba `docs/plan-workflows.md` (7 nov). Siguiente: 4a.
 
 ### 2 · Revisar todo con Cristian
 - [ ] Repasar juntos el panel de endpoints y los workflows en el dashboard. Si está bien, se pasa al punto 3; si no, se apunta qué cambiar.
