@@ -40,7 +40,7 @@ const TIPOS: { tipo: Paso["tipo"]; icono: Icono; t: string; d: string }[] = [
   { tipo: "etiquetas_ghl", icono: "etiqueta", t: "Etiquetas en GHL", d: "Poner etiquetas" },
   { tipo: "quitar_etiqueta_ghl", icono: "etiqueta", t: "Quitar etiqueta en GHL", d: "Quitar una etiqueta" },
   { tipo: "oportunidad_ghl", icono: "diana", t: "Oportunidad en GHL", d: "En un pipeline y columna" },
-  { tipo: "mover_dashboard", icono: "mover", t: "Mover en el dashboard", d: "A un pipeline y columna (solo en prueba por ahora)" },
+  { tipo: "mover_dashboard", icono: "mover", t: "Mover en el dashboard", d: "A un pipeline y columna" },
   { tipo: "rama", icono: "rama", t: "Rama «si el campo…»", d: "Un camino distinto según un campo" },
 ];
 const igual = (a: Ruta | null, b: Ruta | null) => !!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]);
@@ -284,7 +284,7 @@ function Inspector({ paso, poner, opciones }: { paso: Paso; poner: (p: Paso) => 
       const lista = paso.tipo === "oportunidad_ghl" ? opciones.pipelinesGhl : opciones.pipelinesDashboard;
       return (
         <>
-          <Titulo t={paso.tipo === "oportunidad_ghl" ? "Oportunidad en GHL" : "Mover en el dashboard"} d={paso.tipo === "oportunidad_ghl" ? "Una por pipeline. Con «Primera columna», la que ya existe no se mueve." : "Pasa el lead a este pipeline y columna del dashboard. Por ahora solo en modo prueba."} />
+          <Titulo t={paso.tipo === "oportunidad_ghl" ? "Oportunidad en GHL" : "Mover en el dashboard"} d={paso.tipo === "oportunidad_ghl" ? "Una por pipeline. Con «Primera columna», la que ya existe no se mueve." : "Pasa el lead a este pipeline y columna del dashboard (si está en otro pipeline, mueve su tarjeta en este)."} />
           <label className="block"><span className="etiqueta-campo">Pipeline</span>
             <Desplegable className="campo" value={paso.pipeline_id} onChange={(e) => poner({ ...paso, pipeline_id: e.target.value, etapa_id: null })}>
               <option value="">Elige el pipeline</option>

@@ -525,7 +525,6 @@ export async function guardarWorkflow(workflowId: string, pasos: unknown) {
     const { data: w } = await db().from("workflows").select("id, pasos, version, modo").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!w) throw new ErrorUsuario("Workflow no encontrado.");
     const limpios = pasosValidos(pasos);
-    if (w.modo === "real" && JSON.stringify(limpios).includes('"mover_dashboard"')) throw new ErrorUsuario("«Mover en el dashboard» todavía no se puede hacer en modo real: quítalo o vuelve a prueba.");
     if (mismoContenido(limpios, w.pasos)) return { ok: true as const, version: w.version as number };
     const version = (w.version as number) + 1;
     await escribir(db().from("workflows").update({ pasos: limpios, version, actualizado_en: new Date().toISOString() }).eq("id", w.id), "workflows");
