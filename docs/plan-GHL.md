@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 11 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 13 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -21,7 +21,7 @@
 | Unir leads duplicados | Pendiente |
 | Al final | Proyectos sin calendarios · mover `codigomaestria.com` de GHL a Vercel |
 
-**Orden (Cristian, 7 nov):** mejoras pequeñas → skill (fase 5) → workflows visuales (fase 4) → landing de agenda (fase 6) → optin (fase 6) → unir duplicados → al final, proyectos sin calendarios y mover `codigomaestria.com` a Vercel. Regalos: de momento no. *Por qué los workflows van antes de la landing de agenda:* esa landing reparte cada lead según su `utm_source` (como el workflow de GHL), y eso necesita ramas, que traen los workflows visuales.
+**Orden (Cristian):** mejoras pequeñas → skill (fase 5) → workflows visuales (fase 4) → landing de agenda (fase 6) → optin (fase 6) → unir duplicados → al final, proyectos sin calendarios y mover `codigomaestria.com` a Vercel. Regalos: de momento no. Solo Maestria.
 
 ## Cómo funciona hoy (la Biblioteca)
 - **Registro:** formulario → `biblioteca.codigomaestria.com/api/signup` (función de Vercel) → desde el servidor, POST a la Entrada «Web · Biblioteca registro» del dashboard (2 intentos de 5 s).
@@ -39,7 +39,7 @@
 - **Pruebas reales:** `info+…@eternity.llc` y teléfonos de ficción 555-01xx. Comprobar el día en pantalla **antes** de confirmar la reserva y cancelar la cita al terminar (las citas mandan email y SMS).
 - Si algo falla o sale algo fuera del plan, se para, se apunta en «Para decidir» y se pregunta a Cristian.
 - Claude no borra datos, no toca permisos de seguridad ni mete contraseñas: eso va en «Lo que hace Cristian».
-- Cada punto del plan se explica solo (qué es, para qué sirve, qué se decidió); nunca «explicado en el chat».
+- Cada punto del plan se explica solo; nunca «explicado en el chat».
 
 ## Decisiones de Cristian (siguen valiendo)
 | Tema | Decisión |
@@ -50,22 +50,11 @@
 | Un envío por lead | Espera de **5 min** en todas las Entradas y un solo envío; si el cuestionario llega tarde, se actualiza y pasa de `-incompleto` a `-completo` (nunca al revés) |
 | Qué es «completo» | Que algún envío del lead traiga `quiz_completed` = true. Se puede cambiar por Entrada («Completo si llega a true») |
 | Oportunidad en GHL | Una por cada pipeline de la Entrada. Se busca si el contacto ya la tiene y se crea solo si no (el upsert de oportunidades de GHL no lleva `contactId`). Con «Primera columna», la que ya existe no se mueve; con una columna elegida, se mueve a esa |
-| Agendas en el dashboard | **En los dos sitios**: el lead sigue en su pipeline (p. ej. «1. Biblioteca Recursos») y además tiene tarjeta en «0. Agendas General». Antes de reservar en «Form»; al reservar, la cita lo pasa a «Agendan». Etiqueta «Canal: …» desde el formulario (decisión del 17 oct, no volver a preguntar) |
-| Agendas en GHL | Oportunidad en «0. Agendas Biblioteca» y en «0. Agendas General» (en General tienen que estar todas), en su primera columna («Form»). La de «0. Agendas Orgánico» que crea el calendario está bien. Con la espera de 5 min, si la persona reserva antes, las oportunidades se crean después y **se quedan en «Form»**: se deja así (Cristian, 7 nov) |
+| Agendas en el dashboard | **En los dos sitios**: el lead sigue en su pipeline (p. ej. «1. Biblioteca Recursos») y además tiene tarjeta en «0. Agendas General». Antes de reservar en «Form»; al reservar, la cita lo pasa a «Agendan». Etiqueta «Canal: …» desde el formulario. No volver a preguntar |
+| Agendas en GHL | Oportunidad en «0. Agendas Biblioteca» y en «0. Agendas General» (en General tienen que estar todas), en su primera columna («Form»). La de «0. Agendas Orgánico» que crea el calendario está bien. Con la espera de 5 min, si la persona reserva antes, las oportunidades se crean después y **se quedan en «Form»**: se deja así |
 | Registro en GHL | Oportunidad en «1. Biblioteca Recursos → Registrados»; ahí se queda aunque la persona agende |
-| Leads por lectura de 60 s | **10** (Cristian, 7 nov; antes 15). Un lead hace hasta 8 llamadas a GHL: 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s) |
-| Leads duplicados (mismo teléfono, otro email) | Se quedan los 2; el envío ya no falla y el historial lo apunta. Plan para unirlos al final de todo |
-| Manual para landings | Una skill (fase 5), no un documento. **Una sola copia** en el repo; `~/.claude/skills/` apunta a ella (Cristian, 7 nov) |
-| Mejoras pequeñas | **Un PR por mejora** (Cristian, 7 nov): si una falla, se revierte sola |
-| Agendas de `codigomaestria.com` | El calendario sigue en GHL. Lo que se trae al dashboard es el **formulario** de cada agenda: sus UTM, sus etiquetas y a dónde va cada lead. En el dashboard, igual que lo hace hoy GHL (Cristian, 7 nov) |
-| `codigomaestria.com` | Hoy está en GHL. Se moverá a Vercel, pero al final de todo (Cristian, 7 nov) |
-| Workflows visuales (fase 4) | Lienzo como GHL; los emails de las secuencias siguen fuera |
-| Vigilar | Lo revisa Cristian (agendas reales y monedero de GHL); no está en el plan de Claude |
-| Entrada «Prueba GHL» | Se queda apagada para pruebas futuras |
-| Leads de prueba | Los borra Cristian (en GHL y en el dashboard) |
-| Cambios sin subir en el repo que no son de Claude | Claude no los toca (ver «Lo que hace Cristian») |
-| Emails de la Biblioteca y Meta | Fuera del plan |
-| Alcance | Solo Maestria |
+| Leads por lectura de 60 s | **10** (antes 15). Un lead hace hasta 8 llamadas a GHL: 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s) |
+| Agendas de `codigomaestria.com` | El calendario sigue en GHL. Lo que se trae al dashboard es el **formulario** de cada agenda: sus UTM, sus etiquetas y a dónde va cada lead, igual que lo hace hoy GHL |
 
 ---
 
@@ -73,20 +62,20 @@
 
 ### 1 · Mejoras pequeñas (Claude) ← siguiente
 Una cada vez, con tests primero, **un PR por mejora** y comprobación.
-- [ ] **IMPORTANTE · Menos llamadas a GHL por lead** (Cristian, 7 nov). Hoy un lead hace hasta 8 llamadas; juntando, 3 a 5 (las columnas de GHL una vez por lectura y una sola búsqueda de oportunidades por contacto). Detalle en `docs/mejora-llamadas-ghl.md`. **Primero, revisar en la especificación de GHL** (`apps/opportunities.json`) **si hay una forma de crear varias oportunidades en una sola llamada** (no está comprobado).
-- [ ] **Envíos en rojo siempre visibles y «Ver más»** (Cristian, 7 nov). *Qué pasa:* en Administración → Entradas (landings) → cada Entrada → «Últimos envíos recibidos» solo salen los 15 últimos (`page.tsx`, `evs.slice(0, 15)`), y la página carga como mucho los 200 últimos envíos de todas las Entradas juntas (`.limit(200)`). El 7 nov el envío en rojo del caso C quedó fuera de los 15 y no se veía su «Reintentar», aunque el aviso de arriba decía «Están en rojo abajo». Con más de 200 envíos, un rojo antiguo ni se cargaría ni se contaría en el aviso. *Decidido:* (1) los envíos en rojo de cada Entrada se buscan aparte, sin límite, y salen siempre arriba con su «Reintentar», y el aviso los cuenta bien; (2) debajo, los 15 últimos; (3) botón «Ver más» que carga 50 más cada vez. No se cargan todos de golpe (ya hay 39 envíos en el registro desde el 6 nov y cada uno lleva el formulario entero). *Tests primero:* un rojo más antiguo que los 200 últimos sale con su botón; «Ver más» trae los siguientes.
-- [ ] **Reintentos cada 1 min de verdad.** Se vio el 6 nov que van cada 2 min, no cada 1. Arreglo apuntado entonces: programar el siguiente intento a +50 s (hoy +60 s, `REINTENTAR_EN` en `src/lib/ghl-envios.ts`). Comprobar la causa con un test antes de cambiarlo.
+- [ ] **IMPORTANTE · Menos llamadas a GHL por lead.** Hoy un lead hace hasta 8 llamadas; juntando, 3 a 5 (las columnas de GHL una vez por lectura y una sola búsqueda de oportunidades por contacto). Detalle en `docs/mejora-llamadas-ghl.md`. **Primero, revisar en la especificación de GHL** (`apps/opportunities.json`) **si hay una forma de crear varias oportunidades en una sola llamada** (no está comprobado).
+- [ ] **Envíos en rojo siempre visibles y «Ver más».** *Qué pasa:* en Administración → Entradas → cada Entrada → «Últimos envíos recibidos» solo salen los 15 últimos (`page.tsx`, `evs.slice(0, 15)`), y la página carga como mucho los 200 últimos envíos de todas las Entradas (`.limit(200)`). Un envío en rojo antiguo no se ve (pasó el 7 nov) y, con más de 200, ni se cuenta en el aviso. *Decidido:* (1) los envíos en rojo se buscan aparte, sin límite, y salen siempre arriba con su «Reintentar»; (2) debajo, los 15 últimos; (3) botón «Ver más» que carga 50 más cada vez (todos de golpe no: cada envío lleva el formulario entero). *Tests primero:* un rojo más antiguo que los 200 últimos sale con su botón; «Ver más» trae los siguientes.
+- [ ] **Reintentos cada 1 min de verdad.** Se vio el 6 nov que van cada 2 min. Arreglo propuesto: programar el siguiente intento a +50 s (hoy +60 s, `REINTENTAR_EN` en `src/lib/ghl-envios.ts`). Comprobar la causa con un test antes de cambiarlo.
 - [ ] **Bloquear el bucle.** No dejar encender «Mandar a GHL» en una Entrada que alimenta un workflow de GHL (GHL → dashboard → GHL). *Falta decidir cómo* (ver «Para decidir»).
 - [ ] **`BIBLIOTECA/build.py`** rehace `index.html` desde una fuente vieja (vuelve «AI» y quita `CM_HAS_ACCESS`). Mientras tanto, no ejecutarlo. *Falta decidir qué se hace* (ver «Para decidir»).
 
 ### 2 · Fase 5 · Skill «conectar-web-al-dashboard» = el manual para landings (Claude)
-*Por qué:* Cristian quiere que conectar una landing nueva sea fácil y siempre igual. Decidió que el manual sea una **skill** (instrucciones que Claude sigue paso a paso cada vez), no un documento para leer.
+*Por qué:* que conectar una landing nueva sea fácil y siempre igual. Es una **skill** (instrucciones que Claude sigue paso a paso), no un documento.
 - [ ] Con el caso real de la Biblioteca y `kit-creador-maestria:crear-skills`. Contenido: los 7 pasos de «Cómo conectar una landing» (abajo) y lo aprendido con la Biblioteca: etiquetas `<web>-<form>-completo/-incompleto` en minúsculas; etiquetas viejas como etiquetas fijas; varios pipelines de GHL por Entrada en su primera columna (leer su nombre en el formulario antes de guardar); agendas en los dos sitios (su pipeline y «0. Agendas General → Form») con «Canal: …» desde una regla de la Entrada; espera de 5 min en todas las Entradas; el `utm_source` de la landing tiene que existir en `src/lib/canal.ts`; el contacto de GHL puede ser de otro lead (mismo teléfono); pruebas con `info+…@eternity.llc` y teléfonos 555-01xx; comprobar el día antes de reservar y cancelar la cita; aplicar migraciones antes de publicar; cómo volver atrás.
-- [ ] En `app/.claude/skills/conectar-web-al-dashboard/` (una sola copia). `~/.claude/skills/conectar-web-al-dashboard` apunta a ella con un enlace, para que nunca haya dos versiones distintas. Se prueba con la landing de agenda.
+- [ ] Una sola copia, en `app/.claude/skills/conectar-web-al-dashboard/`; `~/.claude/skills/conectar-web-al-dashboard` apunta a ella con un enlace. Se prueba con la landing de agenda.
 
 ### 3 · Fase 4 · Workflows visuales en el dashboard (plan propio antes de programar)
 *Qué es:* un apartado del dashboard para crear workflows como los de GHL (disparador → pasos), para dejar de depender de los workflows de GHL.
-**Decidido por Cristian (7 nov):** **lienzo como GHL** (cajas y flechas), no una lista; **los emails de las secuencias siguen fuera** (no hay acción de email). Va **antes** de la landing de agenda: con los workflows se tiene que poder hacer lo que hace hoy el workflow de GHL «2 . WH - FORM AGENDA GENERAL» con el formulario de cada agenda (leer sus UTM, ponerle etiquetas y mandar cada lead a su sitio según el `utm_source`). El calendario sigue en GHL.
+**Decidido:** **lienzo como GHL** (cajas y flechas), no una lista; **sin acción de email** (los emails de las secuencias siguen fuera). Va **antes** de la landing de agenda porque esa landing reparte cada lead según su `utm_source`, y eso necesita ramas: con los workflows se tiene que poder hacer lo que hace hoy el workflow de GHL «2 . WH - FORM AGENDA GENERAL» con el formulario de cada agenda (leer sus UTM, ponerle etiquetas y mandar cada lead a su sitio). El calendario sigue en GHL.
 **Propuesta de Claude (base para su plan propio):**
 - **Workflow** = un disparador + pasos, dibujado en el lienzo. Tabla `workflows` (pasos en JSON, versión, encendido).
 - **Disparadores v1:** llega a una Entrada · se añade una etiqueta · cambia de columna en el dashboard · se agenda / cancela una cita.
@@ -98,43 +87,43 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - [ ] Hacer el plan propio de la fase 4 con estas decisiones y enseñárselo a Cristian antes de programar.
 
 ### 4 · Fase 6 · Landing de agenda de `codigomaestria.com` (Claude, con la skill y los workflows)
-- [ ] `codigomaestria.com/agenda` (`LANDINGS/Landing agenda/Landing-agendar.html`, hoy manda al webhook `2f05f800…`), **con una Entrada** y su workflow del dashboard. Hacer lo mismo que hace hoy su workflow de GHL con el formulario (ramas por `utm_source`, ver «Datos»): leerlo antes con Playwright. La página sigue en GHL (se mueve a Vercel al final) y el calendario también. Con prueba, y Cristian la ve.
+- [ ] `codigomaestria.com/agenda` (`LANDINGS/Landing agenda/Landing-agendar.html`, hoy manda al webhook `2f05f800…`), **con una Entrada** y su workflow del dashboard. Hacer lo mismo que hace hoy su workflow de GHL con el formulario (ramas por `utm_source`, ver «Datos»): leerlo antes con Playwright. La página y el calendario siguen en GHL. Con prueba, y Cristian la ve.
 - [ ] Cuando ya no la use ninguna web, apagar el workflow «2 . WH - FORM AGENDA GENERAL» y su webhook (con permiso de Cristian).
 
-### 5 · Fase 6 · Optin y cierre de webhooks (después de la fase 4)
+### 5 · Fase 6 · Optin y cierre de webhooks
 - [ ] **Optin** `LANDINGS/landing-codigomaestria/landing-ghl.html` (webhook `83c32b0a…`), con la skill.
-- Regalos 1 a 7 y `regalos-maestria` (webhook `37e6bc4c…`, workflow `AP - Regalos` `c3bd1ba2…`): **de momento no** (Cristian, 7 nov).
+- Regalos 1 a 7 y `regalos-maestria` (webhook `37e6bc4c…`, workflow `AP - Regalos` `c3bd1ba2…`): **de momento no**.
 - [ ] Apagar cada «Inbound Webhook» cuando todas sus webs estén cambiadas (Claude con Playwright, con permiso de Cristian).
 - [ ] A final de mes, `inbound_webhook` cerca de $0 en el monedero.
 - [ ] Actualizar `docs/GUIA-GHL.md` y `docs/plan.md`.
 
-### 6 · Unir leads duplicados (al final de todo; Cristian, 7 nov)
-**Contexto:** el dashboard reconoce a una persona por su contacto de GHL, por su email o, si no tiene email, por su teléfono (`src/lib/leads.ts`). GHL la reconoce por email **o** teléfono (`allowDuplicateContact: false`). Así, quien se registra dos veces con emails distintos y el mismo teléfono queda como **2 leads en el dashboard y 1 contacto en GHL**. Caso real: 6 nov, 23:06 y 23:07 UTC, teléfono …7112 (leads `e7cc481b…` y `c407dcf9…`, contacto `oIEMl9RNaQEANZQnLWEb`). Desde el 7 nov el envío ya no falla: el segundo lead no guarda el id de GHL y su historial dice «Es el mismo contacto de GHL que el lead …», pero los 2 leads siguen separados.
+### 6 · Unir leads duplicados
+**Contexto:** el dashboard reconoce a una persona por su contacto de GHL, por su email o, si no tiene email, por su teléfono (`src/lib/leads.ts`). GHL la reconoce por email **o** teléfono. Así, quien se registra con dos emails y el mismo teléfono queda como **2 leads en el dashboard y 1 contacto en GHL** (caso real: leads `e7cc481b…` y `c407dcf9…`, contacto `oIEMl9RNaQEANZQnLWEb`). El envío ya no falla (el segundo lead no guarda el id de GHL y su historial lo apunta), pero siguen siendo 2 leads. Hoy se quedan los 2.
 **Qué hay que decidir y diseñar (con Cristian, antes de programar):**
 - Cuándo se consideran el mismo: ¿mismo teléfono (normalizado con `telefonoClave`)? ¿mismo contacto de GHL?
 - Cuál se queda (¿el más antiguo?) y qué se junta: emails (¿un campo de emails secundarios?), respuestas, etiquetas, citas, ventas, actividades, tarjetas, reparto/caller.
 - Automático al entrar o un botón «Unir» en la ficha del lead (Cristian revisa antes). Unir implica **borrar** un lead: lo confirma Cristian.
 - Buscar cuántos duplicados hay hoy (por teléfono) antes de elegir.
 
-### 7 · Al final (Cristian, 7 nov)
-- [ ] **Proyectos sin calendarios.** La lectura de 60 s solo se lanza en proyectos con calendarios (`20261017120000_leer_ghl_cada_30s.sql`): un proyecto sin calendarios nunca mandaría a GHL. Hoy no afecta (solo Maestria, que tiene calendarios).
+### 7 · Al final
+- [ ] **Proyectos sin calendarios.** La lectura de 60 s solo se lanza en proyectos con calendarios (`20261017120000_leer_ghl_cada_30s.sql`): un proyecto sin calendarios nunca mandaría a GHL. Hoy no afecta (Maestria tiene calendarios).
 - [ ] **Mover `codigomaestria.com` de GHL a Vercel.**
 
 ---
 
 ## Lo que hace Cristian (Claude no puede)
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «6» (`info+bib1@` … `info+bib6@eternity.llc`). Sus citas (bib1 y bib6 el 12 nov, bib5 el 7 nov) ya están canceladas.
-- [ ] Borrar también en el dashboard esos leads de prueba (están en «1. Biblioteca Recursos» y alguno con tarjeta en «0. Agendas General»; no se repartieron a ningún caller).
-- [ ] Vigilar las primeras agendas reales (dashboard y GHL). (El monedero de GHL, de momento no: Cristian, 7 nov.)
+- [ ] Borrar también en el dashboard esos leads de prueba.
+- [ ] Vigilar las primeras agendas reales (dashboard y GHL).
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
 - [ ] Poner otra vez la descripción de la integración «App Eternity (dashboard)» en GHL (quedó vacía; ya no es «solo lectura»).
 - [ ] Rellenar o descartar el aviso de GHL que pide el **Tax ID** de la cuenta (sale al abrir fichas de contacto; Claude lo cierra sin guardar nada).
-- [ ] Gestionar los cambios sin subir en el repo del dashboard que no son de Claude: 3 docs borrados (`Arreglar-dashboard.md`, `plan-historial-10oct.md`, `plan-historial-11oct.md`), `manual-branding-rojo.md`. Claude no los toca. (`plan-callers.md` es de otra sesión de Cristian, en otra rama.)
 
 ## Para decidir (Cristian)
 - **Bloquear el bucle:** cómo marca el dashboard que a una Entrada la alimenta un workflow de GHL (propuesta de Claude: un interruptor en la Entrada).
 - **`BIBLIOTECA/build.py`:** si Cristian lo sigue usando (entonces hay que arreglar su fuente) o no (entonces basta con no ejecutarlo).
-- **Workflows y landing de agenda** (dudas de Claude al revisar la fase 4 con el orden nuevo, 7 nov):
+- **Skill antes o después de los workflows:** la skill (fase 5) va antes de los workflows (fase 4), pero se prueba con la landing de agenda, que ahora va después de los workflows; y su paso 2 («crear la Entrada») cambiará a «crear el workflow» cuando existan. Propuesta de Claude: hacer la skill **después** de los workflows, para escribirla una sola vez y probarla en seguida. Va contra el orden decidido: ¿se mantiene?
+- **Workflows y landing de agenda:**
   1. *La página en GHL:* ¿`LANDINGS/Landing agenda/Landing-agendar.html` está pegada en GHL como código propio de la página? ¿Puede Claude cambiarla en GHL con Playwright para que mande a la Entrada del dashboard?
   2. *«Como está en GHL»:* el workflow «2 . WH - FORM AGENDA GENERAL» manda cada canal a su pipeline de GHL. ¿Además pone cada agenda en «0. Agendas General» de GHL? Si no lo hace, ¿se añade (el 7 nov se decidió «en General tienen que estar todas»)? Se comprueba leyendo el workflow con Playwright.
   3. *«Trackear todos los UTM»:* hoy la Entrada ya guarda todos los UTM en el lead (`seguimiento`) y manda a GHL los campos unidos. ¿Basta con eso, o se quiere además un informe en el dashboard (p. ej. agendas por `utm_source` o `utm_campaign`)?
@@ -150,22 +139,22 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - Límite: 100 llamadas cada 10 s.
 - Maestria: `allowDuplicateContact: false` y `allowDuplicateOpportunity: false`. GHL guarda las etiquetas en minúsculas.
 
-**Entradas del dashboard (Maestria)** (leídas en la base el 7 nov):
+**Entradas del dashboard (Maestria):**
 | Entrada | Id | Configuración |
 |---|---|---|
 | Web · Biblioteca registro | `087b86d1…` | Activa, GHL encendido, espera 300 s. Dashboard «1. Biblioteca Recursos». GHL «1. Biblioteca Recursos → Registrados». Etiqueta base `Biblioteca-form`, fija `biblioteca recursos`. Recibe de `api/signup.js` (`DASHBOARD_ENTRADA_URL` en Vercel) |
 | Web · Biblioteca agenda | `bc00a154…` | Activa, GHL encendido, espera 300 s. Dashboard «0. Agendas General → Form» y regla `utm_source` igual a `agenda-biblioteca` → «Canal: Biblioteca». GHL «0. Agendas Biblioteca» y «0. Agendas General», primera columna («Form»). Etiqueta base `Biblioteca-agenda`, fija `agenda biblioteca`. Recibe de `web/programa.js` |
 | GHL · Biblioteca | `b173a67a…` | Desactivada. La alimentaba el workflow «0. AP - Biblioteca», que ya no existe en GHL; no recibe nada desde el 16 oct |
-| Prueba GHL | `e5a2bfa9…` | Apagada. Para repetir pruebas sin tocar las Entradas reales |
+| Prueba GHL | `e5a2bfa9…` | Apagada. Se queda para repetir pruebas sin tocar las Entradas reales |
 
 **Pipelines de GHL:**
 - «1. Biblioteca Recursos» `dE7go9T3Mi2zbIT4sGME`: «Registrados» `9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d`, «Form Agenda» `77b3ce38-39b2-446d-b734-f38bc29c88e2` (ya no se usa), «Agendado» `f0c80531-c23f-4af5-b0a2-03c4095b432a`.
-- «0. Agendas Biblioteca» `wym2Ue4VUqkhsFoQJ5PK` y «0. Agendas General» `zuQjPVJNbPpRlL0voy6d`: columnas Form, Agendan, Confirman, No confirman, No show, Cerrados, No cualifican, Seguimiento (leídas en el formulario de Entradas el 7 nov).
+- «0. Agendas Biblioteca» `wym2Ue4VUqkhsFoQJ5PK` y «0. Agendas General» `zuQjPVJNbPpRlL0voy6d`: columnas Form, Agendan, Confirman, No confirman, No show, Cerrados, No cualifican, Seguimiento .
 - Otros: «0. Agendas Orgánico» `3mtxrCYHQSnl1M701qeZ`, DFY `Gp15d7oeZFAMn1VHbcs1`, Email `Z956WNVUXKaHC98WZqfc`, P1 `FMcP2ukfTLiRab8OVAyL`, Webinar `1Vp4tJwZyUcRV3MWXVzg`, IG `5GyZUNh3NO2T2W6EU1No`, Callers `VLYV8BXsw7OyUWoJ14va`, Triage YT `oekHKZXhsaYBayDgeTAn`, «2. Webinar 1» `VOdw0hGaASMezASsh4Le`, «3. DFY AI Services» `gH0QEXRNnaR759F7TvxJ`.
 
 **Pipelines del dashboard (Maestria):** «0. Agendas General» `7bf529f6-a5e9-44e8-9a3a-25be6d9f9ac0` (columnas: Form `4a0469a9-edbc-41ca-999a-7aab1694dab6`, Agendan `598b75d0-5a95-4241-b61a-387ef3b75aa1`, Confirman, No confirman, No show, Cerrados, No cualifican, Seguimiento), «1. Biblioteca Recursos» `eb300c25-406e-45d0-9d43-5285f988233e`, «2. Webinar 1», «3. DFY AI Services», «4. Leads WhatsApp».
 
-**Canales de las agendas** (`src/lib/canal.ts`): el canal sale del `utm_source` de la página donde se reserva; los que no están en la lista salen como «Otro». `agenda-biblioteca` → Biblioteca (desde el 7 nov).
+**Canales de las agendas** (`src/lib/canal.ts`): el canal sale del `utm_source` de la página donde se reserva; los que no están en la lista salen como «Otro». `agenda-biblioteca` → Biblioteca.
 
 **Campos de la agenda** (los unió la Entrada de la agenda): situación `ILrgHLZsc1TX8lBYWzfM`, ingresos `IWPSlOz1dKbkwg8SvK9p`, relación con la IA `jvsMaWoh9FSMzuZ5pLHk`, objetivo a 12 meses `oYaZveSEzoLWPZ7hoM1M`, inversión `7I9zm2KGljAr1X4l6xmR`, «Lead cualificado?» `tYv72lGm4gMaK2l7eujl` ← `qualified`, `utm_source` `BPs2vrG7eqH7D3d5zJEf`, urgencia `pLkktkvmSexGPkZpyW8J`, decisor `9MtM6cI7dArWZx725GuI`.
 
