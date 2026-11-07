@@ -1,6 +1,6 @@
 # Plan · Workflows en el dashboard (fase 4 del plan GHL)
 
-> Versión 3 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
+> Versión 4 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
 > **Estado:** aprobado por Cristian el 7 nov 2026 (también la propuesta para pasar la Biblioteca a real: 3 días, 20 leads de registro, todos los de agenda y 0 diferencias). **4a-1 hecha y publicada el 7 nov** (dashboard PR #38): los 2 workflows de la Biblioteca están **en modo prueba desde el 7 nov a las 16:06 UTC**. **4a-2 (modo real) hecha y publicada el 7 nov** (PR #40). Siguiente: ver el primer lead real en prueba y, al acabar los días de prueba, que Cristian decida «Pasar a real». Después, 4b.
 
 **Objetivo:** que el dashboard haga lo que hoy hacen los workflows de GHL (disparador → pasos), para dejar de depender de ellos. Primero se rehace lo que ya funciona (la Biblioteca) sin arriesgar sus leads; después se ve y se edita en un lienzo como el de GHL; al final, más disparadores.
@@ -103,6 +103,13 @@
 - **Historial de cada lead:** qué pasos hizo y cuándo, y dónde se paró si falló (de `workflow_ejecuciones.registro`).
 - Antes de programar: **boceto** que Cristian aprueba.
 
+### 4b · HECHA el 7 nov (dashboard PR #42, `e9da619`)
+- **Estilo:** Cristian pidió un estilo «glass» como de Apple; se rehizo el boceto con la skill `ui-ux-pro-max` (vidrio esmerilado, iconos de color tipo iOS, lienzo con puntos). Se usa el vidrio que ya tiene el dashboard (`.tarjeta` / `.vidrio`), que también vale en modo oscuro. De la skill no se usó su propuesta de modo oscuro ni la fuente Fira (el dashboard es claro y Cristian pidió Apple).
+- **Pantalla:** Administración → Workflows (solo jefes): la lista con su estado (en prueba / real / parado), el lienzo (cajas de arriba abajo; las ramas, una al lado de otra y, en el móvil, una debajo de otra), 3 cifras y el historial de los 50 últimos leads con sus pasos, su hora y sus diferencias. Solo lectura, sin JavaScript en el navegador (se elige con `?wf=`).
+- **Código:** `src/app/(panel)/admin/workflows.tsx`, `src/lib/workflows-vista.ts` (textos, con tests primero: `tests/unit/workflows-vista.test.ts`, 11) y la pestaña en `page.tsx`. Los nombres de los pipelines de GHL se piden a GHL solo si el workflow tiene oportunidades.
+- **Pruebas:** GitHub en verde (unitarios 366/366 en local). Producción con Playwright (7 nov, 17:40 UTC): la pestaña sale, sin errores en la consola; el lienzo de «Web · Biblioteca registro» enseña sus pasos reales con los nombres de GHL («1. Biblioteca Recursos», columna «Registrados»); sin scroll horizontal a 1440 px ni a 390 px.
+- **No probado con datos reales:** el historial (aún no ha llegado ningún lead a los workflows) y cómo se ve una rama de verdad (ningún workflow tiene ramas hasta la 4c).
+
 ## Subfase 4c · Editar en el lienzo (resumida)
 - Añadir, quitar y cambiar pasos y ramas desde el lienzo; un solo «Guardar» con aviso de «cambios sin guardar» (como en Entradas).
 - **Versiones:** guardar sube la versión; los leads que ya iban por el workflow terminan con la versión con la que empezaron.
@@ -129,6 +136,6 @@
 - [ ] Ver el primer lead real en prueba (que se cree su ejecución y coincida).
 - [x] 4a-2: modo real, «Pasar a real» y «Volver a lo de hoy» (PR #40, 7 nov).
 - [ ] Al acabar los días de prueba: Cristian decide el cambio a real de la Biblioteca.
-- [ ] 4b: boceto → aprobado → tests → código → PR → comprobar.
+- [x] 4b: boceto glass (con la skill ui-ux-pro-max) aprobado → tests → código → PR #42 → comprobado en producción (7 nov).
 - [ ] 4c: leer el workflow de GHL → boceto → aprobado → tests → código → PR → comprobar.
 - [ ] Después, el punto 4 del plan GHL (landing de agenda), y luego 4d.

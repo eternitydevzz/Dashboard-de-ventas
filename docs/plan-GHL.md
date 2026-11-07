@@ -14,7 +14,7 @@
 | 2 · Registro de la Biblioteca sin webhook | Hecha (biblioteca-maestria PR #1) |
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
-| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`). 4a hecha (PR #38 y #40): la Biblioteca está en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. Después, 4b |
+| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`). 4a hecha (PR #38 y #40): la Biblioteca está en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. 4b hecha (PR #42, pestaña Workflows). Siguiente: 4c |
 | Revisión de todo con Cristian | Pendiente |
 | Template de landings, skill y archivos del equipo | Pendiente (maqueta hecha) |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
