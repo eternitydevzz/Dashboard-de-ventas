@@ -1,3 +1,5 @@
+import { ETIQUETA_ESTADO } from "@/lib/estados-caller";
+import { CAMPOS_FICHA, limpiarFicha } from "@/lib/ficha-cualificacion";
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
 import { notFound } from "next/navigation";
@@ -25,8 +27,7 @@ const ICONO_ACT: Record<string, string> = {
   webhook: "⚡",
 };
 const RESULTADO: Record<string, string> = {
-  no_contesta: "No contesta",
-  llamar_luego: "Llamar luego",
+  ...ETIQUETA_ESTADO, // C11: los 12 estados (y los viejos del historial)
   no_interesa: "No interesa",
   contestado: "Contestó",
   agendada: "Agendada",
@@ -59,7 +60,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
   const jefe = esJefe(perfil);
   if (!jefe && lead.caller_id !== perfil.id && lead.closer_id !== perfil.id) notFound();
 
-  const [acts, citas, ventas, gente, productos, pipelines, etapas] = await Promise.all([
+  const [acts, citas, ventas, gente, productos, pipelines, etapas, fichaFila] = await Promise.all([
     db().from("actividades").select("*").eq("lead_id", id).order("creado_en", { ascending: false }).limit(100),
     db().from("citas").select("*").eq("lead_id", id).order("fecha", { ascending: false }),
     db().from("ventas").select("*, productos(nombre)").eq("lead_id", id).order("fecha", { ascending: false }),
@@ -67,7 +68,9 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     db().from("pipelines").select("*").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden"),
     db().from("etapas").select("*, pipelines!inner(proyecto_id, tipo)").eq("pipelines.proyecto_id", proyecto.id).eq("pipelines.tipo", "normal").order("orden"),
+    db().from("cualificaciones").select("campos").eq("lead_id", id).maybeSingle(), // C6 (sin la tabla todavía: vacía)
   ]);
+  const ficha = limpiarFicha(fichaFila.data?.campos);
   const nombre = (pid: string | null) => gente.find((g) => g.id === pid)?.nombre ?? "—";
   // La cita que cerraría una venta (la abierta más reciente, como en registrarVenta): su closer es el vendedor por defecto
   const citaAbierta = (citas.data as Cita[] | null)?.find((c) => [...ABIERTAS, "seguimiento"].includes(c.estado) && c.closer_id);
@@ -117,6 +120,22 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                     <div key={r.pregunta} className="rounded-lg border border-borde bg-panel-2 p-3">
                       <dt className="text-xs text-texto-3">{r.pregunta}</dt>
                       <dd className="mt-1 font-medium">{r.respuesta || <span className="text-texto-3">Sin responder</span>}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </Seccion>
+
+            {/* C6 (plan Callers, 7 nov): lo que apuntó el caller en el guion (la ven el closer y los jefes) */}
+            <Seccion titulo="Ficha de cualificación">
+              {Object.keys(ficha).length === 0 ? (
+                <Vacio icono={FileText} texto="El caller todavía no ha rellenado la ficha de este lead." />
+              ) : (
+                <dl className="grid gap-3 sm:grid-cols-2">
+                  {CAMPOS_FICHA.filter((c) => ficha[c.k]).map((c) => (
+                    <div key={c.k} className={`rounded-lg border border-borde bg-panel-2 p-3 ${c.largo ? "sm:col-span-2" : ""}`}>
+                      <dt className="text-xs text-texto-3">{c.t}</dt>
+                      <dd className="mt-1 whitespace-pre-line font-medium">{ficha[c.k]}</dd>
                     </div>
                   ))}
                 </dl>
@@ -173,7 +192,6 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 <li className="flex items-center gap-2"><Globe className="h-4 w-4 text-texto-3" />{nombrePais(lead.pais)}</li>
                 <li className="flex items-center gap-2 break-all"><Mail className="h-4 w-4 shrink-0 text-texto-3" />{lead.email ?? "—"}</li>
                 <li className="flex flex-wrap items-center gap-1.5"><Tag className="h-4 w-4 text-texto-3" />{lead.etiquetas.length ? lead.etiquetas.map((t) => <Insignia key={t}>{t}</Insignia>) : "—"}</li>
-                {lead.llamar_en && <li className="text-aviso">Llamar el {fechaHora(lead.llamar_en, proyecto)}</li>}
                 <li><span className="mr-1.5 text-xs text-texto-3">Caller:</span><VerEstrellas n={lead.estrellas_caller} quien="caller" /></li>
               </ul>
               <div className="mt-4 border-t border-borde pt-4">

@@ -46,7 +46,7 @@ describe("Arreglo 9: agendar como jefe o closer no borra las estrellas del calle
   it("sin estrellas se quedan las del caller; con estrellas, se cambian", async () => {
     const l = await nuevoLead("Arreglo9", { caller_id: e.p.callerA.id });
     como(e, e.p.callerA);
-    await ok(registrarLlamada(l, "llamar_luego", "", "2026-10-20T10:00", 4));
+    await ok(registrarLlamada(l, "llamar_luego", "", 4));
     como(e, e.p.director);
     await ok(agendarCita(l, e.p.closerA.id, "2026-10-22T10:00", ""));
     expect((await lead(l)).estrellas_caller).toBe(4);

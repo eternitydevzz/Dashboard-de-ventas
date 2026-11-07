@@ -35,8 +35,9 @@ import {
   unirEstado,
   guardarPermisoPipeline,
 } from "./acciones";
-import { registrarLlamada, volverANuevo } from "@/app/(panel)/leads/acciones";
-import { VentanaEstado, type DestinoConVentana } from "./ventanas-estado";
+import { confirmarAgenda, registrarLlamada, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
+import { etiquetaEstado } from "@/lib/estados-caller";
+import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "./ventanas-estado";
 import { CLAVES_CLOSER } from "@/lib/llamadas";
 import { TableroClosers, type ColumnaC } from "@/app/(panel)/closer/llamadas/tablero-closers";
 import { ETIQUETA_ESTADO_CALLER, SIN_PAIS, nombrePais } from "@/lib/formato";
@@ -216,12 +217,13 @@ export function TableroCrm({
         toast("El caller no registra ventas: las cierra el closer.", "error");
         return;
       }
-      if (unido === "llamar_luego" || unido === "link_enviado" || unido === "agendado" || unido === "no_interesa" || unido === "vendido") {
-        setVentana({ lead, destino: unido, etapaId });
+      // C11 (7 nov): las que piden datos abren su ventana; las demás, un clic (antes, cualquier otra = «No contesta»)
+      if (CON_VENTANA.includes(unido)) {
+        setVentana({ lead, destino: unido as DestinoConVentana, etapaId });
         return;
       }
       const nombre = `${lead.nombre} ${lead.apellido}`.trim();
-      mover(id, etapaId, () => (unido === "nuevo" ? volverANuevo(id) : registrarLlamada(id, "no_contesta", "")), `${nombre} → ${unido === "nuevo" ? "Nuevo" : "No contesta"}`);
+      mover(id, etapaId, () => (unido === "confirma_agenda" ? confirmarAgenda(id) : registrarLlamada(id, unido as ResultadoSimple, "")), `${nombre} → ${etiquetaEstado(unido)}`);
       return;
     }
     mover(id, etapaId, () => moverLead(id, etapaId));
@@ -547,7 +549,7 @@ export function TableroCrm({
           closers={closers}
           productos={productos}
           moneda={moneda}
-          estrellasOpcionales={estrellasOpcionales}
+          esCaller={!estrellasOpcionales}
           onCerrar={() => setVentana(null)}
           onGuardar={(accion, mensaje) => mover(ventana.lead.id, ventana.etapaId, accion, mensaje)}
         />

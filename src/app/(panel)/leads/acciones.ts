@@ -11,6 +11,8 @@ import { planDePagos } from "@/lib/finanzas";
 import type { EstadoCaller, Lead, Perfil, Proyecto } from "@/lib/tipos";
 import { leerNumero } from "@/lib/numero";
 import { ABIERTAS } from "@/lib/llamadas";
+import { CON_ESTRELLAS, etiquetaEstado } from "@/lib/estados-caller";
+import { closerDeLaRotacion, sumarRotacion } from "@/lib/rotacion";
 
 const refrescar = () => revalidatePath("/", "layout");
 
@@ -37,34 +39,42 @@ async function moverAColumna(lead: Lead, estado: EstadoCaller, nombres: string[]
 
 const aIso = localAIso;
 
-// ---------- Caller: resultado de la llamada ----------
-export async function registrarLlamada(
-  leadId: string,
-  resultado: "no_contesta" | "llamar_luego" | "no_interesa" | "contestado",
-  nota: string,
-  llamarEn?: string,
-  estrellas?: number
-) {
+// ---------- Caller: resultado (C11, plan Callers, 7 nov) ----------
+// Un clic = el lead pasa a esa columna de «Callers» (el trigger de la base lo mueve). Los que piden estrellas
+// (Llamar luego, No interesa, Seguimiento) las guardan, como hoy; los demás no tocan las que hubiera (F2: antes
+// «No contesta» ponía 1★ encima). Sin fechas (punto 11). Historial: «Llamado» = llamada, «Wsp enviado» = WhatsApp
+// (KPIs de la cola, 7c.1); el resto, cambio de columna con el estado nuevo (contacto = los que avanzan, punto 16).
+export type ResultadoSimple = "nuevo" | "llamado" | "wsp_enviado" | "no_responde" | "no_interesa" | "seguimiento" | "llamar_luego" | "descartado" | "reagendado";
+const SIMPLES: ResultadoSimple[] = ["nuevo", "llamado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado"];
+
+export async function registrarLlamada(leadId: string, resultado: ResultadoSimple, nota: string, estrellas?: number) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
+    if (!SIMPLES.includes(resultado)) throw new ErrorUsuario("Resultado no válido.");
     nota = notaValida(nota);
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
-    const estado = resultado === "contestado" ? lead.estado_caller : resultado;
-    const n = resultado === "no_contesta" ? 1 : resultado === "contestado" && estrellas === undefined ? null : estrellasEntre(estrellas, 2, 5);
-    // F3 (plan Callers, 7 nov): antes no se comprobaba el error y salía «Guardado» aunque el estado no cambiara
-    await escribir(
-      db()
-        .from("leads")
-        .update({
-          estado_caller: estado,
-          llamar_en: resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, proyecto.zona_horaria) : null,
-          ...(n ? { estrellas_caller: n } : {}),
-        })
-        .eq("id", leadId),
-      "leads"
-    );
-    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "llamada", resultado, nota: [n ? `${n}★` : "", nota].filter(Boolean).join(" · ") || null });
-    if (resultado !== "contestado") await moverAColumna(lead, resultado, resultado === "no_interesa" ? ["descartados", "descartado"] : []);
+    if (lead.estado_caller === "vendido" && perfil.rol === "caller") throw new ErrorUsuario("Este lead ya compró: lo lleva el closer.");
+    const n = CON_ESTRELLAS.has(resultado) ? estrellasEntre(estrellas, 2, 5) : null;
+    // F3 (plan Callers, 7 nov): si falla, error (antes salía «Guardado» aunque el estado no cambiara)
+    await escribir(db().from("leads").update({ estado_caller: resultado, llamar_en: null, ...(n ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");
+    const tipo = resultado === "llamado" ? "llamada" : resultado === "wsp_enviado" ? "whatsapp" : "cambio_etapa";
+    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo, resultado, nota: [`→ ${etiquetaEstado(resultado)}`, n ? `${n}★` : "", nota].filter(Boolean).join(" · ") });
+    if (resultado === "no_interesa" || resultado === "descartado") await moverAColumna(lead, resultado, ["descartados", "descartado", "no interesa"]);
+    if (resultado === "nuevo") await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
+    refrescar();
+  });
+}
+
+// «Confirma Agenda» (punto 14): un clic confirma también la cita abierta del lead (columna «Confirmado» de «Closers»)
+export async function confirmarAgenda(leadId: string) {
+  return seguro(async () => {
+    await exigirSeccion("cola", "crm", "agendas", "clientes");
+    const { perfil, proyecto } = await leadPermitido(leadId);
+    const { data: cita } = await db().from("citas").select("id").eq("lead_id", leadId).eq("proyecto_id", proyecto.id).in("estado", [...ABIERTAS]).order("fecha", { ascending: false }).limit(1).maybeSingle();
+    if (!cita) throw new ErrorUsuario("Este lead no tiene ninguna cita abierta que confirmar. Márcalo primero como «Agendado».");
+    await escribir(db().from("citas").update({ estado: "confirmada" }).eq("id", cita.id), "citas");
+    await escribir(db().from("leads").update({ estado_caller: "confirma_agenda", llamar_en: null }).eq("id", leadId), "leads");
+    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cambio_etapa", resultado: "confirma_agenda", nota: "→ Confirma Agenda · cita confirmada" });
     refrescar();
   });
 }
@@ -90,40 +100,20 @@ export async function anadirNota(leadId: string, nota: string) {
   });
 }
 
-// ---------- Link de agenda enviado (4.4, Cristian, 11 oct) ----------
-// El caller manda al lead el link del calendario de GHL. El lead sale de la cola y vuelve a los 2 días si no ha
-// llegado su cita; cuando llega, la agenda es de quien envió el link.
-export async function marcarLinkEnviado(leadId: string, estrellas: number) {
-  return seguro(async () => {
-    await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
-    const { perfil, proyecto } = await leadPermitido(leadId);
-    // Cómo fue la llamada (2 a 5), como antes al agendar: se copian a la cita cuando llegue de GHL
-    const n = estrellasEntre(estrellas, 2, 5);
-    const ahora = new Date();
-    await escribir(
-      db()
-        .from("leads")
-        .update({ estado_caller: "link_enviado", estrellas_caller: n, link_enviado_por: perfil.id, link_enviado_en: ahora.toISOString(), llamar_en: new Date(ahora.getTime() + 2 * 86_400_000).toISOString() })
-        .eq("id", leadId),
-      "leads"
-    );
-    // Cuenta como contacto (como un WhatsApp)
-    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "whatsapp", nota: "Link de agenda enviado" });
-    refrescar();
-  });
-}
-
 // ---------- Agendar cita con un closer ----------
-// 4.4 (Cristian, 11 oct): los callers ya no agendan a mano; mandan el link de GHL. Directores, CEO y closers sí.
+// C11 (Cristian, 7 nov, punto 13): el caller vuelve a agendar a mano (fecha y hora); su closer lo pone la rotación
+// (lib/rotacion.ts), aunque se intente otro. Directores, CEO y closers eligen el closer, como siempre.
+// La cita en GHL la crea la sesión de GHL (pendiente, plan Callers): hasta entonces, solo en la app.
 export async function agendarCita(leadId: string, closerId: string, fechaLocal: string, nota: string, estrellas?: number) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
     nota = notaValida(nota);
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
-    if (perfil.rol === "caller") throw new ErrorUsuario("Los callers no agendan a mano: manda el link de agenda al lead y pulsa «Link enviado».");
     if (!fechaLocal) throw new ErrorUsuario("Elige fecha y hora.");
-    // Las estrellas de la llamada (2 a 5) son opcionales para quien agenda a mano (jefe o closer)
-    const n = estrellas !== undefined ? estrellasEntre(estrellas, 2, 5) : null;
+    const esCaller = perfil.rol === "caller";
+    if (esCaller) closerId = await closerDeLaRotacion(proyecto.id);
+    // Las estrellas de la llamada (2 a 5): obligatorias para el caller (como hoy), opcionales para jefe o closer
+    const n = esCaller || estrellas !== undefined ? estrellasEntre(estrellas, 2, 5) : null;
     const fecha = aIso(fechaLocal, proyecto.zona_horaria);
     const { data: closer } = await db()
       .from("miembros_proyecto")
@@ -137,6 +127,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     const { error: errCita } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: nota || null, estrellas_caller: n });
     if (errCita?.code === "23505") throw new ErrorUsuario("Ese lead ya tiene una cita con ese closer a esa hora.");
     if (errCita) throw new Error(`No se pudo guardar en «citas»: ${errCita.message}`);
+    if (esCaller) await sumarRotacion(proyecto.id, closerId);
     // Arreglo 9: si agenda un jefe o un closer sin estrellas, no se borran las que puso el caller
     await escribir(db().from("leads").update({ estado_caller: "agendado", closer_id: closerId, llamar_en: null, ...(n !== null ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");
     const nombreCloser = (closer as unknown as { perfiles: { nombre: string } }).perfiles.nombre;
@@ -281,7 +272,7 @@ export async function volverANuevo(leadId: string) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
-    await escribir(db().from("leads").update({ estado_caller: "nuevo", llamar_en: null }).eq("id", leadId), "leads");
+    await escribir(db().from("leads").update({ estado_caller: "nuevo", llamar_en: null }).eq("id", leadId), "leads"); // C11: «Leads»
     await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "nota", nota: "Devuelto a «Nuevo» en el tablero del caller" });
     refrescar();

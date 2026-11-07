@@ -197,10 +197,11 @@ export function Insignia({ children, tono = "neutro" }: { children: ReactNode; t
   const clases: Record<string, string> = {
     neutro: "bg-panel-2 text-texto-2 ring-1 ring-borde",
     primario: "bg-primario-suave text-primario",
-    oro: "bg-oro-suave text-oro",
-    ok: "bg-ok-suave text-ok",
+    // 7c.4 (plan Callers): texto más oscuro para llegar a 4,5:1 sobre el fondo suave
+    oro: "bg-oro-suave text-oro-texto",
+    ok: "bg-ok-suave text-ok-texto",
     mal: "bg-mal-suave text-mal",
-    aviso: "bg-aviso-suave text-aviso",
+    aviso: "bg-aviso-suave text-aviso-texto",
     morado: "bg-primario-suave text-morado",
   };
   return <span className={`chip ${clases[tono]}`}>{children}</span>;

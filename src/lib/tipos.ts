@@ -43,7 +43,9 @@ export type Etapa = { id: string; pipeline_id: string; nombre: string; orden: nu
 
 export type Respuesta = { pregunta: string; respuesta: string };
 
-export type EstadoCaller = "nuevo" | "no_contesta" | "llamar_luego" | "link_enviado" | "agendado" | "no_interesa" | "vendido";
+// C11 (plan Callers, 7 nov): los 12 estados viven en lib/estados-caller.ts
+export type { EstadoCaller } from "@/lib/estados-caller";
+import type { EstadoCaller } from "@/lib/estados-caller";
 
 export type Lead = {
   id: string;

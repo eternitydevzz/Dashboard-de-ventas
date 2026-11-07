@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { filaALead, mapaValido, proponerCampo } from "@/lib/csv";
 import { nivel, puntuacion } from "@/lib/prioridad";
 import { tasasCloser } from "@/lib/reportes";
-import { colaCaller } from "@/lib/cola";
+import { cuentaPorEstado } from "@/lib/cola";
 import { recursosVisibles } from "@/lib/recursos";
 
 describe("CSV: propuesta de columnas", () => {
@@ -80,29 +80,10 @@ describe("Reporte del closer: tasas", () => {
 });
 
 describe("Cola del caller", () => {
-  const ahora = new Date("2026-10-09T15:00:00Z").getTime();
-  const lead = (id: string, estado: string, llamar_en: string | null = null) => ({ id, estado_caller: estado as never, llamar_en, respuestas: [], creado_en: "2026-10-01T00:00:00Z" });
-  const leads = [
-    lead("nuevo", "nuevo"),
-    lead("vencido", "llamar_luego", "2026-10-09T14:00:00Z"),
-    lead("futuro", "llamar_luego", "2026-10-10T14:00:00Z"),
-    lead("agendado", "agendado"),
-    lead("sin_respuesta", "no_contesta"),
-  ];
-  it("«Por llamar» incluye el «llamar luego» que ya venció, y va primero", () => {
-    const ids = colaCaller(leads, "llamar", ahora).map((l) => l.id);
-    expect(ids).toEqual(["vencido", "nuevo", "sin_respuesta"]);
-  });
-  it("el «llamar luego» futuro no sale en «Por llamar» pero sí en su pestaña", () => {
-    expect(colaCaller(leads, "llamar", ahora).some((l) => l.id === "futuro")).toBe(false);
-    expect(colaCaller(leads, "luego", ahora).map((l) => l.id)).toEqual(["vencido", "futuro"]);
-  });
-  it("«Link enviado» sale de la cola y vuelve a los 2 días como un «llamar luego» que ya toca (11 oct)", () => {
-    const conLink = [...leads, lead("link_reciente", "link_enviado", "2026-10-11T15:00:00Z"), lead("link_viejo", "link_enviado", "2026-10-09T13:00:00Z")];
-    const ids = colaCaller(conLink, "llamar", ahora).map((l) => l.id);
-    expect(ids).not.toContain("link_reciente");
-    expect(ids.slice(0, 2).sort()).toEqual(["link_viejo", "vencido"]);
-    expect(colaCaller(conLink, "luego", ahora).map((l) => l.id)).toEqual(["link_viejo", "vencido", "futuro", "link_reciente"]);
+  const lead = (id: string, estado: string) => ({ id, estado_caller: estado as never, respuestas: [], creado_en: "2026-10-01T00:00:00Z" });
+  const leads = [lead("nuevo", "nuevo"), lead("luego", "llamar_luego"), lead("agendado", "agendado"), lead("seguimiento", "seguimiento")];
+  it("C11 (7 nov): cuenta cuántos hay en cada columna; «todos» = toda la cola", () => {
+    expect(cuentaPorEstado(leads)).toEqual({ todos: 4, nuevo: 1, llamar_luego: 1, agendado: 1, seguimiento: 1 });
   });
 });
 

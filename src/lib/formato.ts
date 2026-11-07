@@ -1,3 +1,4 @@
+import { ETIQUETA_ESTADO } from "@/lib/estados-caller";
 import type { Proyecto } from "@/lib/tipos";
 import { ErrorUsuario } from "@/lib/error-usuario";
 
@@ -132,15 +133,8 @@ export function rangoDe(periodo: Periodo, zona: string, desdeTxt?: string, hasta
   };
 }
 
-export const ETIQUETA_ESTADO_CALLER: Record<string, string> = {
-  nuevo: "Nuevo",
-  no_contesta: "No contesta",
-  llamar_luego: "Llamar luego",
-  link_enviado: "Link enviado",
-  agendado: "Agendado",
-  no_interesa: "No interesa",
-  vendido: "Vendido",
-};
+// C11: los nombres de los 12 estados (y los viejos del historial) salen de lib/estados-caller.ts
+export const ETIQUETA_ESTADO_CALLER: Record<string, string> = ETIQUETA_ESTADO;
 
 export const ETIQUETA_ESTADO_CITA: Record<string, string> = {
   pendiente: "Pendiente",

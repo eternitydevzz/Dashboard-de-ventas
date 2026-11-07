@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
+  BookOpen,
+  Mic,
   BarChart3,
   KanbanSquare,
   AudioLines,
@@ -44,6 +46,8 @@ const ICONOS = {
   ventas: ShoppingCart,
   ranking: Trophy,
   recursos: FolderOpen,
+  manuales: BookOpen, // C9
+  grabaciones: Mic, // C10
   reportes: ClipboardList,
   admin: Settings,
   equipo: Network,

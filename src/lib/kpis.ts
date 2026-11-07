@@ -1,4 +1,5 @@
 import "server-only";
+import { esContacto } from "@/lib/estados-caller";
 import { porcentaje, type Rango } from "@/lib/formato";
 import { ASISTIDAS, enRango, cashNeto, type Base } from "@/lib/metricas";
 import type { Perfil } from "@/lib/tipos";
@@ -39,9 +40,10 @@ export function kpiCaller(ix: Indices, ids: Set<string>) {
   const { base, rango, dia, ahora } = ix;
   const acts = base.actividades.filter((a) => a.perfil_id !== null && ids.has(a.perfil_id) && enRango(a.creado_en, rango));
   const llamadas = acts.filter((a) => a.tipo === "llamada").length;
-  // Contactado = le llamó o le mandó un WhatsApp · contesta = respondió la llamada
+  // Contactado = le llamó o le mandó un WhatsApp · contesta = el lead avanzó (C11, punto 16: No interesa, Seguimiento,
+  // Llamar luego, Agendado, Confirma Agenda, Reagendado o Cerrados; Llamado, Wsp enviado y No responde no cuentan)
   const contactados = new Set(acts.filter((a) => a.tipo === "llamada" || a.tipo === "whatsapp").map((a) => a.lead_id));
-  const contestan = new Set(acts.filter((a) => a.tipo === "llamada" && a.resultado && a.resultado !== "no_contesta").map((a) => a.lead_id));
+  const contestan = new Set(acts.filter(esContacto).map((a) => a.lead_id));
 
   // Agendados: leads con una cita creada por él en el periodo (también si luego se reagendó)
   const t = (iso: string) => new Date(iso).getTime();

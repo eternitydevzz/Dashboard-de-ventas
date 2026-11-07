@@ -4,6 +4,7 @@
 // Compactar = los nombres (pipelines, columnas, personas, etiquetas, preguntas y respuestas) van una sola vez en listas
 // y cada lead lleva solo su posición en ellas. Medido el 26 oct con 4.688 leads: 3,65 MB → 0,71 MB (límite de Vercel,
 // 4,5 MB). Se guarda igual que en la base: nada se recalcula ni se pierde (lo comprueba tests/unit/leads-vista.test.ts).
+import { esContacto } from "@/lib/estados-caller";
 import type { Respuesta } from "@/lib/tipos";
 
 export type LeadDeLaBase = {
@@ -47,9 +48,10 @@ export function marcasEmbudo(
   const m = new Map<string, number>();
   const poner = (id: string, marca: number) => m.set(id, (m.get(id) ?? 0) | marca);
   for (const a of actividades) {
+    // C11 (punto 16): contesta = el lead avanzó (los botones apuntan «cambio_etapa» con su estado)
+    if (esContacto(a)) poner(a.lead_id, MARCA.contactado | MARCA.contesta);
     if (a.tipo !== "llamada" && a.tipo !== "whatsapp") continue;
     poner(a.lead_id, MARCA.contactado);
-    if (a.tipo === "llamada" && a.resultado && a.resultado !== "no_contesta") poner(a.lead_id, MARCA.contesta);
   }
   for (const c of citas) {
     poner(c.lead_id, MARCA.contactado | MARCA.contesta | MARCA.agendado);

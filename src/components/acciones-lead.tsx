@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { PhoneOff, Clock, CalendarPlus, ThumbsDown, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2 } from "lucide-react";
-import { agendarCita, anadirNota, marcarLinkEnviado, registrarLlamada, registrarVenta, registrarWhatsapp } from "@/app/(panel)/leads/acciones";
+import { useState, useTransition, type ReactNode } from "react";
+import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, Phone, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
+import { anadirNota, confirmarAgenda, registrarLlamada, registrarVenta, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
+import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado, type BotonResultado } from "@/lib/estados-caller";
+import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "@/app/(panel)/crm/ventanas-estado";
 import { Modal } from "@/components/modal";
 import { SelectorEstrellas } from "@/components/estrellas";
 import { useToast } from "@/components/toasts";
 import { exigirOk } from "@/lib/resultado-cliente";
-import type { Producto } from "@/lib/tipos";
-import { CamposCita } from "@/components/campos-cita";
+import type { Producto, Respuesta } from "@/lib/tipos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
-import { GuionLlamada, type ResultadoGuion } from "@/components/guion-llamada";
+import { GuionLlamada } from "@/components/guion-llamada";
+import { BotonGrabar, useGrabadora } from "@/components/grabadora";
 import type { Guion } from "@/lib/guiones";
 
 type Persona = { id: string; nombre: string };
@@ -47,7 +49,23 @@ export function Mensajes({ error, ok }: { error: string; ok: string }) {
   );
 }
 
-// Botonera de resultado de llamada (caller) + WhatsApp + agendar + venta
+// C11 (plan Callers, 7 nov): iconos de los 9 resultados (los de la maqueta, lucide)
+export const ICONO_RESULTADO: Record<BotonResultado, LucideIcon> = {
+  llamado: Phone,
+  wsp_enviado: MessageCircle,
+  no_responde: PhoneOff,
+  no_interesa: CircleX,
+  seguimiento: Repeat,
+  llamar_luego: Clock,
+  agendado: CalendarDays,
+  confirma_agenda: CalendarCheck,
+  descartado: Ban,
+};
+
+// Botones del lead (cola, guion y ficha completa). C11: los 9 resultados mueven el lead a su columna de «Callers»;
+// los que piden datos (estrellas, fecha) abren su ventana, la misma que al soltar en el CRM.
+// C5 (maqueta, 7c.1): `variante="cola"` = cabecera azul con Guion · Grabar · Wsp · Copiar link agenda · Recursos · Nota
+// y la tarjeta «¿Cómo ha ido?» con 9 baldosas y «Mover a». En la ficha completa del lead, como siempre.
 export function AccionesLead({
   leadId,
   telefono,
@@ -63,6 +81,14 @@ export function AccionesLead({
   guion,
   nombreLead = "",
   miNombre = "",
+  estado,
+  variante = "ficha",
+  cabecera,
+  respuestas,
+  guionAbierto,
+  onGuionAbierto,
+  onSiguiente,
+  puedeGrabar = false,
 }: {
   leadId: string;
   telefono: string | null;
@@ -75,10 +101,19 @@ export function AccionesLead({
   linkAgenda?: string | null; // link del calendario de GHL del proyecto (4.4, 11 oct)
   moneda: string;
   compacto?: boolean;
-  guion?: Guion; // Fase 6: «Llamar» abre el guion (sin él, no hay botón «Llamar»)
+  guion?: Guion; // Fase 6: «Guion» abre el guion de la llamada
   nombreLead?: string;
   miNombre?: string;
+  estado?: string; // columna actual del lead: su botón se ve marcado
+  variante?: "ficha" | "cola";
+  cabecera?: ReactNode; // cola: los datos del lead, dentro de la cabecera azul
+  respuestas?: Respuesta[]; // pestaña «Form» del guion
+  guionAbierto?: boolean; // cola: quién abre el guion lo decide la cola («Siguiente» lo abre en el siguiente)
+  onGuionAbierto?: (abierto: boolean) => void;
+  onSiguiente?: () => void;
+  puedeGrabar?: boolean; // C10: con la sección «Grabaciones», «Grabar» en la cabecera del lead y en el guion
 }) {
+  const grabadora = useGrabadora();
   const { pendiente, error, ok, ejecutar } = useAccion();
   const aviso = useToast();
   async function copiarLinkAgenda() {
@@ -89,167 +124,54 @@ export function AccionesLead({
       aviso(`No se pudo copiar. El link es: ${linkAgenda}`, "error");
     }
   }
-  const [modal, setModal] = useState<null | "guion" | "luego" | "agendar" | "link" | "venta" | "nota" | "no_interesa">(null);
+  const [modal, setModal] = useState<null | "guion" | "nota" | "venta">(null);
+  const [ventana, setVentana] = useState<DestinoConVentana | null>(null);
   const [nota, setNota] = useState("");
   const telLimpio = (telefono ?? "").replace(/[^\d]/g, "");
   const productosVisibles = rol === "caller" ? [] : productos; // el caller no registra ventas (Cristian, 12 oct)
+  const nombre = nombreLead || "este lead";
+  const controlado = guionAbierto !== undefined;
+  const verGuion = controlado ? guionAbierto : modal === "guion";
+  const abrirGuion = (b: boolean) => (controlado ? onGuionAbierto?.(b) : setModal(b ? "guion" : null));
 
-  const boton = "btn-secundario justify-start";
-  return (
-    <div className="space-y-3">
-      <div className={`grid gap-2 ${compacto ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
-        {/* Cristian (13 oct): sin botón «Llamar» (llamar desde la app será una función futura); en su lugar,
-            «Guion» abre el guion de la llamada con sus botones de resultado */}
-        {guion && (
-          <button type="button" className="btn-primario justify-start" onClick={() => setModal("guion")}>
-            <ScrollText className="h-4 w-4" /> Guion
-          </button>
-        )}
-        {telLimpio && (
-          <a
-            href={`https://wa.me/${telLimpio}`}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => ejecutar(() => registrarWhatsapp(leadId, ""), "WhatsApp registrado")}
-            className={`${boton} text-ok`}
-          >
-            <MessageCircle className="h-4 w-4" /> WhatsApp
-          </a>
-        )}
-        <button className={boton} disabled={pendiente} onClick={() => ejecutar(() => registrarLlamada(leadId, "no_contesta", ""), "Guardado: no contesta")}>
-          <PhoneOff className="h-4 w-4 text-texto-3" /> No contesta
-        </button>
-        {/* Cristian (13 oct): en lugar de «Coach IA», «Link agenda» copia el link de agenda del proyecto (Administración) */}
-        {linkAgenda && (
-          <button type="button" className={boton} onClick={() => void copiarLinkAgenda()}>
-            <CalendarPlus className="h-4 w-4 text-primario" /> Link agenda
-          </button>
-        )}
-        <button className={boton} disabled={pendiente} onClick={() => setModal("luego")}>
-          <Clock className="h-4 w-4 text-aviso" /> Llamar luego
-        </button>
-        {/* 4.4 (Cristian, 11 oct): el caller manda el link de GHL (con sus estrellas); los closers agendan a mano */}
-        {rol !== "closer" && (
-          <button className={boton} disabled={pendiente} onClick={() => setModal("link")}>
-            <Link2 className="h-4 w-4 text-primario" /> Link enviado
-          </button>
-        )}
-        {rol !== "caller" && (
-          <button className={boton} disabled={pendiente} onClick={() => setModal("agendar")}>
-            <CalendarPlus className="h-4 w-4 text-primario" /> Agendar
-          </button>
-        )}
-        <button className={boton} disabled={pendiente} onClick={() => setModal("no_interesa")}>
-          <ThumbsDown className="h-4 w-4 text-mal" /> No interesa
-        </button>
-        {productosVisibles.length > 0 && (
-          <button className={boton} disabled={pendiente} onClick={() => setModal("venta")}>
-            <ShoppingCart className="h-4 w-4 text-oro" /> Registrar venta
-          </button>
-        )}
-        <button className={boton} disabled={pendiente} onClick={() => setModal("nota")}>
-          <StickyNote className="h-4 w-4 text-texto-3" /> Nota
-        </button>
-      </div>
-      <Mensajes error={error} ok={ok} />
+  function resultado(clave: string) {
+    if (CON_VENTANA.includes(clave)) return setVentana(clave as DestinoConVentana);
+    if (clave === "confirma_agenda") return ejecutar(() => confirmarAgenda(leadId), "Guardado: Confirma Agenda (cita confirmada)");
+    ejecutar(() => registrarLlamada(leadId, clave as ResultadoSimple, ""), `Guardado: ${etiquetaEstado(clave)}`);
+  }
 
-      {modal === "guion" && guion && (
+  const ventanas = (
+    <>
+      {verGuion && guion && (
         <GuionLlamada
           leadId={leadId}
-          nombreLead={nombreLead || "este lead"}
+          nombreLead={nombre}
           telefono={telefono}
           miNombre={miNombre}
           guion={guion}
-          resultados={(
-            [
-              { clave: "no_contesta", texto: "No contesta", icono: <PhoneOff className="h-4 w-4 text-texto-3" /> },
-              { clave: "luego", texto: "Llamar luego", icono: <Clock className="h-4 w-4 text-aviso" /> },
-              rol !== "closer" ? { clave: "link", texto: "Link enviado", icono: <Link2 className="h-4 w-4 text-primario" /> } : null,
-              rol !== "caller" ? { clave: "agendar", texto: "Agendar", icono: <CalendarPlus className="h-4 w-4 text-primario" /> } : null,
-              { clave: "no_interesa", texto: "No interesa", icono: <ThumbsDown className="h-4 w-4 text-mal" /> },
-              productosVisibles.length > 0 ? { clave: "venta", texto: "Venta", icono: <ShoppingCart className="h-4 w-4 text-oro" /> } : null,
-            ] as (ResultadoGuion | null)[]
-          ).filter((x): x is ResultadoGuion => !!x)}
-          onResultado={(clave) => {
-            if (clave === "no_contesta") {
-              setModal(null);
-              ejecutar(() => registrarLlamada(leadId, "no_contesta", ""), "Guardado: no contesta");
-            } else setModal(clave as "luego" | "link" | "agendar" | "no_interesa" | "venta");
-          }}
-          onCerrar={() => setModal(null)}
+          respuestas={respuestas}
+          actual={estado}
+          grabador={puedeGrabar ? <BotonGrabar leadId={leadId} nombre={nombre} /> : undefined}
+          resultados={BOTONES_RESULTADO.map((k) => {
+            const Icono = ICONO_RESULTADO[k];
+            return { clave: k, texto: etiquetaEstado(k), icono: <Icono className="h-4 w-4 shrink-0" style={{ color: colorEstado(k) }} /> };
+          })}
+          onResultado={resultado}
+          onSiguiente={onSiguiente}
+          onCerrar={() => abrirGuion(false)}
         />
       )}
-
-      {modal === "luego" && (
-        <Modal titulo="Llamar luego" onCerrar={() => setModal(null)}>
-          <form
-            className="space-y-3"
-            action={(fd) => {
-              ejecutar(() => registrarLlamada(leadId, "llamar_luego", String(fd.get("nota") ?? ""), String(fd.get("cuando") ?? ""), Number(fd.get("estrellas"))), "Guardado: llamar luego");
-              setModal(null);
-            }}
-          >
-            <label className="block"><span className="etiqueta-campo">¿Cuándo?</span><input type="datetime-local" name="cuando" required className="campo" /></label>
-            <label className="block"><span className="etiqueta-campo">Nota</span><textarea name="nota" rows={3} className="campo" placeholder="Lo que te dijo, tal cual" /></label>
-            <SelectorEstrellas quien="caller" />
-            <button className="btn-primario w-full">Guardar</button>
-          </form>
-        </Modal>
-      )}
-      {modal === "no_interesa" && (
-        <Modal titulo="No interesa" onCerrar={() => setModal(null)}>
-          <form
-            className="space-y-3"
-            action={(fd) => {
-              ejecutar(() => registrarLlamada(leadId, "no_interesa", String(fd.get("nota") ?? ""), undefined, Number(fd.get("estrellas"))), "Guardado: no interesa");
-              setModal(null);
-            }}
-          >
-            <SelectorEstrellas quien="caller" />
-            <label className="block"><span className="etiqueta-campo">Nota (opcional)</span><textarea name="nota" rows={2} className="campo" placeholder="Por qué no le interesa" /></label>
-            <button className="btn-primario w-full">Guardar</button>
-          </form>
-        </Modal>
-      )}
-      {modal === "agendar" && (
-        <Modal titulo="Agendar cita con closer" onCerrar={() => setModal(null)}>
-          <form
-            className="space-y-3"
-            action={(fd) => {
-              ejecutar(() => agendarCita(leadId, String(fd.get("closer")), String(fd.get("fecha")), String(fd.get("nota") ?? ""), fd.get("estrellas") ? Number(fd.get("estrellas")) : undefined), "Cita agendada");
-              setModal(null);
-            }}
-          >
-            <CamposCita closers={closers} id="acciones-lead-closer" />
-            <label className="block"><span className="etiqueta-campo">Nota para el closer</span><textarea name="nota" rows={3} className="campo" placeholder="Situación, dolor, cifra…" /></label>
-            <SelectorEstrellas quien="caller" opcional={rol !== "caller"} />
-            <button className="btn-primario w-full">Agendar</button>
-          </form>
-        </Modal>
-      )}
-      {modal === "link" && (
-        <Modal titulo="Link de agenda enviado" onCerrar={() => setModal(null)}>
-          <form
-            className="space-y-3"
-            action={(fd) => {
-              const n = Number(fd.get("estrellas"));
-              // Con link y teléfono, WhatsApp se abre con el link ya escrito
-              if (linkAgenda && telLimpio) window.open(`https://wa.me/${telLimpio}?text=${encodeURIComponent(`¡Hola! Aquí tienes el link para agendar tu llamada: ${linkAgenda}`)}`, "_blank", "noopener");
-              ejecutar(() => marcarLinkEnviado(leadId, n), "Link enviado: si no reserva, vuelve a tu cola en 2 días");
-              setModal(null);
-            }}
-          >
-            <p className="text-sm text-texto-2">
-              {linkAgenda && telLimpio
-                ? "Se abre WhatsApp con el link para que el lead elija su hora. La cita llega sola desde GHL."
-                : linkAgenda
-                  ? "Este lead no tiene teléfono: mándale el link por otro medio. La cita llega sola desde GHL."
-                  : "Falta el link de agenda en Administración → Proyecto y reparto: mándalo por tu cuenta."}
-            </p>
-            <SelectorEstrellas quien="caller" />
-            <button className="btn-primario w-full">{linkAgenda && telLimpio ? "Abrir WhatsApp y marcar" : "Marcar como enviado"}</button>
-          </form>
-        </Modal>
+      {ventana && (
+        <VentanaEstado
+          lead={{ id: leadId, nombre }}
+          destino={ventana}
+          closers={closers}
+          productos={productosVisibles}
+          moneda={moneda}
+          esCaller={rol === "caller"}
+          onCerrar={() => setVentana(null)}
+          onGuardar={(accion, mensaje) => ejecutar(accion, mensaje)}
+        />
       )}
       {modal === "venta" && (
         <Modal titulo="Registrar venta" onCerrar={() => setModal(null)} ancho="max-w-lg">
@@ -283,6 +205,123 @@ export function AccionesLead({
           </div>
         </Modal>
       )}
+    </>
+  );
+
+  if (variante === "cola") {
+    const bv = "inline-flex items-center gap-1.5 rounded-[10px] border border-white/30 bg-white/15 px-2.5 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-white/25 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-white";
+    return (
+      <>
+        <section className="relative rounded-[18px] bg-gradient-to-br from-[#2b59d1] to-[#3f6ee6] px-4 pb-3 pt-3.5 text-white shadow-[0_10px_30px_-16px_rgb(43_89_209/0.6)] sm:px-[18px]" aria-label="Lead elegido">
+          {cabecera}
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-white/20 pt-3" role="toolbar" aria-label="Herramientas">
+            {guion && (
+              <button type="button" className={`${bv} !border-white !bg-white !text-[#1f3fa0]`} onClick={() => abrirGuion(true)}>
+                <ScrollText className="h-4 w-4" /> Guion
+              </button>
+            )}
+            {/* C10 (7c.3): «Grabar» abre el guion y empieza a grabar */}
+            {puedeGrabar && grabadora && (
+              <button type="button" className={`${bv} !border-white !bg-white !text-[#b4202f]`} disabled={!!grabadora.grabando} onClick={() => { abrirGuion(true); void grabadora.empezar(leadId, nombre); }}>
+                <span className="h-2.5 w-2.5 rounded-full bg-[#d0303f]" /> {grabadora.grabando?.leadId === leadId ? "Grabando…" : "Grabar"}
+              </button>
+            )}
+            {/* F9 (plan Callers): abrir WhatsApp ya no apunta nada; lo apunta el resultado «Wsp enviado» */}
+            {telLimpio && <a href={`https://wa.me/${telLimpio}`} target="_blank" rel="noreferrer" className={bv} aria-label="WhatsApp"><MessageCircle className="h-4 w-4" /> Wsp</a>}
+            {linkAgenda && <button type="button" className={bv} onClick={() => void copiarLinkAgenda()}><Link2 className="h-4 w-4" /> Copiar link agenda</button>}
+            <a href="/recursos" target="_blank" rel="noreferrer" className={bv}><FolderOpen className="h-4 w-4" /> Recursos</a>
+            <button type="button" className={bv} onClick={() => setModal("nota")}><StickyNote className="h-4 w-4" /> Nota</button>
+            {productosVisibles.length > 0 && <button type="button" className={bv} onClick={() => setModal("venta")}><ShoppingCart className="h-4 w-4" /> Venta</button>}
+          </div>
+        </section>
+
+        <section className="tarjeta px-4 py-4 sm:px-5">
+          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2.5">
+            <div>
+              <h3 className="text-[15px] font-semibold">¿Cómo ha ido?</h3>
+              <span className="text-xs text-texto-3">Un clic = mueve el lead a esa columna</span>
+            </div>
+            <label className="flex items-center gap-2 text-[12.5px] font-semibold text-texto-2">
+              Mover a
+              <select className="campo w-auto py-1.5" value={estado ?? ""} disabled={pendiente} onChange={(e) => e.target.value && e.target.value !== estado && resultado(e.target.value)}>
+                {ESTADOS_CALLER.filter((x) => x.v !== "vendido").map((x) => <option key={x.v} value={x.v}>{x.t}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {BOTONES_RESULTADO.map((k) => {
+              const Icono = ICONO_RESULTADO[k];
+              const actual = estado === k;
+              const c = colorEstado(k);
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  aria-current={actual ? "true" : undefined}
+                  disabled={pendiente}
+                  onClick={() => resultado(k)}
+                  style={{ ["--c" as string]: c }}
+                  className={`flex min-h-[60px] items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-[13.5px] font-bold transition active:scale-[0.98] ${actual ? "border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_10%,var(--panel-2))] shadow-[inset_0_0_0_1px_var(--c)]" : "border-borde bg-panel-2 hover:border-[color-mix(in_srgb,var(--c)_55%,transparent)]"}`}
+                >
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] ${actual ? "bg-[var(--c)] text-white" : "bg-[color-mix(in_srgb,var(--c)_15%,transparent)] text-[var(--c)]"}`}>
+                    <Icono className="h-[18px] w-[18px]" />
+                  </span>
+                  {etiquetaEstado(k)}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3"><Mensajes error={error} ok={ok} /></div>
+        </section>
+        {ventanas}
+      </>
+    );
+  }
+
+  const boton = "btn-secundario justify-start";
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {guion && (
+          <button type="button" className="btn-primario" onClick={() => abrirGuion(true)}>
+            <ScrollText className="h-4 w-4" /> Guion
+          </button>
+        )}
+        {telLimpio && (
+          <a href={`https://wa.me/${telLimpio}`} target="_blank" rel="noreferrer" className={`${boton} text-ok-texto`}>
+            <MessageCircle className="h-4 w-4" /> Wsp
+          </a>
+        )}
+        {linkAgenda && (
+          <button type="button" className={boton} onClick={() => void copiarLinkAgenda()}>
+            <Link2 className="h-4 w-4 text-primario" /> Copiar link agenda
+          </button>
+        )}
+        <button className={boton} disabled={pendiente} onClick={() => setModal("nota")}>
+          <StickyNote className="h-4 w-4 text-texto-3" /> Nota
+        </button>
+        {productosVisibles.length > 0 && (
+          <button className={boton} disabled={pendiente} onClick={() => setModal("venta")}>
+            <ShoppingCart className="h-4 w-4 text-oro-texto" /> Registrar venta
+          </button>
+        )}
+      </div>
+      <div>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-texto-3">¿Cómo ha ido?</div>
+        <div className={`grid gap-2 ${compacto ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+          {BOTONES_RESULTADO.map((k) => {
+            const Icono = ICONO_RESULTADO[k];
+            const actual = estado === k;
+            return (
+              <button key={k} type="button" className={`${boton} ${actual ? "border-primario bg-primario-suave text-primario" : ""}`} aria-current={actual ? "true" : undefined} disabled={pendiente} onClick={() => resultado(k)}>
+                <Icono className="h-4 w-4" style={{ color: colorEstado(k) }} /> {etiquetaEstado(k)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <Mensajes error={error} ok={ok} />
+      {ventanas}
     </div>
   );
 }

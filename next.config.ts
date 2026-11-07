@@ -8,7 +8,8 @@ const cabeceras = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  // C10 (plan Callers, 7 nov): el micrófono, solo para la propia app (grabar la llamada desde el guion)
+  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=()" },
   ...(desarrollo ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]),
 ];
 
@@ -34,7 +35,12 @@ const nextConfig: NextConfig = {
     staleTimes: { static: 300, dynamic: 300 },
   },
   async headers() {
-    return [{ source: "/(.*)", headers: cabeceras }];
+    // C9 (plan Callers, 7 nov): un manual (/api/manuales/<id>) se enmarca dentro de la propia app; el resto, nunca
+    const sinMarco = cabeceras.filter((c) => c.key !== "X-Frame-Options");
+    return [
+      { source: "/((?!api/manuales/).*)", headers: cabeceras },
+      { source: "/api/manuales/:id", headers: [...sinMarco, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+    ];
   },
 };
 

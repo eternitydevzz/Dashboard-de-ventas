@@ -34,7 +34,7 @@ describe("Priorización con IA", () => {
   ] as never[];
   it("con Scoring IA ordena por su nota; sin él, por la puntuación simple", () => {
     const pesos = { Inversión: { "Sí, ahora": 10, No: -10 } };
-    expect(colaCaller(leads, "llamar", Date.now(), pesos).map((l: { id: string }) => l.id)).toEqual(["b", "a"]);
+    expect([...colaCaller(leads, "todos", pesos)].sort((x: { puntos: number }, y: { puntos: number }) => y.puntos - x.puntos).map((l: { id: string }) => l.id)).toEqual(["b", "a"]);
     expect(puntosLead([{ pregunta: "Otra", respuesta: "x" }], pesos)).toBe(50);
     expect(puntosLead([{ pregunta: "¿Puedes invertir?", respuesta: "Sí" }], null)).toBe(40);
   });

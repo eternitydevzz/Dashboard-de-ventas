@@ -27,19 +27,23 @@ describe("Preguntas del reporte", () => {
   });
 });
 
-describe("Cola del caller sin prioridad", () => {
-  const ahora = Date.parse("2026-10-11T12:00:00Z");
-  const lead = (id: string, estado: string, creado: string, inversion: string, llamar_en: string | null = null) => ({ id, estado_caller: estado, llamar_en, creado_en: creado, respuestas: [{ pregunta: "¿Puedes invertir?", respuesta: inversion }] }) as never;
-  it("los grupos se quedan; dentro, del más nuevo al más viejo aunque el viejo tenga más prioridad", () => {
-    const leads = [
-      lead("nuevo-viejo-A", "nuevo", "2026-10-01", "Sí"),
-      lead("nuevo-reciente-C", "nuevo", "2026-10-10", "No"),
-      lead("no-contesta-reciente", "no_contesta", "2026-10-11", "Sí"),
-      lead("luego-ya-toca", "llamar_luego", "2026-09-01", "No", "2026-10-11T10:00:00Z"),
-    ];
-    expect(colaCaller(leads, "llamar", ahora).map((l: { id: string }) => l.id)).toEqual(["luego-ya-toca", "nuevo-reciente-C", "nuevo-viejo-A", "no-contesta-reciente"]);
-    // La prioridad se sigue calculando (para enseñarla)
-    const [, , viejoA] = colaCaller(leads, "llamar", ahora) as { id: string; puntos: number }[];
+describe("Cola del caller (C11, 7 nov): filtro por columna, sin fechas", () => {
+  const lead = (id: string, estado: string, creado: string, inversion: string) => ({ id, estado_caller: estado, creado_en: creado, respuestas: [{ pregunta: "¿Puedes invertir?", respuesta: inversion }] }) as never;
+  const leads = [
+    lead("nuevo-viejo-A", "nuevo", "2026-10-01", "Sí"),
+    lead("nuevo-reciente-C", "nuevo", "2026-10-10", "No"),
+    lead("seguimiento", "seguimiento", "2026-10-11", "Sí"),
+    lead("luego", "llamar_luego", "2026-09-01", "No"),
+  ];
+  it("«Leads» = toda la cola; los que entraron más tarde arriba, aunque el viejo tenga más prioridad", () => {
+    expect(colaCaller(leads, "todos").map((l: { id: string }) => l.id)).toEqual(["seguimiento", "nuevo-reciente-C", "nuevo-viejo-A", "luego"]);
+    // La prioridad se sigue calculando (para enseñarla y ordenar por ella con la cabecera)
+    const viejoA = colaCaller(leads, "todos").find((l: { id: string }) => l.id === "nuevo-viejo-A") as unknown as { puntos: number };
     expect(viejoA.puntos).toBeGreaterThan(0);
+  });
+  it("cada pastilla filtra su columna", () => {
+    expect(colaCaller(leads, "nuevo").map((l: { id: string }) => l.id)).toEqual(["nuevo-reciente-C", "nuevo-viejo-A"]);
+    expect(colaCaller(leads, "llamar_luego").map((l: { id: string }) => l.id)).toEqual(["luego"]);
+    expect(colaCaller(leads, "agendado")).toEqual([]);
   });
 });

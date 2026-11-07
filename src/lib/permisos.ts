@@ -55,7 +55,7 @@ export function soloLoSuyo(perfil: Perfil, seccion: Seccion) {
 // Página de inicio: la de su rol si la tiene; si no, la primera sección que tenga permitida
 const RUTA: Record<Seccion, string> = {
   funnel: "/kpis?vista=funnel", mi_funnel: "/mi-funnel", kpis: "/kpis", crm: "/crm", cola: "/caller", agendas: "/closer", grabadas: "/caller/grabadas",
-  ventas: "/ventas", ranking: "/ranking", recursos: "/recursos", reportes: "/reportes", equipo: "/equipo", programas: "/programas", finanzas: "/finanzas", clientes: "/clientes",
+  ventas: "/ventas", ranking: "/ranking", recursos: "/recursos", reportes: "/reportes", manuales: "/manuales", grabaciones: "/grabaciones", equipo: "/equipo", programas: "/programas", finanzas: "/finanzas", clientes: "/clientes",
 };
 // 26 oct 2026 (Cristian): el CEO y los directores entran en KPIs → Leads (antes, en el Funnel)
 const INICIO: Record<Perfil["rol"], Seccion> = { ceo: "kpis", director: "kpis", closer: "agendas", caller: "cola" };
