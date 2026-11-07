@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 24 (7 nov 2026, 20:35 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 25 (7 nov 2026, 20:50 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -21,7 +21,7 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 | **Punto 3:** el dashboard entiende el JSON v1 y guarda la IP; archivos del equipo en `app/Team/` (`Template-landing.md`, `templates/enviar-al-dashboard.js`) y la skill `conectar-web-al-dashboard` | #55 | ✅ En producción. Ya se le puede pasar al equipo `Team/Template-landing.md` |
 | **Biblioteca en real** desde las 20:05 UTC: el primer lead real (20:18) y uno de prueba (20:12) llegaron a GHL por su workflow, ok a la primera | — | ✅ |
 | **«Mover en el dashboard» en modo real** | #59 | ✅ En producción |
-| **Workflows de la Biblioteca, versión 2** (Cristian, 7 nov), ver «Biblioteca: etiquetas y columnas» | — | ✅ Cargados a las 20:33 UTC; los leads de los últimos 2 días (23 de registro y 3 de agenda) vuelven a pasar por ellos |
+| **Workflows de la Biblioteca, versión 2** (Cristian, 7 nov), ver «Biblioteca: etiquetas y columnas» | — | ✅ Cargados a las 20:33 UTC. Los leads de los últimos 2 días pasaron por ellos: **26 de 26 ok, 0 errores** (registro 23, agenda 3 a las 20:40; los 3 de agenda en «Agendados» con `agenda-biblioteca` y `biblioteca`). A esos 23 leads se les quitaron en el dashboard las etiquetas antiguas (Cristian, 7 nov: solo esos, solo el dashboard; GHL las conserva) |
 | Plan propio de workflows (`docs/plan-workflows.md`) y este plan, al día | #37, #39, #41, #43, #47, #50, #56 | ✅ |
 
 ## Lo que queda ahora (en orden)
@@ -37,11 +37,12 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 - [ ] Pasar las 2 landings de la Biblioteca al JSON v1 (Cristian, 7 nov: ya, pero revisando antes todos los detalles). En agenda, la landing y su workflow (respuestas dentro de `quiz`) juntos.
 - [ ] Mejoras pequeñas, una a una, cada una con su PR (Cristian, 7 nov: «ya»). Ver «8 · Mejoras pequeñas».
 - [ ] Reintentar leer en GHL «2 . WH - FORM AGENDA GENERAL» con Playwright (Cristian, 7 nov: «inténtalo tú otra vez»).
+- [ ] **Pestaña «Etiquetas» en Administración, al lado de «Workflows»** (Cristian, 7 nov). Qué debe hacer exactamente (ver, renombrar, unir, borrar etiquetas…) está **por decidir con Cristian** antes del boceto.
 - [ ] Arreglo pequeño: «1 de 1 coinciden» → «1 de 1 coincide» en Workflows.
 - [ ] Siguiente fase por orden: landing de agenda de `codigomaestria.com` (necesita antes rehacer el workflow de agendas de GHL, aplazado).
 
 ## Biblioteca: etiquetas y columnas (Cristian, 7 nov)
-Versión 2 de sus 2 workflows (cargada el 7 nov a las 20:33 UTC). **Solo las etiquetas nuevas** (las de antes no se quitan a quien ya las tiene, pero ya no se ponen: `biblioteca-form-…`, `biblioteca-agenda-…`, `biblioteca recursos`, `agenda biblioteca`).
+Versión 2 de sus 2 workflows (cargada el 7 nov a las 20:33 UTC). **Solo las etiquetas nuevas**; las de antes ya no se ponen (`biblioteca-form-…`, `biblioteca-agenda-…`, `biblioteca recursos`, `agenda biblioteca`). A los 23 leads de los últimos 2 días se les quitaron en el dashboard (20:45 UTC); los otros ~2100 leads con «biblioteca recursos» y GHL se quedan como estaban (Cristian, 7 nov). **Ojo:** mientras la landing de registro siga mandando `tags`, cada lead nuevo de registro trae otra vez `biblioteca-form-completo` o `biblioteca-form-incompleto` (`api/signup.js:54`); se acaba al pasarla al JSON v1 (sin `tags`).
 | Quién | Etiquetas | GHL «1. Biblioteca Recursos» | Dashboard «1. Biblioteca Recursos» |
 |---|---|---|---|
 | Registro, solo el primer formulario | `form-biblioteca-incompleto`, `biblioteca` | «Form incompleto» (hoy «Registrados», id `9cb965ae…`) | «Form incompleto» |
