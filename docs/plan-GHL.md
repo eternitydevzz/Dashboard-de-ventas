@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 8 (7 nov 2026). Cada punto se explica solo, sin depender del chat. **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
+> Versión 9 (7 nov 2026). Cada punto se explica solo, sin depender del chat. **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
 > `git show a924227:docs/plan-GHL.md`.
 
 ## Dónde estamos
@@ -11,9 +11,9 @@
 | 1 · El dashboard hace en GHL lo que hacía el workflow | Hecha y publicada (PR #9 y #10) |
 | 2 · Registro de la Biblioteca | Hecha y publicada (biblioteca-maestria PR #1). Falta el seguimiento |
 | 3 · Agenda de la Biblioteca | Publicada (6 nov, 20:23 UTC). Falta ponerla en «0. Agendas General» (A) y sus 2 oportunidades en GHL (B) |
-| 4 · Workflows visuales | Diseño propuesto, esperando a Cristian |
+| 4 · Workflows visuales | Diseño decidido por Cristian (lienzo como GHL, sin emails). Falta su plan propio |
 | 5 · Skill «conectar-web-al-dashboard» (el manual de landings) | Después de A, B y C (decisión de Cristian) |
-| 6 · Resto de webs | Pendiente |
+| 6 · Resto de webs | Pendiente. La primera, la landing de agenda de `codigomaestria.com` (después de la skill) |
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiqueta y oportunidad. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
 
@@ -40,7 +40,7 @@
 | Agendas en el dashboard | Todas en «0. Agendas General» (decisión del 17 oct): antes de reservar en «Form», al reservar la cita las pasa a «Agendan». Con la etiqueta «Canal: …» desde el formulario |
 | Agendas en GHL | Oportunidad en «0. Agendas Biblioteca» y en «0. Agendas General» (en General tienen que estar todas), en la primera columna. Al reservar, GHL las mueve. La de «0. Agendas Orgánico» que crea el calendario está bien |
 | Registro en GHL | Oportunidad en «1. Biblioteca Recursos → Registrados»; ahí se queda aunque la persona agende |
-| Leads duplicados (mismo teléfono, otro email) | Se quedan los 2; hay que hacer un plan para unirlos (al final) |
+| Leads duplicados (mismo teléfono, otro email) | Se quedan los 2; hay que hacer un plan para unirlos (sección «Plan para unir leads duplicados») |
 | Manual para landings | Una skill (fase 5), no un documento. Va antes de pasar más landings |
 | Workflows visuales (fase 4) | Lienzo como GHL; los emails de las secuencias siguen fuera; el primero tras la Biblioteca es la landing de agenda |
 | Cambios de Cristian sin subir en el repo (3 docs borrados y `manual-branding-rojo.md`) | Claude no los toca |
@@ -115,16 +115,15 @@
 - **Para volver atrás:** registro → volver a publicar `6041cce` de la Biblioteca, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca». Agenda → volver a publicar `bfcb006`.
 
 ### 1 · Lo que hace Cristian (Claude no puede)
-- [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@`), «Prueba Biblioteca 1» a «5» (`info+bib1@` … `info+bib5@eternity.llc`). Las citas de bib1 y bib5 ya están canceladas.
+- [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «5» (`info+bib1@` … `info+bib5@eternity.llc`). Sus citas (bib1 el 12 nov y bib5 el 7 nov) ya están canceladas.
+- [ ] Decidir si se borran también en el dashboard los mismos leads de prueba (están en «1. Biblioteca Recursos» y alguno con tarjeta en «0. Agendas General»; no se repartieron a ningún caller). Si se borran, lo hace Cristian.
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
 - [ ] Poner otra vez la descripción de la integración «App Eternity (dashboard)» en GHL (quedó vacía; ya no es «solo lectura»).
-- [ ] Tus cambios sin commit en el repo del dashboard (3 docs borrados y `manual-branding-rojo.md`): **Claude no los toca** (Cristian, 7 nov).
+- [ ] Gestionar tus cambios sin subir en el repo del dashboard: 3 docs borrados (`Arreglar-dashboard.md`, `plan-historial-10oct.md`, `plan-historial-11oct.md`) y `manual-branding-rojo.md` nuevo. Claude no los toca.
 
 ### 2 · Para decidir (Cristian)
+- [ ] **¿Cuándo van los workflows visuales (fase 4): antes o después de pasar las demás landings (fase 6)?** Decidido hasta ahora: primero A, B y C; después la skill de la fase 5; después la landing de agenda de `codigomaestria.com`. Falta saber dónde encaja la fase 4.
 - [ ] **Entrada «Prueba GHL»** (`e5a2bfa9…`): ¿se queda o se borra? *Qué es:* una Entrada que Claude creó el 6 nov en la fase 1 solo para probar el envío a GHL con un contacto de prueba (`info+pruebaghl@eternity.llc`), incluida la prueba de fallo con un pipeline de GHL inválido (5 intentos, rojo, email y «Reintentar»). *Estado:* apagada (no acepta envíos y no manda nada a GHL); guarda el historial de esas pruebas y su lead de prueba. *Para qué sirve:* repetir pruebas sin tocar las Entradas reales. No molesta; si no se quiere, la borra Cristian en Administración → Entradas (Claude no borra datos).
-- [x] Etiqueta `biblioteca recursos`: se vuelve a poner en GHL (ver B.7).
-- [ ] El workflow «0. AP - Biblioteca» no existe en GHL; Cristian no sabe si se borró a propósito. La Entrada «GHL · Biblioteca» no recibía nada desde el 16 oct y está desactivada: no se hace nada.
-- [x] Fase 4: respuestas abajo.
 
 ### 3 · Seguimiento (Claude)
 - [ ] Hasta el 13 nov: medir con las horas de los envíos cuánto tarda la gente en el cuestionario y ajustar la espera (hoy 60 s) si hace falta.
@@ -136,33 +135,32 @@
 - [ ] Bloquear el bucle: no dejar encender «Mandar a GHL» en una Entrada que alimenta un workflow de GHL.
 - [ ] `BIBLIOTECA/build.py` rehace `index.html` desde una fuente vieja (vuelve «AI» y quita `CM_HAS_ACCESS`): arreglar su fuente antes de volver a usarlo.
 
-### 5 · Fase 4 · Workflows visuales en el dashboard (diseño con Cristian antes de programar)
-**Propuesta (Claude, 6 nov):**
-- **Workflow** = un disparador + pasos en orden, dibujado en un lienzo como GHL. Tabla `workflows` (pasos en JSON, versión, encendido).
-- **Disparadores v1:** llega a una Entrada · se añade una etiqueta · cambia de columna en el dashboard · se agenda / cancela una cita.
-- **Acciones v1:** crear/actualizar contacto en GHL · añadir/quitar etiqueta · crear o mover oportunidad · mover de columna en el dashboard · esperar · rama «si el campo…» · email con Resend.
-- **Motor:** cada lead crea una ejecución (`workflow_ejecuciones`: paso, hora del siguiente, intentos, error); la lectura de 60 s la avanza, con los mismos reintentos, aviso y «Reintentar» de hoy.
-- **Pantalla:** Administración → Workflows, en **lienzo como GHL** (decisión de Cristian), con historial por lead e interruptor.
-- **Migración:** «Qué hacer en GHL» de cada Entrada pasa a ser su workflow; las reglas de pipeline, ramas.
-- **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que la fase 2) · 4b pantalla de solo lectura · 4c edición · 4d disparadores de etiqueta, columna y cita.
-
-**Respuestas de Cristian (7 nov):**
-- **Lienzo como GHL** (cajas y flechas), no lista vertical. Cambia la pantalla de la propuesta y es más trabajo: su plan propio lo tiene en cuenta.
-- **Emails de las secuencias: siguen fuera.**
-- Primer workflow después de la Biblioteca: **la landing de agenda** (`codigomaestria.com/agenda`, webhook `2f05f800…`). **Antes de pasar más landings, el manual para todas las landings**, que será la skill de la fase 5 (decisión de Cristian: skill, no documento).
-
-Con sus respuestas sale el plan propio de la fase 4. Primera pasada de punta a punta: la Biblioteca como workflow, con el mismo resultado que hoy.
-
-### 6 · Fase 5 · Skill «conectar-web-al-dashboard» = el manual para landings (Claude, después de A, B y C)
+### 5 · Fase 5 · Skill «conectar-web-al-dashboard» = el manual para landings (Claude, después de A, B y C)
 *Por qué:* Cristian quiere que conectar una landing nueva sea fácil y siempre igual. Decidió que el manual sea una **skill** (instrucciones que Claude sigue paso a paso cada vez), no un documento para leer.
 - [ ] Con el caso real de la Biblioteca y `kit-creador-maestria:crear-skills`. Contenido: los 7 pasos de «Plan para conectar futuras landings» (abajo) y lo aprendido con la Biblioteca: etiquetas `<web>-<form>-completo/-incompleto` en minúsculas; etiquetas viejas fijas por compatibilidad; varios pipelines de GHL por Entrada en su primera columna; agendas en «0. Agendas General → Form» con «Canal: …» desde el formulario; el `utm_source` de la landing tiene que existir en `canal.ts`; el contacto de GHL puede ser de otro lead (mismo teléfono); pruebas con `info+…@eternity.llc` y teléfonos 555-01xx; comprobar el día antes de reservar y cancelar la cita; aplicar migraciones antes de publicar; cómo volver atrás.
 - [ ] En `app/.claude/skills/conectar-web-al-dashboard/`, con copia en `PROYECTOS/GENERAL/VENTAS/` y en `~/.claude/skills/`. Se prueba con la primera web de la fase 6.
 
-### 7 · Fase 6 · El resto de webs de Maestria, una a una
-- [ ] Regalos 1 a 7 y `regalos-maestria` (webhook `37e6bc4c…`; antes, leer el workflow `AP - Regalos` `c3bd1ba2…`), landing de agenda (`2f05f800…`; replicar sus ramas por `utm_source`) y optin (`83c32b0a…`). Cada una con preview y prueba, y Cristian la ve.
-- [ ] Cristian apaga cada «Inbound Webhook» cuando todas sus webs están cambiadas.
+### 6 · Fase 6 · El resto de webs de Maestria, una a una
+Con la skill de la fase 5, una web cada vez, con preview y prueba, y Cristian la ve. En este orden:
+- [ ] **1.º · Landing de agenda** `codigomaestria.com/agenda` (`LANDINGS/Landing agenda/Landing-agendar.html`, webhook `2f05f800…`; decisión de Cristian: la primera). Replicar sus ramas por `utm_source` (ver «Datos»). Cuando ya no la use ninguna web, se apaga el workflow «2 . WH - FORM AGENDA GENERAL».
+- [ ] Regalos 1 a 7 y `regalos-maestria` (webhook `37e6bc4c…`; antes, leer el workflow `AP - Regalos` `c3bd1ba2…`).
+- [ ] Optin `LANDINGS/landing-codigomaestria/landing-ghl.html` (webhook `83c32b0a…`).
+- [ ] Apagar cada «Inbound Webhook» cuando todas sus webs estén cambiadas (Claude con Playwright, con permiso de Cristian).
 - [ ] A final de mes, `inbound_webhook` cerca de $0 en el monedero.
 - [ ] Actualizar `docs/GUIA-GHL.md` y `docs/plan.md`.
+
+### 7 · Fase 4 · Workflows visuales en el dashboard (su plan propio antes de programar; cuándo, lo decide Cristian)
+*Qué es:* un apartado del dashboard para crear workflows como los de GHL (disparador → pasos), para dejar de depender de los workflows de GHL.
+**Decidido por Cristian (7 nov):** **lienzo como GHL** (cajas y flechas), no una lista; **los emails de las secuencias siguen fuera** (no hay acción de email).
+**Propuesta de Claude (base para su plan propio):**
+- **Workflow** = un disparador + pasos, dibujado en el lienzo. Tabla `workflows` (pasos en JSON, versión, encendido).
+- **Disparadores v1:** llega a una Entrada · se añade una etiqueta · cambia de columna en el dashboard · se agenda / cancela una cita.
+- **Acciones v1:** crear/actualizar contacto en GHL · añadir/quitar etiqueta · crear o mover oportunidad (en uno o varios pipelines) · mover de columna en el dashboard · esperar · rama «si el campo…».
+- **Motor:** cada lead crea una ejecución (`workflow_ejecuciones`: paso, hora del siguiente, intentos, error); la lectura de 60 s la avanza, con los mismos reintentos, aviso en rojo, email de aviso a Cristian y «Reintentar» de hoy.
+- **Pantalla:** Administración → Workflows: el lienzo, el historial de cada lead (qué paso hizo y cuándo) y el interruptor.
+- **Migración:** «Qué hacer en GHL» de cada Entrada pasa a ser su workflow; las reglas de pipeline, ramas.
+- **Subfases:** 4a motor sin pantalla rehaciendo la Biblioteca (mismo resultado que hoy) · 4b lienzo de solo lectura · 4c edición en el lienzo · 4d disparadores de etiqueta, columna y cita.
+- [ ] Hacer el plan propio de la fase 4 con estas decisiones y enseñárselo a Cristian antes de programar.
 
 ---
 
@@ -177,11 +175,18 @@ Con sus respuestas sale el plan propio de la fase 4. Primera pasada de punta a p
 | Entrada | Id | Estado |
 |---|---|---|
 | Web · Biblioteca registro | `087b86d1…` | Activa, GHL encendido. Recibe de biblioteca.codigomaestria.com (`DASHBOARD_ENTRADA_URL` en Vercel) |
-| Web · Biblioteca agenda | `bc00a154…` | Activa, GHL encendido. Recibe de la agenda de biblioteca.codigomaestria.com (dirección en `web/programa.js`) |
-| GHL · Biblioteca | `b173a67a…` | Desactivada |
+| Web · Biblioteca agenda | `bc00a154…` | Activa, GHL encendido. Recibe de la agenda de biblioteca.codigomaestria.com (dirección en `web/programa.js`). **Mal configurada hasta hacer A y B** (hoy: dashboard «1. Biblioteca Recursos» y GHL «1. Biblioteca Recursos → Form Agenda») |
+| GHL · Biblioteca | `b173a67a…` | Desactivada. La alimentaba el workflow de GHL «0. AP - Biblioteca», que ya no existe en GHL (Cristian no sabe si se borró a propósito); no recibía nada desde el 16 oct |
 | Prueba GHL | `e5a2bfa9…` | Apagada |
 
-**GHL · pipeline «1. Biblioteca Recursos»** `dE7go9T3Mi2zbIT4sGME`: columna «Registrados» `9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d` (registro) y `77b3ce38-39b2-446d-b734-f38bc29c88e2` (agenda).
+**Pipelines de GHL** (leídos el 7 nov con la API a través del dashboard):
+- «1. Biblioteca Recursos» `dE7go9T3Mi2zbIT4sGME`: «Registrados» `9cb965ae-6b38-4a7d-a86b-3d2e9f45bb8d` (registro), «Form Agenda» `77b3ce38-39b2-446d-b734-f38bc29c88e2` (la usaba la agenda; deja de usarse), «Agendado» `f0c80531-c23f-4af5-b0a2-03c4095b432a`.
+- «0. Agendas Biblioteca» `wym2Ue4VUqkhsFoQJ5PK` y «0. Agendas General» `zuQjPVJNbPpRlL0voy6d`: sus columnas **no se pudieron leer** el 7 nov (GHL salía en blanco en Playwright); el código usará la primera de cada una.
+- Otros: «0. Agendas Orgánico» `3mtxrCYH…`, DFY, Email, P1, Webinar, IG, Callers, Triage YT, «2. Webinar 1», «3. DFY AI Services».
+
+**Pipelines del dashboard (Maestria):** «0. Agendas General» `7bf529f6-a5e9-44e8-9a3a-25be6d9f9ac0` (columnas: Form `4a0469a9-edbc-41ca-999a-7aab1694dab6`, Agendan `598b75d0-5a95-4241-b61a-387ef3b75aa1`, Confirman, No confirman, No show, Cerrados, No cualifican, Seguimiento), «1. Biblioteca Recursos» `eb300c25-406e-45d0-9d43-5285f988233e`, «2. Webinar 1», «3. DFY AI Services», «4. Leads WhatsApp».
+
+**Canales de las agendas** (`src/lib/canal.ts`): el canal sale del `utm_source` de la página donde se reserva; los que no están en la lista salen como «Otro». La agenda de la Biblioteca manda `agenda-biblioteca`.
 
 **Campos de la agenda** (los unió la Entrada de la agenda): situación `ILrgHLZsc1TX8lBYWzfM`, ingresos `IWPSlOz1dKbkwg8SvK9p`, relación con la IA `jvsMaWoh9FSMzuZ5pLHk`, objetivo a 12 meses `oYaZveSEzoLWPZ7hoM1M`, inversión `7I9zm2KGljAr1X4l6xmR`, «Lead cualificado?» `tYv72lGm4gMaK2l7eujl` ← `qualified`, `utm_source` `BPs2vrG7eqH7D3d5zJEf`, urgencia `pLkktkvmSexGPkZpyW8J`, decisor `9MtM6cI7dArWZx725GuI`.
 
