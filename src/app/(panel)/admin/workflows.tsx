@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Check, Clock, FlaskConical, GitBranch, MoveRight, Pencil, Tag, Target, User, X, Zap } from "lucide-react";
 import type { Paso, Disparador } from "@/lib/workflows";
-import { condicionTexto, describirPaso, disparadorTexto, estadoEjecucion, pasosDelRegistro, type Icono, type Nombres, type Tono } from "@/lib/workflows-vista";
+import { coincidenTexto, condicionTexto, describirPaso, disparadorTexto, estadoEjecucion, pasosDelRegistro, verboCoincide, type Icono, type Nombres, type Tono } from "@/lib/workflows-vista";
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
 import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
@@ -39,7 +39,7 @@ function ChipModo({ w, r }: { w: WorkflowFila; r?: ResumenWorkflow }) {
   if (!w.encendido) return <Chip tono="neutro">Parado</Chip>;
   if (w.modo === "real") return <Chip tono="ok"><Zap className="h-3 w-3" /> Real · manda a GHL</Chip>;
   const hechos = (r?.coinciden ?? 0) + (r?.no_coinciden ?? 0);
-  return <Chip tono="prueba"><FlaskConical className="h-3 w-3" /> En prueba · {hechos ? `${r?.coinciden} de ${hechos} coinciden` : "esperando el primer lead"}</Chip>;
+  return <Chip tono="prueba"><FlaskConical className="h-3 w-3" /> En prueba · {hechos ? coincidenTexto(r?.coinciden ?? 0, hechos) : "esperando el primer lead"}</Chip>;
 }
 
 // ---------- Lienzo ----------
@@ -153,7 +153,7 @@ export function VistaWorkflows({
               <div className="flex w-full gap-2 sm:w-auto">
                 {[
                   [r?.total ?? 0, "leads"],
-                  [elegido.modo === "real" ? (r?.errores ?? 0) : (r?.coinciden ?? 0), elegido.modo === "real" ? "con error" : "coinciden"],
+                  [elegido.modo === "real" ? (r?.errores ?? 0) : (r?.coinciden ?? 0), elegido.modo === "real" ? "con error" : verboCoincide(r?.coinciden ?? 0)],
                   [r?.esperando ?? 0, "esperando"],
                 ].map(([v, t]) => (
                   <div key={t as string} className="min-w-0 flex-1 rounded-2xl border border-borde bg-panel-2 px-3.5 py-2 sm:min-w-24 sm:flex-none">

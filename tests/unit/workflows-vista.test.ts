@@ -1,6 +1,6 @@
 // Workflows 4b (boceto glass aprobado por Cristian el 7 nov 2026): los textos del lienzo y del historial, sin base de datos.
 import { describe, expect, it } from "vitest";
-import { condicionTexto, describirPaso, disparadorTexto, duracionTexto, estadoEjecucion, pasosDelRegistro, type Nombres } from "@/lib/workflows-vista";
+import { coincidenTexto, verboCoincide, condicionTexto, describirPaso, disparadorTexto, duracionTexto, estadoEjecucion, pasosDelRegistro, type Nombres } from "@/lib/workflows-vista";
 
 const NOMBRES: Nombres = {
   entradas: { "e-1": "Web · Biblioteca registro" },
@@ -16,6 +16,25 @@ describe("duracionTexto", () => {
     expect(duracionTexto(90)).toBe("1 min 30 s");
     expect(duracionTexto(3600)).toBe("1 hora");
     expect(duracionTexto(5400)).toBe("1 h 30 min");
+  });
+});
+
+describe("coincidenTexto: singular y plural (visto en producción el 7 nov: «1 de 1 coinciden»)", () => {
+  it("1 → coincide; 0 o varios → coinciden", () => {
+    expect(coincidenTexto(1, 1)).toBe("1 de 1 coincide");
+    expect(coincidenTexto(1, 3)).toBe("1 de 3 coincide");
+    expect(coincidenTexto(0, 2)).toBe("0 de 2 coinciden");
+    expect(coincidenTexto(18, 18)).toBe("18 de 18 coinciden");
+  });
+  it("con «leads» en medio: el sustantivo va con el total y el verbo con los que coinciden", () => {
+    expect(coincidenTexto(1, 1, "lead")).toBe("1 de 1 lead coincide");
+    expect(coincidenTexto(1, 2, "lead")).toBe("1 de 2 leads coincide");
+    expect(coincidenTexto(18, 18, "lead")).toBe("18 de 18 leads coinciden");
+  });
+  it("solo el verbo, para las cifras sueltas", () => {
+    expect(verboCoincide(1)).toBe("coincide");
+    expect(verboCoincide(0)).toBe("coinciden");
+    expect(verboCoincide(7)).toBe("coinciden");
   });
 });
 

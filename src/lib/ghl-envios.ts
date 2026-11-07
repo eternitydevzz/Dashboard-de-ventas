@@ -34,7 +34,9 @@ export const EMAIL_AVISO_GHL = "info@eternity.llc"; // Cristian, 6 nov 2026
 // Con 2 pipelines sin columna: upsert, etiquetas, quitar, pipelines y 2 × (buscar + crear) = hasta 8 llamadas por lead.
 // 10 leads = 80 llamadas, por debajo del límite de GHL (100 cada 10 s). Antes 15 leads × 4 llamadas.
 const MAX_LEADS_POR_LECTURA = 10;
-const REINTENTAR_EN = 60_000; // el siguiente intento, en la lectura siguiente
+// Reintentos cada 1 min de verdad (Cristian, 7 nov 2026): la lectura va cada 30 s y la del minuto puede llegar un pelo
+// antes; con +60 s se iba a la siguiente (1,5-2 min). Con +50 s la coge la lectura del minuto
+const REINTENTAR_EN = 50_000;
 
 export type EntradaGhl = {
   id: string;

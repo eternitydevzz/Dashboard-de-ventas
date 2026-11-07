@@ -10,6 +10,14 @@ export type Nombres = {
 export type Icono = "rayo" | "reloj" | "persona" | "etiqueta" | "diana" | "rama" | "mover";
 export type Caja = { clave: string; titulo: string; detalle: string | null; icono: Icono };
 
+// Mejora pequeña (Cristian, 7 nov 2026): «1 de 1 coinciden» → «1 de 1 coincide». El verbo va con los que coinciden;
+// el sustantivo («lead»), si lo hay, con el total.
+export const verboCoincide = (n: number) => (n === 1 ? "coincide" : "coinciden");
+export function coincidenTexto(coinciden: number, total: number, sustantivo?: string) {
+  const nombre = sustantivo ? ` ${total === 1 ? sustantivo : `${sustantivo}s`}` : "";
+  return `${coinciden} de ${total}${nombre} ${verboCoincide(coinciden)}`;
+}
+
 export function duracionTexto(seg: number) {
   const s = Math.max(0, Math.round(seg));
   if (s < 60) return `${s} segundos`;
