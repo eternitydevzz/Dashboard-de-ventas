@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { esJefe, exigir, getSesion } from "@/lib/auth";
 import { db } from "@/lib/datos";
+import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { guionValido, resumenMarcas, type Marcas, type RolGuion } from "@/lib/guiones";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
@@ -37,6 +38,8 @@ export async function restaurarGuion(rol: RolGuion) {
 // Lo que marcó quien llama, al terminar (con su resultado). Si la base aún no tiene la tabla, no se guarda.
 export async function guardarMarcasGuion(leadId: string, marcas: Marcas, resultado: string | null) {
   return seguro(async () => {
+    // F22 (plan Callers, 7 nov): pide la sección, como el resto de acciones del lead (antes, solo que fuera suyo)
+    await exigirSeccion("cola", "crm", "agendas", "clientes");
     const { perfil, proyecto } = await getSesion();
     const { data: lead } = await db().from("leads").select("id, caller_id, closer_id").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!lead) throw new ErrorUsuario("Lead no encontrado.");

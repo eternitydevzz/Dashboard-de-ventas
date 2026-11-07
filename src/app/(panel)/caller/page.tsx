@@ -6,7 +6,8 @@ import { exigirPagina } from "@/lib/permisos";
 import { panelObjetivos } from "@/lib/objetivos";
 import { PanelObjetivos } from "@/components/barras-objetivos";
 import { db, todas, equipo } from "@/lib/datos";
-import { rangoDe, fechaHora, porcentaje, ahoraMs, pct, dinero, hoyEnZona } from "@/lib/formato";
+import { rangoDe, fechaHora, porcentaje, ahoraMs, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
+import { kpisHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
 import { colaCaller } from "@/lib/cola";
 import { Cabecera, Contenido, Kpi, Vacio, Avatar } from "@/components/ui";
@@ -24,7 +25,7 @@ const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller,
 type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas">;
 
 export default async function CallerPage({ searchParams }: PageProps<"/caller">) {
-  const { perfil, proyecto } = await exigirPagina("cola"); // H5
+  const { perfil, proyecto, tiene } = await exigirPagina("cola"); // H5
   const jefe = esJefe(perfil);
   // H5: a un closer con «Mis leads», sus leads como closer (lo suyo), en forma de cola
   const comoCloser = perfil.rol === "closer";
@@ -50,17 +51,15 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const hoy = rangoDe("hoy", proyecto.zona_horaria);
   // Velocidad (17 oct 2026): los objetivos van con el resto de consultas (antes, después)
   // Velocidad (28 oct 2026, Cristian): solo las columnas que usa la cola (sin `datos` de GHL): 395 → 180 KB por carga
-  const [leads, actsHoy, citasHoy, ventasHoy, productos, scoring, panel] = await Promise.all([
+  const [leads, kpis, productos, scoring, panel] = await Promise.all([
     todas<LeadCola>((a, b) => db().from("leads").select(CAMPOS_COLA).eq("proyecto_id", proyecto.id).eq(comoCloser ? "closer_id" : "caller_id", caller.id).order("id").range(a, b)),
-    db().from("actividades").select("tipo, resultado").eq("perfil_id", caller.id).eq("proyecto_id", proyecto.id).gte("creado_en", hoy.desde!.toISOString()),
-    db().from("citas").select("id", { count: "exact", head: true }).eq("agendada_por", caller.id).gte("creado_en", hoy.desde!.toISOString()),
-    db().from("ventas").select("id", { count: "exact", head: true }).eq("vendedor_id", caller.id).gte("fecha", hoy.desde!.toISOString()),
+    kpisHoyCola(proyecto.id, caller.id, hoy.desde!.toISOString()), // F4: citas y ventas, solo de este proyecto
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     db().from("scoring_ia").select("pesos").eq("proyecto_id", proyecto.id).maybeSingle(),
     panelObjetivos(proyecto, caller), // objetivos del caller que se está viendo, su racha y el del equipo (H3-H4)
   ]);
   const pesos = (scoring.data?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
-  const acts = actsHoy.data ?? [];
+  const { acts, citas: citasHoy, ventas: ventasHoy } = kpis;
   const llamadas = acts.filter((a) => a.tipo === "llamada").length;
   const noContesta = acts.filter((a) => a.tipo === "llamada" && a.resultado === "no_contesta").length;
   const whatsapps = acts.filter((a) => a.tipo === "whatsapp").length;
@@ -73,6 +72,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const pedido = filtrados.find((l) => l.id === sp.lead);
   if (pedido && !visibles.includes(pedido)) visibles.push(pedido);
   const closers = gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }));
+  const cortos = nombresCortos(callers); // F13: dos callers con el mismo nombre se distinguen
 
   return (
     <>
@@ -85,12 +85,13 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
               <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
                 {callers.map((c) => (
                   <Link key={c.id} href={`/caller?caller=${c.id}`} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
-                    <Avatar nombre={c.nombre} tamano="h-6 w-6 text-[9px]" />{c.nombre.split(" ")[0]}
+                    <Avatar nombre={c.nombre} tamano="h-6 w-6 text-[9px]" />{cortos.get(c.id)}
                   </Link>
                 ))}
               </div>
             )}
-            <Link href="/ranking" className="btn-secundario"><Trophy className="h-4 w-4 text-oro" /> Ranking del equipo</Link>
+            {/* F12: solo a quien tiene la sección Ranking (antes salía a todos y lo mandaba a su inicio) */}
+            {tiene.has("ranking") && <Link href="/ranking" className="btn-secundario"><Trophy className="h-4 w-4 text-oro" /> Ranking del equipo</Link>}
           </>
         }
       />
@@ -101,7 +102,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           <Link href={`/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), vista: "llamar", lead: vencidos[0].id })}`} className="flex items-center gap-3 rounded-xl border border-aviso/40 bg-aviso-suave px-4 py-3 text-sm text-aviso hover:brightness-105">
             <span className="text-lg">⏰</span>
             <span className="flex-1">
-              <b>{vencidos.length === 1 ? "Te toca 1 llamada programada" : `Te tocan ${vencidos.length} llamadas programadas`}</b>
+              <b>{/* F13: a un jefe que mira la cola de otro, no «Te tocan» */}{jefe ? `A ${cortos.get(caller.id) ?? caller.nombre} le ${vencidos.length === 1 ? "toca 1 llamada programada" : `tocan ${vencidos.length} llamadas programadas`}` : vencidos.length === 1 ? "Te toca 1 llamada programada" : `Te tocan ${vencidos.length} llamadas programadas`}</b>
               {" "}· la primera: {`${vencidos[0].nombre} ${vencidos[0].apellido}`.trim()} ({fechaHora(vencidos[0].llamar_en!, proyecto)}). Están las primeras en «Por llamar».
             </span>
             <span className="font-medium">Llamar ahora →</span>
@@ -110,9 +111,9 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
           <Kpi titulo="Llamadas hoy" valor={llamadas} icono={Phone} detalle={`${leads.length} leads asignados`} />
           <Kpi titulo="No contestan" valor={noContesta} icono={PhoneOff} tono="mal" detalle={`${pct(porcentaje(noContesta, llamadas))} de las llamadas`} />
-          <Kpi titulo="Agendas hoy" valor={citasHoy.count ?? 0} icono={CalendarCheck} tono="ok" detalle={`${pct(porcentaje(citasHoy.count ?? 0, llamadas - noContesta))} de los contactos`} />
+          <Kpi titulo="Agendas hoy" valor={citasHoy} icono={CalendarCheck} tono="ok" detalle={`${pct(porcentaje(citasHoy, llamadas - noContesta))} de los contactos`} />
           <Kpi titulo="WhatsApps hoy" valor={whatsapps} icono={MessageCircle} tono="ok" />
-          <Kpi titulo="Ventas low ticket hoy" valor={ventasHoy.count ?? 0} icono={ShoppingCart} tono="oro" />
+          <Kpi titulo="Ventas low ticket hoy" valor={ventasHoy} icono={ShoppingCart} tono="oro" />
         </div>
 
         <ColaCaller
