@@ -358,7 +358,19 @@ export async function borrarEntrada(id: string) {
 // ---------- Entradas → GHL por la API (Plan GHL, fase 1, Cristian 6 nov 2026) ----------
 // «Qué hacer en GHL»: interruptor, campos unidos, pipeline y columna de GHL, etiqueta base, espera y campo de «completo».
 const idGhl = (x: unknown) => (typeof x === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(x.trim()) ? x.trim() : null);
-export type CambiosGhlEntrada = { activo: boolean; campos: Record<string, string>; pipeline_id: string | null; etapa_id: string | null; etiqueta_base: string; espera_seg: number; campo_completo: string };
+// Plan GHL, B (Cristian, 7 nov): varias oportunidades (lista de pipelines; sin columna = la primera de GHL) y etiquetas fijas
+export type OportunidadGhlEntrada = { pipeline_id: string; etapa_id: string | null };
+export type CambiosGhlEntrada = {
+  activo: boolean;
+  campos: Record<string, string>;
+  oportunidades: OportunidadGhlEntrada[];
+  etiqueta_base: string;
+  etiquetas_extra: string[];
+  espera_seg: number;
+  campo_completo: string;
+};
+const MAX_OPORTUNIDADES = 5;
+const MAX_ETIQUETAS_EXTRA = 10;
 export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
@@ -371,11 +383,25 @@ export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
     }
     const espera = Math.round(Number(c.espera_seg));
     if (!Number.isFinite(espera) || espera < 0 || espera > 3600) throw new ErrorUsuario("La espera va de 0 a 3600 segundos.");
-    const pipeline = c.pipeline_id ? idGhl(c.pipeline_id) : null;
-    if (c.pipeline_id && !pipeline) throw new ErrorUsuario("El pipeline de GHL no es válido.");
-    const etapa = pipeline && c.etapa_id ? idGhl(c.etapa_id) : null;
+    // Pipelines: los vacíos fuera, cada uno una vez (el primero manda), ids con forma de GHL
+    const oportunidades: OportunidadGhlEntrada[] = [];
+    for (const o of Array.isArray(c.oportunidades) ? c.oportunidades : []) {
+      const bruto = typeof o?.pipeline_id === "string" ? o.pipeline_id.trim() : "";
+      if (!bruto) continue;
+      const pipeline = idGhl(bruto);
+      if (!pipeline) throw new ErrorUsuario("Un pipeline de GHL no es válido.");
+      const etapaBruta = typeof o.etapa_id === "string" ? o.etapa_id.trim() : "";
+      const etapa = etapaBruta ? idGhl(etapaBruta) : null;
+      if (etapaBruta && !etapa) throw new ErrorUsuario("Una columna de GHL no es válida.");
+      if (!oportunidades.some((x) => x.pipeline_id === pipeline)) oportunidades.push({ pipeline_id: pipeline, etapa_id: etapa });
+    }
+    if (oportunidades.length > MAX_OPORTUNIDADES) throw new ErrorUsuario(`Como mucho ${MAX_OPORTUNIDADES} pipelines de GHL por Entrada.`);
+    // Etiquetas fijas: en minúsculas (como las guarda GHL), sin comas ni repetidas
+    const extra = [...new Set((Array.isArray(c.etiquetas_extra) ? c.etiquetas_extra : []).map((t) => String(t ?? "").trim().toLowerCase()).filter(Boolean))];
+    if (extra.some((t) => t.length > 80 || t.includes(","))) throw new ErrorUsuario("Cada etiqueta fija, sin comas y de 80 letras como mucho.");
+    if (extra.length > MAX_ETIQUETAS_EXTRA) throw new ErrorUsuario(`Como mucho ${MAX_ETIQUETAS_EXTRA} etiquetas fijas.`);
     const base = String(c.etiqueta_base ?? "").trim().slice(0, 80);
-    if (c.activo && !Object.keys(campos).length && !base && !pipeline) throw new ErrorUsuario("Para encender GHL, une al menos un campo, pon una etiqueta o elige un pipeline.");
+    if (c.activo && !Object.keys(campos).length && !base && !oportunidades.length && !extra.length) throw new ErrorUsuario("Para encender GHL, une al menos un campo, pon una etiqueta o elige un pipeline.");
     if (c.activo) {
       const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyecto.id).single();
       if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Este proyecto no tiene GHL conectado (pestaña Integraciones GHL).");
@@ -383,7 +409,18 @@ export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
     await escribir(
       db()
         .from("entradas")
-        .update({ ghl_activo: !!c.activo, ghl_campos: campos, ghl_pipeline_id: pipeline, ghl_etapa_id: etapa, ghl_etiqueta_base: base || null, ghl_espera_seg: espera, ghl_campo_completo: String(c.campo_completo ?? "").trim().slice(0, 120) })
+        .update({
+          ghl_activo: !!c.activo,
+          ghl_campos: campos,
+          ghl_oportunidades: oportunidades,
+          // El primero también en las columnas de antes: si se vuelve al código anterior, sigue creando una oportunidad
+          ghl_pipeline_id: oportunidades[0]?.pipeline_id ?? null,
+          ghl_etapa_id: oportunidades[0]?.etapa_id ?? null,
+          ghl_etiqueta_base: base || null,
+          ghl_etiquetas_extra: extra,
+          ghl_espera_seg: espera,
+          ghl_campo_completo: String(c.campo_completo ?? "").trim().slice(0, 120),
+        })
         .eq("id", id),
       "entradas"
     );

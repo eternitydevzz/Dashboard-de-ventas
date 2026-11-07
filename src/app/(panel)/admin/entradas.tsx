@@ -178,7 +178,9 @@ export type GhlDeEntrada = {
   ghl_campos: Record<string, string>;
   ghl_pipeline_id: string | null;
   ghl_etapa_id: string | null;
+  ghl_oportunidades: { pipeline_id: string; etapa_id: string | null }[];
   ghl_etiqueta_base: string | null;
+  ghl_etiquetas_extra: string[];
   ghl_espera_seg: number;
   ghl_campo_completo: string;
 };
@@ -199,14 +201,21 @@ export function EditorGhlEntrada({
   const { pendiente, error, ejecutar } = useAccion();
   const [activo, setActivo] = useState(inicial.ghl_activo);
   const [filas, setFilas] = useState<{ campo: string; id: string }[]>(Object.entries(inicial.ghl_campos ?? {}).map(([campo, id]) => ({ campo, id })));
-  const [pipeline, setPipeline] = useState(inicial.ghl_pipeline_id ?? "");
-  const [etapa, setEtapa] = useState(inicial.ghl_etapa_id ?? "");
+  // Plan GHL, B (7 nov): varias oportunidades. Una Entrada de antes (sin lista) enseña su pipeline de siempre
+  const [opps, setOpps] = useState<{ pipeline: string; etapa: string }[]>(
+    inicial.ghl_oportunidades?.length
+      ? inicial.ghl_oportunidades.map((o) => ({ pipeline: o.pipeline_id, etapa: o.etapa_id ?? "" }))
+      : inicial.ghl_pipeline_id
+        ? [{ pipeline: inicial.ghl_pipeline_id, etapa: inicial.ghl_etapa_id ?? "" }]
+        : []
+  );
   const [base, setBase] = useState(inicial.ghl_etiqueta_base ?? "");
+  const [extra, setExtra] = useState((inicial.ghl_etiquetas_extra ?? []).join(", "));
   const [espera, setEspera] = useState(String(inicial.ghl_espera_seg ?? 60));
   const [completo, setCompleto] = useState(inicial.ghl_campo_completo ?? "quiz_completed");
   const lista = `campos-ghl-${entradaId}`;
   const cambiarFila = (i: number, c: Partial<{ campo: string; id: string }>) => setFilas((fs) => fs.map((f, j) => (j === i ? { ...f, ...c } : f)));
-  const etapas = opciones?.pipelines.find((p) => p.id === pipeline)?.etapas ?? [];
+  const cambiarOpp = (i: number, c: Partial<{ pipeline: string; etapa: string }>) => setOpps((os) => os.map((o, j) => (j === i ? { ...o, ...c } : o)));
   const nombreCampo = (id: string) => opciones?.campos.find((c) => c.id === id)?.name;
 
   return (
@@ -224,7 +233,7 @@ export function EditorGhlEntrada({
         <>
           <p className="text-xs text-texto-3">
             El lead se guarda aquí al momento. Tras la espera, la app manda a GHL <b>un solo envío</b> con todo lo que ha llegado de esa persona: crea o actualiza el contacto, rellena los campos, pone la etiqueta
-            {base.trim() ? <> <code>{base.trim().toLowerCase()}-completo</code> o <code>{base.trim().toLowerCase()}-incompleto</code> (en minúsculas, como las guarda GHL)</> : " (si pones una base)"} y crea la oportunidad. Si falla, lo reintenta 5 veces y después avisa por email.
+            {base.trim() ? <> <code>{base.trim().toLowerCase()}-completo</code> o <code>{base.trim().toLowerCase()}-incompleto</code> (en minúsculas, como las guarda GHL)</> : " (si pones una base)"}, las etiquetas fijas y una oportunidad en cada pipeline. Si falla, lo reintenta 5 veces y después avisa por email.
           </p>
           {opciones.error && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{opciones.error}</p>}
 
@@ -252,20 +261,40 @@ export function EditorGhlEntrada({
           </div>
 
           <div>
-            <div className="etiqueta-campo">Oportunidad en GHL (pipeline y columna)</div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Desplegable className="campo" value={pipeline} onChange={(e) => { setPipeline(e.target.value); setEtapa(""); }} aria-label="Pipeline de GHL">
-                <option value="">Sin oportunidad</option>
-                {pipeline && !opciones.pipelines.some((p) => p.id === pipeline) && <option value={pipeline}>{pipeline} (no está en GHL)</option>}
-                {opciones.pipelines.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </Desplegable>
-              <Desplegable className="campo" value={etapa} disabled={!pipeline} onChange={(e) => setEtapa(e.target.value)} aria-label="Columna de GHL">
-                <option value="">Primera columna</option>
-                {etapa && !etapas.some((x) => x.id === etapa) && <option value={etapa}>{etapa} (no está en GHL)</option>}
-                {etapas.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
-              </Desplegable>
-            </div>
+            <div className="etiqueta-campo">Oportunidades en GHL (una por pipeline)</div>
+            <p className="mb-2 text-xs text-texto-3">Con «Primera columna», la que ya existe no se mueve (si GHL la pasó a «Agendan» al reservar, se queda ahí). Con una columna elegida, se mueve a esa.</p>
+            <ul className="space-y-2">
+              {opps.map((o, i) => {
+                const etapas = opciones.pipelines.find((p) => p.id === o.pipeline)?.etapas ?? [];
+                return (
+                  <li key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                    <Desplegable className="campo" value={o.pipeline} onChange={(e) => cambiarOpp(i, { pipeline: e.target.value, etapa: "" })} aria-label="Pipeline de GHL">
+                      <option value="">Elige el pipeline de GHL</option>
+                      {o.pipeline && !opciones.pipelines.some((p) => p.id === o.pipeline) && <option value={o.pipeline}>{o.pipeline} (no está en GHL)</option>}
+                      {opciones.pipelines.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </Desplegable>
+                    <Desplegable className="campo" value={o.etapa} disabled={!o.pipeline} onChange={(e) => cambiarOpp(i, { etapa: e.target.value })} aria-label="Columna de GHL">
+                      <option value="">{etapas[0] ? `Primera columna («${etapas[0].nombre}»)` : "Primera columna"}</option>
+                      {o.etapa && !etapas.some((x) => x.id === o.etapa) && <option value={o.etapa}>{o.etapa} (no está en GHL)</option>}
+                      {etapas.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+                    </Desplegable>
+                    <button type="button" className="rounded-md p-2 text-texto-3 hover:bg-mal-suave hover:text-mal" title="Quitar pipeline" onClick={() => setOpps((os) => os.filter((_, j) => j !== i))}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {!opps.length && <p className="text-xs text-texto-3">Sin oportunidad en GHL.</p>}
+            <button type="button" className="btn-secundario mt-2 text-xs" onClick={() => setOpps((os) => [...os, { pipeline: "", etapa: "" }])}>
+              <Plus className="h-3.5 w-3.5" /> Añadir pipeline
+            </button>
           </div>
+
+          <label className="block">
+            <span className="etiqueta-campo">Etiquetas fijas (se ponen siempre, separadas por comas)</span>
+            <input className="campo" placeholder="Ej. agenda biblioteca" value={extra} onChange={(e) => setExtra(e.target.value)} />
+          </label>
 
           <div className="grid gap-2 sm:grid-cols-3">
             <label className="block"><span className="etiqueta-campo">Etiqueta base</span><input className="campo" placeholder="Ej. Biblioteca-form" value={base} onChange={(e) => setBase(e.target.value)} /></label>
@@ -284,9 +313,9 @@ export function EditorGhlEntrada({
                   guardarGhlEntrada(entradaId, {
                     activo,
                     campos: Object.fromEntries(filas.filter((f) => f.campo.trim() && f.id).map((f) => [f.campo.trim(), f.id])),
-                    pipeline_id: pipeline || null,
-                    etapa_id: etapa || null,
+                    oportunidades: opps.filter((o) => o.pipeline).map((o) => ({ pipeline_id: o.pipeline, etapa_id: o.etapa || null })),
                     etiqueta_base: base,
+                    etiquetas_extra: extra.split(","),
                     espera_seg: Number(espera),
                     campo_completo: completo,
                   }),

@@ -93,7 +93,7 @@ export async function estadoCitaGhl(o: { token: string; citaId: string; fetchImp
 // 13 oct (Cristian): los pipelines de GHL donde el contacto tiene una oportunidad en la columna «Agendan»
 // (la más reciente primero). Lo usan las citas que no dicen su pipeline: así van a «Agendan» del mismo pipeline que en GHL.
 type OportunidadGhl = { pipelineId?: string; pipelineStageId?: string; updatedAt?: string; createdAt?: string };
-type PipelineGhl ={ id: string; name: string; stages?: { id: string; name: string }[] };
+type PipelineGhl = { id: string; name: string; stages?: { id: string; name: string; position?: number }[] };
 export async function pipelinesAgendanGhl(o: { token: string; locationId: string; contactId: string; fetchImpl?: Fetch }): Promise<string[]> {
   const f = o.fetchImpl ?? fetch;
   const [p, s] = await Promise.all([
@@ -145,6 +145,19 @@ export async function pipelinesGhl(o: { token: string; locationId: string; fetch
   const j = await llamar(o.fetchImpl ?? fetch, o.token, `/opportunities/pipelines?locationId=${encodeURIComponent(o.locationId)}`, "2021-07-28");
   return Array.isArray(j?.pipelines) ? j.pipelines : [];
 }
+// Plan GHL, B (Cristian, 7 nov): la primera columna de un pipeline de GHL (la de menor `position`; sin ella, la
+// primera de la lista). null si el pipeline no está o no tiene columnas.
+export function columnasEnOrdenGhl<T extends { id: string; position?: number }>(stages: T[] | undefined): T[] {
+  const pos = (s: T, i: number) => (typeof s.position === "number" ? s.position : i);
+  return (stages ?? [])
+    .filter((s) => typeof s?.id === "string")
+    .map((s, i) => ({ s, p: pos(s, i) }))
+    .sort((a, b) => a.p - b.p)
+    .map((x) => x.s);
+}
+export function primeraColumnaGhl(pipelines: PipelineGhl[], pipelineId: string): string | null {
+  return columnasEnOrdenGhl(pipelines.find((p) => p.id === pipelineId)?.stages)[0]?.id ?? null;
+}
 export async function oportunidadesDePipelineGhl(o: { token: string; locationId: string; pipelineId: string; maxPaginas?: number; fetchImpl?: Fetch }): Promise<OportunidadGhl2[]> {
   const todas: OportunidadGhl2[] = [];
   let despues = "";
@@ -175,6 +188,8 @@ export async function camposGhl(o: { token: string; locationId: string; fetchImp
 //   No se usa POST /opportunities/upsert: su cuerpo no lleva contactId (decisión de Cristian, 6 nov).
 // · Fase 3 (6 nov): si ya tiene una en ese pipeline pero en otra columna, se mueve a la de la Entrada con
 //   PUT /opportunities/{id} { pipelineStageId } (opportunities.write), como hacía la rama BIBLIOTECA del workflow viejo.
+// · B (7 nov): solo se mueve si se pide (`mover`: la Entrada fija la columna). Si no, la que ya existe se queda donde
+//   está: al reservar, GHL la pasa a «Agendan» y un cuestionario reenviado no debe sacarla de ahí.
 type Json = Record<string, unknown>;
 async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "PUT" | "DELETE", ruta: string, cuerpo: Json, permiso: string) {
   const res = await fetchImpl(`${GHL_BASE}${ruta}`, {
@@ -230,6 +245,7 @@ export async function crearOportunidadGhl(o: {
   pipelineId: string;
   etapaId: string | null;
   nombre: string;
+  mover?: boolean; // por defecto sí (lo de antes); false = la que ya existe no se mueve
   fetchImpl?: Fetch;
 }): Promise<{ id: string; nueva: boolean; movida: boolean }> {
   const f = o.fetchImpl ?? fetch;
@@ -237,7 +253,7 @@ export async function crearOportunidadGhl(o: {
   const s = await llamar(f, o.token, `/opportunities/search?${q}`, "2021-07-28");
   const ya = (Array.isArray(s?.opportunities) ? s.opportunities : []).find((x: OportunidadGhl2) => x?.id && x.pipelineId === o.pipelineId);
   if (ya) {
-    if (!o.etapaId || ya.pipelineStageId === o.etapaId) return { id: ya.id, nueva: false, movida: false };
+    if (o.mover === false || !o.etapaId || ya.pipelineStageId === o.etapaId) return { id: ya.id, nueva: false, movida: false };
     await escribir(f, o.token, "PUT", `/opportunities/${encodeURIComponent(ya.id)}`, { pipelineStageId: o.etapaId }, "Edit Opportunities (opportunities.write)");
     return { id: ya.id, nueva: false, movida: true };
   }

@@ -9,7 +9,7 @@ import { Plantilla, AnadirExistente, FormUsuario, FormProyecto, FormNuevoProyect
 import type { Perfil, Producto, Rol } from "@/lib/tipos";
 import { PLANTILLAS_GHL, CABECERA_SECRETO } from "@/lib/plantillas-ghl";
 import { NuevaEntrada, EditorEntrada, EditorGhlEntrada, ReintentarGhl, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
-import { camposGhl, pipelinesGhl } from "@/lib/ghl";
+import { camposGhl, columnasEnOrdenGhl, pipelinesGhl } from "@/lib/ghl";
 import { descifrar } from "@/lib/cifrado";
 import { ConexionGhl, CalendarioCloser, UsuarioGhl } from "./ghl";
 import { reglasValidas } from "@/lib/entrada";
@@ -45,7 +45,7 @@ async function cargarOpcionesGhl(token: string, locationId: string): Promise<Opc
   const [c, p] = await Promise.allSettled([camposGhl({ token, locationId }), pipelinesGhl({ token, locationId })]);
   return {
     campos: c.status === "fulfilled" ? [...c.value].sort((a, b) => a.name.localeCompare(b.name)) : [],
-    pipelines: p.status === "fulfilled" ? p.value.map((x) => ({ id: x.id, nombre: x.name, etapas: (x.stages ?? []).map((s) => ({ id: s.id, nombre: s.name })) })) : [],
+    pipelines: p.status === "fulfilled" ? p.value.map((x) => ({ id: x.id, nombre: x.name, etapas: columnasEnOrdenGhl(x.stages).map((s) => ({ id: s.id, nombre: s.name })) })) : [],
     error: c.status === "rejected" || p.status === "rejected" ? "No se pudieron leer los campos o pipelines de GHL. Recarga en un momento." : null,
   };
 }
@@ -305,7 +305,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                           ghl_campos: en.ghl_campos ?? {},
                           ghl_pipeline_id: en.ghl_pipeline_id ?? null,
                           ghl_etapa_id: en.ghl_etapa_id ?? null,
+                          ghl_oportunidades: Array.isArray(en.ghl_oportunidades) ? en.ghl_oportunidades : [],
                           ghl_etiqueta_base: en.ghl_etiqueta_base ?? null,
+                          ghl_etiquetas_extra: Array.isArray(en.ghl_etiquetas_extra) ? en.ghl_etiquetas_extra : [],
                           ghl_espera_seg: en.ghl_espera_seg ?? 60,
                           ghl_campo_completo: en.ghl_campo_completo ?? "quiz_completed",
                         }}
