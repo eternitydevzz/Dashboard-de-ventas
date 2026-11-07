@@ -220,8 +220,8 @@ export function ColaCaller({
               onSiguiente={siguiente}
               puedeGrabar={puedeGrabar}
               cabecera={
-                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5">
-                <div className="flex min-w-0 items-start gap-3">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
                   <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl border border-white/30 bg-white/20 text-[15px] font-bold" aria-hidden>{iniciales(nombreDe(seleccionado))}</span>
                   <div className="min-w-0">
                     <h2 className="text-[19px] font-semibold leading-tight">{nombreDe(seleccionado)}</h2>
@@ -232,7 +232,7 @@ export function ColaCaller({
                   </div>
                 </div>
                   {/* Cristian (7 nov): estado y prioridad arriba a la derecha (en el móvil, debajo del nombre) */}
-                  <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                  <div className="flex flex-wrap gap-1.5 sm:max-w-[45%] sm:shrink-0 sm:justify-end">
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-2.5 py-0.5 text-[11.5px] font-bold">
                         <span className="h-2 w-2 rounded-full shadow-[0_0_0_1.5px_#fff]" style={{ background: colorEstado(seleccionado.estado_caller) }} />
                         {ETIQUETA_ESTADO_CALLER[seleccionado.estado_caller] ?? seleccionado.estado_caller}
