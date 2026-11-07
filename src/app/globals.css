@@ -34,6 +34,8 @@
   --aviso-texto: #9a4f00;
   --oro-texto: #8a5a00;
   --primario-boton: #2b59d1; /* fondo de los botones azules con texto blanco */
+  --estado-no-responde: #7c8aa3; /* C11: «No responde» y «Descartado», más claros en oscuro (como la maqueta) */
+  --estado-descartado: #7b1a22;
   --sombra: 0 1px 2px rgb(15 26 51 / 0.04), 0 8px 32px rgb(15 26 51 / 0.08);
   --marca-eternity: #7b1a22;
   --desenfoque: 30px;
@@ -68,6 +70,8 @@
   --aviso-texto: #f0a24a;
   --oro-texto: #e5ac35;
   --primario-boton: #3a64d8; /* 7c.4: blanco sobre #4f7cf0 daba 3,84; sobre este, 5,3 */
+  --estado-no-responde: #94a3b8;
+  --estado-descartado: #e0707c;
   --sombra: 0 10px 40px rgb(0 0 0 / 0.35);
 }
 
