@@ -89,8 +89,11 @@ describe("motor en modo prueba", () => {
   it("a su hora: no llama a GHL, compara con lo de hoy y coincide", async () => {
     const espia = vi.spyOn(globalThis, "fetch");
     const r = await avanzarEjecuciones(e.proyecto.id, { ahora: dentroDe(301) });
-    expect(espia).not.toHaveBeenCalled();
+    // La base de datos también usa fetch (127.0.0.1:54321): lo que no puede haber es ninguna llamada a GHL
+    const urls = espia.mock.calls.map(([u]) => String(u instanceof Request ? u.url : u));
     espia.mockRestore();
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.filter((u) => /leadconnectorhq|gohighlevel|msgsndr/i.test(u))).toEqual([]);
     expect(r.ok).toBeGreaterThanOrEqual(1);
     const ej = (await ejecuciones(email()))[0];
     expect(ej).toMatchObject({ estado: "ok", coincide: true, error: null });
