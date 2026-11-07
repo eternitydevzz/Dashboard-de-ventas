@@ -1,9 +1,38 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 21 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 22 (7 nov 2026, 19:50 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
+
+## Avances del 7 nov (resumen)
+Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub (último: integración 353/353, unitarios 442/442).
+
+| Qué | PR | Estado |
+|---|---|---|
+| **Panel de endpoints** (Administración → Entradas): tarjeta por landing, envíos en rojo siempre visibles, «Ver más», un solo «Guardar», aviso de cambios sin guardar, crear con 5 preguntas | #33, #36 | ✅ En producción |
+| **Workflows 4a · motor y modo prueba:** cada lead de la Biblioteca pasa también por su workflow, que calcula lo que haría sin tocar GHL y lo compara con lo de hoy | #38 | ✅ En producción. Biblioteca en prueba desde las 16:06 UTC |
+| **Workflows 4a · modo real:** «Pasar a real» y «Volver a lo de hoy» (mismas llamadas a GHL que hoy) | #40 | ✅ En producción. **Sin usar todavía** (lo decide Cristian) |
+| **Workflows 4b · pestaña Workflows** (estilo glass): lista, lienzo e historial | #42 | ✅ En producción |
+| **Workflows 4c · editor en el lienzo:** «+» entre cajas, panel, versiones, encender/apagar | #45 | ✅ En producción (sin guardar nada en los de la Biblioteca) |
+| **Pasada de punta a punta** con un registro de prueba en la Biblioteca (`info+wf1@eternity.llc`): llega, GHL ok y el workflow coincide con **0 diferencias** | — | ✅ Comprobado a las 18:41 UTC |
+| **Revisión con Cristian** (punto 2) | — | ✅ Dada por buena, sin cambios |
+| **Encargos de Callers:** «reagendado», respetar «vendido» y crear la cita en GHL al agendar | #52, #53 | ✅ En producción. La cita en GHL **espera los calendarios de los closers** |
+| **Punto 3:** el dashboard entiende el JSON v1 y guarda la IP; archivos del equipo en `app/Team/` (`Template-landing.md`, `templates/enviar-al-dashboard.js`) y la skill `conectar-web-al-dashboard` | #55 | ✅ En producción. Ya se le puede pasar al equipo `Team/Template-landing.md` |
+| Plan propio de workflows (`docs/plan-workflows.md`) y este plan, al día | #37, #39, #41, #43, #47, #50, #56 | ✅ |
+
+## Lo que queda ahora (en orden)
+**Cristian (en GHL y en el dashboard):**
+- [ ] Poner el **calendario de GHL de cada closer** (Administración → Integraciones GHL). Hasta entonces, al agendar en la app sale un aviso en rojo (la cita se queda en la app).
+- [ ] Comprobar que la integración de GHL tiene el permiso de **escribir en calendarios** (`calendars/events.write`).
+- [ ] Borrar los leads de prueba: «Prueba Workflow 1» (`info+wf1@eternity.llc`) y los de antes (ver «Lo que hace Cristian»).
+
+**Claude, cuando toque:**
+- [ ] Con los calendarios puestos: una prueba agendando en la app con un lead de prueba y cancelar la cita.
+- [ ] **10 nov, 16:06 UTC:** mirar los días de prueba de la Biblioteca (20 leads de registro reales, todos los de agenda y 0 diferencias) para que Cristian decida «Pasar a real».
+- [ ] Después del 10 nov: pasar las 2 landings de la Biblioteca al JSON v1 (en agenda, la landing y su Entrada juntas).
+- [ ] Arreglo pequeño: «1 de 1 coinciden» → «1 de 1 coincide» en Workflows.
+- [ ] Siguiente fase por orden: landing de agenda de `codigomaestria.com` (necesita antes rehacer el workflow de agendas de GHL, aplazado).
 
 ## Dónde estamos
 
@@ -14,11 +43,11 @@
 | 2 · Registro de la Biblioteca sin webhook | Hecha (biblioteca-maestria PR #1) |
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
-| **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`). 4a hecha (PR #38 y #40): la Biblioteca está en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. 4b hecha (PR #42, pestaña Workflows). 4c: editor hecho (PR #45); rehacer «2 . WH - FORM AGENDA GENERAL», aplazado por Cristian. Siguiente: 2 · Revisar todo con Cristian |
+| 4 · Workflows visuales (motor y lienzo de lectura y edición) | Hecha en lo decidido (PR #38, #40, #42 y #45). La Biblioteca, en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. Rehacer «2 . WH - FORM AGENDA GENERAL», aplazado por Cristian. Detalle en `docs/plan-workflows.md` |
 | Revisión de todo con Cristian | Hecha el 7 nov: Cristian la dio por buena, sin cambios |
 | Template de landings, skill y archivos del equipo | Hecho el 7 nov (PR #55), salvo pasar las 2 landings de la Biblioteca al JSON v1: después del 10 nov |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
-| 6 · Landing de agenda de `codigomaestria.com` | Pendiente, **después** de los workflows visuales |
+| **6 · Landing de agenda de `codigomaestria.com`** | **← Siguiente por orden.** Necesita antes rehacer «2 . WH - FORM AGENDA GENERAL» (aplazado por Cristian): Cristian decide cuándo |
 | 6 · Optin | Pendiente |
 | Unir leads duplicados | Pendiente |
 | Al final | Proyectos sin calendarios · mover `codigomaestria.com` de GHL a Vercel |
