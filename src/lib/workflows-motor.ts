@@ -20,7 +20,7 @@ export type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: 
 type Json = Record<string, unknown>;
 export const MAX_INTENTOS_WF = 5;
 const POR_LECTURA = 10; // como el envío a GHL de hoy (src/lib/ghl-envios.ts)
-const REINTENTAR_EN = 60_000;
+const REINTENTAR_EN = 50_000; // como los envíos de las Entradas: lo coge la lectura del minuto (src/lib/ghl-envios.ts)
 
 type Ejecucion = { id: string; workflow_id: string; pasos: Paso[]; lead_id: string; entrada_id: string | null; tramo: number; intentos: number; registro: Json[] };
 type EntradaGhl = { ghl_campos: Record<string, string> | null; ghl_pipeline_id: string | null; ghl_etapa_id: string | null; ghl_oportunidades: { pipeline_id: string; etapa_id: string | null }[] | null; ghl_etiqueta_base: string | null; ghl_etiquetas_extra: string[] | null; ghl_campo_completo: string | null };

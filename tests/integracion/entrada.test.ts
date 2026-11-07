@@ -366,7 +366,9 @@ describe("Entrada → GHL por la API", () => {
       const [ev] = await eventos(l.id);
       expect(ev.ghl_intentos).toBe(i);
       expect(ev.ghl_estado).toBe(i < 5 ? "esperando" : "error");
-      ahora += 61_000;
+      // Mejora «reintentos cada 1 min de verdad» (7 nov): la lectura va cada 30 s y la del minuto puede llegar un
+      // pelo antes; a los 59 s el reintento ya tiene que tocar (con +60 s se iba a la siguiente: 1,5-2 min)
+      ahora += 59_000;
     }
     expect(avisos).toEqual([{ entrada: "Web · Biblioteca registro (test)", lead: email, error: expect.stringMatching(/token/) }]);
     // En error ya no se intenta más

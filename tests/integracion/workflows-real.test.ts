@@ -154,8 +154,12 @@ describe("modo real: las mismas llamadas a GHL que hoy", () => {
   });
   it("sin GHL conectado, en real falla (no se pierde: queda para reintentar)", async () => {
     await db.from("workflow_ejecuciones").update({ estado: "esperando", intentos: 0, error: null, siguiente_en: new Date().toISOString() }).eq("lead_id", (await lead(email2())).id);
-    await avanzarEjecuciones(e.proyecto.id, { ahora: dentroDe(1) });
-    expect((await ejecucionesDe(email2()))[0]).toMatchObject({ estado: "esperando", intentos: 1, error: expect.stringMatching(/GHL/) });
+    const ahora = dentroDe(1);
+    await avanzarEjecuciones(e.proyecto.id, { ahora });
+    const [ej] = await ejecucionesDe(email2());
+    expect(ej).toMatchObject({ estado: "esperando", intentos: 1, error: expect.stringMatching(/GHL/) });
+    // Reintentos cada 1 min de verdad (7 nov): +50 s, para que lo coja la lectura del minuto (van cada 30 s)
+    expect(new Date(ej.siguiente_en).getTime() - ahora.getTime()).toBe(50_000);
   });
   it("«Mover en el dashboard» en real (Cristian, 7 nov): en su pipeline mueve el lead; en otro, su tarjeta", async () => {
     const l = await lead(email2());
