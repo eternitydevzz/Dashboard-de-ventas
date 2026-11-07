@@ -1,7 +1,7 @@
 # Plan · Workflows en el dashboard (fase 4 del plan GHL)
 
-> Versión 1 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
-> **Estado:** **aprobado por Cristian el 7 nov 2026**, también la propuesta de «Para decidir» para pasar la Biblioteca a real (3 días, 20 leads de registro, todos los de agenda y 0 diferencias). Siguiente: 4a.
+> Versión 2 (7 nov 2026). Es el «plan propio» del punto 1 de `docs/plan-GHL.md`. Cada punto se explica solo, sin depender del chat.
+> **Estado:** aprobado por Cristian el 7 nov 2026 (también la propuesta para pasar la Biblioteca a real: 3 días, 20 leads de registro, todos los de agenda y 0 diferencias). **4a-1 hecha y publicada el 7 nov** (dashboard PR #38): los 2 workflows de la Biblioteca están **en modo prueba desde el 7 nov a las 16:06 UTC**. Siguiente: 4a-2 (modo real) mientras corren los días de prueba.
 
 **Objetivo:** que el dashboard haga lo que hoy hacen los workflows de GHL (disparador → pasos), para dejar de depender de ellos. Primero se rehace lo que ya funciona (la Biblioteca) sin arriesgar sus leads; después se ve y se edita en un lienzo como el de GHL; al final, más disparadores.
 
@@ -70,6 +70,21 @@
 
 **6 · Comprobación en producción:** migración antes de publicar; workflows de la Biblioteca en modo prueba; durante unos días, leer en `workflow_ejecuciones` cuántos coinciden. Cristian decide el cambio a real.
 
+**4a se hace en 2 PR (Cristian, 7 nov):** 4a-1 = motor y modo prueba (así empiezan antes los días de prueba); 4a-2 = modo real, antes del cambio. **Otras decisiones del 7 nov:** el workflow de prueba se crea con un botón «Probar como workflow» en la tarjeta de la Entrada (sale solo si la Entrada manda a GHL); en modo prueba **no** se manda email si una ejecución falla 5 veces (sale en rojo en la tarjeta con «Reintentar»).
+
+### 4a-1 · HECHA el 7 nov (dashboard PR #38, `2d86461`)
+- **Código:** `src/lib/workflows.ts` (pasos, ramas, tramos, `workflowDeEntrada`, `envioDeWorkflow` y `compararEnvios`; usa `armarEnvioGhl` de hoy), `src/lib/workflows-motor.ts` (`crearEjecuciones`, `avanzarEjecuciones`, `resumenWorkflows`), enganches en `src/app/api/webhooks/entrada/[token]/route.ts` y `src/app/api/ghl/leer/[proyectoId]/route.ts` (dentro de `try`: un fallo del workflow nunca cambia la respuesta de la Entrada ni para la lectura), acciones `crearWorkflowDePrueba`, `pararWorkflow` y `reintentarEjecuciones`, y la línea de la tarjeta (`src/app/(panel)/admin/entradas-workflow.tsx`).
+- **Base de datos:** `20261107160000_workflows.sql` (solo añade): `workflows`, `workflow_ejecuciones` (con sus propios `pasos`, para terminar con su versión) y `resumen_workflows`.
+- **En la tarjeta de la Entrada:** «Probar como workflow» · «Workflow en prueba: N de M leads coinciden» · «N esperando» · «N con error» + «Reintentar» · «Ver en qué no coincide» · «Parar la prueba».
+- **Pruebas:** unitarios `tests/unit/workflows.test.ts` (17; el workflow de registro y el de agenda calculan **lo mismo que hoy, 0 diferencias**) e integración `tests/integracion/workflows.test.ts` (14). GitHub: unitarios 354/354 e integración 323/323.
+- **Producción (7 nov, 16:02-16:06 UTC):** migración aplicada antes de fusionar; desde fuera, las 2 tablas no enseñan nada y `resumen_workflows` da «permission denied» (401). Las direcciones de las 2 Entradas reales responden con el código nuevo (JSON mal escrito → 400, sin guardar nada). Creados con el botón los 2 workflows en prueba (registro: esperar 300 s → contacto 8 campos → etiquetas `Biblioteca-form` + `biblioteca recursos` → «Registrados»; agenda: esperar 300 s → contacto 9 campos → etiquetas `Biblioteca-agenda` + `agenda biblioteca` → «0. Agendas Biblioteca» y «0. Agendas General», primera columna). La configuración de las Entradas no cambió.
+- **No probado todavía con datos reales:** que un lead real cree su ejecución y coincida. Lo dirá el primer lead que llegue.
+- **Fallos vistos:** (1) el primer clic en «Probar como workflow» no hizo nada (sin petición al servidor); el segundo funcionó. Causa no encontrada. (2) Para aplicar la migración, la herramienta de Supabase se negó: producción tiene 2 migraciones de la sesión de Callers (`20261107150000_manuales`, `20261107150100_cualificaciones`) que solo están en la rama `Callers`, no en `main`. Con permiso de Cristian se usó una copia temporal de esos 2 archivos (sin commit, borrada después) para aplicar solo la de workflows. Mientras no estén en `main`, cada migración nueva necesitará lo mismo.
+
+### Días de prueba de la Biblioteca (desde el 7 nov, 16:06 UTC)
+- Criterio (Cristian): al menos 3 días (hasta el **10 nov, 16:06 UTC**), 20 leads de registro y todos los de agenda que lleguen, con **0 diferencias**. Si en esos días no llega ninguno de agenda, se completa con leads de prueba en la Entrada «Prueba GHL».
+- Dónde se mira: la línea de cada tarjeta en Administración → Entradas, o `workflow_ejecuciones` (`coincide`, y las diferencias en `registro`).
+
 ## Subfase 4b · Lienzo de solo lectura (resumida)
 - **Administración → Workflows** (solo jefes): lista de workflows (nombre, disparador, encendido, modo, leads en curso).
 - **Lienzo** con HTML y CSS, sin dependencias: disparador arriba, cajas de pasos de arriba abajo unidas por flechas; una rama abre sus caminos uno al lado del otro. En el móvil (390 px), las ramas se ven una debajo de otra, sin scroll horizontal de la página.
@@ -98,7 +113,10 @@
 
 ## Lo que falta, en orden
 - [x] Cristian aprueba este plan (7 nov).
-- [ ] 4a: tests primero → migración (con permiso, en producción antes de publicar) → motor → modo prueba de la Biblioteca → PR → comprobar en producción → días en prueba → Cristian decide el cambio a real.
+- [x] 4a-1: tests primero → migración → motor → modo prueba de la Biblioteca → PR #38 → comprobado en producción (7 nov).
+- [ ] Ver el primer lead real en prueba (que se cree su ejecución y coincida).
+- [ ] 4a-2: modo real (tests primero, mismas llamadas a GHL que hoy; el cambio a real y apagar «Mandar a GHL» de la Entrada en un solo guardado). PR y comprobación, mientras corren los días de prueba.
+- [ ] Al acabar los días de prueba: Cristian decide el cambio a real de la Biblioteca.
 - [ ] 4b: boceto → aprobado → tests → código → PR → comprobar.
 - [ ] 4c: leer el workflow de GHL → boceto → aprobado → tests → código → PR → comprobar.
 - [ ] Después, el punto 4 del plan GHL (landing de agenda), y luego 4d.
