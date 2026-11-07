@@ -34,7 +34,8 @@ async function tokenDeSesion() {
 
 // APAGADO (25 oct 2026, Cristian): con 10 personas trabajando, cada cambio hacía que todas las pestañas recargaran
 // su pantalla y volvieran a precargar las 16 secciones (refrescarTodo): hasta 10.700 peticiones a Supabase cada
-// 5 min y la base del plan gratis se quedó colgada. Vuelve el refresco de antes (cada 60 s en CRM y Callers).
+// 5 min y la base del plan gratis se quedó colgada. F8 (plan Callers, 7 nov): el refresco de antes (cada 60 s en
+// CRM y Callers) tampoco volvió: se quitó en el commit e06b1bf. Callers y CRM se ponen al día al navegar o al guardar.
 const ACTIVO = false;
 
 export function AvisosEnVivo({ proyectoId }: { proyectoId: string }) {

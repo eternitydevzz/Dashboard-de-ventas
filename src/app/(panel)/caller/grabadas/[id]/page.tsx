@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getSesion, esJefe } from "@/lib/auth";
+import { esJefe } from "@/lib/auth";
+import { exigirPagina } from "@/lib/permisos";
 import { db } from "@/lib/datos";
 import { fechaHora } from "@/lib/formato";
 import { Cabecera, Contenido, Seccion } from "@/components/ui";
@@ -11,7 +12,7 @@ import type { Linea } from "@/lib/ghl-llamadas";
 import { Reintentar } from "../cliente";
 
 export default async function LlamadaGrabada({ params }: PageProps<"/caller/grabadas/[id]">) {
-  const { perfil, proyecto } = await getSesion();
+  const { perfil, proyecto } = await exigirPagina("grabadas"); // F22 (plan Callers, 7 nov): antes no pedía la sección
   const { id } = await params;
   const { data: l } = await db().from("llamadas_ghl").select("*, leads(id, nombre, apellido)").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
   if (!l || (!esJefe(perfil) && l.perfil_id !== perfil.id)) notFound();
