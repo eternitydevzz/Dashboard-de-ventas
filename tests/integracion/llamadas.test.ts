@@ -16,12 +16,12 @@ afterAll(async () => {
 const citasDe = async (leadId: string) => (await db.from("citas").select("*").eq("lead_id", leadId).order("creado_en")).data!;
 
 describe("Crear llamada", () => {
-  it("un jefe agenda sin estrellas (son opcionales); un caller ya no agenda a mano (manda el link, 4.4)", async () => {
+  it("un jefe agenda sin estrellas (son opcionales); un caller agenda con la rotación (C11, 7 nov; sin closers en ella, avisa)", async () => {
     como(e, e.p.director);
     await ok(agendarCita(e.leads.LeadLibre, e.p.closerA.id, "2026-10-20T10:00", ""));
     expect((await citasDe(e.leads.LeadLibre))[0].estrellas_caller).toBeNull();
     como(e, e.p.callerA);
-    await falla(agendarCita(e.leads.LeadA, e.p.closerA.id, "2026-10-20T11:00", "", 4), /Link enviado/);
+    await falla(agendarCita(e.leads.LeadA, e.p.closerA.id, "2026-10-20T11:00", "", 4), /rotación/);
   });
   it("buscar: el jefe encuentra en todo el proyecto; el closer solo entre sus leads; un caller no puede", async () => {
     como(e, e.p.director);
