@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 5 (7 nov 2026, 05:15 UTC). **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
+> Versión 6 (7 nov 2026, 06 h UTC). **Solo lo que falta.** Lo hecho (fases 0, 1 y 2, con sus pruebas) está en git:
 > `git show a924227:docs/plan-GHL.md`.
 
 ## Dónde estamos
@@ -10,7 +10,7 @@
 | 0 · Leer la API y los workflows de GHL | Hecha |
 | 1 · El dashboard hace en GHL lo que hacía el workflow | Hecha y publicada (PR #9 y #10) |
 | 2 · Registro de la Biblioteca | Hecha y publicada (biblioteca-maestria PR #1). Falta el seguimiento |
-| 3 · Agenda de la Biblioteca | Publicada (6 nov, 20:23 UTC). Aún sin agendas reales; falta el fallo 2 |
+| 3 · Agenda de la Biblioteca | Publicada (6 nov, 20:23 UTC). Falta ponerla en «0. Agendas General» (A) y sus 2 oportunidades en GHL (B) |
 | 4 · Workflows visuales | Diseño propuesto, esperando a Cristian |
 | 5 · Skill | Pendiente |
 | 6 · Resto de webs | Pendiente |
@@ -50,11 +50,33 @@
 - Agenda: **0 envíos reales** todavía (solo la prueba bib5).
 - Monedero de GHL: **sin comprobar** (la página de facturación de GHL salía en blanco en Playwright).
 
-**Queda, de más a menos importante:**
-- [ ] **Fallo nuevo (registro, 1 de 21): la misma persona se registra dos veces con emails distintos y el mismo teléfono** (6 nov, 23:06 y 23:07 UTC, teléfono …7112). El dashboard crea 2 leads (los reconoce por email) y GHL 1 contacto (lo reconoce también por teléfono). Al guardar el contacto de GHL en el segundo lead choca con el primero (`leads_proyecto_id_ghl_contact_id_key`) → 5 intentos → rojo y email. **En GHL no se perdió nada** (el fallo es después de contacto, etiqueta y oportunidad). Arreglo propuesto: si ese contacto de GHL ya es de otro lead, no fallar: dejar el envío en `ok`, no guardar el id en el segundo lead y apuntar en su historial «mismo contacto de GHL que …». Después, darle a «Reintentar» al envío en rojo (evento `0b087aa6…`). ¿Unir los 2 leads del dashboard? → decide Cristian.
-- [ ] **Fallo 1 de la agenda** (la oportunidad de la Biblioteca no pasaba a la columna de la agenda): arreglado en el dashboard (PR #13, `PUT /opportunities/{id}`). Comprobar con el próximo lead real de la agenda que la oportunidad pasa a `77b3ce38…`.
-- [ ] **Fallo 2:** los workflows del calendario de GHL crean otra oportunidad en «0. Agendas Orgánico - Agendan» y la cita da una tarjeta en «0. Agendas General» del dashboard (ya pasaba a veces antes: 2 de 4 leads reales). Leer el workflow «2. Agendan llamada» (`59e01558…`, carpeta «2. Agendas»; el 6 nov su editor se quedó en blanco en Playwright) y proponer el arreglo (¿añadir la etiqueta `agenda biblioteca`?).
-- [ ] **Vigilar (7 nov, tarde):** primeras agendas reales en `ok`; monedero de GHL sin `inbound_webhook` de la Biblioteca desde el 6 nov 19:40 UTC.
+**Queda, de más a menos importante (decisiones de Cristian del 7 nov, 06 h):**
+
+**A · Agenda de la Biblioteca en el sitio correcto** (Claude, tests primero)
+- *Qué está mal:* la Entrada «Web · Biblioteca agenda» mete los leads nuevos en «1. Biblioteca Recursos» del dashboard (decisión de Claude, equivocada). Y las agendas de la Biblioteca salen con «Canal: Otro» en vez de «Canal: Biblioteca» (**ya pasaba antes del cambio**: cita real del 28 oct con `canal = otro`), porque la agenda manda `utm_source=agenda-biblioteca` y `src/lib/canal.ts` solo reconoce `biblioteca`.
+- *Decisión de Cristian:* en el dashboard, todas las agendas van a **«0. Agendas General»** (como se decidió el 17 oct, `canal.ts`), con su etiqueta **«Canal: Biblioteca»**. Antes de reservar, en la columna **«Form»**; al reservar, la cita la pasa a «Agendan» (como hoy).
+- *Arreglo:*
+  1. Entrada «Web · Biblioteca agenda» → pipeline del dashboard «0. Agendas General», columna «Form». Los leads que ya existen (de la Biblioteca) ganan su tarjeta en General, como hoy.
+  2. `canal.ts`: `agenda-biblioteca` → canal Biblioteca, con test.
+  3. Corregir a «Biblioteca» el canal de la cita real del 28 oct (y la etiqueta «Canal: Otro» de su lead, si la tiene).
+
+**B · Oportunidades de la agenda en GHL** (Claude, tests primero)
+- *Decisión de Cristian:* en GHL, quien agenda desde la Biblioteca tiene oportunidad en **«0. Agendas Biblioteca»** (`wym2Ue4VUqkhsFoQJ5PK`) **y** en **«0. Agendas General»** (`zuQjPVJNbPpRlL0voy6d`): «en General tienen que aparecer siempre todas». Deja de usarse «1. Biblioteca Recursos → Form Agenda». La oportunidad extra que crean los workflows del calendario en «0. Agendas Orgánico» **está bien así** (no se toca).
+- *Arreglo:* hoy una Entrada solo admite **un** pipeline de GHL. Cambio:
+  1. Migración: `entradas.ghl_oportunidades jsonb` = lista de `{ pipeline_id, etapa_id }` (si está vacía, se usa el pipeline de siempre: compatible con lo que hay).
+  2. `entrada-ghl.ts` y `ghl-envios.ts`: una oportunidad por cada pipeline de la lista (buscar → crear o mover a su columna).
+  3. Administración → Entradas: «Oportunidades en GHL» como lista con «Añadir pipeline».
+  4. Configurar la Entrada de la agenda con los 2 pipelines. **Columna en cada uno:** la equivalente a «Form» (ver en el formulario; GHL no se dejó leer el 7 nov).
+- *Comprobar:* con el primer lead real de la agenda, 1 oportunidad en «0. Agendas Biblioteca» y 1 en «0. Agendas General» (más la de «Orgánico» del calendario), y ninguna nueva en «1. Biblioteca Recursos».
+
+**C · La misma persona con dos emails y el mismo teléfono** (Claude, tests primero)
+- *Qué pasó:* 6 nov, 23:06 y 23:07 UTC, teléfono …7112, emails `jmf…@gmail.com` y `jos…@gmail.com`. El dashboard creó 2 leads (`e7cc481b…` y `c407dcf9…`; los reconoce por email). GHL tiene 1 contacto (`oIEMl9RNaQEANZQnLWEb`; lo reconoce también por teléfono). Al guardar el contacto en el segundo lead chocó con el primero (`leads_proyecto_id_ghl_contact_id_key`) → 5 intentos → rojo y email. En GHL no se perdió nada.
+- *Arreglo:* en `ghl-envios.ts`, si ese contacto de GHL ya es de otro lead del proyecto, no fallar: el envío queda `ok`, el segundo lead no guarda el id y en su historial se apunta «mismo contacto de GHL que el lead …». Después, «Reintentar» el envío en rojo (`0b087aa6…`).
+- *Decisión de Cristian:* los 2 leads se quedan. **Pendiente: hacer un plan para unir duplicados** (ver «Plan para unir leads duplicados» abajo).
+
+**D · Vigilar** (Claude, 7 nov por la tarde)
+- [ ] Primeras agendas reales: dashboard (`ok`, «0. Agendas General», «Canal: Biblioteca») y GHL (oportunidades de B).
+- [ ] Monedero de GHL sin `inbound_webhook` de la Biblioteca desde el 6 nov 19:40 UTC (el 7 nov la página salía en blanco en Playwright).
 - [ ] El webhook `2f05f800…` y su workflow «2 . WH - FORM AGENDA GENERAL» **no se apagan**: los usa `codigomaestria.com/agenda` (fase 6).
 - **Para volver atrás:** registro → volver a publicar `6041cce` de la Biblioteca, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca». Agenda → volver a publicar `bfcb006`.
 
@@ -66,7 +88,6 @@
 
 ### 2 · Para decidir (Cristian)
 - [ ] Entrada «Prueba GHL»: está apagada. ¿Se queda o se borra (con su lead de prueba)?
-- [ ] La agenda mete los leads nuevos en «1. Biblioteca Recursos» del dashboard (decisión de Claude). ¿Otro pipeline?
 - [ ] ¿Algún workflow o lista de GHL depende de la etiqueta `biblioteca recursos`? Los leads nuevos de la Biblioteca ya no la llevan.
 - [ ] El workflow «0. AP - Biblioteca» (mandaba a la Entrada «GHL · Biblioteca») no existe en GHL; la Entrada no recibía nada desde el 16 oct y está desactivada. ¿Se borró a propósito?
 - [ ] Las 3 preguntas de la fase 4 (abajo).
@@ -155,4 +176,13 @@ Lo mismo que se hizo con la Biblioteca, en 7 pasos. Una landing cada vez; hasta 
 7. **Apuntar** cómo volver atrás (commit anterior de la landing + encender el workflow) y pasar los contactos de prueba a Cristian para borrarlos.
 
 Cuando exista la skill «conectar-web-al-dashboard» (fase 5), estos pasos van en ella; cuando existan los workflows del dashboard (fase 4), el paso 2 será crear el workflow.
+
+## Plan para unir leads duplicados (pendiente de hacer; Cristian, 7 nov)
+**Contexto para no olvidarlo:** el dashboard reconoce a una persona por su contacto de GHL, por su email o, si no tiene email, por su teléfono (`src/lib/leads.ts`). GHL la reconoce por email **o** teléfono (`allowDuplicateContact: false`). Así, quien se registra dos veces con emails distintos y el mismo teléfono queda como **2 leads en el dashboard y 1 contacto en GHL**. Caso real: 6 nov, 23:06 y 23:07 UTC, teléfono …7112 (leads `e7cc481b…` y `c407dcf9…`, contacto `oIEMl9RNaQEANZQnLWEb`). Desde el arreglo C el envío ya no falla, pero los 2 leads siguen separados.
+
+**Qué hay que decidir y diseñar (con Cristian, antes de programar):**
+- Cuándo se consideran el mismo: ¿mismo teléfono (normalizado con `telefonoClave`)? ¿mismo contacto de GHL?
+- Cuál se queda (¿el más antiguo?) y qué se junta: emails (¿un campo de emails secundarios?), respuestas, etiquetas, citas, ventas, actividades, tarjetas, reparto/caller.
+- Automático al entrar o un botón «Unir» en la ficha del lead (Cristian revisa antes). Unir implica **borrar** un lead: lo confirma Cristian.
+- Buscar cuántos duplicados hay hoy (por teléfono) antes de elegir.
 
