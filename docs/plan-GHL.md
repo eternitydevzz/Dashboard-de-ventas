@@ -10,7 +10,7 @@
 | 0 · Leer la API y los workflows de GHL | Hecha |
 | 1 · El dashboard hace en GHL lo que hacía el workflow | Hecha y publicada (PR #9 y #10) |
 | 2 · Registro de la Biblioteca | Hecha y publicada (biblioteca-maestria PR #1). Falta el seguimiento |
-| 3 · Agenda de la Biblioteca | Publicada (6 nov, 20:23 UTC). Falta ponerla en «0. Agendas General» (A) y sus 2 oportunidades en GHL (B) |
+| 3 · Agenda de la Biblioteca | Publicada (6 nov) y corregida con A, B y C (7 nov, PR #21): «0. Agendas General» del dashboard, «Canal: Biblioteca» y 2 oportunidades en GHL. Probada con bib6 |
 | 4 · Workflows visuales | Diseño decidido (lienzo como GHL, sin emails). Va después de la landing de agenda y antes del resto de landings. Falta su plan propio |
 | 5 · Skill «conectar-web-al-dashboard» (el manual de landings) | Después de A, B y C (decisión de Cristian) |
 | 6 · Resto de webs | Pendiente. Primero la landing de agenda (con una Entrada), después el optin. Los regalos, de momento no |
@@ -38,7 +38,7 @@
 | Oportunidad en GHL | Buscar si el contacto ya tiene una en ese pipeline y crearla solo si no (el upsert de oportunidades de GHL no lleva `contactId`) |
 | Etiquetas viejas | Se siguen poniendo en GHL además de las nuevas, por si algún workflow o lista las usa: registro `biblioteca recursos`, agenda `agenda biblioteca` |
 | Agendas en el dashboard | **En los dos sitios**: el lead sigue en su pipeline (p. ej. «1. Biblioteca Recursos») y además aparece en «0. Agendas General» (decisión del 17 oct; ya respondido por Cristian, no volver a preguntar). En General, antes de reservar en «Form»; al reservar, la cita lo pasa a «Agendan». Con la etiqueta «Canal: …» desde el formulario |
-| Agendas en GHL | Oportunidad en «0. Agendas Biblioteca» y en «0. Agendas General» (en General tienen que estar todas), en su primera columna («Form» o similar, según Cristian). **Al reservar, GHL las mueve a «Agendan»** (Cristian: seguro). La de «0. Agendas Orgánico» que crea el calendario está bien. Con la espera de 5 min, las oportunidades se crean a menudo **después** de reservar: decisión de Cristian, se comprueba en la prueba real |
+| Agendas en GHL | Oportunidad en «0. Agendas Biblioteca» y en «0. Agendas General» (en General tienen que estar todas), en su primera columna («Form» o similar, según Cristian). **Al reservar, GHL las mueve a «Agendan»** (Cristian: seguro). La de «0. Agendas Orgánico» que crea el calendario está bien. Con la espera de 5 min, las oportunidades se crean a menudo **después** de reservar y entonces se quedan en «Form» (visto con bib6, 7 nov): **Cristian, 7 nov: se deja así** |
 | Registro en GHL | Oportunidad en «1. Biblioteca Recursos → Registrados»; ahí se queda aunque la persona agende |
 | Leads duplicados (mismo teléfono, otro email) | Se quedan los 2; hay que hacer un plan para unirlos (sección «Plan para unir leads duplicados») |
 | Manual para landings | Una skill (fase 5), no un documento. Va antes de pasar más landings |
@@ -124,12 +124,25 @@
   - **Cambio que no estaba escrito en el plan (Claude):** la lectura de 60 s manda como mucho **10 leads** (antes 15). Con 2 pipelines sin columna, un lead hace hasta 8 llamadas a GHL (antes 4): 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s). Si hay más, van en la lectura siguiente.
 
 - [x] **Paso 3 · Migración en producción** (7 nov, antes de fusionar): `supabase db push --dry-run` (solo esa migración, proyecto `crbwqaxpeexeonffuiyo`) y `supabase db push`. Comprobado por la API: las 4 Entradas tienen `ghl_oportunidades = []` y `ghl_etiquetas_extra = []`.
-- Paso 4 · Tests de GitHub en verde con el código (run `42352811795`: unitarios 312/312, integración 295/295) y build de Vercel ok. Falta fusionar.
+- [x] **Paso 4 · Publicado.** Tests de GitHub en verde (run `42353634951`: unitarios 312/312, integración 295/295), PR #21 fusionado (`ffb5090`) y Vercel en `success`.
+- [x] **Paso 5 · Producción configurada** (7 nov, con Playwright; comprobado leyendo la base): «Web · Biblioteca agenda» → dashboard «0. Agendas General → Form», regla `utm_source` igual a `agenda-biblioteca` → «Canal: Biblioteca», GHL «0. Agendas Biblioteca» y «0. Agendas General» en su primera columna (el formulario dice que las dos se llaman **«Form»**), etiqueta fija `agenda biblioteca`, espera 300 s. «Web · Biblioteca registro» → etiqueta fija `biblioteca recursos`, espera 300 s, sigue en «1. Biblioteca Recursos → Registrados».
+- [x] **Paso 6 · Datos.** Cita del 28 oct (`c3266d8f…`) → canal `biblioteca`; su lead (`541e88ac…`) «Canal: Otro» → «Canal: Biblioteca» (su «Canal: Directo» se queda: es de su otra cita, del 29 oct). Envío en rojo del caso C (`0b087aa6…`) reintentado → `ok`, sin guardar el id de GHL y con la nota en el historial.
+  - *Fallo encontrado (para decidir):* el botón «Reintentar» no se veía. La lista «Últimos envíos recibidos» solo enseña los 15 últimos (había 38) y el envío en rojo era más antiguo, aunque el aviso de arriba decía «Están en rojo abajo». Se hizo en la base lo mismo que hace el botón. Arreglo propuesto: enseñar siempre los envíos en rojo, aunque sean antiguos.
+  - El otro envío con canal «otro» por `agenda-biblioteca` es la cita de prueba de bib5 (`a88f2991…`, cancelada): no se tocó (la borra Cristian).
+- [x] **Paso 7 · Prueba real con bib6.** 7 nov, 08:12–08:20 UTC. «Prueba Biblioteca 6», `info+bib6@eternity.llc`, +1 727 555 0106. Registro → agenda (10 pasos) → reserva del **jueves 12 nov, 15:00 Madrid** (comprobado en pantalla antes de confirmar; en la base: `2026-11-12T14:00:00Z`).
+  - **Dashboard (bien):** los 3 envíos en `ok`; el lead sigue en «1. Biblioteca Recursos» y su tarjeta de «0. Agendas General» pasó de «Form» a «Agendan» con la cita; cita con canal `biblioteca`; etiquetas «Canal: Biblioteca», `biblioteca-agenda-completo`, `agenda biblioteca`, `biblioteca-form-incompleto`, `biblioteca recursos`.
+  - **GHL (contacto `iwlcmpexug79PHgHq27o`):** etiquetas `biblioteca-agenda-completo`, `agenda biblioteca`, `biblioteca-form-incompleto`, `biblioteca recursos`, `agenda llamada`. Oportunidades: «1. Biblioteca Recursos – Registrados», «0. Agendas Orgánico – **Agendan**» (la crea el calendario al reservar), «0. Agendas Biblioteca – **Form**» y «0. Agendas General – **Form**».
+  - **Oportunidades en «Form» y no en «Agendan»:** la reserva fue a las 08:17 y las 2 oportunidades del dashboard se crearon después (espera de 5 min). Como no existían al reservar, GHL no las pasó a «Agendan»: según el historial de GHL quedaron en «Form» (el tablero de GHL no se pudo abrir para verlo; lo dice el historial del contacto). **Decisión de Cristian (7 nov): dejarlo así.**
+  - **Cancelación:** cita cancelada en GHL a las 08:34 UTC (ficha del contacto → cita → Cancel → Confirm); el dashboard la marcó `cancelada` en la lectura siguiente. La tarjeta de «0. Agendas General» se queda en «Agendan» (una cita cancelada no mueve al lead, como estaba).
+  - En la ficha de GHL salió un aviso pidiendo el Tax ID de la cuenta: se cerró con la X, sin guardar nada.
+  - Para borrar (Cristian): «Prueba Biblioteca 6» en GHL y en el dashboard.
+
+**A, B y C: terminados el 7 nov.** Siguiente, según el orden decidido: las mejoras pequeñas.
 
 **Para volver atrás:** registro → volver a publicar `6041cce` de la Biblioteca, poner en Publish «0. AP - Biblioteca de recursos» y activar la Entrada «GHL · Biblioteca». Agenda → volver a publicar `bfcb006`. El webhook `2f05f800…` y su workflow «2 . WH - FORM AGENDA GENERAL» **no se apagan**: los usa `codigomaestria.com/agenda`. A, B y C → revertir el PR #21 en GitHub (las 2 columnas nuevas se pueden quedar: el código de antes no las lee) y volver a poner en la Entrada de la agenda el pipeline de GHL «1. Biblioteca Recursos → Form Agenda» y el del dashboard «1. Biblioteca Recursos».
 
 ### 1 · Lo que hace Cristian (Claude no puede)
-- [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «5» (`info+bib1@` … `info+bib5@eternity.llc`). Sus citas (bib1 el 12 nov y bib5 el 7 nov) ya están canceladas.
+- [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «6» (`info+bib1@` … `info+bib6@eternity.llc`). Sus citas (bib1 y bib6 el 12 nov, bib5 el 7 nov) ya están canceladas.
 - [ ] Borrar también en el dashboard esos leads de prueba (están en «1. Biblioteca Recursos» y alguno con tarjeta en «0. Agendas General»; no se repartieron a ningún caller).
 - [ ] Vigilar las primeras agendas reales (dashboard y GHL) y que el monedero de GHL ya no cobre `inbound_webhook` de la Biblioteca desde el 6 nov 19:40 UTC.
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
@@ -137,7 +150,9 @@
 - [ ] Gestionar tus cambios sin subir en el repo del dashboard: 3 docs borrados (`Arreglar-dashboard.md`, `plan-historial-10oct.md`, `plan-historial-11oct.md`) y `manual-branding-rojo.md` nuevo. Claude no los toca.
 
 ### 2 · Para decidir (Cristian)
-Nada pendiente a 7 nov. (La Entrada «Prueba GHL», `e5a2bfa9…`, se queda apagada: Claude la creó el 6 nov para probar el envío a GHL, incluida la prueba de fallo; no acepta envíos ni manda nada y sirve para repetir pruebas sin tocar las Entradas reales.)
+- **Lote de leads por lectura: 10 en vez de 15** (cambio de Claude en B, no estaba en el plan): con 2 pipelines un lead hace hasta 8 llamadas a GHL; 10 × 8 = 80, por debajo del límite de GHL (100 cada 10 s). ¿Se queda en 10?
+- **«Reintentar» escondido**: el envío en rojo no sale si es más antiguo que los 15 últimos (ver paso 6). ¿Se arregla ahora o con las mejoras pequeñas?
+- **Antes (sin cambios):** (La Entrada «Prueba GHL», `e5a2bfa9…`, se queda apagada: Claude la creó el 6 nov para probar el envío a GHL, incluida la prueba de fallo; no acepta envíos ni manda nada y sirve para repetir pruebas sin tocar las Entradas reales.)
 
 ### 3 · Mejoras pequeñas (Claude, después de A, B y C y antes de la skill)
 - [ ] Los reintentos van cada 2 min, no cada 1: programar el siguiente a +50 s.
