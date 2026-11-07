@@ -1,5 +1,6 @@
 "use server";
 
+import { crearCitaEnGhl } from "@/lib/cita-en-ghl";
 import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
 import { revalidatePath } from "next/cache";
@@ -130,7 +131,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
       .maybeSingle();
     if (!closer) throw new ErrorUsuario("Elige un closer del proyecto.");
     // Paso H6: un doble clic creaba dos citas iguales; la base ya no deja repetir lead, closer y hora
-    const { error: errCita } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: nota || null, estrellas_caller: n });
+    const { data: citaNueva, error: errCita } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: nota || null, estrellas_caller: n }).select("id").single();
     if (errCita?.code === "23505") throw new ErrorUsuario("Ese lead ya tiene una cita con ese closer a esa hora.");
     if (errCita) throw new Error(`No se pudo guardar en «citas»: ${errCita.message}`);
     if (esCaller) await sumarRotacion(proyecto.id, closerId);
@@ -139,7 +140,18 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     const nombreCloser = (closer as unknown as { perfiles: { nombre: string } }).perfiles.nombre;
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", resultado: "agendada", nota: `Cita con ${nombreCloser}${n ? ` · ${n}★` : ""}${nota ? ` · ${nota}` : ""}` });
     await moverAColumna(lead, "agendado", ["agendados", "agendado", "agendan"]); // «Agendan»: como GHL (13 oct)
+    // Encargo de Callers C11 punto 13 (Cristian, 7 nov): la cita también en el calendario de GHL del closer. Si no se
+    // puede, la cita de la app se queda, se apunta en el historial del lead y se avisa a quien agenda.
+    let aviso: string | null = null;
+    if (citaNueva) {
+      const g = await crearCitaEnGhl({ proyectoId: proyecto.id, citaId: citaNueva.id, leadId, closerId, fecha });
+      if (!g.ok) {
+        aviso = `Agendado en la app, pero no en el calendario de GHL: ${g.motivo}`;
+        await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", resultado: "agendada", nota: `No se pudo crear la cita en el calendario de GHL: ${g.motivo}` });
+      }
+    }
     refrescar();
+    return aviso ? { aviso } : { ok: true as const };
   });
 }
 
