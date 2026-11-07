@@ -31,7 +31,8 @@ async function moverAColumna(lead: Lead, estado: EstadoCaller, nombres: string[]
   const { data } = await db().from("etapas").select("id, nombre").eq("pipeline_id", lead.pipeline_id);
   const etapas = data ?? [];
   const destino = etapas.find((e) => primero.includes(e.nombre.toLowerCase())) ?? etapas.find((e) => nombres.includes(e.nombre.toLowerCase()));
-  if (destino && destino.id !== lead.etapa_id) await db().from("leads").update({ etapa_id: destino.id }).eq("id", lead.id);
+  // F3 (plan Callers, 7 nov): si falla, error (antes se perdía en silencio)
+  if (destino && destino.id !== lead.etapa_id) await escribir(db().from("leads").update({ etapa_id: destino.id }).eq("id", lead.id), "leads");
 }
 
 const aIso = localAIso;
@@ -50,14 +51,18 @@ export async function registrarLlamada(
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
     const estado = resultado === "contestado" ? lead.estado_caller : resultado;
     const n = resultado === "no_contesta" ? 1 : resultado === "contestado" && estrellas === undefined ? null : estrellasEntre(estrellas, 2, 5);
-    await db()
-      .from("leads")
-      .update({
-        estado_caller: estado,
-        llamar_en: resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, proyecto.zona_horaria) : null,
-        ...(n ? { estrellas_caller: n } : {}),
-      })
-      .eq("id", leadId);
+    // F3 (plan Callers, 7 nov): antes no se comprobaba el error y salía «Guardado» aunque el estado no cambiara
+    await escribir(
+      db()
+        .from("leads")
+        .update({
+          estado_caller: estado,
+          llamar_en: resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, proyecto.zona_horaria) : null,
+          ...(n ? { estrellas_caller: n } : {}),
+        })
+        .eq("id", leadId),
+      "leads"
+    );
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "llamada", resultado, nota: [n ? `${n}★` : "", nota].filter(Boolean).join(" · ") || null });
     if (resultado !== "contestado") await moverAColumna(lead, resultado, resultado === "no_interesa" ? ["descartados", "descartado"] : []);
     refrescar();

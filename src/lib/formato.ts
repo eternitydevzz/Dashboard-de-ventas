@@ -217,3 +217,17 @@ export function nombrePais(pais: string | null | undefined) {
     return pais;
   }
 }
+
+// F13 (plan Callers, 7 nov): el nombre corto de cada persona en un selector. El nombre de pila si nadie más lo
+// tiene; si se repite, con la inicial del apellido («Ana L.», «Ana M.») para no confundirlas.
+export function nombresCortos(personas: { id: string; nombre: string }[]) {
+  const pila = (n: string) => n.trim().split(/\s+/)[0] ?? "";
+  const veces = new Map<string, number>();
+  for (const p of personas) veces.set(pila(p.nombre), (veces.get(pila(p.nombre)) ?? 0) + 1);
+  return new Map(
+    personas.map((p) => {
+      const [primero, segundo] = p.nombre.trim().split(/\s+/);
+      return [p.id, (veces.get(primero ?? "") ?? 0) > 1 && segundo ? `${primero} ${segundo[0]}.` : primero ?? p.nombre];
+    })
+  );
+}
