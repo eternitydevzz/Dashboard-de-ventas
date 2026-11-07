@@ -13,6 +13,7 @@ import { leerNumero } from "@/lib/numero";
 import { ABIERTAS } from "@/lib/llamadas";
 import { CON_ESTRELLAS, etiquetaEstado } from "@/lib/estados-caller";
 import { closerDeLaRotacion, sumarRotacion } from "@/lib/rotacion";
+import { closerLibreA } from "@/lib/agenda-libre";
 
 const refrescar = () => revalidatePath("/", "layout");
 
@@ -112,6 +113,11 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     if (!fechaLocal) throw new ErrorUsuario("Elige fecha y hora.");
     const esCaller = perfil.rol === "caller";
     if (esCaller) closerId = await closerDeLaRotacion(proyecto.id);
+    // El caller elige una hora libre del calendario; se vuelve a mirar al guardar (otro caller pudo cogerla antes)
+    if (esCaller) {
+      const libre = await closerLibreA(proyecto, closerId, new Date(aIso(fechaLocal, proyecto.zona_horaria)));
+      if (!libre.libre) throw new ErrorUsuario("Esa hora ya no está libre. Elige otra en el calendario.");
+    }
     // Las estrellas de la llamada (2 a 5): obligatorias para el caller (como hoy), opcionales para jefe o closer
     const n = esCaller || estrellas !== undefined ? estrellasEntre(estrellas, 2, 5) : null;
     const fecha = aIso(fechaLocal, proyecto.zona_horaria);

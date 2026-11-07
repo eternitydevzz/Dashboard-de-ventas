@@ -24,7 +24,9 @@ const enviar = (cuerpo: unknown) =>
   );
 const lead = async (id: string) => (await db.from("leads").select("estado_caller, closer_id, estrellas_caller").eq("id", id).single()).data!;
 const citaDe = async (id: string) => (await db.from("citas").select("id, agendada_por, closer_id, origen, estrellas_caller, estado").eq("lead_id", id).order("creado_en", { ascending: false }).limit(1).single()).data!;
-const rotacion = (perfilId: string, pct: number) => db.from("miembros_proyecto").update({ rotacion_pct: pct, rotacion_cuenta: 0 }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", perfilId);
+const TODO = { semana: Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((d) => [d, [{ desde: "00:00", hasta: "24:00" }]])), fechas: {} };
+// Revisión del 7 nov: el caller solo agenda en horas libres del closer, así que el closer de la prueba tiene horario
+const rotacion = (perfilId: string, pct: number) => db.from("miembros_proyecto").update({ rotacion_pct: pct, rotacion_cuenta: 0, horario: TODO }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", perfilId);
 
 describe("La base solo acepta los 12 estados", () => {
   it("los viejos «no_contesta» y «link_enviado» se rechazan", async () => {
@@ -50,6 +52,10 @@ describe("«Agendado» a mano por el caller (punto 13)", () => {
     expect(await lead(e.leads.LeadA)).toMatchObject({ estado_caller: "agendado", closer_id: e.p.closerA.id });
     const { data: m } = await db.from("miembros_proyecto").select("rotacion_cuenta").eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.closerA.id).single();
     expect(m!.rotacion_cuenta).toBe(1);
+  });
+  it("la misma hora ya cogida no se puede volver a agendar (huecos del calendario)", async () => {
+    como(e, e.p.callerA);
+    await falla(agendarCita(e.leads.LeadA, "", "2026-12-01T10:00", "", 4), /ya no está libre/);
   });
   it("«Confirma Agenda» confirma también la cita (punto 14)", async () => {
     como(e, e.p.callerA);

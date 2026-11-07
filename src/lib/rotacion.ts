@@ -12,6 +12,19 @@ export function elegirCloser(closers: { perfil_id: string; rotacion_pct: number;
   return [...activos].sort((a, b) => a.rotacion_cuenta / a.rotacion_pct - b.rotacion_cuenta / b.rotacion_pct || b.rotacion_pct - a.rotacion_pct)[0].perfil_id;
 }
 
+// Los % que se guardan en Administración: cada uno de 0 a 100 y entre todos 100 (o todos a 0 = sin rotación)
+export function validarRotacion(pcts: Record<string, number>) {
+  const limpio: Record<string, number> = {};
+  for (const [id, v] of Object.entries(pcts)) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 100) throw new ErrorUsuario("Cada % tiene que ir de 0 a 100.");
+    limpio[id] = Math.round(n * 100) / 100;
+  }
+  const suma = Math.round(Object.values(limpio).reduce((a, b) => a + b, 0) * 100) / 100;
+  if (suma !== 0 && suma !== 100) throw new ErrorUsuario(`Los % suman ${suma}; tienen que sumar 100 (o estar todos a 0).`);
+  return limpio;
+}
+
 export async function closerDeLaRotacion(proyectoId: string) {
   const { data } = await db()
     .from("miembros_proyecto")

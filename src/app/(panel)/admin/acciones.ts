@@ -1,5 +1,6 @@
 "use server";
 
+import { validarRotacion } from "@/lib/rotacion";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { revalidatePath } from "next/cache";
 import { olvidarTodo } from "@/lib/memoria";
@@ -763,6 +764,23 @@ export async function guardarUsuarioGhl(perfilId: string, userId: string) {
     if (u && !/^[A-Za-z0-9_-]{6,64}$/.test(u)) throw new ErrorUsuario("El id de usuario de GHL no parece válido.");
     const { data } = await db().from("miembros_proyecto").update({ ghl_user_id: u || null }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).select("perfil_id");
     if (!data?.length) throw new ErrorUsuario("Esa persona no está en este proyecto.");
+    refrescar();
+  });
+}
+
+// ---------- Rotación de closers del «Agendado» del caller (plan Callers C11; Cristian, 7 nov) ----------
+// % por closer (0 a 100) que suman 100, o todos a 0 (sin rotación: el caller no puede agendar a mano).
+// Al cambiar los %, la cuenta de cada closer vuelve a cero (la rotación empieza de nuevo con los % nuevos).
+export async function guardarRotacion(pcts: Record<string, number>) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const closers = (await equipo(proyecto.id)).filter((p) => p.rol === "closer");
+    const limpio = validarRotacion(Object.fromEntries(closers.map((c) => [c.id, Number(pcts[c.id] ?? 0)])));
+    const { data: antes } = await db().from("miembros_proyecto").select("perfil_id, rotacion_pct").eq("proyecto_id", proyecto.id).in("perfil_id", closers.map((c) => c.id));
+    const cambian = (antes ?? []).some((a) => Number(a.rotacion_pct) !== limpio[a.perfil_id]);
+    for (const [id, v] of Object.entries(limpio)) {
+      await escribir(db().from("miembros_proyecto").update({ rotacion_pct: v, ...(cambian ? { rotacion_cuenta: 0 } : {}) }).eq("proyecto_id", proyecto.id).eq("perfil_id", id), "miembros_proyecto");
+    }
     refrescar();
   });
 }
