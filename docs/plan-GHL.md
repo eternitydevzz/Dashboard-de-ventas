@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 19 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 20 (7 nov 2026). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -15,8 +15,8 @@
 | 3 · Agenda de la Biblioteca sin webhook, con A, B y C | Hecha (biblioteca-maestria PR #2 y dashboard PR #21). Probada en producción con bib6 el 7 nov |
 | Panel de endpoints en el dashboard | Hecho (dashboard PR #33, 7 nov). Probado en producción |
 | **4 · Workflows visuales (motor y lienzo de lectura y edición)** | **← Siguiente.** Plan propio aprobado (`docs/plan-workflows.md`). 4a hecha (PR #38 y #40): la Biblioteca está en modo prueba desde el 7 nov; Cristian decide «Pasar a real» después del 10 nov. 4b hecha (PR #42, pestaña Workflows). 4c: editor hecho (PR #45); rehacer «2 . WH - FORM AGENDA GENERAL», aplazado por Cristian. Siguiente: 2 · Revisar todo con Cristian |
-| Revisión de todo con Cristian | Pendiente |
-| Template de landings, skill y archivos del equipo | Pendiente (maqueta hecha) |
+| Revisión de todo con Cristian | Hecha el 7 nov: Cristian la dio por buena, sin cambios |
+| **Template de landings, skill y archivos del equipo** | **← Siguiente** (maqueta hecha) |
 | Mejoras pequeñas | Pendiente; cuándo, por decidir |
 | 6 · Landing de agenda de `codigomaestria.com` | Pendiente, **después** de los workflows visuales |
 | 6 · Optin | Pendiente |
@@ -105,7 +105,8 @@
 - [x] 4a-1 (motor y modo prueba) hecha y publicada el 7 nov (PR #38). La Biblioteca está en prueba hasta al menos el 10 nov. Detalle y lo que falta en `docs/plan-workflows.md`.
 
 ### 2 · Revisar todo con Cristian
-- [ ] Repasar juntos el panel de endpoints y los workflows en el dashboard. Si está bien, se pasa al punto 3; si no, se apunta qué cambiar.
+- [x] Repasar juntos el panel de endpoints y los workflows en el dashboard. **Hecho el 7 nov:** Cristian la dio por buena, sin cambios, y pidió pasar al punto 3.
+- [x] Pasada de punta a punta con datos reales: registro de prueba en la Biblioteca (`info+wf1@eternity.llc`, teléfono (201) 555-0101) el 7 nov a las 18:35 UTC. Resultado en `docs/plan-workflows.md` («Días de prueba de la Biblioteca»). Nota: el navegador de Playwright tenía la cookie `cm_tiene_acceso=1` de las pruebas anteriores y la Biblioteca saltaba el formulario; se borró solo esa cookie.
 
 ### 3 · Template de landings, skill y archivos del equipo (Claude, después de la revisión)
 *Por qué:* que todas las landings manden **el mismo JSON** a **la misma dirección** (solo cambia la clave de cada Entrada), para compartirlo con el equipo y empezar a cambiar las landings. Va después del panel, los workflows y la revisión con Cristian. Maqueta visual: `VENTAS/maqueta-template-landing.html` (no está en el repo).
@@ -165,6 +166,7 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 ## Lo que hace Cristian (Claude no puede)
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «6» (`info+bib1@` … `info+bib6@eternity.llc`). Sus citas (bib1 y bib6 el 12 nov, bib5 el 7 nov) ya están canceladas.
 - [ ] Borrar también en el dashboard esos leads de prueba.
+- [ ] Borrar en GHL y en el dashboard el lead de prueba del 7 nov «Prueba Workflow 1» (`info+wf1@eternity.llc`, teléfono +1 201 555 0101).
 - [ ] Vigilar las primeras agendas reales (dashboard y GHL).
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
 - [ ] Poner otra vez la descripción de la integración «App Eternity (dashboard)» en GHL (quedó vacía; ya no es «solo lectura»).
