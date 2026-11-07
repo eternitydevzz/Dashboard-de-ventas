@@ -147,7 +147,7 @@ export function TarjetaEntrada({
   pipelines: Pipe[];
   opciones: OpcionesGhl | null;
 }) {
-  const estado = estadoEntrada({ activa: entrada.activa, ghl_activo: entrada.ghl.ghl_activo, envios: resumen.envios, rojos: resumen.rojos });
+  const estado = estadoEntrada({ activa: entrada.activa, ghl_activo: entrada.ghl.ghl_activo, envios: resumen.envios, rojos: resumen.rojos, por_workflow: workflow?.modo === "real" });
   const viene = entrada.landing || entrada.formulario;
   return (
     <section className="tarjeta p-4 sm:p-5">

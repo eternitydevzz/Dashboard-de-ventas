@@ -72,9 +72,10 @@ export function leadsRecibidos(n: number) {
 }
 
 // El estado de la Entrada en palabras, y la frase de GHL (null = no se dice nada)
-export function estadoEntrada(x: { activa: boolean; ghl_activo: boolean; envios: number; rojos: number }) {
+// Workflows 4a-2: `por_workflow` = su workflow en modo real manda a GHL (con «Mandar a GHL» apagado)
+export function estadoEntrada(x: { activa: boolean; ghl_activo: boolean; envios: number; rojos: number; por_workflow?: boolean }) {
   if (!x.activa) return { tono: "off" as const, texto: "Apagada: no recibe nada", ghl: null };
   if (!x.envios) return { tono: "ok" as const, texto: "Esperando el primer lead", ghl: null };
-  const ghl = !x.ghl_activo ? "No se manda a GHL" : x.rojos ? null : "Todos llegaron a GHL";
+  const ghl = x.por_workflow ? "Lo manda su workflow" : !x.ghl_activo ? "No se manda a GHL" : x.rojos ? null : "Todos llegaron a GHL";
   return { tono: "ok" as const, texto: "Recibiendo leads", ghl };
 }

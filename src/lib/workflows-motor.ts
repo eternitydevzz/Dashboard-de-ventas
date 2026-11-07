@@ -6,10 +6,15 @@ import "server-only";
 //   cada «esperar»). Al final, en modo prueba, NO llama a GHL: calcula lo que mandaría y lo compara con lo que calcula
 //   hoy «Qué hacer en GHL» de la Entrada (armarEnvioGhl). Queda `coincide` y, si no, las diferencias en `registro`.
 // - Si falla: 5 intentos (uno por lectura) y después «error» con «Reintentar». En prueba no se manda email (Cristian).
-// - El modo real llega en 4a-2: hasta entonces, una ejecución de un workflow «real» queda en error.
+// - 4a-2, MODO REAL (Cristian, 7 nov): cada tramo hace sus pasos de GHL con `mandarEnvioGhl`, las MISMAS llamadas que
+//   hoy hace «Qué hacer en GHL». Al 5.º fallo, además, email a info@eternity.llc (como hoy). «Mover en el dashboard»
+//   todavía no se hace en real (lo dice el error).
 import { db } from "@/lib/datos";
 import { armarEnvioGhl } from "@/lib/entrada-ghl";
-import { aplanarPasos, compararEnvios, envioDeWorkflow, tramos, type Paso } from "@/lib/workflows";
+import { avisarPorEmail, mandarEnvioGhl, type Avisar } from "@/lib/ghl-envios";
+import { aplanarPasos, compararEnvios, configDePasos, envioDeWorkflow, tramos, type Paso, type PasoSimple } from "@/lib/workflows";
+
+export type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: typeof fetch; avisar?: Avisar };
 
 type Json = Record<string, unknown>;
 export const MAX_INTENTOS_WF = 5;
@@ -41,9 +46,10 @@ export async function crearEjecuciones(o: { proyectoId: string; entradaId: strin
 }
 
 // Desde la lectura de cada minuto
-export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; limite?: number } = {}) {
+export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; limite?: number; ghl?: GhlParaWorkflows } = {}) {
   const ahora = o.ahora ?? new Date();
   const r = { hechas: 0, ok: 0, errores: [] as string[] };
+  if (o.limite !== undefined && o.limite <= 0) return r;
   const { data, error } = await db()
     .from("workflow_ejecuciones")
     .select("id, workflow_id, pasos, lead_id, entrada_id, tramo, intentos, registro")
@@ -55,8 +61,8 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
   if (error) throw new Error(`ejecuciones: ${error.message}`);
   const lista = (data ?? []) as Ejecucion[];
   if (!lista.length) return r;
-  const { data: wfs } = await db().from("workflows").select("id, encendido, modo").in("id", [...new Set(lista.map((x) => x.workflow_id))]);
-  const wf = new Map(((wfs ?? []) as { id: string; encendido: boolean; modo: string }[]).map((w) => [w.id, w]));
+  const { data: wfs } = await db().from("workflows").select("id, nombre, encendido, modo").in("id", [...new Set(lista.map((x) => x.workflow_id))]);
+  const wf = new Map(((wfs ?? []) as { id: string; nombre: string; encendido: boolean; modo: string }[]).map((w) => [w.id, w]));
 
   for (const ej of lista) {
     r.hechas++;
@@ -66,8 +72,7 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
       continue;
     }
     try {
-      if (w.modo !== "prueba") throw new Error("El modo real aún no está (llega en la subfase 4a-2)");
-      const hecho = await tramoEnPrueba(ej, ahora);
+      const hecho = w.modo === "real" ? await tramoReal(proyectoId, ej, ahora, o.ghl) : await tramoEnPrueba(ej, ahora);
       await cambiar(ej.id, hecho);
       if (hecho.estado === "ok") r.ok++;
     } catch (e) {
@@ -76,6 +81,11 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
       const final = intentos >= MAX_INTENTOS_WF;
       await cambiar(ej.id, final ? { estado: "error", intentos, error: msg } : { intentos, error: msg, siguiente_en: new Date(ahora.getTime() + REINTENTAR_EN).toISOString() });
       r.errores.push(`ejecución ${ej.id}: ${msg}`);
+      // Como hoy: en real, al último intento, email (en prueba no: Cristian, 7 nov)
+      if (final && w.modo === "real") {
+        const { data: l } = await db().from("leads").select("email, telefono, nombre").eq("id", ej.lead_id).maybeSingle();
+        await (o.ghl?.avisar ?? avisarPorEmail)({ entrada: w.nombre, lead: l?.email || l?.telefono || l?.nombre || ej.lead_id, error: msg }).catch((x) => console.error("[workflows] aviso:", x));
+      }
     }
   }
   return r;
@@ -108,6 +118,34 @@ async function tramoEnPrueba(ej: Ejecucion, ahora: Date): Promise<Json> {
   });
   const diferencias = compararEnvios(envioDeWorkflow(ej.pasos, envios), hoy);
   return { estado: "ok", coincide: diferencias.length === 0, error: null, registro: [...registro, { tipo: "comparacion", diferencias, envios: envios.length, hora: ahora.toISOString() }] };
+}
+
+// Los envíos del lead a la Entrada de su ejecución, en orden (como enviarLead hoy)
+async function enviosDe(ej: Ejecucion) {
+  if (!ej.entrada_id) return [];
+  const { data: evs, error } = await db().from("webhook_eventos").select("payload").eq("entrada_id", ej.entrada_id).eq("lead_id", ej.lead_id).eq("procesado", true).order("recibido_en");
+  if (error) throw new Error(`No se pudieron leer los envíos del lead: ${error.message}`);
+  return (evs ?? []).map((x) => (x.payload ?? {}) as Json);
+}
+
+// Un tramo en MODO REAL: sus pasos de GHL con las mismas llamadas que hoy (mandarEnvioGhl)
+async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: GhlParaWorkflows | undefined): Promise<Json> {
+  if (!ghl) throw new Error("GHL no está conectado en este proyecto: no se puede mandar");
+  const envios = await enviosDe(ej);
+  const ts = tramos(aplanarPasos(ej.pasos, envios));
+  const actual = ts[ej.tramo];
+  const pasos: PasoSimple[] = actual?.pasos ?? [];
+  if (pasos.some((p) => p.tipo === "mover_dashboard")) throw new Error("«Mover en el dashboard» todavía no se puede hacer en modo real");
+  const deGhl = pasos.filter((p) => p.tipo === "contacto_ghl" || p.tipo === "etiquetas_ghl" || p.tipo === "oportunidad_ghl" || p.tipo === "quitar_etiqueta_ghl");
+  if (deGhl.length) {
+    const envio = armarEnvioGhl(envios, configDePasos(deGhl));
+    const quitarExtra = deGhl.flatMap((p) => (p.tipo === "quitar_etiqueta_ghl" ? [p.etiqueta] : []));
+    await mandarEnvioGhl({ proyectoId, locationId: ghl.locationId, token: ghl.token, envio, leadId: ej.lead_id, quitarExtra, fetchImpl: ghl.fetchImpl });
+  }
+  const registro = [...ej.registro, { tipo: "tramo", tramo: ej.tramo, pasos: pasos.map((p) => `${p.id} (${p.tipo})`), hora: ahora.toISOString(), modo: "real" }];
+  const siguiente = ts[ej.tramo + 1];
+  if (siguiente) return { tramo: ej.tramo + 1, siguiente_en: enSegundos(ahora, siguiente.espera), intentos: 0, error: null, registro };
+  return { estado: "ok", error: null, registro };
 }
 
 async function cambiar(id: string, cambios: Json) {

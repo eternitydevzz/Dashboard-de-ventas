@@ -1,10 +1,10 @@
 "use client";
 
-import { FlaskConical, RefreshCw, Square } from "lucide-react";
+import { FlaskConical, RefreshCw, Square, Undo2, Zap } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
-import { crearWorkflowDePrueba, pararWorkflow, reintentarEjecuciones } from "./acciones";
+import { crearWorkflowDePrueba, devolverAHoy, pararWorkflow, pasarWorkflowAReal, reintentarEjecuciones } from "./acciones";
 
 // Workflows, 4a-1 (docs/plan-workflows.md, Cristian 7 nov 2026): en la tarjeta de cada Entrada, el botón
 // «Probar como workflow» y la línea «Workflow en prueba: 18 de 18 leads coinciden» (modo prueba: no llama a GHL).
@@ -24,6 +24,37 @@ export function LineaWorkflow({ entradaId, workflow, puedeProbar }: { entradaId:
     );
   }
   const r = workflow.resumen;
+  // 4a-2 (Cristian, 7 nov): en real, el workflow manda a GHL en lugar de «Qué hacer en GHL»
+  if (workflow.modo === "real")
+    return (
+      <div className={`mt-3 rounded-xl px-3 py-2 text-sm ${r.errores ? "bg-mal-suave text-mal" : "bg-ok-suave text-ok"}`}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="min-w-0 flex-1">
+            <Zap className="mr-1 inline h-4 w-4" />
+            <b>Lo manda su workflow</b> (en lugar de «Qué hacer en GHL»)
+            {r.esperando ? ` · ${r.esperando} esperando` : ""}
+            {r.errores ? ` · ${r.errores} con error` : ""}
+          </span>
+          {r.errores > 0 && (
+            <button type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => reintentarEjecuciones(workflow.id), "Se reintentan en la próxima lectura (menos de 1 min)")}>
+              <RefreshCw className="h-3.5 w-3.5" /> Reintentar
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn-secundario text-xs"
+            disabled={pendiente}
+            onClick={() =>
+              void confirmar("¿Volver a lo de hoy? «Qué hacer en GHL» de la Entrada vuelve a mandar y el workflow se para. Lo que estaba esperando lo manda el camino de hoy en la próxima lectura.").then(
+                (ok) => ok && ejecutar(() => devolverAHoy(workflow.id), "Vuelve a mandar «Qué hacer en GHL»")
+              )
+            }
+          >
+            <Undo2 className="h-3.5 w-3.5" /> Volver a lo de hoy
+          </button>
+        </div>
+      </div>
+    );
   const terminados = r.coinciden + r.no_coinciden;
   const bien = terminados > 0 && r.no_coinciden === 0;
   return (
@@ -41,6 +72,18 @@ export function LineaWorkflow({ entradaId, workflow, puedeProbar }: { entradaId:
             <RefreshCw className="h-3.5 w-3.5" /> Reintentar
           </button>
         )}
+        <button
+          type="button"
+          className="btn-secundario text-xs"
+          disabled={pendiente}
+          onClick={() =>
+            void confirmar(
+              `¿Pasar a real? Desde ahora el workflow manda a GHL y «Qué hacer en GHL» de la Entrada se apaga. Criterio acordado: 3 días en prueba, 20 leads de registro, todos los de agenda y 0 diferencias (ahora: ${r.coinciden} de ${terminados} coinciden). Se puede volver a lo de hoy cuando quieras.`
+            ).then((ok) => ok && ejecutar(() => pasarWorkflowAReal(workflow.id), "El workflow ya manda a GHL"))
+          }
+        >
+          <Zap className="h-3.5 w-3.5" /> Pasar a real
+        </button>
         <button
           type="button"
           className="btn-secundario text-xs"
