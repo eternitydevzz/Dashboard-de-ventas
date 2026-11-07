@@ -147,5 +147,5 @@
 - [ ] Al acabar los días de prueba: Cristian decide el cambio a real de la Biblioteca.
 - [x] 4b: boceto glass (con la skill ui-ux-pro-max) aprobado → tests → código → PR #42 → comprobado en producción (7 nov).
 - [x] 4c (editor): boceto aprobado → tests → código → PR #45 → comprobado en producción (7 nov).
-- [ ] 4c: rehacer «2 . WH - FORM AGENDA GENERAL» en el editor. **Falta leerlo:** el editor de GHL se queda cargando con Playwright (4 intentos el 7 nov); Cristian mandará capturas de sus ramas.
+- [ ] 4c: rehacer «2 . WH - FORM AGENDA GENERAL» en el editor. **Aplazado por Cristian (7 nov): «no es necesario por ahora».** Cuando se retome: el editor de GHL se queda cargando con Playwright (4 intentos el 7 nov), así que hará falta que Cristian mande capturas de sus ramas.
 - [ ] Después, el punto 4 del plan GHL (landing de agenda), y luego 4d.
