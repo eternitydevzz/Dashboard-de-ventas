@@ -230,8 +230,7 @@ export function AccionesLead({
             {telLimpio && <a href={`https://wa.me/${telLimpio}`} target="_blank" rel="noreferrer" className={bv} aria-label="WhatsApp"><MessageCircle className="h-4 w-4" /> Wsp</a>}
             {linkAgenda && <button type="button" className={bv} onClick={() => void copiarLinkAgenda()}><Link2 className="h-4 w-4" /> Copiar link agenda</button>}
             <a href="/recursos" target="_blank" rel="noreferrer" className={bv}><FolderOpen className="h-4 w-4" /> Recursos</a>
-            <button type="button" className={bv} onClick={() => setModal("nota")}><StickyNote className="h-4 w-4" /> Nota</button>
-            {productosVisibles.length > 0 && <button type="button" className={bv} onClick={() => setModal("venta")}><ShoppingCart className="h-4 w-4" /> Venta</button>}
+            {/* Cristian (7 nov, tras verlo en la app): sin «Nota» ni «Venta» en la cabecera de la cola */}
           </div>
         </section>
 
