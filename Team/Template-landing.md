@@ -58,7 +58,7 @@ Es el mismo que da el botón **«Para el programador» → «Copiar ejemplo de l
 | `source` | Nombre de la landing (p. ej. `codigomaestria`, `biblioteca`) | Sí |
 | `form` | Qué formulario (p. ej. `registro`, `agenda`) | Sí |
 | `step` | En qué paso va (p. ej. `datos`, `cuestionario`, `completo`) | No |
-| `event_id` | El mismo en todos los envíos de la misma persona (datos y, después, cuestionario): el dashboard los junta | Recomendado |
+| `event_id` | El mismo en todos los envíos de la misma persona (datos y, después, cuestionario). El dashboard los junta en 1 lead por el email; si los primeros envíos solo traen el teléfono, el primero que trae email completa el lead de ese `event_id` en la misma Entrada | **Sí**, si algún paso va sin email |
 | `submitted_at` | Fecha y hora del envío (ISO) | No |
 | `name`, `first_name`, `last_name` | Nombre | Recomendado |
 | `email`, `phone` | Email y teléfono (con prefijo, p. ej. `+1…`) | **Al menos uno** (si no, 422: se guarda el envío pero no crea lead) |
