@@ -1,6 +1,6 @@
 // Workflows 4c (boceto del editor aprobado por Cristian el 7 nov 2026): editar el árbol de pasos y validarlo, sin base de datos.
 import { describe, expect, it } from "vitest";
-import { cambiarPaso, insertarPaso, pasoNuevo, pasosValidos, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
+import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, pasosValidos, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
 import type { Paso } from "@/lib/workflows";
 
 const BASE: Paso[] = [
@@ -90,6 +90,17 @@ describe("pasosValidos: lo que se guarda", () => {
     expect(pasosValidos([{ id: "t", tipo: "etiquetas_ghl", base: "  Biblioteca-Form ", fijas: [" Agenda Biblioteca", "", "agenda biblioteca"], campo_completo: " quiz_completed " }])).toEqual([
       { id: "t", tipo: "etiquetas_ghl", base: "Biblioteca-Form", fijas: ["agenda biblioteca"], campo_completo: "quiz_completed" },
     ]);
+  });
+});
+
+describe("mismoContenido: comparar pasos sin que importe el orden de las claves (Postgres jsonb las reordena)", () => {
+  it("mismo contenido con las claves en otro orden: iguales", () => {
+    expect(mismoContenido([{ id: "e", tipo: "esperar", segundos: 1 }], [{ segundos: 1, tipo: "esperar", id: "e" }])).toBe(true);
+    expect(mismoContenido({ a: { x: 1, y: [1, 2] } }, { a: { y: [1, 2], x: 1 } })).toBe(true);
+  });
+  it("otro valor u otro orden de pasos: distintos", () => {
+    expect(mismoContenido([{ id: "e", segundos: 1 }], [{ id: "e", segundos: 2 }])).toBe(false);
+    expect(mismoContenido([{ id: "a" }, { id: "b" }], [{ id: "b" }, { id: "a" }])).toBe(false);
   });
 });
 

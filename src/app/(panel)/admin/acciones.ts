@@ -12,7 +12,7 @@ import { reglasValidas } from "@/lib/entrada";
 import { datosLandingValidos, type DatosLanding } from "@/lib/entradas-panel";
 import { enviosDeEntrada, VER_MAS } from "@/lib/entradas-datos";
 import { workflowDeEntrada, type EntradaParaWorkflow } from "@/lib/workflows";
-import { pasosValidos } from "@/lib/workflows-editar";
+import { mismoContenido, pasosValidos } from "@/lib/workflows-editar";
 import { SECCIONES_TODAS, NUNCA, ROLES_PERMISO, seccionesPermitidas } from "@/lib/permisos";
 import type { RolPermiso } from "@/lib/permisos-constantes";
 import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
@@ -525,7 +525,7 @@ export async function guardarWorkflow(workflowId: string, pasos: unknown) {
     if (!w) throw new ErrorUsuario("Workflow no encontrado.");
     const limpios = pasosValidos(pasos);
     if (w.modo === "real" && JSON.stringify(limpios).includes('"mover_dashboard"')) throw new ErrorUsuario("«Mover en el dashboard» todavía no se puede hacer en modo real: quítalo o vuelve a prueba.");
-    if (JSON.stringify(limpios) === JSON.stringify(w.pasos)) return { ok: true as const, version: w.version as number };
+    if (mismoContenido(limpios, w.pasos)) return { ok: true as const, version: w.version as number };
     const version = (w.version as number) + 1;
     await escribir(db().from("workflows").update({ pasos: limpios, version, actualizado_en: new Date().toISOString() }).eq("id", w.id), "workflows");
     refrescar();

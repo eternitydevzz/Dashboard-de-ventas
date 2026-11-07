@@ -152,3 +152,9 @@ export function pasosValidos(x: unknown): Paso[] {
     });
   return lista(x, 0);
 }
+
+// ¿Mismo contenido? Sin que importe el orden de las claves de los objetos (Postgres jsonb las reordena al guardar);
+// el orden de las listas (los pasos) sí importa.
+const canonico = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(canonico) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v as object).sort().map((k) => [k, canonico((v as Record<string, unknown>)[k])])) : v;
+export const mismoContenido = (a: unknown, b: unknown) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));

@@ -10,7 +10,7 @@ import { confirmar } from "@/components/dialogos";
 import { Desplegable } from "@/components/eleccion";
 import type { Paso } from "@/lib/workflows";
 import { describirPaso, condicionTexto, type Icono, type Nombres } from "@/lib/workflows-vista";
-import { cambiarPaso, insertarPaso, pasoNuevo, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
+import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
 import { devolverAHoy, encenderWorkflow, guardarWorkflow, pararWorkflow, pasarWorkflowAReal } from "./acciones";
 
 type Pipe = { id: string; nombre: string; etapas: { id: string; nombre: string }[] };
@@ -63,7 +63,7 @@ export function EditorWorkflow({
   const [pasos, setPasos] = useState<Paso[]>(w.pasos);
   const [sel, setSel] = useState<Ruta | null>(null);
   const [menu, setMenu] = useState<{ lista: Ruta; en: number } | null>(null);
-  const sinGuardar = JSON.stringify(pasos) !== JSON.stringify(w.pasos);
+  const sinGuardar = !mismoContenido(pasos, w.pasos);
   useEffect(() => {
     if (!sinGuardar) return;
     const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
