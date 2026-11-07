@@ -93,7 +93,7 @@ export async function estadoCitaGhl(o: { token: string; citaId: string; fetchImp
 // 13 oct (Cristian): los pipelines de GHL donde el contacto tiene una oportunidad en la columna «Agendan»
 // (la más reciente primero). Lo usan las citas que no dicen su pipeline: así van a «Agendan» del mismo pipeline que en GHL.
 type OportunidadGhl = { pipelineId?: string; pipelineStageId?: string; updatedAt?: string; createdAt?: string };
-type PipelineGhl = { id: string; name: string; stages?: { id: string; name: string; position?: number }[] };
+export type PipelineGhl = { id: string; name: string; stages?: { id: string; name: string; position?: number }[] };
 export async function pipelinesAgendanGhl(o: { token: string; locationId: string; contactId: string; fetchImpl?: Fetch }): Promise<string[]> {
   const f = o.fetchImpl ?? fetch;
   const [p, s] = await Promise.all([
@@ -260,12 +260,19 @@ export async function crearOportunidadGhl(o: {
   etapaId: string | null;
   nombre: string;
   mover?: boolean; // por defecto sí (lo de antes); false = la que ya existe no se mueve
+  // Mejora «menos llamadas» (Cristian, 7 nov): las oportunidades del contacto ya buscadas (oportunidadesContactoGhl).
+  // Con ella no se busca otra vez, y la que se crea se añade a la lista
+  existentes?: OportunidadGhl2[];
   fetchImpl?: Fetch;
 }): Promise<{ id: string; nueva: boolean; movida: boolean }> {
   const f = o.fetchImpl ?? fetch;
-  const q = new URLSearchParams({ location_id: o.locationId, contact_id: o.contactId, pipeline_id: o.pipelineId, limit: "20" });
-  const s = await llamar(f, o.token, `/opportunities/search?${q}`, "2021-07-28");
-  const ya = (Array.isArray(s?.opportunities) ? s.opportunities : []).find((x: OportunidadGhl2) => x?.id && x.pipelineId === o.pipelineId);
+  let lista = o.existentes;
+  if (!lista) {
+    const q = new URLSearchParams({ location_id: o.locationId, contact_id: o.contactId, pipeline_id: o.pipelineId, limit: "20" });
+    const s = await llamar(f, o.token, `/opportunities/search?${q}`, "2021-07-28");
+    lista = Array.isArray(s?.opportunities) ? s.opportunities : [];
+  }
+  const ya = (lista ?? []).find((x: OportunidadGhl2) => x?.id && x.pipelineId === o.pipelineId);
   if (ya) {
     if (o.mover === false || !o.etapaId || ya.pipelineStageId === o.etapaId) return { id: ya.id, nueva: false, movida: false };
     await escribir(f, o.token, "PUT", `/opportunities/${encodeURIComponent(ya.id)}`, { pipelineStageId: o.etapaId }, "Edit Opportunities (opportunities.write)");
@@ -276,7 +283,16 @@ export async function crearOportunidadGhl(o: {
   const j = await escribir(f, o.token, "POST", "/opportunities/", cuerpo, "Edit Opportunities (opportunities.write)");
   const id = j?.opportunity?.id ?? j?.id;
   if (typeof id !== "string") throw new Error("GHL contestó sin id de oportunidad.");
+  o.existentes?.push({ id, contactId: o.contactId, pipelineId: o.pipelineId, pipelineStageId: o.etapaId ?? undefined });
   return { id, nueva: true, movida: false };
+}
+
+// Todas las oportunidades de un contacto en UNA llamada (sin pipeline; 100 es el máximo de GHL, apps/opportunities.json).
+// Comprobado el 7 nov en la especificación oficial: GHL no tiene forma de crear varias oportunidades de una vez.
+export async function oportunidadesContactoGhl(o: { token: string; locationId: string; contactId: string; fetchImpl?: Fetch }): Promise<OportunidadGhl2[]> {
+  const q = new URLSearchParams({ location_id: o.locationId, contact_id: o.contactId, limit: "100" });
+  const s = await llamar(o.fetchImpl ?? fetch, o.token, `/opportunities/search?${q}`, "2021-07-28");
+  return Array.isArray(s?.opportunities) ? s.opportunities : [];
 }
 
 // Estado de GHL → estado de la cita en la app. `null` = no se toca (lo decide el closer).
