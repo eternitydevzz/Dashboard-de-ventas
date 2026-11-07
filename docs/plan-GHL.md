@@ -168,10 +168,17 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «6» (`info+bib1@` … `info+bib6@eternity.llc`). Sus citas (bib1 y bib6 el 12 nov, bib5 el 7 nov) ya están canceladas.
 - [ ] Borrar también en el dashboard esos leads de prueba.
 - [ ] Borrar en GHL y en el dashboard el lead de prueba del 7 nov «Prueba Workflow 1» (`info+wf1@eternity.llc`, teléfono +1 201 555 0101).
+- [ ] **Poner el calendario de GHL de cada closer** en Administración → Integraciones GHL → «Calendario de GHL de cada closer» (Cristian, 7 nov: «los pongo yo»). Hasta entonces, al agendar en la app sale el aviso «Agendado en la app, pero no en el calendario de GHL…» (la cita se queda en la app). Ver «Encargos de Callers».
+- [ ] **Comprobar que la integración «App Eternity (dashboard)» de GHL tiene el permiso de escribir en calendarios** (`calendars/events.write`). Sin él, GHL rechaza crear la cita y sale el aviso.
+- [ ] Después, una prueba con un lead de prueba (`info+…`, teléfono 555-01xx) agendando en la app con un closer que ya tenga calendario, y cancelar la cita (manda email y SMS).
 - [ ] Vigilar las primeras agendas reales (dashboard y GHL).
 - [ ] Quitar `cristianortiz33` de colaborador en GitHub (`Dashboard-de-ventas` y `biblioteca-maestria` → Settings → Collaborators) y `cristianortizking33-7483` del equipo de Vercel si es miembro (Settings → Members).
 - [ ] Poner otra vez la descripción de la integración «App Eternity (dashboard)» en GHL (quedó vacía; ya no es «solo lectura»).
 - [ ] Rellenar o descartar el aviso de GHL que pide el **Tax ID** de la cuenta (sale al abrir fichas de contacto; Claude lo cierra sin guardar nada).
+
+## Encargos de la sesión de Callers (hechos el 7 nov, con el OK de Cristian)
+- **«Reagendado» y respetar «vendido» (Callers C11 punto 15 y F21), PR #52:** una sola regla (`estadoTrasCitaGhl`, `src/lib/estado-cita-ghl.ts`) para el webhook de citas y la lectura de cada minuto: vendido no se toca; confirma agenda o descartado → «reagendado» con la etiqueta «Reagendado»; el resto → «agendado».
+- **La cita también en GHL al agendar en la app (Callers C11 punto 13), PR #53:** `agendarCita` crea la cita en el calendario de GHL del closer (`crearCitaEnGhl`, `src/lib/cita-en-ghl.ts`; API oficial `POST /calendars/events/appointments`, Version 2021-04-15) y guarda su id para que la lectura no la duplique. Decidido por Cristian: un calendario por closer; los avisos de GHL (email y SMS) se mandan; si no se puede, la cita se queda en la app, se apunta en el historial y se avisa. **No probado con GHL de verdad** (ver «Lo que hace Cristian»).
 
 ## Para decidir (Cristian)
 - **`build.py`:** en revisión en otra sesión («Revisar build.py de la Biblioteca»).
