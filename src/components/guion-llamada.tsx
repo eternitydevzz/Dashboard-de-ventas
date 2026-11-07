@@ -88,7 +88,7 @@ export function GuionLlamada({
 
   const cerrar = () => void conFichaGuardada(() => (guardarMarcas(), onCerrar()));
   const tab = (v: typeof lado, t: string, Icono: typeof Search) => (
-    <button key={v} type="button" role="tab" aria-selected={lado === v} onClick={() => { setLado(v); void ficha.guardar(); }} className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-xs font-semibold ${lado === v ? "bg-panel text-primario shadow-sm" : "text-texto-2"}`}>
+    <button key={v} type="button" role="tab" aria-selected={lado === v} onClick={() => { setLado(v); void ficha.guardar(); }} className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-xs font-semibold ${lado === v ? "bg-primario-boton text-white shadow-[0_4px_14px_-6px_rgb(43_89_209/0.7)]" : "text-texto-2 hover:text-primario"}`}>
       <Icono className="h-3.5 w-3.5" /> {t}
     </button>
   );
@@ -156,21 +156,23 @@ export function GuionLlamada({
           })}
         </ol>
 
-        <div className="space-y-2 md:sticky md:top-0">
-          <div className="flex gap-1 rounded-xl border border-borde bg-panel-2 p-1" role="tablist" aria-label="Ayudas del guion">
+        {/* Cristian (7 nov, tras verlo en la app): todo el lateral (Form · Cualificación · Objeciones) en un recuadro azul
+            clarito, y la pestaña elegida remarcada en azul */}
+        <div className="space-y-2 rounded-2xl border border-primario/25 bg-primario-suave p-3 md:sticky md:top-0">
+          <div className="flex gap-1 rounded-xl border border-primario/20 bg-panel p-1" role="tablist" aria-label="Ayudas del guion">
             {tab("form", "Form", MessageSquare)}
             {tab("ficha", "Cualificación", ClipboardList)}
             {tab("objeciones", "Objeciones", ShieldQuestion)}
           </div>
           {lado === "form" && (
             <div role="tabpanel">
-              <p className="titulo-seccion mb-2">Lo que respondió en el formulario</p>
+              <p className="titulo-seccion mb-2 !text-primario">Lo que respondió en el formulario</p>
               {respuestas.length === 0 ? (
                 <p className="py-4 text-center text-xs text-texto-3">Este lead no tiene respuestas de formulario.</p>
               ) : (
                 <dl className="space-y-2">
                   {respuestas.map((r) => (
-                    <div key={r.pregunta} className="rounded-xl border border-borde bg-panel-2 px-3 py-2">
+                    <div key={r.pregunta} className="rounded-xl border border-borde bg-panel px-3 py-2">
                       <dt className="text-xs text-texto-3">{r.pregunta}</dt>
                       <dd className="mt-0.5 text-sm font-semibold">{r.respuesta || <span className="font-normal text-texto-3">Sin responder</span>}</dd>
                     </div>

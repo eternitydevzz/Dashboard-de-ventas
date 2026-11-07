@@ -111,9 +111,9 @@ export function useFicha(leadId: string) {
 
 export function PanelFicha({ ficha }: { ficha: ReturnType<typeof useFicha> }) {
   const { campos, estado, cambiar, guardar } = ficha;
-  // Cristian (7 nov, tras verla en la app): toda la ficha dentro de un recuadro azul clarito, para remarcarla
+  // El recuadro azul clarito lo pone el lateral entero del guion (Cristian, 7 nov); aquí, los campos en blanco
   return (
-    <div className="space-y-2 rounded-2xl border border-primario/25 bg-primario-suave p-3">
+    <div className="space-y-2">
       <div className="flex min-h-6 items-center justify-between gap-2">
         <span className="titulo-seccion !text-primario">Ficha de cualificación</span>
         <span className="text-xs text-texto-3" aria-live="polite">
