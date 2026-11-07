@@ -13,34 +13,29 @@ import { guardarManual, prepararSubidaManual } from "./acciones";
 
 export type ManualFila = { id: string; titulo: string; actualizado_en: string; por: string | null };
 
+// Cristian (7 nov, tras verlo en la app): el manual ocupa todo el ancho y el alto; arriba, un botón por manual
+// para cambiar de uno a otro (antes, una lista a la izquierda que le quitaba sitio al .html)
 export function VisorManuales({ manuales, elegido, editor, zona }: { manuales: ManualFila[]; elegido: ManualFila; editor: boolean; zona: Proyecto["zona_horaria"] }) {
   const src = `/api/manuales/${elegido.id}?v=${encodeURIComponent(elegido.actualizado_en)}`; // ?v=: al cambiarlo, no sale el viejo
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <nav className="space-y-2" aria-label="Manuales">
-        {manuales.map((m) => {
-          const on = m.id === elegido.id;
-          return (
-            <Link key={m.id} href={`/manuales?m=${m.id}`} aria-current={on ? "page" : undefined} className={`flex items-center gap-3 rounded-2xl border p-3 transition-colors ${on ? "border-primario bg-primario-suave shadow-[inset_3px_0_0_var(--primario)]" : "border-borde bg-panel-2 hover:border-borde-fuerte"}`}>
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-borde bg-panel text-primario"><BookOpen className="h-[18px] w-[18px]" /></span>
-              <span className="min-w-0">
-                <b className="block truncate text-sm">{m.titulo}</b>
-                <span className="text-xs text-texto-3">Actualizado el {fechaHora(m.actualizado_en, { zona_horaria: zona })}{m.por ? ` · por ${m.por}` : ""}</span>
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
-      <section className="tarjeta flex min-h-[560px] flex-col overflow-hidden">
-        <div className="flex flex-wrap items-center gap-2 border-b border-borde px-4 py-2.5">
-          <b className="mr-auto text-sm">{elegido.titulo}</b>
-          <a href={src} target="_blank" rel="noreferrer" className="btn-secundario px-2.5 py-1 text-xs"><Maximize2 className="h-3.5 w-3.5" /> Pantalla completa</a>
-          {editor && <SubirManual cambiar={elegido} />}
-        </div>
-        {/* Aislado: sin allow-same-origin, el manual no puede leer la sesión ni tocar la app (lib/csp.ts, CSP_VISOR) */}
-        <iframe key={src} src={src} title={elegido.titulo} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" className="h-[calc(100vh-220px)] min-h-[520px] w-full flex-1 bg-white" />
-      </section>
-    </div>
+    <section className="tarjeta flex flex-col overflow-hidden">
+      <div className="flex flex-wrap items-center gap-2 border-b border-borde px-3 py-2.5 sm:px-4">
+        <nav className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]" aria-label="Manuales">
+          {manuales.map((m) => {
+            const on = m.id === elegido.id;
+            return (
+              <Link key={m.id} href={`/manuales?m=${m.id}`} aria-current={on ? "page" : undefined} title={`Actualizado el ${fechaHora(m.actualizado_en, { zona_horaria: zona })}${m.por ? ` · por ${m.por}` : ""}`} className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${on ? "border-transparent bg-primario-boton text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)]" : "border-borde bg-panel-2 text-texto-2 hover:border-borde-fuerte hover:text-texto"}`}>
+                <BookOpen className="h-4 w-4" /> {m.titulo}
+              </Link>
+            );
+          })}
+        </nav>
+        <a href={src} target="_blank" rel="noreferrer" className="btn-secundario px-2.5 py-1.5 text-xs"><Maximize2 className="h-3.5 w-3.5" /> Pantalla completa</a>
+        {editor && <SubirManual cambiar={elegido} />}
+      </div>
+      {/* Aislado: sin allow-same-origin, el manual no puede leer la sesión ni tocar la app (lib/csp.ts, CSP_VISOR) */}
+      <iframe key={src} src={src} title={elegido.titulo} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" className="h-[calc(100dvh-210px)] min-h-[480px] w-full bg-white" />
+    </section>
   );
 }
 
