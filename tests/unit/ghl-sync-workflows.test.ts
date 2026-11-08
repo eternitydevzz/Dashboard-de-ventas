@@ -37,7 +37,7 @@ vi.mock("@/lib/ghl", async (original) => ({
   contactoGhl: async () => ({ attributionSource: { url: "https://eternity.llc/demo?utm_source=dfy", utmSource: "dfy" } }),
   estadoCitaGhl: async () => ghl.estado,
 }));
-vi.mock("@/lib/workflows-motor", () => ({ dispararWorkflows: vi.fn(async () => 1) }));
+vi.mock("@/lib/workflows-motor", () => ({ dispararWorkflows: vi.fn(async () => 1), dispararEtiquetas: vi.fn(async () => undefined) }));
 const { dispararWorkflows } = await import("@/lib/workflows-motor");
 const { sincronizarCalendarios } = await import("@/lib/ghl-sync");
 

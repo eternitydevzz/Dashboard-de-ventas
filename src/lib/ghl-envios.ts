@@ -56,7 +56,8 @@ export type EntradaGhl = {
   ghl_espera_seg?: number | null;
 };
 type Evento = { id: string; entrada_id: string | null; lead_id: string | null; ghl_intentos: number | null; recibido_en: string };
-export type ResultadoEnvios = { enviados: number; reintentos: number; errores: string[] };
+// `nuevas`: las etiquetas que el lead no tenía (A3): las dispara quien llama (/api/ghl/leer), porque aquí no se importa el motor
+export type ResultadoEnvios = { enviados: number; reintentos: number; errores: string[]; nuevas: { leadId: string; etiquetas: string[] }[] };
 export type Avisar = (o: { entrada: string; lead: string; error: string }) => Promise<unknown>;
 
 // Email a Cristian cuando un lead no llega a GHL tras los 5 intentos
@@ -76,7 +77,7 @@ export async function enviarPendientesGhl(
 ): Promise<ResultadoEnvios> {
   const ahora = opciones.ahora ?? new Date();
   const avisar = opciones.avisar ?? avisarPorEmail;
-  const r: ResultadoEnvios = { enviados: 0, reintentos: 0, errores: [] };
+  const r: ResultadoEnvios = { enviados: 0, reintentos: 0, errores: [], nuevas: [] };
   if (!proyecto.ghl_location_id) return r;
 
   // 1 · Los envíos cuya hora ya llegó, los más antiguos primero, agrupados por Entrada y lead
@@ -112,7 +113,8 @@ export async function enviarPendientesGhl(
       continue;
     }
     try {
-      await enviarLead(proyecto.id, proyecto.ghl_location_id, token, entrada, lead_id, opciones.fetchImpl, cache);
+      const nuevas = await enviarLead(proyecto.id, proyecto.ghl_location_id, token, entrada, lead_id, opciones.fetchImpl, cache);
+      if (nuevas.length) r.nuevas.push({ leadId: lead_id, etiquetas: nuevas });
       // Todos sus envíos a esta Entrada que esperaban (también los que aún no tocaban) han ido en este envío
       const { error: errOk } = await db()
         .from("webhook_eventos")
@@ -164,12 +166,13 @@ async function enviarLead(proyectoId: string, locationId: string, token: string,
       campoCompleto: entrada.ghl_campo_completo ?? "",
     }
   );
-  await mandarEnvioGhl({ proyectoId, locationId, token, envio, leadId, fetchImpl, cache });
+  return mandarEnvioGhl({ proyectoId, locationId, token, envio, leadId, fetchImpl, cache });
 }
 
 // Lo que se hace en GHL con un envío ya calculado (hoy, desde la Entrada; desde la 4a-2, también desde un workflow en
 // modo real): contacto → etiquetas → quitar → oportunidades → el lead guarda su contacto de GHL y sus etiquetas.
 // `quitarExtra`: etiquetas que un paso «Quitar etiqueta» del workflow quita además de `-incompleto`.
+// Devuelve las etiquetas que el lead no tenía (comparando en minúsculas), para los workflows de etiqueta (A3).
 export async function mandarEnvioGhl(o: { proyectoId: string; locationId: string; token: string; envio: EnvioGhl; leadId: string; quitarExtra?: string[]; fetchImpl?: Fetch; cache?: CacheGhl }) {
   const { proyectoId, locationId, token, envio, leadId, fetchImpl } = o;
   if (!envio.contacto.email && !envio.contacto.phone) throw new Error("El lead no tiene email ni teléfono para GHL");
@@ -196,7 +199,9 @@ export async function mandarEnvioGhl(o: { proyectoId: string; locationId: string
   // El lead del dashboard: su contacto de GHL (así la lectura de 60 s lo reconoce) y la misma etiqueta que en GHL
   const { data: lead, error: errLead } = await db().from("leads").select("ghl_contact_id, etiquetas").eq("id", leadId).eq("proyecto_id", proyectoId).maybeSingle();
   if (errLead || !lead) throw new Error(`No se encontró el lead en el dashboard${errLead ? `: ${errLead.message}` : ""}`);
-  const cambios: Json = { etiquetas: etiquetasApp(lead.etiquetas, envio) };
+  const etiquetas = etiquetasApp(lead.etiquetas, envio);
+  const tenia = new Set(((lead.etiquetas ?? []) as string[]).map((t) => t.toLowerCase()));
+  const cambios: Json = { etiquetas };
   // C: si ese contacto de GHL ya es de otro lead del proyecto, este no lo guarda (chocaría con
   // leads_proyecto_id_ghl_contact_id_key) y se apunta en su historial. Los dos leads se quedan (Cristian, 7 nov).
   let otro: { id: string; email: string | null; telefono: string | null } | null = null;
@@ -213,4 +218,5 @@ export async function mandarEnvioGhl(o: { proyectoId: string; locationId: string
     const { error: errAct } = await db().from("actividades").insert({ proyecto_id: proyectoId, lead_id: leadId, perfil_id: null, tipo: "webhook", nota });
     if (errAct) console.error("[ghl-envios] no se pudo apuntar en el historial:", errAct.message);
   }
+  return etiquetas.filter((t) => !tenia.has(t.toLowerCase()));
 }

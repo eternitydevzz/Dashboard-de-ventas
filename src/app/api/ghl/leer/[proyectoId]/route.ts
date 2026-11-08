@@ -6,7 +6,7 @@ import { sincronizarCalendarios } from "@/lib/ghl-sync";
 import { leerLeadsGhl } from "@/lib/ghl-leads";
 import { descifrar } from "@/lib/cifrado";
 import { MAX_LEADS_POR_LECTURA, enviarPendientesGhl, type ResultadoEnvios } from "@/lib/ghl-envios";
-import { avanzarEjecuciones } from "@/lib/workflows-motor";
+import { avanzarEjecuciones, dispararEtiquetas } from "@/lib/workflows-motor";
 import type { Proyecto } from "@/lib/tipos";
 
 // Plan GHL, fase 3 (Cristian, 16 oct 2026): el programador de Supabase llama aquí cada 60 s para leer las citas
@@ -95,5 +95,8 @@ async function leerLeads(proyectoId: string) {
 
 async function enviarPendientes(proyectoId: string) {
   const { proyecto, token } = await proyectoConGhl(proyectoId);
-  return enviarPendientesGhl(proyecto, token);
+  const r = await enviarPendientesGhl(proyecto, token);
+  // A3: las etiquetas nuevas que puso «Qué hacer en GHL» arrancan los workflows de etiqueta; un fallo no para la lectura
+  for (const n of r.nuevas) await dispararEtiquetas(proyectoId, n.leadId, n.etiquetas).catch((e) => console.error("[ghl-leer] workflows de etiqueta", proyectoId, e instanceof Error ? e.message : e));
+  return r;
 }
