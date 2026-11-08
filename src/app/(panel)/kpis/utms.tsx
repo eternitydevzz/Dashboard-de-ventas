@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { cargandoDatos } from "@/lib/pantalla-lista";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { Desplegable } from "@/components/eleccion";
 import { Seccion } from "@/components/ui";
 import { CAMPOS_UTM, filtrarUtms, totalesPor, type Clave, type FilaUtm, type FiltroUtm } from "@/lib/utms";
 import { cargarUtmsPestana } from "./acciones";
+import { GeneradorEnlaces } from "./generador-enlaces";
 
 const FILAS_MAX = 200; // shortcut: la tabla enseña las 200 primeras (los totales cuentan todas); paginar si hace falta
 const FILTROS: { c: Clave; t: string }[] = [{ c: "landing", t: "Landing" }, ...CAMPOS_UTM.map((c) => ({ c, t: c })), { c: "etiqueta", t: "Etiqueta" }];
@@ -18,7 +20,14 @@ const VACIO: FiltroUtm = { desde: null, hasta: null, landing: "", etiqueta: "", 
 export function PestanaUtms({ barra, desde, hasta }: { barra: React.ReactNode; desde: number | null; hasta: number | null }) {
   const [filas, setFilas] = useState<FilaUtm[] | null>(null);
   const [error, setError] = useState("");
-  const [f, setF] = useState(VACIO);
+  const etiquetaUrl = useSearchParams().get("etiqueta") ?? ""; // B4: cada etiqueta enlaza a /kpis?vista=utms&etiqueta=…
+  const [f, setF] = useState({ ...VACIO, etiqueta: etiquetaUrl });
+  const [vista, setVista] = useState(etiquetaUrl);
+  if (vista !== etiquetaUrl) {
+    // otro clic en una etiqueta con la pestaña ya abierta: el filtro sigue a la dirección
+    setVista(etiquetaUrl);
+    setF({ ...f, etiqueta: etiquetaUrl });
+  }
   useEffect(() => {
     let vivo = true;
     const listo = cargandoDatos();
@@ -43,6 +52,7 @@ export function PestanaUtms({ barra, desde, hasta }: { barra: React.ReactNode; d
     );
   return (
     <div className="space-y-5">
+      <GeneradorEnlaces />
       <div className="tarjeta space-y-3 px-4 pb-3.5">
         {barra}
         <div className="flex flex-wrap gap-2">
@@ -77,7 +87,7 @@ export function PestanaUtms({ barra, desde, hasta }: { barra: React.ReactNode; d
                   <td><Link href={`/leads/${x.id}`} className="hover:underline">{x.nombre || "Sin nombre"}</Link></td>
                   <td>{x.landing}</td>
                   {CAMPOS_UTM.map((c) => <td key={c}>{x[c]}</td>)}
-                  <td>{x.etiquetas.join(", ")}</td>
+                  <td>{x.etiquetas.map((e, i) => <span key={e}>{i > 0 && ", "}<Link href={`/kpis?vista=utms&etiqueta=${encodeURIComponent(e)}`} className="hover:underline">{e}</Link></span>)}</td>
                 </tr>
               ))}
             </tbody>
