@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { nombreVisiblePipeline } from "@/lib/pipelines-nombre";
 import { esJefe, puedeAdmin } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
@@ -150,12 +151,15 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
         subtitulo={`${proyecto.nombre} · ${jefe ? (persona ? `de ${persona.nombre}` : "todo el equipo") : `${perfil.nombre} · lo tuyo`}`}
         acciones={
           jefe ? (
-            <FiltroUrl
+            <>
+              <Link href="/crm/duplicados" className="btn btn-secundario">Duplicados</Link>
+              <FiltroUrl
               nombre="persona"
               etiqueta="Persona"
               todos="Todo el equipo"
               opciones={gente.filter((g) => g.rol === "caller" || g.rol === "closer").map((g) => ({ v: g.id, t: `${g.nombre} · ${g.rol}` }))}
-            />
+              />
+            </>
           ) : undefined
         }
       />
