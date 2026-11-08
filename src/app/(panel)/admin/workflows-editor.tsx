@@ -144,13 +144,16 @@ export function EditorWorkflow({
               <button type="button" onClick={() => void confirmar(p.tipo === "rama" ? "¿Quitar la rama con todos sus caminos y pasos?" : "¿Quitar este paso?").then((ok) => ok && quitar(r))} className="grid h-8 w-8 flex-none place-items-center rounded-lg bg-panel-2 text-texto-2 hover:text-mal" aria-label="Quitar este paso"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
             {p.tipo === "rama" && (
-              <div className="mt-4 flex w-full flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-center">
+              // Cada camino con ancho fijo: si no caben, la rama se desplaza en horizontal (antes se encogían y el texto salía letra a letra)
+              <div className="mt-4 w-full overflow-x-auto pb-2">
+                <div className="mx-auto flex w-max flex-col items-center gap-4 sm:flex-row sm:items-start">
                 {[...p.caminos.map((cm, n) => ({ etiqueta: condicionTexto(cm.condicion), pasos: cm.pasos, ruta: [...r, "c", n] as Ruta, no: false })), { etiqueta: "si no", pasos: p.si_no, ruta: [...r, "s"] as Ruta, no: true }].map((cm) => (
-                  <div key={cm.ruta.join(".")} className="flex w-full min-w-0 max-w-[300px] flex-1 flex-col items-center">
+                  <div key={cm.ruta.join(".")} className="flex w-[280px] flex-none flex-col items-center">
                     <span className={`whitespace-nowrap rounded-full border border-borde bg-panel px-3 py-1 text-xs font-semibold shadow-sm ${cm.no ? "text-texto-3" : "text-primario"}`}>{cm.etiqueta}</span>
                     {pintar(cm.pasos, cm.ruta)}
                   </div>
                 ))}
+                </div>
               </div>
             )}
             <Une />
