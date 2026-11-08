@@ -524,6 +524,18 @@ export async function crearWorkflowDeCita(evento: "agendada" | "cancelada") {
   });
 }
 
+// A3 (plan GHL, Cristian 8 nov 2026): «cuando se pone la etiqueta…», como los de cita: sin Entrada, en prueba y APAGADO
+export async function crearWorkflowDeEtiqueta(etiqueta: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const e = typeof etiqueta === "string" ? etiqueta.trim() : "";
+    if (!e || e.length > 100) throw new ErrorUsuario("Escribe la etiqueta (como mucho 100 letras).");
+    await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre: `Etiqueta «${e}»`, disparador: { tipo: "etiqueta", etiqueta: e }, entrada_id: null, pasos: [], modo: "prueba", encendido: false }), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
 // «Parar la prueba»: el workflow deja de recibir leads y lo que esperaba queda «parada»
 export async function pararWorkflow(workflowId: string) {
   return seguro(async () => {

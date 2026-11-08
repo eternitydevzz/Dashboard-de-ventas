@@ -66,7 +66,7 @@ describe("ghl-envios · GHL responde 429", () => {
     expect(fetch429).toHaveBeenCalledTimes(1);
     expect(updates("webhook_eventos")).toEqual([{ ghl_enviar_en: new Date(ahora.getTime() + 60_000).toISOString() }]);
     expect(avisar).not.toHaveBeenCalled();
-    expect(r).toEqual({ enviados: 0, reintentos: 0, errores: [] });
+    expect(r).toEqual({ enviados: 0, reintentos: 0, errores: [], nuevas: [] });
   });
 
   it("si ya lleva más de 30 min desde que debía salir, el 429 cuenta como fallo normal", async () => {

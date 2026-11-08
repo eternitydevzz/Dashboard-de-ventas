@@ -87,6 +87,8 @@ describe("condicionTexto y disparadorTexto", () => {
     // Fase 4d (8 nov): disparo por cita
     expect(disparadorTexto({ tipo: "cita", evento: "agendada" }, NOMBRES)).toEqual({ titulo: "Se agenda una cita", detalle: null });
     expect(disparadorTexto({ tipo: "cita", evento: "cancelada" }, NOMBRES)).toEqual({ titulo: "Se cancela una cita", detalle: null });
+    // A3 (8 nov): disparo por etiqueta
+    expect(disparadorTexto({ tipo: "etiqueta", etiqueta: "agenda-dfy" }, NOMBRES)).toEqual({ titulo: "Se pone la etiqueta «agenda-dfy»", detalle: null });
   });
 });
 

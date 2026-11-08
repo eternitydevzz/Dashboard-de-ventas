@@ -8,7 +8,7 @@ import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/li
 import { mismoNombre } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
 import { ABIERTAS } from "@/lib/llamadas";
-import { dispararWorkflows } from "@/lib/workflows-motor";
+import { dispararEtiquetas, dispararWorkflows } from "@/lib/workflows-motor";
 import type { DisparoCita } from "@/lib/workflows";
 
 type ProyectoGhl = Proyecto & { ghl_token: string | null; ghl_location_id: string | null };
@@ -289,11 +289,15 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
 }
 
 // Añade una etiqueta al lead si no la tiene (sin tocar las demás). También la usa el webhook de citas.
+// A3 (plan GHL, Cristian 8 nov 2026): «la tiene» se mira en minúsculas y, si es nueva, arranca los workflows de
+// etiqueta. Un fallo de los workflows no rompe a quien llama.
 export async function ponerEtiqueta(leadId: string, etiqueta: string) {
-  const { data } = await db().from("leads").select("etiquetas").eq("id", leadId).maybeSingle();
+  const { data } = await db().from("leads").select("etiquetas, proyecto_id").eq("id", leadId).maybeSingle();
   const actuales = (data?.etiquetas ?? []) as string[];
-  if (!data || actuales.includes(etiqueta)) return;
-  await db().from("leads").update({ etiquetas: [...actuales, etiqueta] }).eq("id", leadId);
+  if (!data || actuales.some((t) => t.toLowerCase() === etiqueta.toLowerCase())) return;
+  const { error } = await db().from("leads").update({ etiquetas: [...actuales, etiqueta] }).eq("id", leadId);
+  if (error) return;
+  await dispararEtiquetas(data.proyecto_id, leadId, [etiqueta]).catch((e) => console.error("[ghl-sync] workflows de etiqueta:", e instanceof Error ? e.message : e));
 }
 
 async function cancelar(proyectoId: string, borradas: { id: string; lead_id: string; canal: string | null; ghl_calendario: string | null; fecha: string }[], r: ResultadoSync) {
