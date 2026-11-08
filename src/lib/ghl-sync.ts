@@ -5,6 +5,7 @@ import { columnaCitasGhl, datosAgendaGhl, guardarLeads, moverAAgendadosOrganico,
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { GhlEsperar, contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
 import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/lib/canal";
+import { canalesDe } from "@/lib/canales-datos";
 import { mismoNombre } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
 import { ABIERTAS } from "@/lib/llamadas";
@@ -66,11 +67,13 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
     }
     return contactos.get(id) ?? null;
   };
-  // Plan GHL: el canal sale de la última página por la que entró el contacto (la de la agenda, con su UTM)
+  // Plan GHL: el canal sale de la última página por la que entró el contacto (la de la agenda, con su UTM).
+  // B2b: con los canales del proyecto, leídos una vez por lectura.
+  const canales = await canalesDe(proyecto.id);
   const origenDe = async (contactId: string | undefined) => {
     const ct = contactId ? await contacto(contactId) : null;
     const a = ct?.lastAttributionSource?.url || ct?.lastAttributionSource?.utmSource ? ct.lastAttributionSource : ct?.attributionSource;
-    return { canal: canalDeOrigen(a?.url, a?.utmSource), origen_url: limpiarUrl(a?.url) };
+    return { canal: canalDeOrigen(a?.url, a?.utmSource, canales), origen_url: limpiarUrl(a?.url) };
   };
 
   // Plan GHL (fase 3, se lee cada 30 s): lo que no siempre hace falta se pide solo cuando hace falta y una vez
@@ -153,7 +156,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
             if (o.canal) {
               Object.assign(extra, { canal: o.canal }, o.origen_url ? { origen_url: o.origen_url } : {});
               const { data: c } = await db().from("citas").select("lead_id").eq("id", existe.id).single();
-              if (c) await ponerEtiqueta(c.lead_id, etiquetaCanal(o.canal));
+              if (c) await ponerEtiqueta(c.lead_id, etiquetaCanal(o.canal, canales));
             }
           }
           if (Object.keys(extra).length) await db().from("citas").update(extra).eq("id", existe.id);
@@ -240,7 +243,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         }
       }
       // Fase 4: el lead lleva la etiqueta de su canal («Canal: YouTube»), para el filtro del CRM
-      if (origen?.canal) await ponerEtiqueta(leadId, etiquetaCanal(origen.canal));
+      if (origen?.canal) await ponerEtiqueta(leadId, etiquetaCanal(origen.canal, canales));
       await db().from("actividades").insert({ proyecto_id: proyecto.id, lead_id: leadId, tipo: "cita", resultado: "agendada", nota: `Cita del calendario de GHL${calendario ? ` «${calendario}»` : ` con ${f.nombre}`}` });
       r.nuevas++;
       // Solo citas futuras: la lectura mira 30 días atrás y, al añadir un calendario, las viejas dispararían en masa

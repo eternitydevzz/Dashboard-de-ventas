@@ -31,7 +31,8 @@ import { PanelObjetivos } from "@/components/barras-objetivos";
 import { BarraPeriodo, FiltroUrl } from "@/components/barra-periodo";
 import { IndividualAgendas, ComparativaAgendas } from "@/components/metricas-agendas-vista";
 import { VistaAgendas } from "@/app/(panel)/closer/vista-agendas";
-import { CANALES, NOMBRE_CANAL, SIN_CANAL } from "@/lib/canal";
+import { SIN_CANAL, opcionesCanal } from "@/lib/canal";
+import { canalesDe } from "@/lib/canales-datos";
 
 // KPIs de cada caller y closer (Paso H2) y sus objetivos (Paso H3). Solo director y CEO (decisión de Cristian, 10 oct 2026).
 export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
@@ -248,7 +249,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const leadsPeriodo = base.leads.filter((l) => enRango(l.creado_en, rango)).length;
 
     // Métricas de las agendas (las de Agendas → Métricas). Un caller ve solo las citas que agendó él; un closer, las suyas
-    const agendas = await cargarAgendas(proyecto, !!perfil.es_prueba);
+    const [agendas, canales] = await Promise.all([cargarAgendas(proyecto, !!perfil.es_prueba), canalesDe(proyecto.id)]);
     const mirar = perfil.rol === "caller";
     if (mirar) {
       agendas.citas = agendas.citas.filter((c) => c.agendada_por === perfil.id || c.closer_id === perfil.id);
@@ -270,7 +271,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
       <>
         <FiltroUrl nombre="producto" etiqueta="Producto" todos="Todos los productos" opciones={agendas.productos.map((x) => ({ v: x.id, t: x.nombre }))} />
         {/* Fase 4 (plan GHL): canal de la cita, por el UTM de la página donde reservó */}
-        <FiltroUrl nombre="canal" etiqueta="Canal" todos="Todos los canales" opciones={[...CANALES.map((c) => ({ v: c as string, t: NOMBRE_CANAL[c] })), { v: SIN_CANAL, t: "Sin canal" }]} />
+        <FiltroUrl nombre="canal" etiqueta="Canal" todos="Todos los canales" opciones={[...opcionesCanal(canales).map((c) => ({ v: c.clave as string, t: c.nombre })), { v: SIN_CANAL, t: "Sin canal" }]} />
         {agendas.eventos.length > 0 && <FiltroUrl nombre="evento" etiqueta="Evento" todos="Todos los eventos" opciones={agendas.eventos.map((e) => ({ v: e, t: e }))} />}
         <div className="2xl:ml-auto"><BarraPeriodo etiqueta={rango.etiqueta} /></div>
       </>

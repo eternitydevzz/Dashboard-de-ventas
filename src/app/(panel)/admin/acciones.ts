@@ -23,6 +23,8 @@ import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
 import type { Rol } from "@/lib/tipos";
 import { mandarEnlace } from "@/lib/acceso";
 import { reordenar } from "@/lib/orden-entradas";
+import { tablaValida } from "@/lib/canal";
+import { canalesDe } from "@/lib/canales-datos";
 
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
 type Res = { ok?: string; error?: string } | null;
@@ -883,6 +885,21 @@ export async function moverEntrada(id: string, direccion: "arriba" | "abajo") {
     for (const [orden, eid] of nuevo.entries()) {
       await escribir(db().from("entradas").update({ orden }).eq("id", eid).eq("proyecto_id", proyecto.id), "entradas");
     }
+    refrescar();
+  });
+}
+
+// ---------- Canales (Plan GHL B2b, Cristian 8 nov) ----------
+// Guarda la tabla entera. Las claves no cambian; si cambia un nombre, la función SQL renombra también «Canal: X»
+// en los leads, las reglas de las Entradas y los disparadores, a la vez (supabase/migrations/20261109120000_canales.sql).
+export async function guardarCanales(filas: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const r = tablaValida(filas);
+    if ("error" in r) throw new ErrorUsuario(r.error);
+    const antes = await canalesDe(proyecto.id); // sin filas, los de siempre: su nombre es el que llevan los leads
+    const p_filas = r.ok.map((c) => ({ ...c, antes: antes.find((a) => a.clave === c.clave)?.nombre ?? null }));
+    await escribir(db().rpc("guardar_canales", { p_proyecto: proyecto.id, p_filas }), "canales");
     refrescar();
   });
 }

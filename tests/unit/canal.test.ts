@@ -1,6 +1,6 @@
 // Plan GHL (16 oct): el canal de cada cita sale del UTM o de la página de agenda. Ejemplos sacados de citas reales.
 import { describe, expect, it } from "vitest";
-import { CANALES_POR_DEFECTO, canalDeOrigen, limpiarUrl, nombreCanal, type TablaCanales } from "@/lib/canal";
+import { CANALES, CANALES_POR_DEFECTO, canalDeOrigen, etiquetaCanal, limpiarUrl, nombreCanal, opcionesCanal, origenCitaGhl, tablaValida, type TablaCanales } from "@/lib/canal";
 
 describe("canalDeOrigen", () => {
   it("lee utm_source de la página", () => {
@@ -86,5 +86,48 @@ describe("canalDeOrigen", () => {
     expect(nombreCanal("yt")).toBe("YouTube");
     expect(nombreCanal(null)).toBeNull();
     expect(nombreCanal("raro")).toBeNull();
+  });
+
+  // Plan GHL B2b: los canales vienen de la base (Administración → Etiquetas y UTMs → Canales)
+  const renombrada = CANALES_POR_DEFECTO.map((c) => (c.clave === "yt" ? { ...c, nombre: "YT Ads" } : c));
+  it("nombre, etiqueta y origen salen de la tabla; Directo y Otro siguen igual (B2b)", () => {
+    expect(nombreCanal("yt", renombrada)).toBe("YT Ads");
+    expect(etiquetaCanal("yt", renombrada)).toBe("Canal: YT Ads");
+    expect(origenCitaGhl({ canal: "yt" }, renombrada)).toBe("GHL · YT Ads");
+    expect(nombreCanal("directo", renombrada)).toBe("Directo");
+    expect(etiquetaCanal("otro", renombrada)).toBe("Canal: Otro");
+    expect(etiquetaCanal("yt")).toBe("Canal: YouTube"); // sin tabla, como siempre
+  });
+
+  it("opciones de los filtros: la tabla en su orden y después Directo y Otro (B2b)", () => {
+    expect(opcionesCanal([renombrada[1], renombrada[0]])).toEqual([
+      { clave: "yt", nombre: "YT Ads" },
+      { clave: "callers", nombre: "Callers" },
+      { clave: "directo", nombre: "Directo" },
+      { clave: "otro", nombre: "Otro" },
+    ]);
+    expect(opcionesCanal(CANALES_POR_DEFECTO).map((c) => c.clave)).toEqual([...CANALES]);
+  });
+
+  it("al guardar: limpia (sin barras, sin mayúsculas, sin repetidos) y rechaza lo raro (B2b)", () => {
+    expect(tablaValida(CANALES_POR_DEFECTO)).toEqual({ ok: CANALES_POR_DEFECTO });
+    const con = (clave: string, cambio: object) => CANALES_POR_DEFECTO.map((c) => (c.clave === clave ? { ...c, ...cambio } : c));
+    const limpia = tablaValida(con("yt", { nombre: "  YT Ads ", alias: [" YT", "youtube", "yt", ""], paginas: ["/agenda-yt/", "CodigoMaestria.com/agenda-yt2/"] }));
+    expect("ok" in limpia && limpia.ok.find((c) => c.clave === "yt")).toEqual({ clave: "yt", nombre: "YT Ads", alias: ["yt", "youtube"], paginas: ["agenda-yt", "codigomaestria.com/agenda-yt2"] });
+    // el orden de la lista es el orden
+    expect(tablaValida([...CANALES_POR_DEFECTO].reverse())).toEqual({ ok: [...CANALES_POR_DEFECTO].reverse() });
+    const error = (x: unknown) => expect(tablaValida(x)).toEqual({ error: expect.any(String) });
+    for (const p of ["https://codigomaestria.com/agenda-yt", "agenda yt", "agenda?x=1", "agenda/fc", "recursos.html#a"]) error(con("yt", { paginas: [p] }));
+    error(con("yt", { alias: ["y t"] }));
+    error(con("yt", { nombre: " " }));
+    error(con("yt", { nombre: "instagram" })); // repetido (sin mayúsculas)
+    error(con("yt", { nombre: "Directo" })); // es de los fijos
+    error(con("yt", { alias: ["ig"] })); // ya es de Instagram
+    error(con("yt", { paginas: ["agenda-ig"] }));
+    error(CANALES_POR_DEFECTO.slice(1)); // falta uno
+    error([...CANALES_POR_DEFECTO, { clave: "directo", nombre: "Directo", alias: [], paginas: [] }]);
+    error([...CANALES_POR_DEFECTO, CANALES_POR_DEFECTO[0]]);
+    error(null);
+    error(con("yt", { alias: "yt" }));
   });
 });

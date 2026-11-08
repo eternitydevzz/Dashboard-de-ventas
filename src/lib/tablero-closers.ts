@@ -4,7 +4,7 @@ import { dinero, fechaHora, fecha as soloFecha, ahoraMs, hoyEnZona, inicioDia } 
 import { CLAVES_CLOSER, SUB_POSTCALL, claveNatural, porRecuperar, quienLlevaba, repartirCloser } from "@/lib/llamadas";
 import type { ColumnaC } from "@/app/(panel)/closer/llamadas/tablero-closers";
 import type { Cita, Etapa, Lead, Proyecto } from "@/lib/tipos";
-import { origenCitaGhl } from "@/lib/canal";
+import { origenCitaGhl, type TablaCanales } from "@/lib/canal";
 
 // Datos del tablero «Closers» (Paso 0): lo usan el CRM y Agendas → Llamadas (Pre-call y Post-call).
 type LeadCita = Pick<Lead, "id" | "nombre" | "apellido" | "telefono" | "pais" | "email" | "seguimiento">;
@@ -39,9 +39,9 @@ export function columnasCloser(
   etapas: Etapa[],
   citas: CitaFila[],
   ventas: (VentaFila & { pendiente: number })[],
-  ctx: { proyecto: Proyecto; jefe: boolean; nombrePersona: (id: string | null) => string }
+  ctx: { proyecto: Proyecto; jefe: boolean; nombrePersona: (id: string | null) => string; canales: TablaCanales }
 ) {
-  const { proyecto, jefe, nombrePersona } = ctx;
+  const { proyecto, jefe, nombrePersona, canales } = ctx;
   const ahora = ahoraMs();
   const inicioMes = inicioDia(`${hoyEnZona(proyecto.zona_horaria).slice(0, 8)}01`, proyecto.zona_horaria).getTime(); // «Cerradas»: las de este mes
   const { porColumna, sinColumna } = repartirCloser(etapas, citas, ventas, ahora, inicioMes);
@@ -65,7 +65,7 @@ export function columnasCloser(
           telefono: c.leads?.telefono ?? null,
           pais: c.leads?.pais ?? null,
           fechaTxt: fechaHora(c.fecha, proyecto),
-          quien: c.origen === "ghl" ? origenCitaGhl(c) : `Agendó ${nombrePersona(c.agendada_por)}`,
+          quien: c.origen === "ghl" ? origenCitaGhl(c, canales) : `Agendó ${nombrePersona(c.agendada_por)}`,
           nota: c.nota,
           closer: jefe ? quienLlevaba(c, nombrePersona) : null,
           pasada: new Date(c.fecha).getTime() < ahora,
