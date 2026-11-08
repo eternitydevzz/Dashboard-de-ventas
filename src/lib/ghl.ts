@@ -283,16 +283,14 @@ export function buscarEtiquetaGhl<T extends EtiquetaGhl>(etiquetas: T[], nombre:
 const rutaTag = (locationId: string, id: string) => `/locations/${encodeURIComponent(locationId)}/tags/${encodeURIComponent(id)}`;
 
 // «nada» = no está en GHL (o el nombre no cambia) · si el nombre nuevo ya existe, se unen (como renombrar_etiqueta de B3a)
-export async function renombrarEtiquetaGhl(o: { token: string; locationId: string; de: string; a: string; pausaMs?: number; fetchImpl?: Fetch }): Promise<"nada" | "renombrada" | "unida"> {
+// y `faltan` dice cuántos contactos quedan por unir (ver unirEtiquetasGhl)
+export async function renombrarEtiquetaGhl(o: { token: string; locationId: string; de: string; a: string; max?: number; pausaMs?: number; fetchImpl?: Fetch }): Promise<{ hecho: "nada" | "renombrada" | "unida"; faltan: number }> {
   const lista = await etiquetasGhl(o);
   const vieja = buscarEtiquetaGhl(lista, o.de);
-  if (!vieja || minus(o.de) === minus(o.a)) return "nada";
-  if (buscarEtiquetaGhl(lista, o.a)) {
-    await unirEtiquetasGhl(o);
-    return "unida";
-  }
+  if (!vieja || minus(o.de) === minus(o.a)) return { hecho: "nada", faltan: 0 };
+  if (buscarEtiquetaGhl(lista, o.a)) return { hecho: "unida", faltan: (await unirEtiquetasGhl(o)).faltan };
   await escribir(o.fetchImpl ?? fetch, o.token, "PUT", rutaTag(o.locationId, vieja.id), { name: minus(o.a) }, PERMISO_TAGS);
-  return "renombrada";
+  return { hecho: "renombrada", faltan: 0 };
 }
 
 // true = borrada · false = no estaba en GHL
@@ -303,12 +301,13 @@ export async function borrarEtiquetaGhl(o: { token: string; locationId: string; 
   return true;
 }
 
-// Devuelve cuántos contactos cambió (0 = A no está en GHL o es la misma que B). Un error (429 incluido) corta antes de
-// borrar A: repetir sigue con los contactos que aún la tienen.
-export async function unirEtiquetasGhl(o: { token: string; locationId: string; de: string; a: string; pausaMs?: number; fetchImpl?: Fetch }): Promise<number> {
+// Devuelve cuántos contactos cambió (0 = A no está en GHL o es la misma que B) y cuántos faltan. Con `max`, cambia como
+// mucho esos y, si faltan, no borra A. Un error (429 incluido) también corta antes de borrar A: repetir sigue con los
+// contactos que aún la tienen.
+export async function unirEtiquetasGhl(o: { token: string; locationId: string; de: string; a: string; max?: number; pausaMs?: number; fetchImpl?: Fetch }): Promise<{ cambiados: number; faltan: number }> {
   const f = o.fetchImpl ?? fetch;
   const vieja = buscarEtiquetaGhl(await etiquetasGhl(o), o.de);
-  if (!vieja || minus(o.de) === minus(o.a)) return 0;
+  if (!vieja || minus(o.de) === minus(o.a)) return { cambiados: 0, faltan: 0 };
   // Primero todas las páginas: quitar A mientras se pagina movería los contactos de página
   const ids: string[] = [];
   for (let page = 1; page <= 20; page++) {
@@ -317,13 +316,18 @@ export async function unirEtiquetasGhl(o: { token: string; locationId: string; d
     ids.push(...cs.map((c) => c?.id).filter((id): id is string => typeof id === "string"));
     if (cs.length < 500) break;
   }
-  for (const [i, contactId] of ids.entries()) {
-    if (i) await new Promise((r) => setTimeout(r, o.pausaMs ?? PAUSA_UNIR));
+  const tanda = ids.slice(0, o.max ?? ids.length);
+  for (const contactId of tanda) {
+    const t0 = Date.now();
     await anadirEtiquetasGhl({ token: o.token, contactId, etiquetas: [minus(o.a)], fetchImpl: f });
     await quitarEtiquetasGhl({ token: o.token, contactId, etiquetas: [minus(o.de)], fetchImpl: f });
+    // La pausa cuenta lo que ya tardaron las 2 llamadas: como mucho 1 contacto cada PAUSA_UNIR
+    const resto = (o.pausaMs ?? PAUSA_UNIR) - (Date.now() - t0);
+    if (resto > 0) await new Promise((r) => setTimeout(r, resto));
   }
-  await escribir(f, o.token, "DELETE", rutaTag(o.locationId, vieja.id), {}, PERMISO_TAGS);
-  return ids.length;
+  const faltan = ids.length - tanda.length;
+  if (!faltan) await escribir(f, o.token, "DELETE", rutaTag(o.locationId, vieja.id), {}, PERMISO_TAGS);
+  return { cambiados: tanda.length, faltan };
 }
 
 export async function crearOportunidadGhl(o: {
