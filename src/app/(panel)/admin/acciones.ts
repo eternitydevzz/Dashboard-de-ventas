@@ -941,12 +941,6 @@ export async function renombrarEtiqueta(de: unknown, a: unknown) {
     const d = etiquetaValida(de, true);
     const n = a === null ? null : etiquetaValida(a, true);
     if (n === d) throw new ErrorUsuario("Pon un nombre distinto.");
-    // Revisión de B3a: la base de una Entrada no se renombra ni se une aquí (sus leads llevan <base>-completo/-incompleto)
-    if (n !== null) {
-      const { data: ents } = await db().from("entradas").select("nombre, ghl_etiqueta_base").eq("proyecto_id", proyecto.id);
-      const ent = (ents ?? []).find((x: { ghl_etiqueta_base: string | null }) => etiquetaLimpia(x.ghl_etiqueta_base) === d);
-      if (ent) throw new ErrorUsuario(`Es la etiqueta base de la Entrada «${ent.nombre}»: cámbiala en «Qué hacer en GHL» de la Entrada.`);
-    }
     await escribir(db().rpc("renombrar_etiqueta", { p_proyecto: proyecto.id, p_de: d, p_a: n }), "etiquetas");
     refrescar();
     return { ok: true as const, ...(await etiquetaEnGhl(proyecto.id, d, n)) };

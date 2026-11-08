@@ -199,12 +199,4 @@ describe("renombrarEtiqueta (acción): primero la base y después GHL", () => {
     expect(rpcs).toHaveLength(1);
   });
 
-  it("la etiqueta base de una Entrada no se renombra ni se une (sí se puede borrar)", async () => {
-    const { f, llamadas } = falso((l) => lista(l) ?? ok(l));
-    vi.stubGlobal("fetch", f);
-    expect(await renombrarEtiqueta("agenda yt base", "otra")).toEqual({ error: "Es la etiqueta base de la Entrada «Agenda YT»: cámbiala en «Qué hacer en GHL» de la Entrada." });
-    expect(rpcs).toEqual([]);
-    expect(llamadas).toEqual([]);
-    expect(await renombrarEtiqueta("agenda yt base", null)).toMatchObject({ ok: true });
-  });
 });
