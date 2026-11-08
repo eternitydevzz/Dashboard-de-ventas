@@ -121,13 +121,14 @@ describe("resumen y avisos", () => {
     expect((await anon.from("workflow_ejecuciones").select("*").limit(1)).data ?? []).toHaveLength(0);
   });
   it("si falla 5 veces queda en error (sin email en prueba) y «Reintentar» la vuelve a poner en marcha", async () => {
-    // Sin su Entrada no se puede comparar con lo de hoy: falla en cada lectura
+    // Una rama rota (caminos: null) hace fallar el tramo en cada lectura. Antes se usaba una ejecución sin Entrada,
+    // pero desde la fase 4d (disparo por cita) una prueba sin Entrada termina ok sin comparar (Cristian, 8 nov).
     const { data: w } = await db.from("workflows").select("id").eq("entrada_id", entradaId).single();
     const { data: lead } = await db.from("leads").select("id").eq("proyecto_id", e.proyecto.id).eq("email", email()).single();
-    const { data: rota } = await db.from("workflow_ejecuciones").insert({ workflow_id: w!.id, version: 1, pasos: [{ id: "c", tipo: "contacto_ghl", campos: {} }], proyecto_id: e.proyecto.id, lead_id: lead!.id, entrada_id: null, siguiente_en: new Date().toISOString() }).select("id").single();
+    const { data: rota } = await db.from("workflow_ejecuciones").insert({ workflow_id: w!.id, version: 1, pasos: [{ id: "r", tipo: "rama", caminos: null, si_no: [] }], proyecto_id: e.proyecto.id, lead_id: lead!.id, entrada_id: entradaId, siguiente_en: new Date().toISOString() }).select("id").single();
     for (let i = 1; i <= 5; i++) await avanzarEjecuciones(e.proyecto.id, { ahora: dentroDe(i * 61) });
     const { data: x } = await db.from("workflow_ejecuciones").select("estado, intentos, error").eq("id", rota!.id).single();
-    expect(x).toMatchObject({ estado: "error", intentos: 5, error: expect.stringMatching(/Entrada/) });
+    expect(x).toMatchObject({ estado: "error", intentos: 5, error: expect.stringMatching(/caminos|null|find/) });
     como(e, e.p.ceo);
     expect(await reintentarEjecuciones(w!.id)).toMatchObject({ ok: true });
     expect((await db.from("workflow_ejecuciones").select("estado, intentos").eq("id", rota!.id).single()).data).toEqual({ estado: "esperando", intentos: 0 });
