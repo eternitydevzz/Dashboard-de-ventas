@@ -194,7 +194,8 @@ describe("renombrarEtiqueta (acción): primero la base y después GHL", () => {
     const { f } = falso(() => Response.json({ message: "caído" }, { status: 500 }));
     vi.stubGlobal("fetch", f);
     const r = await renombrarEtiqueta("agenda vieja", "agenda otra");
-    expect(r).toEqual({ ok: true, aviso: expect.stringMatching(/dashboard[^]*GHL[^]*500: caído[^]*puede volver/) });
+    // Al unir/renombrar, faltan deja el botón «Seguir uniendo en GHL» para reintentar
+    expect(r).toEqual({ ok: true, faltan: 1, aviso: expect.stringMatching(/dashboard[^]*GHL[^]*500: caído[^]*Seguir uniendo[^]*puede volver/) });
     expect(rpcs).toHaveLength(1);
   });
 

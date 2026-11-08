@@ -958,7 +958,8 @@ export async function renombrarEtiqueta(de: unknown, a: unknown) {
 // para caber en el tiempo de la acción); repetir la misma acción sigue (en la base ya no hace nada).
 const MAX_UNIR_GHL = 100; // ~250 ms por contacto: 100 ≈ 25 s, lejos del límite de la acción
 async function etiquetaEnGhl(proyectoId: string, de: string, a: string | null): Promise<{ aviso?: string; faltan?: number }> {
-  const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyectoId).single();
+  const { data: p, error: errP } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyectoId).single();
+  if (errP) throw new Error(`No se pudo leer el proyecto: ${errP.message}`);
   const vuelve = `En GHL sigue «${de}»: si GHL vuelve a mandar uno de esos leads, «${de}» puede volver.`;
   if (!p?.ghl_token || !p.ghl_location_id) return { aviso: `Este proyecto no tiene GHL conectado. ${vuelve}` };
   try {
@@ -970,7 +971,8 @@ async function etiquetaEnGhl(proyectoId: string, de: string, a: string | null): 
     const { faltan } = await renombrarEtiquetaGhl({ ...o, de, a, max: MAX_UNIR_GHL });
     return faltan ? { faltan, aviso: `En GHL faltan ${faltan} contactos por unir: pulsa «Seguir uniendo en GHL».` } : {};
   } catch (e) {
-    return { aviso: `En el dashboard ya está hecho, pero en GHL no: ${e instanceof Error ? e.message : "error desconocido."} No se ha deshecho nada. ${vuelve}` };
+    // Al unir, `faltan` deja el botón «Seguir uniendo en GHL» para reintentar (en la base ya no hace nada)
+    return { ...(a !== null ? { faltan: 1 } : {}), aviso: `En el dashboard ya está hecho, pero en GHL no: ${e instanceof Error ? e.message : "error desconocido."} No se ha deshecho nada. ${a !== null ? "Pulsa «Seguir uniendo en GHL» para reintentar. " : ""}${vuelve}` };
   }
 }
 
