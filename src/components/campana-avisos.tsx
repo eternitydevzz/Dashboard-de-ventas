@@ -16,7 +16,7 @@ export function CampanaAvisos({ avisos }: { avisos: AvisoCeo[] }) {
       </button>
       {abierta && (
         <div className="tarjeta absolute bottom-full left-0 z-50 mb-2 w-72 p-3 text-sm">
-          {avisos.length ? <ul className="space-y-2">{avisos.map((a) => <li key={a.tipo}>{a.texto}</li>)}</ul> : <p className="text-texto-3">Sin avisos.</p>}
+          {avisos.length ? <ul className="space-y-2">{avisos.map((a) => <li key={a.tipo + a.texto}>{a.texto}</li>)}</ul> : <p className="text-texto-3">Sin avisos.</p>}
         </div>
       )}
     </div>
