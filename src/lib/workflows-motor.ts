@@ -58,10 +58,12 @@ async function crearPara(wfs: Wf[], o: { proyectoId: string; leadId: string; ent
     const { data: ya, error: e1 } = await db().from("workflow_ejecuciones").select("id").eq("workflow_id", w.id).eq("lead_id", o.leadId).eq("estado", "esperando").limit(1);
     if (e1) throw new Error(`ejecuciones: ${e1.message}`);
     if (ya?.length) continue;
-    const primera = tramos(aplanarPasos(w.pasos, [o.envio]))[0]?.espera ?? 0;
+    const primera = enSegundos(o.ahora, tramos(aplanarPasos(w.pasos, [o.envio]))[0]?.espera ?? 0);
+    // «inicio»: cuándo debe salir el 1.er tramo (el 429 mide desde ahí; sin `modo`, no lo cuenta el aviso de bucle)
+    const registro = [...(o.registro ?? []), { tipo: "inicio", siguiente_en: primera }];
     const { error: e2 } = await db()
       .from("workflow_ejecuciones")
-      .insert({ workflow_id: w.id, version: w.version, pasos: w.pasos, proyecto_id: o.proyectoId, lead_id: o.leadId, entrada_id: o.entradaId, siguiente_en: enSegundos(o.ahora, primera), ...(o.registro ? { registro: o.registro } : {}) });
+      .insert({ workflow_id: w.id, version: w.version, pasos: w.pasos, proyecto_id: o.proyectoId, lead_id: o.leadId, entrada_id: o.entradaId, siguiente_en: primera, registro });
     if (e2) throw new Error(`ejecución: ${e2.message}`);
     creadas++;
   }
@@ -101,10 +103,9 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
       await cambiar(ej.id, hecho);
       if (hecho.estado === "ok") r.ok++;
     } catch (e) {
-      // 429: espera a la lectura siguiente sin gastar intento y se corta; pasados 30 min desde que se creó, fallo normal
-      // shortcut: se mide desde creado_en (no hay columna con la hora original de cada tramo); un tramo tras una espera
-      // larga cuenta el 429 como fallo normal desde el primero. Si molesta, guardar la hora en que debía salir el tramo.
-      if (e instanceof GhlEsperar && ahora.getTime() - new Date(ej.creado_en).getTime() <= MAX_ESPERA_429) {
+      // 429: espera a la lectura siguiente sin gastar intento y se corta; pasados 30 min desde que este tramo debía
+      // salir, fallo normal
+      if (e instanceof GhlEsperar && ahora.getTime() - debiaSalir(ej) <= MAX_ESPERA_429) {
         await cambiar(ej.id, { siguiente_en: new Date(ahora.getTime() + ESPERA_429).toISOString() });
         break;
       }
@@ -128,10 +129,8 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
 async function tramoEnPrueba(ej: Ejecucion, ahora: Date): Promise<Json> {
   if (!ej.entrada_id) {
     const ts = tramos(aplanarPasos(ej.pasos, await enviosDe(ej)));
-    const registro = [...ej.registro, { tipo: "tramo", tramo: ej.tramo, pasos: (ts[ej.tramo]?.pasos ?? []).map((p) => `${p.id} (${p.tipo})`), hora: ahora.toISOString(), modo: "prueba" }];
-    const siguiente = ts[ej.tramo + 1];
-    if (siguiente) return { tramo: ej.tramo + 1, siguiente_en: enSegundos(ahora, siguiente.espera), intentos: 0, error: null, registro };
-    return { estado: "ok", error: null, registro };
+    const t = trasTramo(ej, ts, ahora, "prueba");
+    return t.siguiente ?? { estado: "ok", error: null, registro: t.registro };
   }
   const { data: en, error: e1 } = await db().from("entradas").select("ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_oportunidades, ghl_etiqueta_base, ghl_etiquetas_extra, ghl_campo_completo").eq("id", ej.entrada_id).maybeSingle<EntradaGhl>();
   if (e1 || !en) throw new Error(`No se encontró su Entrada${e1 ? `: ${e1.message}` : ""}`);
@@ -141,10 +140,8 @@ async function tramoEnPrueba(ej: Ejecucion, ahora: Date): Promise<Json> {
   const envios = (evs ?? []).map((x) => (x.payload ?? {}) as Json);
 
   const ts = tramos(aplanarPasos(ej.pasos, envios));
-  const actual = ts[ej.tramo];
-  const registro = [...ej.registro, { tipo: "tramo", tramo: ej.tramo, pasos: (actual?.pasos ?? []).map((p) => `${p.id} (${p.tipo})`), hora: ahora.toISOString(), modo: "prueba" }];
-  const siguiente = ts[ej.tramo + 1];
-  if (siguiente) return { tramo: ej.tramo + 1, siguiente_en: enSegundos(ahora, siguiente.espera), intentos: 0, error: null, registro };
+  const { registro, siguiente } = trasTramo(ej, ts, ahora, "prueba");
+  if (siguiente) return siguiente;
 
   const hoy = armarEnvioGhl(envios, {
     campos: en.ghl_campos ?? {},
@@ -182,10 +179,25 @@ async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: Gh
   }
   // «Mover en el dashboard» (Cristian, 7 nov): después de GHL, en el orden del tramo
   for (const p of pasos) if (p.tipo === "mover_dashboard") await moverLeadDashboard(proyectoId, ej.lead_id, p.pipeline_id, p.etapa_id);
-  const registro = [...ej.registro, { tipo: "tramo", tramo: ej.tramo, pasos: pasos.map((p) => `${p.id} (${p.tipo})`), hora: ahora.toISOString(), modo: "real" }];
-  const siguiente = ts[ej.tramo + 1];
-  if (siguiente) return { tramo: ej.tramo + 1, siguiente_en: enSegundos(ahora, siguiente.espera), intentos: 0, error: null, registro };
-  return { estado: "ok", error: null, registro };
+  const t = trasTramo(ej, ts, ahora, "real");
+  return t.siguiente ?? { estado: "ok", error: null, registro: t.registro };
+}
+
+// El registro del tramo hecho y, si hay otro, lo que toca: su `siguiente_en` también queda en el registro, porque la
+// columna se pisa con cada reintento y el 429 mide sus 30 min desde que el tramo DEBÍA salir (debiaSalir)
+function trasTramo(ej: Ejecucion, ts: ReturnType<typeof tramos>, ahora: Date, modo: "prueba" | "real") {
+  const sig = ts[ej.tramo + 1];
+  const siguienteEn = sig ? enSegundos(ahora, sig.espera) : null;
+  const registro = [...ej.registro, { tipo: "tramo", tramo: ej.tramo, pasos: (ts[ej.tramo]?.pasos ?? []).map((p) => `${p.id} (${p.tipo})`), hora: ahora.toISOString(), modo, ...(siguienteEn ? { siguiente_en: siguienteEn } : {}) }];
+  return { registro, siguiente: siguienteEn ? { tramo: ej.tramo + 1, siguiente_en: siguienteEn, intentos: 0, error: null, registro } : null };
+}
+
+// Cuándo debía salir el tramo que toca: lo que apuntó el tramo anterior (o el «inicio», para el 1.º); sin eso
+// (ejecuciones de antes), creado_en
+function debiaSalir(ej: Ejecucion) {
+  const ultimo = ej.registro.filter((x) => x.tipo === "tramo" || x.tipo === "inicio").at(-1);
+  const t = typeof ultimo?.siguiente_en === "string" ? new Date(ultimo.siguiente_en).getTime() : NaN;
+  return Number.isNaN(t) ? new Date(ej.creado_en).getTime() : t;
 }
 
 async function cambiar(id: string, cambios: Json) {

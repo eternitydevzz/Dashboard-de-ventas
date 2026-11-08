@@ -40,7 +40,7 @@ export function pipelinesDeEtiquetas(tags: string[] | undefined) {
 
 const MIN = 60_000;
 const MARGEN = 2 * MIN; // se relee un poco hacia atrás por si GHL tarda en indexar alguno (los ya vistos no se repiten)
-const MAX_POR_LECTURA = 30; // el resto, en la siguiente (a los 30 s)
+const MAX_POR_LECTURA = 30; // el resto, en la siguiente (a los 60 s)
 // 17 oct (Cristian): GHL crea el contacto y le pone la etiqueta unos segundos después (visto con un lead real de la
 // Biblioteca: leído a los 4 s, sin etiqueta, acabó en General). Un contacto sin etiqueta de pipeline se espera 2 min
 // antes de mandarlo a General.
@@ -232,7 +232,7 @@ async function cambiosEnGhl(
         if (errHist) console.error("[actividad] no se pudo guardar la etiqueta nueva:", errHist.message);
       }
     } else if (ya && hayCambios(ya, lead)) {
-      // Solo se escribe si GHL trae algo nuevo (así no se reescribe cada 30 s durante la media hora)
+      // Solo se escribe si GHL trae algo nuevo (así no se reescribe cada 60 s durante la media hora)
       await guardarLeads(proyecto, [sinPisar(lead, ya)], { pipelineId: null, origen: "ghl", perfilId: null, repartir: false });
       r.puestosAlDia++;
     }
