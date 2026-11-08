@@ -322,7 +322,8 @@ export async function crearEntrada(_prev: Res, fd: FormData): Promise<Res> {
     const destino = await destinoValido(proyecto.id, texto(fd, "pipeline_id") || null, texto(fd, "etapa_id") || null);
     // Panel de endpoints (7 nov): de qué landing y formulario es, y desde dónde envía
     const landing = datosLandingValidos({ landing: fd.get("landing"), formulario: fd.get("formulario"), envia_desde: fd.get("envia_desde") });
-    const { error } = await db().from("entradas").insert({ proyecto_id: proyecto.id, nombre, ...destino, ...landing });
+    const { data: ultima } = await db().from("entradas").select("orden").eq("proyecto_id", proyecto.id).order("orden", { ascending: false }).limit(1).maybeSingle();
+    const { error } = await db().from("entradas").insert({ proyecto_id: proyecto.id, nombre, ...destino, ...landing, orden: ultima ? Number(ultima.orden) + 1 : 0 });
     if (error) throw new ErrorUsuario(error.message);
     refrescar();
     return { ok: "Entrada creada. Su dirección está en la lista: cópiala y pásasela al programador de la landing." };
