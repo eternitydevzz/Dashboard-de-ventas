@@ -23,7 +23,7 @@ export async function clientesDeCloser(proyectoId: string, perfil: Perfil, close
   const ver = esJefe(perfil) ? closerFiltro || null : perfil.id;
   type V = { lead_id: string; vendedor_id: string; fecha: string; productos: { nombre: string } | null };
   const ventas = await todas<V>((a, b) => {
-    let q = db().from("ventas").select("lead_id, vendedor_id, fecha, productos(nombre), perfiles!ventas_vendedor_id_fkey!inner(rol)").eq("proyecto_id", proyectoId).eq("perfiles.rol", "closer");
+    let q = db().from("ventas").select("lead_id, vendedor_id, fecha, productos(nombre), perfiles!ventas_vendedor_id_fkey!inner(rol, tambien_closer)").eq("proyecto_id", proyectoId).or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }); // E2: también closer
     if (ver) q = q.eq("vendedor_id", ver);
     return q.order("fecha").order("id").range(a, b) as unknown as PromiseLike<{ data: V[] | null; error: { message: string } | null }>;
   });
