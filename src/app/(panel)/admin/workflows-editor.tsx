@@ -11,7 +11,7 @@ import { Desplegable } from "@/components/eleccion";
 import type { Disparador, Paso } from "@/lib/workflows";
 import { describirPaso, condicionTexto, disparadorTexto, type Icono, type Nombres } from "@/lib/workflows-vista";
 import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
-import { devolverAHoy, encenderWorkflow, guardarWorkflow, pararWorkflow, pasarWorkflowAReal } from "./acciones";
+import { crearWorkflowDeCita, devolverAHoy, encenderWorkflow, guardarWorkflow, pararWorkflow, pasarWorkflowAReal } from "./acciones";
 
 type Pipe = { id: string; nombre: string; etapas: { id: string; nombre: string }[] };
 export type OpcionesEditor = { camposGhl: { id: string; name: string }[]; pipelinesGhl: Pipe[]; pipelinesDashboard: Pipe[]; errorGhl: string | null };
@@ -43,6 +43,20 @@ const TIPOS: { tipo: Paso["tipo"]; icono: Icono; t: string; d: string }[] = [
   { tipo: "mover_dashboard", icono: "mover", t: "Mover en el dashboard", d: "A un pipeline y columna" },
   { tipo: "rama", icono: "rama", t: "Rama «si el campo…»", d: "Un camino distinto según un campo" },
 ];
+// Fase 4d, B3 (plan GHL 2.4): los workflows de cita se crean aquí (los de Entrada, desde su tarjeta)
+export function NuevoWorkflowCita() {
+  const { pendiente, ejecutar } = useAccion();
+  return (
+    <div className="flex flex-wrap gap-2">
+      {(["agendada", "cancelada"] as const).map((ev) => (
+        <button key={ev} type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => crearWorkflowDeCita(ev), "Workflow creado en prueba: ponle sus pasos con «Editar»")}>
+          <Plus className="h-3.5 w-3.5" /> Nuevo: cuando se {ev === "agendada" ? "agenda" : "cancela"} una cita
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const igual = (a: Ruta | null, b: Ruta | null) => !!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]);
 const Une = () => <span aria-hidden className="block h-4 w-0.5 bg-primario/30" />;
 
@@ -148,6 +162,9 @@ export function EditorWorkflow({
   );
 
   const real = w.modo === "real";
+  // Sin Entrada (cita): no hay «Qué hacer en GHL» que apagar ni al que volver; para sacarlo de real, se apaga
+  const cita = w.disparador.tipo === "cita";
+  const quien = cita ? `las citas que se ${w.disparador.tipo === "cita" && w.disparador.evento === "cancelada" ? "cancelen" : "agenden"}` : "los leads de su Entrada";
   return (
     <section className="tarjeta min-w-0 p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -164,7 +181,7 @@ export function EditorWorkflow({
               disabled={pendiente || sinGuardar}
               onChange={(e) => {
                 const on = e.target.checked;
-                void confirmar(on ? "¿Encender el workflow? Empieza a recibir los leads de su Entrada." : "¿Apagar el workflow? Deja de recibir leads.").then((ok) => ok && ejecutar(() => (on ? encenderWorkflow(w.id) : pararWorkflow(w.id)), on ? "Encendido" : "Apagado"));
+                void confirmar(on ? `¿Encender el workflow? Empieza a recibir ${quien}.` : `¿Apagar el workflow? Deja de recibir ${quien}.`).then((ok) => ok && ejecutar(() => (on ? encenderWorkflow(w.id) : pararWorkflow(w.id)), on ? "Encendido" : "Apagado"));
               }}
             />
             Encendido
@@ -174,9 +191,16 @@ export function EditorWorkflow({
               <button
                 key={m}
                 type="button"
-                disabled={pendiente || sinGuardar || !w.encendido || w.modo === m}
+                disabled={pendiente || sinGuardar || !w.encendido || w.modo === m || (cita && m === "prueba")}
+                title={cita && m === "prueba" && real ? "Sin Entrada no hay «lo de hoy»: para que deje de mandar, apágalo" : undefined}
                 onClick={() =>
-                  void confirmar(m === "real" ? "¿Pasar a real? El workflow manda a GHL y «Qué hacer en GHL» de su Entrada se apaga. Criterio acordado: 3 días en prueba, 20 leads de registro, todos los de agenda y 0 diferencias." : "¿Volver a lo de hoy? «Qué hacer en GHL» de su Entrada vuelve a mandar y el workflow se para.").then(
+                  void confirmar(
+                    m === "real"
+                      ? cita
+                        ? `¿Pasar a real? El workflow manda a GHL con ${quien}. En prueba no se compara con nada: mira antes en el historial que sus pasos son los que esperas.`
+                        : "¿Pasar a real? El workflow manda a GHL y «Qué hacer en GHL» de su Entrada se apaga. Criterio acordado: 3 días en prueba, 20 leads de registro, todos los de agenda y 0 diferencias."
+                      : "¿Volver a lo de hoy? «Qué hacer en GHL» de su Entrada vuelve a mandar y el workflow se para."
+                  ).then(
                     (ok) => ok && ejecutar(() => (m === "real" ? pasarWorkflowAReal(w.id) : devolverAHoy(w.id)), m === "real" ? "Ya manda a GHL" : "Vuelve a mandar «Qué hacer en GHL»")
                   )
                 }

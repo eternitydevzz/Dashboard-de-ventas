@@ -511,6 +511,19 @@ export async function crearWorkflowDePrueba(entradaId: string) {
   });
 }
 
+// Fase 4d, B3 (plan GHL 2.4, Cristian 8 nov 2026): un workflow «cuando se agenda / se cancela una cita», sin Entrada.
+// Nace en prueba, sin pasos (se ponen en el editor) y encendido, como crearWorkflowDePrueba (default de la columna).
+export async function crearWorkflowDeCita(evento: "agendada" | "cancelada") {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    if (evento !== "agendada" && evento !== "cancelada") throw new ErrorUsuario("Evento de cita no válido.");
+    const nombre = evento === "agendada" ? "Cita agendada" : "Cita cancelada";
+    await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre, disparador: { tipo: "cita", evento }, entrada_id: null, pasos: [], modo: "prueba" }), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
 // «Parar la prueba»: el workflow deja de recibir leads y lo que esperaba queda «parada»
 export async function pararWorkflow(workflowId: string) {
   return seguro(async () => {
@@ -545,8 +558,10 @@ export async function encenderWorkflow(workflowId: string) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     const w = await workflowConEntrada(workflowId, proyecto.id);
-    const { data: otros } = await db().from("workflows").select("id").eq("entrada_id", w.entrada_id).eq("encendido", true).neq("id", w.id).limit(1);
-    if (otros?.length) throw new ErrorUsuario("Su Entrada ya tiene otro workflow en marcha: para ese primero.");
+    if (w.entrada_id) {
+      const { data: otros } = await db().from("workflows").select("id").eq("entrada_id", w.entrada_id).eq("encendido", true).neq("id", w.id).limit(1);
+      if (otros?.length) throw new ErrorUsuario("Su Entrada ya tiene otro workflow en marcha: para ese primero.");
+    }
     await escribir(db().from("workflows").update({ encendido: true, actualizado_en: new Date().toISOString() }).eq("id", w.id), "workflows");
     refrescar();
     return { ok: true as const };
@@ -558,10 +573,11 @@ export async function encenderWorkflow(workflowId: string) {
 // de la Entrada (si eso falla, el workflow vuelve a «prueba»). Un momento con los dos encendidos solo repetiría llamadas
 // que no duplican nada en GHL (el contacto se actualiza, las etiquetas no se repiten y la oportunidad se busca antes).
 // Lo que esperaba para GHL por el camino de hoy pasa a mandarlo su ejecución del workflow.
+// Fase 4d, B3: también los de cita (entrada_id null): no tienen «Qué hacer en GHL» que apagar ni a la que volver.
 async function workflowConEntrada(workflowId: string, proyectoId: string) {
   const { data: w } = await db().from("workflows").select("id, entrada_id, modo, encendido").eq("id", workflowId).eq("proyecto_id", proyectoId).maybeSingle();
-  if (!w?.entrada_id) throw new ErrorUsuario("Workflow no encontrado.");
-  return w as { id: string; entrada_id: string; modo: string; encendido: boolean };
+  if (!w) throw new ErrorUsuario("Workflow no encontrado.");
+  return w as { id: string; entrada_id: string | null; modo: string; encendido: boolean };
 }
 
 export async function pasarWorkflowAReal(workflowId: string) {
@@ -574,6 +590,10 @@ export async function pasarWorkflowAReal(workflowId: string) {
     if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Este proyecto no tiene GHL conectado (pestaña Integraciones GHL).");
     const ahora = new Date().toISOString();
     await escribir(db().from("workflows").update({ modo: "real", actualizado_en: ahora }).eq("id", w.id), "workflows");
+    if (!w.entrada_id) {
+      refrescar();
+      return { ok: true as const };
+    }
     const { error } = await db().from("entradas").update({ ghl_activo: false }).eq("id", w.entrada_id);
     if (error) {
       await db().from("workflows").update({ modo: "prueba", actualizado_en: ahora }).eq("id", w.id);
@@ -591,6 +611,7 @@ export async function devolverAHoy(workflowId: string) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     const w = await workflowConEntrada(workflowId, proyecto.id);
+    if (!w.entrada_id) throw new ErrorUsuario("Este workflow no tiene Entrada.");
     if (w.modo !== "real") throw new ErrorUsuario("Este workflow no está en real.");
     await exigirNoGhl(w.entrada_id, "volver a «Mandar a GHL» (Volver a lo de hoy)", { enciende: true });
     const ahora = new Date().toISOString();

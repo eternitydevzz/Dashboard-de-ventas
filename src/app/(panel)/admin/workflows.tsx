@@ -8,6 +8,7 @@ import { coincidenTexto, condicionTexto, describirPaso, disparadorTexto, estadoE
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
 import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
+import { NuevoWorkflowCita } from "./workflows-editor";
 
 export type WorkflowFila = { id: string; nombre: string; disparador: Disparador; pasos: Paso[]; modo: string; encendido: boolean; version: number };
 export type EjecucionFila = { id: string; estado: string; coincide: boolean | null; creado_en: string; siguiente_en: string; registro: { tipo?: string; pasos?: string[]; hora?: string; diferencias?: string[] }[]; quien: string };
@@ -38,6 +39,8 @@ function Chip({ tono, children }: { tono: Tono | "prueba"; children: React.React
 function ChipModo({ w, r }: { w: WorkflowFila; r?: ResumenWorkflow }) {
   if (!w.encendido) return <Chip tono="neutro">Parado</Chip>;
   if (w.modo === "real") return <Chip tono="ok"><Zap className="h-3 w-3" /> Real · manda a GHL</Chip>;
+  // Cita: en prueba no se compara con nada (B3); se cuentan las citas que han pasado
+  if (w.disparador.tipo === "cita") return <Chip tono="prueba"><FlaskConical className="h-3 w-3" /> En prueba · {r?.total ? `${r.total} ${r.total === 1 ? "cita" : "citas"}` : "esperando la primera cita"}</Chip>;
   const hechos = (r?.coinciden ?? 0) + (r?.no_coinciden ?? 0);
   return <Chip tono="prueba"><FlaskConical className="h-3 w-3" /> En prueba · {hechos ? coincidenTexto(r?.coinciden ?? 0, hechos) : "esperando el primer lead"}</Chip>;
 }
@@ -110,7 +113,8 @@ export function VistaWorkflows({
     return (
       <section className="tarjeta p-6 text-sm text-texto-2">
         <p className="font-semibold text-texto">Todavía no hay workflows.</p>
-        <p className="mt-1">Se crean con «Probar como workflow» en la tarjeta de cada Entrada (pestaña Entradas).</p>
+        <p className="mt-1">Los de una Entrada se crean con «Probar como workflow» en su tarjeta (pestaña Entradas). Los de cita, aquí:</p>
+        <div className="mt-3"><NuevoWorkflowCita /></div>
       </section>
     );
   const r = elegido ? resumen.get(elegido.id) : undefined;
@@ -136,7 +140,8 @@ export function VistaWorkflows({
             </Link>
           ))}
         </nav>
-        <p className="mt-4 px-1 text-xs leading-relaxed text-texto-3">Se crean con «Probar como workflow» en la tarjeta de cada Entrada. Editarlos aquí llega en la 4c.</p>
+        <div className="mt-4 border-t border-borde pt-3"><NuevoWorkflowCita /></div>
+        <p className="mt-3 px-1 text-xs leading-relaxed text-texto-3">Los de una Entrada se crean con «Probar como workflow» en su tarjeta. Encender, parar y pasar a real: con «Editar».</p>
       </aside>
 
       {elegido && disp && (
@@ -147,13 +152,13 @@ export function VistaWorkflows({
               <div className="min-w-0">
                 <h2 className="break-words text-xl font-semibold tracking-tight">{elegido.nombre}</h2>
                 <p className="text-sm text-texto-3">
-                  {!elegido.encendido ? "Parado: no recibe leads" : elegido.modo === "real" ? "Real: manda a GHL en lugar de «Qué hacer en GHL»" : "En prueba: calcula lo que haría y lo compara con lo de hoy, sin tocar GHL"}
+                  {!elegido.encendido ? "Parado: no recibe leads" : elegido.disparador.tipo === "cita" ? (elegido.modo === "real" ? "Real: manda a GHL con cada cita" : "En prueba: apunta lo que haría, sin tocar GHL") : elegido.modo === "real" ? "Real: manda a GHL en lugar de «Qué hacer en GHL»" : "En prueba: calcula lo que haría y lo compara con lo de hoy, sin tocar GHL"}
                 </p>
               </div>
               <div className="flex w-full gap-2 sm:w-auto">
                 {[
                   [r?.total ?? 0, "leads"],
-                  [elegido.modo === "real" ? (r?.errores ?? 0) : (r?.coinciden ?? 0), elegido.modo === "real" ? "con error" : verboCoincide(r?.coinciden ?? 0)],
+                  [elegido.modo === "real" || elegido.disparador.tipo === "cita" ? (r?.errores ?? 0) : (r?.coinciden ?? 0), elegido.modo === "real" || elegido.disparador.tipo === "cita" ? "con error" : verboCoincide(r?.coinciden ?? 0)],
                   [r?.esperando ?? 0, "esperando"],
                 ].map(([v, t]) => (
                   <div key={t as string} className="min-w-0 flex-1 rounded-2xl border border-borde bg-panel-2 px-3.5 py-2 sm:min-w-24 sm:flex-none">
