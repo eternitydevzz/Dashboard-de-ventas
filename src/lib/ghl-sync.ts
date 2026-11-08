@@ -238,7 +238,8 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       if (origen?.canal) await ponerEtiqueta(leadId, etiquetaCanal(origen.canal));
       await db().from("actividades").insert({ proyecto_id: proyecto.id, lead_id: leadId, tipo: "cita", resultado: "agendada", nota: `Cita del calendario de GHL${calendario ? ` «${calendario}»` : ` con ${f.nombre}`}` });
       r.nuevas++;
-      if (abierta) await disparar(proyecto.id, leadId, { tipo: "cita", evento: "agendada", canal: origen?.canal ?? null, calendario, fecha }, r);
+      // Solo citas futuras: la lectura mira 30 días atrás y, al añadir un calendario, las viejas dispararían en masa
+      if (abierta && new Date(fecha).getTime() >= ahora.getTime()) await disparar(proyecto.id, leadId, { tipo: "cita", evento: "agendada", canal: origen?.canal ?? null, calendario, fecha }, r);
     }
 
     // Arreglo 21 (por closer): una cita de GHL de este closer, dentro del rango consultado, que ya no viene es que se

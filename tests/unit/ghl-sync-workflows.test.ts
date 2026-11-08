@@ -70,6 +70,19 @@ describe("cita nueva leída de GHL → «agendada»", () => {
     await sincronizarCalendarios("p1", { ahora });
     expect(dispararWorkflows).not.toHaveBeenCalledWith("p1", "l1", expect.objectContaining({ evento: "agendada" }));
   });
+  it("una cita pasada (la lectura mira 30 días atrás) se crea, pero no dispara: sin disparos en masa al añadir un calendario", async () => {
+    ghl.eventos = [{ id: "g1", startTime: "2026-11-01T15:00:00.000Z", calendarId: "cal1", contactId: "c1" }];
+    const r = await sincronizarCalendarios("p1", { ahora });
+    expect(r.nuevas).toBe(1);
+    expect(dispararWorkflows).not.toHaveBeenCalled();
+  });
+  it("una cita que ya existe en la app no vuelve a disparar", async () => {
+    respuesta["citas:select"] = { data: [{ id: "ci1", ghl_cita_id: "g1", estado: "pendiente", fecha: FECHA, closer_id: null, canal: CANAL, ghl_calendario: "Software demo", creado_en: "2026-11-01T00:00:00Z", lead_id: "l1" }], error: null };
+    ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1" }];
+    const r = await sincronizarCalendarios("p1", { ahora });
+    expect(r.nuevas).toBe(0);
+    expect(dispararWorkflows).not.toHaveBeenCalled();
+  });
   it("si los workflows fallan, la lectura sigue: la cita queda creada y el fallo va a errores", async () => {
     vi.mocked(dispararWorkflows).mockRejectedValue(new Error("base caída"));
     ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1" }];
