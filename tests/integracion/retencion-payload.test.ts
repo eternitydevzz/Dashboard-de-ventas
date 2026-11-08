@@ -18,7 +18,7 @@ async function lead(nombre: string) {
   const { data } = await db.from("leads").insert({ proyecto_id: e.proyecto.id, nombre, email: `${e.pref}-${nombre}@x.test` }).select("id").single();
   return data!.id as string;
 }
-async function envio(entradaId: string, leadId: string, hace: number, ghl_estado: string | null) {
+async function envio(entradaId: string | null, leadId: string | null, hace: number, ghl_estado: string | null) {
   const { data, error } = await db
     .from("webhook_eventos")
     .insert({ proyecto_id: e.proyecto.id, entrada_id: entradaId, lead_id: leadId, payload: CUERPO, ghl_estado, recibido_en: meses(hace) })
@@ -37,6 +37,8 @@ describe("limpiar_payload_envios", () => {
     const viejoSolo = await envio(ent!.id, a, 14, "ok");
     const viejoConReciente = await envio(ent!.id, b, 14, "ok");
     const reciente = await envio(ent!.id, b, 1, "ok");
+    const sinLead = await envio(ent!.id, null, 14, "ok");
+    const sinEntrada = await envio(null, a, 14, "ok");
     const errorViejo = await envio(ent!.id, c, 14, "error");
     const nuloViejo = await envio(ent!.id, d, 14, null);
 
@@ -44,7 +46,7 @@ describe("limpiar_payload_envios", () => {
     expect(error).toBeNull();
 
     expect(await payloadDe(viejoSolo)).toEqual({});
-    for (const id of [viejoConReciente, reciente, errorViejo, nuloViejo]) expect(await payloadDe(id)).toEqual(CUERPO);
+    for (const id of [viejoConReciente, reciente, errorViejo, nuloViejo, sinLead, sinEntrada]) expect(await payloadDe(id)).toEqual(CUERPO);
   });
 
   it("solo la puede llamar service_role", async () => {

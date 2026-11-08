@@ -11,6 +11,7 @@ as $$
   where w.ghl_estado = 'ok'
     and w.recibido_en < now() - interval '12 months'
     and w.payload <> '{}'::jsonb
+    and w.lead_id is not null and w.entrada_id is not null -- sin lead o sin Entrada no se vacía
     and not exists (
       select 1 from webhook_eventos r
       where r.lead_id = w.lead_id and r.entrada_id = w.entrada_id and r.recibido_en >= now() - interval '12 months'
