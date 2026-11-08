@@ -15,7 +15,7 @@ import { resumenWorkflows } from "@/lib/workflows-motor";
 import type { WorkflowVista } from "./entradas-workflow";
 import { VistaWorkflows, type EjecucionFila, type WorkflowFila } from "./workflows";
 import { EditorWorkflow, type OpcionesEditor } from "./workflows-editor";
-import type { Nombres } from "@/lib/workflows-vista";
+import { disparadorTexto, type Nombres } from "@/lib/workflows-vista";
 import { camposGhl, columnasEnOrdenGhl, pipelinesGhl } from "@/lib/ghl";
 import { descifrar } from "@/lib/cifrado";
 import { ConexionGhl, CalendariosProyecto, CalendarioCloser, UsuarioGhl } from "./ghl";
@@ -453,7 +453,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   enCurso={vistaWf.resumen.get(vistaWf.elegido.id)?.esperando ?? 0}
                   nombres={vistaWf.nombres}
                   opciones={vistaWf.editar}
-                  disparador={vistaWf.nombres.entradas[vistaWf.elegido.disparador.entrada_id] ?? "Entrada borrada"}
+                  disparador={disparadorTexto(vistaWf.elegido.disparador, vistaWf.nombres).detalle ?? ""}
                 />
               ) : undefined
             }
