@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ListChecks } from "lucide-react";
 import { exigirPagina } from "@/lib/permisos";
 import { esJefe } from "@/lib/auth";
+import { esCloser } from "@/lib/tipos";
 import { equipo } from "@/lib/datos";
 import { clientesDeCloser, pasosCloser } from "@/lib/onboarding-closer";
 import { fecha } from "@/lib/formato";
@@ -12,11 +13,11 @@ import { ChecklistCliente, EditorPasosCloser, FiltroCloser } from "./cliente";
 export default async function OnboardingClosersPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { perfil, proyecto } = await exigirPagina("agendas");
   const jefe = esJefe(perfil);
-  if (!jefe && perfil.rol !== "closer") return <Contenido><Vacio icono={ListChecks} texto="El onboarding es de los closers." /></Contenido>;
+  if (!jefe && !esCloser(perfil)) return <Contenido><Vacio icono={ListChecks} texto="El onboarding es de los closers." /></Contenido>;
   const sp = await searchParams;
   const filtro = jefe && typeof sp.closer === "string" ? sp.closer : "";
   const [pasos, clientes, gente] = await Promise.all([pasosCloser(proyecto.id), clientesDeCloser(proyecto.id, perfil, filtro), equipo(proyecto.id)]);
-  const closers = gente.filter((g) => g.rol === "closer");
+  const closers = gente.filter(esCloser);
   const nombre = (id: string) => gente.find((g) => g.id === id)?.nombre ?? "—";
   const completos = pasos.length ? clientes.filter((c) => pasos.every((p) => c.hechos[p.id])).length : 0;
   return (

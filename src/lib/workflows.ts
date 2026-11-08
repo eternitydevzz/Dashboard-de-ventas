@@ -19,8 +19,11 @@ export type Paso =
 export type PasoSimple = Exclude<Paso, { tipo: "rama" }>;
 // Fase 4d (plan GHL 2.4, Cristian 8 nov 2026): también arranca al agendarse o cancelarse una cita
 export type EventoCita = "agendada" | "cancelada";
-export type Disparador = { tipo: "entrada"; entrada_id: string } | { tipo: "cita"; evento: EventoCita };
+// A3 (plan GHL, Cristian 8 nov 2026): y cuando se pone una etiqueta (se compara en minúsculas)
+export type Disparador = { tipo: "entrada"; entrada_id: string } | { tipo: "cita"; evento: EventoCita } | { tipo: "etiqueta"; etiqueta: string };
 export type DisparoCita = { tipo: "cita"; evento: EventoCita; canal: string | null; calendario: string | null; fecha: string | null };
+export type DisparoEtiqueta = { tipo: "etiqueta"; etiqueta: string };
+export type Disparo = DisparoCita | DisparoEtiqueta;
 export type LeadParaEnvio = { nombre: string | null; apellido: string | null; email: string | null; telefono: string | null; seguimiento: unknown };
 export type WorkflowNuevo = { nombre: string; disparador: Disparador; pasos: Paso[] };
 
@@ -53,17 +56,19 @@ export function workflowDeEntrada(en: EntradaParaWorkflow): WorkflowNuevo {
   return { nombre: en.nombre, disparador: { tipo: "entrada", entrada_id: en.id }, pasos };
 }
 
-// ¿Este disparador (columna `disparador`, sin validar) arranca con esta cita?
-export function encajaDisparador(d: unknown, disparo: DisparoCita) {
+// ¿Este disparador (columna `disparador`, sin validar) arranca con esta cita o esta etiqueta?
+export function encajaDisparador(d: unknown, disparo: Disparo) {
   const x = d && typeof d === "object" ? (d as Json) : {};
+  if (disparo.tipo === "etiqueta") return x.tipo === "etiqueta" && typeof x.etiqueta === "string" && x.etiqueta.trim().toLowerCase() === disparo.etiqueta.trim().toLowerCase();
   return x.tipo === "cita" && x.evento === disparo.evento;
 }
 
-// Sin Entrada no hay envío: se arma uno con los datos del lead y de la cita, con las claves que ya entiende todo
+// Sin Entrada no hay envío: se arma uno con los datos del lead y de la cita (o la etiqueta), con las claves que ya entiende todo
 // (interpretar/armarEnvioGhl y las ramas «si el campo canal = dfy»). Sin vacíos.
-export function envioSintetico(lead: LeadParaEnvio, disparo: DisparoCita): Json {
+export function envioSintetico(lead: LeadParaEnvio, disparo: Disparo): Json {
   const seg = lead.seguimiento && typeof lead.seguimiento === "object" ? (lead.seguimiento as Json) : {};
-  const todo: Json = { first_name: lead.nombre, last_name: lead.apellido, email: lead.email, phone: lead.telefono, utm_source: seg.utm_source, canal: disparo.canal, calendario: disparo.calendario, fecha: disparo.fecha };
+  const delDisparo = disparo.tipo === "cita" ? { canal: disparo.canal, calendario: disparo.calendario, fecha: disparo.fecha } : { etiqueta: disparo.etiqueta };
+  const todo: Json = { first_name: lead.nombre, last_name: lead.apellido, email: lead.email, phone: lead.telefono, utm_source: seg.utm_source, ...delDisparo };
   return Object.fromEntries(Object.entries(todo).filter(([, v]) => v !== null && v !== undefined && v !== ""));
 }
 

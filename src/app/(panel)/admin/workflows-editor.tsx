@@ -11,7 +11,7 @@ import { Desplegable } from "@/components/eleccion";
 import type { Disparador, Paso } from "@/lib/workflows";
 import { describirPaso, condicionTexto, disparadorTexto, type Icono, type Nombres } from "@/lib/workflows-vista";
 import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
-import { crearWorkflowDeCita, devolverAHoy, encenderWorkflow, guardarWorkflow, pararWorkflow, pasarWorkflowAReal } from "./acciones";
+import { crearWorkflowDeCita, crearWorkflowDeEtiqueta, devolverAHoy, encenderWorkflow, guardarWorkflow, pararWorkflow, pasarWorkflowAReal } from "./acciones";
 
 type Pipe = { id: string; nombre: string; etapas: { id: string; nombre: string }[] };
 export type OpcionesEditor = { camposGhl: { id: string; name: string }[]; pipelinesGhl: Pipe[]; pipelinesDashboard: Pipe[]; errorGhl: string | null };
@@ -43,16 +43,34 @@ const TIPOS: { tipo: Paso["tipo"]; icono: Icono; t: string; d: string }[] = [
   { tipo: "mover_dashboard", icono: "mover", t: "Mover en el dashboard", d: "A un pipeline y columna" },
   { tipo: "rama", icono: "rama", t: "Rama «si el campo…»", d: "Un camino distinto según un campo" },
 ];
-// Fase 4d, B3 (plan GHL 2.4): los workflows de cita se crean aquí (los de Entrada, desde su tarjeta)
+// Fase 4d, B3 (plan GHL 2.4): los workflows de cita se crean aquí (los de Entrada, desde su tarjeta). A3: y los de etiqueta.
 export function NuevoWorkflowCita() {
   const { pendiente, ejecutar } = useAccion();
+  const [etiqueta, setEtiqueta] = useState("");
+  const creado = "Workflow creado (apagado): ponle sus pasos con «Editar» y enciéndelo";
   return (
     <div className="flex flex-wrap gap-2">
       {(["agendada", "cancelada"] as const).map((ev) => (
-        <button key={ev} type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => crearWorkflowDeCita(ev), "Workflow creado (apagado): ponle sus pasos con «Editar» y enciéndelo")}>
+        <button key={ev} type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => crearWorkflowDeCita(ev), creado)}>
           <Plus className="h-3.5 w-3.5" /> Nuevo: cuando se {ev === "agendada" ? "agenda" : "cancela"} una cita
         </button>
       ))}
+      <form
+        className="flex w-full gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          ejecutar(async () => {
+            const r = await crearWorkflowDeEtiqueta(etiqueta);
+            if (!("error" in r)) setEtiqueta("");
+            return r;
+          }, creado);
+        }}
+      >
+        <input className="campo min-w-0 flex-1 text-xs" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} placeholder="etiqueta" aria-label="Etiqueta que arranca el workflow" maxLength={100} />
+        <button type="submit" className="btn-secundario text-xs" disabled={pendiente || !etiqueta.trim()}>
+          <Plus className="h-3.5 w-3.5" /> Nuevo: cuando se pone la etiqueta…
+        </button>
+      </form>
     </div>
   );
 }
@@ -165,9 +183,10 @@ export function EditorWorkflow({
   );
 
   const real = w.modo === "real";
-  // Sin Entrada (cita): no hay «Qué hacer en GHL» que apagar ni al que volver; «Prueba» solo lo vuelve a prueba
-  const cita = w.disparador.tipo === "cita";
-  const quien = cita ? `las citas que se ${w.disparador.tipo === "cita" && w.disparador.evento === "cancelada" ? "cancelen" : "agenden"}` : "los leads de su Entrada";
+  // Sin Entrada (cita o etiqueta): no hay «Qué hacer en GHL» que apagar ni al que volver; «Prueba» solo lo vuelve a prueba
+  const d = w.disparador;
+  const cita = d.tipo !== "entrada";
+  const quien = d.tipo === "cita" ? `las citas que se ${d.evento === "cancelada" ? "cancelen" : "agenden"}` : d.tipo === "etiqueta" ? `los leads a los que se ponga «${d.etiqueta}»` : "los leads de su Entrada";
   return (
     <section className="tarjeta min-w-0 p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

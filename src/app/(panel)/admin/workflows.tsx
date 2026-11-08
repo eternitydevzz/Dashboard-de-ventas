@@ -39,7 +39,8 @@ function Chip({ tono, children }: { tono: Tono | "prueba"; children: React.React
 function ChipModo({ w, r }: { w: WorkflowFila; r?: ResumenWorkflow }) {
   if (!w.encendido) return <Chip tono="neutro">Parado</Chip>;
   if (w.modo === "real") return <Chip tono="ok"><Zap className="h-3 w-3" /> Real · manda a GHL</Chip>;
-  // Cita: en prueba no se compara con nada (B3); se cuentan las citas que han pasado
+  // Cita: en prueba no se compara con nada (B3); se cuentan las citas que han pasado. Etiqueta (A3): igual, con leads
+  if (w.disparador.tipo === "etiqueta") return <Chip tono="prueba"><FlaskConical className="h-3 w-3" /> En prueba · {r?.total ? `${r.total} ${r.total === 1 ? "lead" : "leads"}` : "esperando el primer lead"}</Chip>;
   if (w.disparador.tipo === "cita") return <Chip tono="prueba"><FlaskConical className="h-3 w-3" /> En prueba · {r?.total ? `${r.total} ${r.total === 1 ? "cita" : "citas"}` : "esperando la primera cita"}</Chip>;
   const hechos = (r?.coinciden ?? 0) + (r?.no_coinciden ?? 0);
   return <Chip tono="prueba"><FlaskConical className="h-3 w-3" /> En prueba · {hechos ? coincidenTexto(r?.coinciden ?? 0, hechos) : "esperando el primer lead"}</Chip>;
@@ -113,7 +114,7 @@ export function VistaWorkflows({
     return (
       <section className="tarjeta p-6 text-sm text-texto-2">
         <p className="font-semibold text-texto">Todavía no hay workflows.</p>
-        <p className="mt-1">Los de una Entrada se crean con «Probar como workflow» en su tarjeta (pestaña Entradas). Los de cita, aquí:</p>
+        <p className="mt-1">Los de una Entrada se crean con «Probar como workflow» en su tarjeta (pestaña Entradas). Los de cita o de etiqueta, aquí:</p>
         <div className="mt-3"><NuevoWorkflowCita /></div>
       </section>
     );
@@ -152,13 +153,13 @@ export function VistaWorkflows({
               <div className="min-w-0">
                 <h2 className="break-words text-xl font-semibold tracking-tight">{elegido.nombre}</h2>
                 <p className="text-sm text-texto-3">
-                  {!elegido.encendido ? "Parado: no recibe leads" : elegido.disparador.tipo === "cita" ? (elegido.modo === "real" ? "Real: manda a GHL con cada cita" : "En prueba: apunta lo que haría, sin tocar GHL") : elegido.modo === "real" ? "Real: manda a GHL en lugar de «Qué hacer en GHL»" : "En prueba: calcula lo que haría y lo compara con lo de hoy, sin tocar GHL"}
+                  {!elegido.encendido ? "Parado: no recibe leads" : elegido.disparador.tipo !== "entrada" ? (elegido.modo === "real" ? `Real: manda a GHL con cada ${elegido.disparador.tipo === "cita" ? "cita" : "lead"}` : "En prueba: apunta lo que haría, sin tocar GHL") : elegido.modo === "real" ? "Real: manda a GHL en lugar de «Qué hacer en GHL»" : "En prueba: calcula lo que haría y lo compara con lo de hoy, sin tocar GHL"}
                 </p>
               </div>
               <div className="flex w-full gap-2 sm:w-auto">
                 {[
                   [r?.total ?? 0, "leads"],
-                  [elegido.modo === "real" || elegido.disparador.tipo === "cita" ? (r?.errores ?? 0) : (r?.coinciden ?? 0), elegido.modo === "real" || elegido.disparador.tipo === "cita" ? "con error" : verboCoincide(r?.coinciden ?? 0)],
+                  [elegido.modo === "real" || elegido.disparador.tipo !== "entrada" ? (r?.errores ?? 0) : (r?.coinciden ?? 0), elegido.modo === "real" || elegido.disparador.tipo !== "entrada" ? "con error" : verboCoincide(r?.coinciden ?? 0)],
                   [r?.esperando ?? 0, "esperando"],
                 ].map(([v, t]) => (
                   <div key={t as string} className="min-w-0 flex-1 rounded-2xl border border-borde bg-panel-2 px-3.5 py-2 sm:min-w-24 sm:flex-none">

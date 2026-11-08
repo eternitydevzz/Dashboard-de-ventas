@@ -43,7 +43,7 @@ export async function cargarFicha(perfilId: string) {
       soyCeo: perfil.rol === "ceo",
       soyYo: perfil.id === perfilId,
       zona: proyecto.zona_horaria,
-      persona: { id: persona.id, nombre: persona.nombre, email: persona.email, telefono: persona.telefono ?? "", whatsapp: persona.whatsapp ?? "", rol: persona.rol, activo: persona.activo, admin_activo: persona.admin_activo, es_prueba: !!persona.es_prueba, onboarding_completo: persona.onboarding_completo },
+      persona: { id: persona.id, nombre: persona.nombre, email: persona.email, telefono: persona.telefono ?? "", whatsapp: persona.whatsapp ?? "", rol: persona.rol, activo: persona.activo, admin_activo: persona.admin_activo, es_prueba: !!persona.es_prueba, tambien_closer: !!persona.tambien_closer, onboarding_completo: persona.onboarding_completo },
       horario: horarioValido(miembro.horario),
       calendario: { general, propios: miembro.calendario ? ajustesValidos(miembro.calendario, general) : null },
       reparto: { auto: proyecto.reparto_auto, pct: Number(miembro.reparto_pct ?? 0) },
@@ -92,6 +92,16 @@ export async function marcarPrueba(perfilId: string, prueba: boolean) {
     if (perfil.rol !== "ceo") throw new ErrorUsuario("Solo el CEO marca o desmarca un perfil de prueba.");
     if (perfilId === perfil.id) throw new ErrorUsuario("No puedes marcarte a ti mismo como perfil de prueba.");
     await escribir(db().from("perfiles").update({ es_prueba: prueba }).eq("id", perfilId), "perfiles");
+    refrescar();
+  });
+}
+
+// Plan GHL E2: el interruptor «También closer» (solo un caller; lo cambia quien ya edita fichas, comprobado en personaDelProyecto)
+export async function guardarTambienCloser(perfilId: string, valor: boolean) {
+  return seguro(async () => {
+    const { persona } = await personaDelProyecto(perfilId);
+    if (persona.rol !== "caller") throw new ErrorUsuario("«También closer» es solo para callers.");
+    await escribir(db().from("perfiles").update({ tambien_closer: valor === true }).eq("id", perfilId), "perfiles");
     refrescar();
   });
 }

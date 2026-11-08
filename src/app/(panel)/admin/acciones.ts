@@ -23,6 +23,10 @@ import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
 import type { Rol } from "@/lib/tipos";
 import { mandarEnlace } from "@/lib/acceso";
 import { reordenar } from "@/lib/orden-entradas";
+import { tablaValida } from "@/lib/canal";
+import { canalesDe } from "@/lib/canales-datos";
+import { PIPELINE_ETIQUETA } from "@/lib/ghl-leads";
+import { borrarEtiquetaGhl, renombrarEtiquetaGhl } from "@/lib/ghl";
 
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
 type Res = { ok?: string; error?: string } | null;
@@ -524,6 +528,18 @@ export async function crearWorkflowDeCita(evento: "agendada" | "cancelada") {
   });
 }
 
+// A3 (plan GHL, Cristian 8 nov 2026): «cuando se pone la etiqueta…», como los de cita: sin Entrada, en prueba y APAGADO
+export async function crearWorkflowDeEtiqueta(etiqueta: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const e = typeof etiqueta === "string" ? etiqueta.trim() : "";
+    if (!e || e.length > 80 || e.includes(",")) throw new ErrorUsuario("Escribe la etiqueta (sin comas y de 80 letras como mucho)."); // B3a: como las fijas
+    await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre: `Etiqueta «${e}»`, disparador: { tipo: "etiqueta", etiqueta: e }, entrada_id: null, pasos: [], modo: "prueba", encendido: false }), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
 // «Parar la prueba»: el workflow deja de recibir leads y lo que esperaba queda «parada»
 export async function pararWorkflow(workflowId: string) {
   return seguro(async () => {
@@ -872,5 +888,96 @@ export async function moverEntrada(id: string, direccion: "arriba" | "abajo") {
       await escribir(db().from("entradas").update({ orden }).eq("id", eid).eq("proyecto_id", proyecto.id), "entradas");
     }
     refrescar();
+  });
+}
+
+// ---------- Canales (Plan GHL B2b, Cristian 8 nov) ----------
+// Guarda la tabla entera. Las claves no cambian; si cambia un nombre, la función SQL renombra también «Canal: X»
+// en los leads, las reglas de las Entradas y los disparadores, a la vez (supabase/migrations/20261109120000_canales.sql).
+export async function guardarCanales(filas: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const r = tablaValida(filas);
+    if ("error" in r) throw new ErrorUsuario(r.error);
+    const antes = await canalesDe(proyecto.id); // sin filas, los de siempre: su nombre es el que llevan los leads
+    const p_filas = r.ok.map((c) => ({ ...c, antes: antes.find((a) => a.clave === c.clave)?.nombre ?? null }));
+    await escribir(db().rpc("guardar_canales", { p_proyecto: proyecto.id, p_filas }), "canales");
+    refrescar();
+  });
+}
+
+// ---------- Etiquetas (Plan GHL B3a, Cristian 8 nov) ----------
+// Siempre en minúsculas (como GHL). Las escritas en el código no se renombran ni se borran: las de los pipelines
+// (ghl-leads.ts), las de la Biblioteca (20261017160000_biblioteca_filas.sql), las `-completo`/`-incompleto` (etiquetas.ts)
+// y «Canal: …» (se cambian en Canales). Nada de esto toca GHL.
+const DEL_CODIGO = [...PIPELINE_ETIQUETA.map((x) => x.etiqueta), "recursos-ia"];
+const delCodigo = (t: string) => DEL_CODIGO.includes(t) || /-(in)?completo$/.test(t) || t.startsWith("canal:");
+const etiquetaLimpia = (x: unknown) => (typeof x === "string" ? x.trim().toLowerCase() : "");
+const etiquetaBuena = (t: string) => !!t && t.length <= 80 && !t.includes(",");
+function etiquetaValida(x: unknown, cambia = false) {
+  const t = etiquetaLimpia(x);
+  if (!etiquetaBuena(t)) throw new ErrorUsuario("Escribe la etiqueta (sin comas y de 80 letras como mucho).");
+  if (cambia && delCodigo(t)) throw new ErrorUsuario(`«${t}» la usa el código de la app: no se puede renombrar, unir ni borrar.`);
+  return t;
+}
+
+export async function crearEtiqueta(nombre: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const t = etiquetaValida(nombre);
+    const { data: ultima } = await db().from("etiquetas").select("orden").eq("proyecto_id", proyecto.id).order("orden", { ascending: false }).limit(1).maybeSingle();
+    const { error } = await db().from("etiquetas").insert({ proyecto_id: proyecto.id, nombre: t, orden: ultima ? Number(ultima.orden) + 1 : 0 });
+    if (error) throw new ErrorUsuario(error.code === "23505" ? "Esa etiqueta ya existe." : error.message);
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// Renombrar (si `a` ya existe, se unen sin repetir) o borrar (`a` = null), en una sola función SQL que cambia a la vez
+// leads, Entradas, reglas, pasos y disparadores de los workflows (supabase/migrations/20261109130000_etiquetas.sql).
+export async function renombrarEtiqueta(de: unknown, a: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const d = etiquetaValida(de, true);
+    const n = a === null ? null : etiquetaValida(a, true);
+    if (n === d) throw new ErrorUsuario("Pon un nombre distinto.");
+    await escribir(db().rpc("renombrar_etiqueta", { p_proyecto: proyecto.id, p_de: d, p_a: n }), "etiquetas");
+    refrescar();
+    return { ok: true as const, ...(await etiquetaEnGhl(proyecto.id, d, n)) };
+  });
+}
+
+// B3b (Cristian, 8 nov): lo mismo en GHL, después de la base y solo con GHL conectado. Si GHL falla, la base ya cambió:
+// se dice en el aviso y no se deshace. Unir cambia como mucho MAX_UNIR_GHL contactos por pulsación (≈ 250 ms cada uno,
+// para caber en el tiempo de la acción); repetir la misma acción sigue (en la base ya no hace nada).
+const MAX_UNIR_GHL = 100; // ~250 ms por contacto: 100 ≈ 25 s, lejos del límite de la acción
+async function etiquetaEnGhl(proyectoId: string, de: string, a: string | null): Promise<{ aviso?: string; faltan?: number }> {
+  const { data: p, error: errP } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyectoId).single();
+  if (errP) throw new Error(`No se pudo leer el proyecto: ${errP.message}`);
+  const vuelve = `En GHL sigue «${de}»: si GHL vuelve a mandar uno de esos leads, «${de}» puede volver.`;
+  if (!p?.ghl_token || !p.ghl_location_id) return { aviso: `Este proyecto no tiene GHL conectado. ${vuelve}` };
+  try {
+    const o = { token: descifrar(p.ghl_token, "el token de GHL"), locationId: p.ghl_location_id };
+    if (a === null) {
+      await borrarEtiquetaGhl({ ...o, nombre: de });
+      return {};
+    }
+    const { faltan } = await renombrarEtiquetaGhl({ ...o, de, a, max: MAX_UNIR_GHL });
+    return faltan ? { faltan, aviso: `En GHL faltan ${faltan} contactos por unir: pulsa «Seguir uniendo en GHL».` } : {};
+  } catch (e) {
+    // Al unir, `faltan` deja el botón «Seguir uniendo en GHL» para reintentar (en la base ya no hace nada)
+    return { ...(a !== null ? { faltan: 1 } : {}), aviso: `En el dashboard ya está hecho, pero en GHL no: ${e instanceof Error ? e.message : "error desconocido."} No se ha deshecho nada. ${a !== null ? "Pulsa «Seguir uniendo en GHL» para reintentar. " : ""}${vuelve}` };
+  }
+}
+
+// Guarda el orden de la lista entera (las de los leads también pasan a tener fila; la marca «usada por GHL» no cambia)
+export async function ordenarEtiquetas(nombres: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    if (!Array.isArray(nombres) || nombres.length > 2000) throw new ErrorUsuario("Lista de etiquetas no válida.");
+    const lista = [...new Set(nombres.map(etiquetaLimpia).filter(etiquetaBuena))];
+    await escribir(db().from("etiquetas").upsert(lista.map((nombre, orden) => ({ proyecto_id: proyecto.id, nombre, orden })), { onConflict: "proyecto_id,nombre" }), "etiquetas");
+    refrescar();
+    return { ok: true as const };
   });
 }

@@ -25,7 +25,6 @@ export const NOMBRE_CANAL: Record<Canal, string> = {
 export const PIPELINE_GENERAL = "0. Agendas General";
 export const PREFIJO_ETIQUETA = "Canal: ";
 export const SIN_CANAL = "sin_canal"; // valor del filtro para las citas sin canal (las de antes del 13 oct)
-export const etiquetaCanal = (c: Canal) => `${PREFIJO_ETIQUETA}${NOMBRE_CANAL[c]}`;
 
 // Una fila por canal, como las guardará B2b (el orden de la lista es el orden). `alias`: lo que puede venir en
 // utm_source (sin mayúsculas). `paginas`: «dominio/ruta» gana al UTM (Cristian, 8 nov: agenda-fc y software-demo);
@@ -87,12 +86,49 @@ export function limpiarUrl(url?: string | null): string | null {
   return `${u.origin}${u.pathname}${q ? `?${q}` : ""}`.slice(0, 500);
 }
 
-export function nombreCanal(c: string | null | undefined) {
-  return c && c in NOMBRE_CANAL ? NOMBRE_CANAL[c as Canal] : null;
+// B2b: el nombre sale de la tabla del proyecto (se puede renombrar); Directo y Otro no son filas
+export function nombreCanal(c: string | null | undefined, tabla: TablaCanales = CANALES_POR_DEFECTO) {
+  return tabla.find((x) => x.clave === c)?.nombre ?? (c && c in NOMBRE_CANAL ? NOMBRE_CANAL[c as Canal] : null);
 }
+export const etiquetaCanal = (c: Canal, tabla: TablaCanales = CANALES_POR_DEFECTO) => `${PREFIJO_ETIQUETA}${nombreCanal(c, tabla)}`;
+
+// Opciones de los filtros de canal: los de la tabla en su orden y, al final, Directo y Otro
+export const opcionesCanal = (tabla: TablaCanales) => [...tabla, ...(["directo", "otro"] as const).map((clave) => ({ clave, nombre: NOMBRE_CANAL[clave] }))].map(({ clave, nombre }) => ({ clave, nombre }));
 
 // Lo que se ve en una cita de GHL (Llamadas y tablero de Closers): «GHL · YouTube»; sin canal, como antes
-export function origenCitaGhl(c: { canal?: string | null }) {
-  const n = nombreCanal(c.canal);
+export function origenCitaGhl(c: { canal?: string | null }, tabla: TablaCanales = CANALES_POR_DEFECTO) {
+  const n = nombreCanal(c.canal, tabla);
   return n ? `GHL · ${n}` : "Calendario GHL";
+}
+
+// B2b · al guardar la tabla desde Administración: las 9 claves fijas una vez cada una (Directo y Otro no son filas),
+// nombres sin repetir, y alias y páginas sin mayúsculas, sin barras de los lados y de un solo canal.
+// Página = «dominio/ruta», «dominio» (con punto) o «ruta» (sin punto ni barra), como las lee canalDeOrigen.
+const CLAVES_FILA: readonly Canal[] = CANALES.filter((c) => c !== "directo" && c !== "otro");
+const ALIAS = /^[a-z0-9._~-]{1,100}$/;
+const PAGINA = /^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[a-z0-9._~-]+)*|[a-z0-9_~-]+)$/;
+export function tablaValida(filas: unknown): { ok: TablaCanales } | { error: string } {
+  if (!Array.isArray(filas) || filas.length !== CLAVES_FILA.length) return { error: `Tienen que estar los ${CLAVES_FILA.length} canales.` };
+  const ok: TablaCanales = [];
+  const usados = new Map<string, string>(); // alias o página → nombre del canal que ya lo tiene
+  for (const f of filas as Record<string, unknown>[]) {
+    const clave = f?.clave as Canal;
+    if (!CLAVES_FILA.includes(clave) || ok.some((c) => c.clave === clave)) return { error: "Canal no válido o repetido." };
+    const nombre = typeof f.nombre === "string" ? f.nombre.trim() : "";
+    if (!nombre || nombre.length > 40) return { error: "Cada canal necesita un nombre (hasta 40 letras)." };
+    if ([...ok.map((c) => c.nombre), NOMBRE_CANAL.directo, NOMBRE_CANAL.otro].some((n) => n.toLowerCase() === nombre.toLowerCase())) return { error: `El nombre «${nombre}» ya está cogido.` };
+    if (!Array.isArray(f.alias) || !Array.isArray(f.paginas)) return { error: `Alias o páginas no válidos en «${nombre}».` };
+    const unicos = (xs: string[]) => [...new Set(xs.filter(Boolean))];
+    const limpio = (x: unknown) => String(x ?? "").trim().toLowerCase();
+    const alias = unicos(f.alias.map(limpio));
+    const paginas = unicos(f.paginas.map((x) => limpio(x).replace(/^\/+|\/+$/g, "")));
+    const mal = alias.find((a) => !ALIAS.test(a)) ?? paginas.find((p) => p.length > 200 || !PAGINA.test(p));
+    if (mal) return { error: `«${mal}» no vale en «${nombre}» (página: dominio/ruta, dominio o ruta, sin https:// ni ?).` };
+    for (const x of [...alias.map((a) => `alias «${a}»`), ...paginas.map((p) => `página «${p}»`)]) {
+      if (usados.has(x)) return { error: `El ${x} ya es de «${usados.get(x)}».` };
+      usados.set(x, nombre);
+    }
+    ok.push({ clave, nombre, alias, paginas });
+  }
+  return { ok };
 }

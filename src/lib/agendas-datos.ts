@@ -2,7 +2,7 @@ import "server-only";
 import { db, todas, equipo, conBajas, idsDePrueba, deVerdad } from "@/lib/datos";
 import { esJefe } from "@/lib/auth";
 import type { CitaM, LeadM, PagoM, VentaM } from "@/lib/metricas-agendas";
-import type { Perfil, Proyecto } from "@/lib/tipos";
+import { esCloser, type Perfil, type Proyecto } from "@/lib/tipos";
 
 // Todo lo que necesitan las métricas de Agendas, de una vez.
 // `conPrueba`: un closer de prueba que mira lo suyo (sin él, lo de los perfiles de prueba no cuenta; 1.0)
@@ -31,7 +31,7 @@ export async function cargarAgendas(proyecto: Proyecto, conPrueba = false) {
 
 // Qué closers puede ver esta persona: el closer solo a sí mismo; los jefes, a todos o al elegido.
 export function closersVisibles(perfil: Perfil, gente: Perfil[], elegido: string | null) {
-  const closers = gente.filter((g) => g.rol === "closer");
+  const closers = gente.filter(esCloser);
   // H5: un caller con «Agendas» ve las citas que agendó él, con cualquier closer (las filtra quien carga los datos)
   if (perfil.rol === "caller") return { closers, ids: closers.map((c) => c.id), todos: closers };
   if (!esJefe(perfil)) return { closers: closers.filter((c) => c.id === perfil.id), ids: [perfil.id], todos: closers };

@@ -17,11 +17,11 @@ export { SECCIONES_TODAS, SECCIONES, DEFECTO, NUNCA, ROLES_PERMISO, type Seccion
 
 type Fila = { seccion: string; permitido: boolean };
 
-export function calcularPermisos(rol: Perfil["rol"], deRol: Fila[], dePersona: Fila[]): Set<Seccion> {
+export function calcularPermisos(rol: Perfil["rol"], deRol: Fila[], dePersona: Fila[], tambienCloser = false): Set<Seccion> {
   if (rol === "ceo") return new Set(SECCIONES_TODAS.map((s) => s.v));
   const r = new Map(deRol.map((f) => [f.seccion, f.permitido]));
   const p = new Map(dePersona.map((f) => [f.seccion, f.permitido]));
-  return new Set(SECCIONES_TODAS.map((s) => s.v).filter((s) => !NUNCA[rol].has(s) && (p.get(s) ?? r.get(s) ?? DEFECTO[rol].has(s))));
+  return new Set(SECCIONES_TODAS.map((s) => s.v).filter((s) => !NUNCA[rol].has(s) && (p.get(s) ?? r.get(s) ?? (DEFECTO[rol].has(s) || (tambienCloser && rol === "caller" && DEFECTO.closer.has(s))))));
 }
 
 // Una vez por petición (el menú y la página la piden a la vez)
@@ -32,7 +32,7 @@ export const seccionesPermitidas = cache(async (perfil: Perfil, proyectoId: stri
     enMemoria(`permisos-rol:${proyectoId}:${perfil.rol}`, UN_MINUTO, async () => (await db().from("permisos_seccion").select("seccion, permitido").eq("proyecto_id", proyectoId).eq("rol", perfil.rol)).data),
     enMemoria(`permisos-persona:${proyectoId}:${perfil.id}`, UN_MINUTO, async () => (await db().from("permisos_persona").select("seccion, permitido").eq("proyecto_id", proyectoId).eq("perfil_id", perfil.id)).data),
   ]);
-  return calcularPermisos(perfil.rol, deRol ?? [], dePersona ?? []);
+  return calcularPermisos(perfil.rol, deRol ?? [], dePersona ?? [], !!perfil.tambien_closer); // E2: el caller que también es closer suma lo de un closer
 });
 
 export async function puedeSeccion(perfil: Perfil, proyectoId: string, seccion: Seccion) {

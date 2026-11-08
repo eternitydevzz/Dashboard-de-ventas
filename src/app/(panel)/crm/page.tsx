@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { nombreVisiblePipeline } from "@/lib/pipelines-nombre";
 import { esJefe, puedeAdmin } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
@@ -6,6 +7,7 @@ import { calcularNivel, type FilaPermisoPipeline } from "@/lib/pipelines";
 import { columnaCitasGhl, columnaCitasPorNombre } from "@/lib/leads";
 import { contarTarjetas } from "@/lib/tarjetas";
 import { cargarCitasVentas, columnasCloser } from "@/lib/tablero-closers";
+import { canalesDe } from "@/lib/canales-datos";
 import { ABIERTAS } from "@/lib/llamadas";
 import { Cabecera, Contenido } from "@/components/ui";
 import { FiltroUrl } from "@/components/barra-periodo";
@@ -23,7 +25,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
   const sp = await searchParams;
 
   // Velocidad (13 oct 2026): todo lo que no depende del pipeline elegido va a la vez (antes, 9 pasos en fila)
-  const [gente, todos, filas, { data: productos }, { data: etapasProyecto }] = await Promise.all([
+  const [gente, todos, filas, { data: productos }, { data: etapasProyecto }, canales] = await Promise.all([
     equipo(proyecto.id, !!perfil.es_prueba),
     db().from("pipelines").select("*").eq("proyecto_id", proyecto.id).order("orden").then(({ data }) => (data ?? []) as Pipeline[]),
     // Velocidad (17 oct 2026): los permisos de los pipelines del proyecto, a la vez (antes, después de los pipelines)
@@ -43,6 +45,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
       : db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     // Las columnas de todos los pipelines: las del elegido y las de las acciones masivas
     db().from("etapas").select("*, pipelines!inner(proyecto_id)").eq("pipelines.proyecto_id", proyecto.id).order("orden"),
+    canalesDe(proyecto.id), // B2b: los canales del proyecto (filtro de canal y origen de las citas)
   ]);
   const persona = jefe ? gente.find((g) => g.id === sp.persona && (g.rol === "caller" || g.rol === "closer")) ?? null : perfil;
   // Los leads de una persona: los que tiene asignados como caller o como closer
@@ -128,7 +131,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
       : Promise.resolve({} as Record<string, number>),
     pipeline?.tipo === "closers"
       ? cargarCitasVentas(proyecto.id, deCloser, agendadasPor, jefe && !persona).then(({ citas, ventas }) =>
-          columnasCloser(etapas, citas, ventas, { proyecto, jefe, nombrePersona: (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—" })
+          columnasCloser(etapas, citas, ventas, { proyecto, jefe, nombrePersona: (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—", canales })
         )
       : Promise.resolve(null),
   ]);
@@ -150,12 +153,15 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
         subtitulo={`${proyecto.nombre} · ${jefe ? (persona ? `de ${persona.nombre}` : "todo el equipo") : `${perfil.nombre} · lo tuyo`}`}
         acciones={
           jefe ? (
-            <FiltroUrl
+            <>
+              <Link href="/crm/duplicados" className="btn btn-secundario">Duplicados</Link>
+              <FiltroUrl
               nombre="persona"
               etiqueta="Persona"
               todos="Todo el equipo"
               opciones={gente.filter((g) => g.rol === "caller" || g.rol === "closer").map((g) => ({ v: g.id, t: `${g.nombre} · ${g.rol}` }))}
-            />
+              />
+            </>
           ) : undefined
         }
       />
@@ -178,6 +184,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           productos={(productos ?? []) as Producto[]}
           moneda={proyecto.moneda}
           estrellasOpcionales={perfil.rol !== "caller"}
+          canales={canales}
           tableroClosers={closers ? { ...closers, soloMirar: perfil.rol === "caller" } : null}
           permisos={
             admin && pipeline

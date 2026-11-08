@@ -19,7 +19,8 @@ import { Cualificacion } from "./cualificacion";
 import { TableroClosers } from "./tablero-closers";
 import { BuscadorUrl, CrearLlamada, FilaSinUnir, ImportarCitas, SincronizarGhl } from "./cliente";
 import type { Producto } from "@/lib/tipos";
-import { CANALES, NOMBRE_CANAL, SIN_CANAL, origenCitaGhl } from "@/lib/canal";
+import { SIN_CANAL, opcionesCanal, origenCitaGhl } from "@/lib/canal";
+import { canalesDe } from "@/lib/canales-datos";
 
 const TABS = [
   { v: "agendas", t: "Agendas" },
@@ -64,10 +65,11 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const vis = closersVisibles(perfil, gente, str("closer") || null);
   const nombrePersona = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
   // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM
-  const [{ citas: citasTodas, ventas: ventasTodas }, productos, { etapas: etapasCl }] = await Promise.all([
+  const [{ citas: citasTodas, ventas: ventasTodas }, productos, { etapas: etapasCl }, canales] = await Promise.all([
     cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer")),
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     etapasCloser(proyecto.id),
+    canalesDe(proyecto.id), // B2b
   ]);
   // GHL: si está conectado y qué citas no se han podido unir a un lead
   const [{ data: pg }, { data: sinUnir }] = await Promise.all([
@@ -88,7 +90,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const partes = partirCloser(etapasCl);
   // Tablero «Closers» (Pre-call o Post-call): las columnas de esa parte, con las citas que pasan el buscador
   const tablero = (lista: typeof etapasCl) => {
-    const { columnas } = columnasCloser(lista, citas, ventas, { proyecto, jefe, nombrePersona });
+    const { columnas } = columnasCloser(lista, citas, ventas, { proyecto, jefe, nombrePersona, canales });
     return <TableroClosers columnas={columnas} productos={prods} moneda={proyecto.moneda} jefe={jefe} soloMirar={mirar} />;
   };
 
@@ -134,7 +136,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
           <BuscadorUrl placeholder="Buscar por nombre, email o teléfono…" />
           {jefe && <FiltroUrl nombre="closer" etiqueta="Closer" todos="Todos los closers" opciones={vis.todos.map((c) => ({ v: c.id, t: c.nombre }))} />}
           {/* Fase 4 (plan GHL): canal de la cita, por el UTM de la página donde reservó */}
-          <FiltroUrl nombre="canal" etiqueta="Canal" todos="Todos los canales" opciones={[...CANALES.map((c) => ({ v: c as string, t: NOMBRE_CANAL[c] })), { v: SIN_CANAL, t: "Sin canal" }]} />
+          <FiltroUrl nombre="canal" etiqueta="Canal" todos="Todos los canales" opciones={[...opcionesCanal(canales).map((c) => ({ v: c.clave as string, t: c.nombre })), { v: SIN_CANAL, t: "Sin canal" }]} />
           <FiltroUrl nombre="utm" etiqueta="UTM" todos="Todas las UTM" opciones={utms.map((u) => ({ v: u, t: u }))} />
           {!mirar && <div className="ml-auto flex flex-wrap gap-2">
             <CrearLlamada closers={(jefe ? vis.todos : vis.closers).map((c) => ({ id: c.id, nombre: c.nombre }))} soyCloser={jefe ? null : perfil.id} />
@@ -387,7 +389,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
           <li key={c.id} className={`flex flex-wrap items-center gap-4 px-4 py-3 ${porRecuperar(c) ? "bg-mal-suave" : ""}`}>
             <div className="w-36 shrink-0">
               <div className="text-sm font-semibold">{fechaHora(c.fecha, proyecto)}</div>
-              <div className="text-xs text-texto-3">{c.origen === "ghl" ? origenCitaGhl(c) : `Agendó ${nombrePersona(c.agendada_por)}`}</div>
+              <div className="text-xs text-texto-3">{c.origen === "ghl" ? origenCitaGhl(c, canales) : `Agendó ${nombrePersona(c.agendada_por)}`}</div>
             </div>
             <div className="min-w-48 flex-1">
               <a href={`/leads/${c.lead_id}`} className="font-medium hover:text-primario">{nombreDe(c.leads)}</a>

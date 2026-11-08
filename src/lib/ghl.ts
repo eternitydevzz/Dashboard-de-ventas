@@ -258,6 +258,78 @@ export async function quitarEtiquetasGhl(o: { token: string; contactId: string; 
   await escribir(o.fetchImpl ?? fetch, o.token, "DELETE", `/contacts/${encodeURIComponent(o.contactId)}/tags`, { tags: o.etiquetas }, "Edit Contacts (contacts.write)");
 }
 
+// ---------- Etiquetas de la location (Plan GHL B3b, Cristian 8 nov 2026) ----------
+// Documentación oficial, Version 2021-07-28 (informes-agentes/api-etiquetas-ghl.txt): GET /locations/{id}/tags →
+// { tags: [{ id, name }] } · PUT y DELETE /locations/{id}/tags/{tagId} (PUT con { name }) · locations/tags.write.
+// No hay «unir»: se pone B y se quita A en cada contacto con A y después DELETE de A. En GHL van en minúsculas.
+// Búsqueda por etiqueta: POST /contacts/search, filtro { field: "tags", operator: "eq" }, máx. 500 por página y
+// 10.000 en total con `page` (search-contacts-advanced.md, leído el 8 nov).
+export type EtiquetaGhl = { id: string; name: string };
+const minus = (s: string) => s.trim().toLowerCase();
+const PERMISO_TAGS = "Edit Tags (locations/tags.write)";
+// Límite de GHL (100 cada 10 s): al unir, 2 llamadas por contacto; con 250 ms entre contactos ≈ 80 cada 10 s
+const PAUSA_UNIR = 250;
+
+export async function etiquetasGhl(o: { token: string; locationId: string; fetchImpl?: Fetch }): Promise<EtiquetaGhl[]> {
+  const j = await llamar(o.fetchImpl ?? fetch, o.token, `/locations/${encodeURIComponent(o.locationId)}/tags`, "2021-07-28");
+  const tags: { id?: unknown; name?: unknown }[] = Array.isArray(j?.tags) ? j.tags : [];
+  return tags.filter((t) => typeof t?.id === "string" && typeof t?.name === "string").map((t) => ({ id: t.id as string, name: t.name as string }));
+}
+
+export function buscarEtiquetaGhl<T extends EtiquetaGhl>(etiquetas: T[], nombre: string): T | undefined {
+  return etiquetas.find((t) => minus(t.name) === minus(nombre));
+}
+
+const rutaTag = (locationId: string, id: string) => `/locations/${encodeURIComponent(locationId)}/tags/${encodeURIComponent(id)}`;
+
+// «nada» = no está en GHL (o el nombre no cambia) · si el nombre nuevo ya existe, se unen (como renombrar_etiqueta de B3a)
+// y `faltan` dice cuántos contactos quedan por unir (ver unirEtiquetasGhl)
+export async function renombrarEtiquetaGhl(o: { token: string; locationId: string; de: string; a: string; max?: number; pausaMs?: number; fetchImpl?: Fetch }): Promise<{ hecho: "nada" | "renombrada" | "unida"; faltan: number }> {
+  const lista = await etiquetasGhl(o);
+  const vieja = buscarEtiquetaGhl(lista, o.de);
+  if (!vieja || minus(o.de) === minus(o.a)) return { hecho: "nada", faltan: 0 };
+  if (buscarEtiquetaGhl(lista, o.a)) return { hecho: "unida", faltan: (await unirEtiquetasGhl(o)).faltan };
+  await escribir(o.fetchImpl ?? fetch, o.token, "PUT", rutaTag(o.locationId, vieja.id), { name: minus(o.a) }, PERMISO_TAGS);
+  return { hecho: "renombrada", faltan: 0 };
+}
+
+// true = borrada · false = no estaba en GHL
+export async function borrarEtiquetaGhl(o: { token: string; locationId: string; nombre: string; fetchImpl?: Fetch }): Promise<boolean> {
+  const t = buscarEtiquetaGhl(await etiquetasGhl(o), o.nombre);
+  if (!t) return false;
+  await escribir(o.fetchImpl ?? fetch, o.token, "DELETE", rutaTag(o.locationId, t.id), {}, PERMISO_TAGS);
+  return true;
+}
+
+// Devuelve cuántos contactos cambió (0 = A no está en GHL o es la misma que B) y cuántos faltan. Con `max`, cambia como
+// mucho esos y, si faltan, no borra A. Un error (429 incluido) también corta antes de borrar A: repetir sigue con los
+// contactos que aún la tienen.
+export async function unirEtiquetasGhl(o: { token: string; locationId: string; de: string; a: string; max?: number; pausaMs?: number; fetchImpl?: Fetch }): Promise<{ cambiados: number; faltan: number }> {
+  const f = o.fetchImpl ?? fetch;
+  const vieja = buscarEtiquetaGhl(await etiquetasGhl(o), o.de);
+  if (!vieja || minus(o.de) === minus(o.a)) return { cambiados: 0, faltan: 0 };
+  // Primero todas las páginas: quitar A mientras se pagina movería los contactos de página
+  const ids: string[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const j = await escribir(f, o.token, "POST", "/contacts/search", { locationId: o.locationId, page, pageLimit: 500, filters: [{ field: "tags", operator: "eq", value: minus(o.de) }] }, "View Contacts (contacts.readonly)");
+    const cs: { id?: unknown }[] = Array.isArray(j?.contacts) ? j.contacts : [];
+    ids.push(...cs.map((c) => c?.id).filter((id): id is string => typeof id === "string"));
+    if (cs.length < 500) break;
+  }
+  const tanda = ids.slice(0, o.max ?? ids.length);
+  for (const contactId of tanda) {
+    const t0 = Date.now();
+    await anadirEtiquetasGhl({ token: o.token, contactId, etiquetas: [minus(o.a)], fetchImpl: f });
+    await quitarEtiquetasGhl({ token: o.token, contactId, etiquetas: [minus(o.de)], fetchImpl: f });
+    // La pausa cuenta lo que ya tardaron las 2 llamadas: como mucho 1 contacto cada PAUSA_UNIR
+    const resto = (o.pausaMs ?? PAUSA_UNIR) - (Date.now() - t0);
+    if (resto > 0) await new Promise((r) => setTimeout(r, resto));
+  }
+  const faltan = ids.length - tanda.length;
+  if (!faltan) await escribir(f, o.token, "DELETE", rutaTag(o.locationId, vieja.id), {}, PERMISO_TAGS);
+  return { cambiados: tanda.length, faltan };
+}
+
 export async function crearOportunidadGhl(o: {
   token: string;
   locationId: string;

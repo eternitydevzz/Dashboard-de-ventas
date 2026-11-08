@@ -3,7 +3,7 @@ import "server-only";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { db, todas, equipo, conBajas, idsDePrueba, deVerdad } from "@/lib/datos";
 import { porcentaje, type Rango } from "@/lib/formato";
-import type { Perfil, Proyecto } from "@/lib/tipos";
+import { esCloser, type Perfil, type Proyecto } from "@/lib/tipos";
 
 type LeadMin = { id: string; creado_en: string; caller_id: string | null; closer_id: string | null };
 type CitaMin = { id: string; lead_id: string; closer_id: string | null; agendada_por: string | null; fecha: string; estado: string; creado_en: string };
@@ -211,7 +211,7 @@ export function calcularVendedores(base: Base, rango: Rango) {
       };
     });
   const closers = base.gente
-    .filter((g) => g.rol === "closer")
+    .filter(esCloser)
     .map((g) => {
       const citas = base.citas.filter((c) => c.closer_id === g.id && enRango(c.fecha, rango));
       const asistidas = citas.filter((c) => ASISTIDAS.includes(c.estado)).length;

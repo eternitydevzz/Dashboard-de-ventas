@@ -5,6 +5,8 @@ import { guardarPermisoPersona, guardarPermisoSeccion } from "@/app/(panel)/admi
 import { registrarCobro } from "@/app/(panel)/ventas/acciones";
 import { cambiarEstadoCliente } from "@/app/(panel)/clientes/acciones";
 import { cambiarEstadoCita } from "@/app/(panel)/closer/acciones";
+import { clientesDeCloser } from "@/lib/onboarding-closer";
+import { guardarTambienCloser } from "@/app/(panel)/equipo/ficha-acciones";
 import { clientesSuyos } from "@/app/(panel)/clientes/cargar";
 import { calcularPermisos, rutaInicio, seccionesPermitidas, soloLoSuyo } from "@/lib/permisos";
 
@@ -101,5 +103,27 @@ describe("«Lo suyo» (casos confirmados por Cristian)", () => {
     expect((await tiene(e.p.callerA)).has("agendas")).toBe(true); // se la dio el director con Administración arriba
     como(e, e.p.callerA);
     await falla(cambiarEstadoCita(cita!.id, "no_show", ""), /no es tuya/);
+  });
+  // Plan GHL E2: el interruptor «También closer»
+  it("«También closer»: solo un admin lo cambia, solo en callers; con él, el caller ve Agendas y sigue con «Mis leads»", async () => {
+    const perfilC = async () => (await db.from("perfiles").select("*").eq("id", e.p.callerC.id).single()).data as typeof e.p.callerC;
+    expect((await tiene(await perfilC())).has("agendas")).toBe(false); // como hoy
+    como(e, e.p.callerA);
+    await falla(guardarTambienCloser(e.p.callerC.id, true), /No tienes permiso/); // un caller no puede
+    como(e, e.p.director);
+    await falla(guardarTambienCloser(e.p.callerC.id, true), /No tienes permiso/); // un director sin Administración, tampoco
+    como(e, e.p.ceo);
+    await falla(guardarTambienCloser(e.p.closerA.id, true), /solo para callers/);
+    await ok(guardarTambienCloser(e.p.callerC.id, true));
+    const con = await tiene(await perfilC());
+    expect(con.has("agendas")).toBe(true);
+    expect(con.has("cola")).toBe(true);
+    expect(con.has("finanzas")).toBe(false);
+    // Su Onboarding de closer: las ventas de un caller con el interruptor cuentan; sin él, no
+    await db.from("ventas").insert({ proyecto_id: e.proyecto.id, lead_id: e.leads.LeadA, vendedor_id: e.p.callerC.id, facturacion: 500, cash_collected: 500, tipo_pago: "completo" });
+    expect((await clientesDeCloser(e.proyecto.id, await perfilC())).map((c) => c.lead_id)).toEqual([e.leads.LeadA]);
+    await ok(guardarTambienCloser(e.p.callerC.id, false));
+    expect(await clientesDeCloser(e.proyecto.id, await perfilC())).toEqual([]);
+    expect((await tiene(await perfilC())).has("agendas")).toBe(false);
   });
 });

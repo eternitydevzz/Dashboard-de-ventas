@@ -28,6 +28,8 @@ import { HorariosEquipo, FormAjustes } from "./horarios";
 import { RotacionClosers } from "./rotacion-closers";
 import { RepartoPorcentaje } from "./reparto-pct";
 import { EditorTramos } from "./tramos";
+import { EtiquetasUtms } from "./etiquetas-utms";
+import { canalesDe } from "@/lib/canales-datos";
 import { EditorPreguntas } from "./preguntas-reporte";
 import { FIJAS, preguntasDe } from "@/lib/reportes";
 import { tramosDe } from "@/lib/comisiones";
@@ -43,6 +45,7 @@ const PESTANAS = [
   { v: "reportes", t: "Reportes" }, // 1.0 bloque 7: preguntas del reporte
   { v: "entradas", t: "Entradas (landings)" },
   { v: "workflows", t: "Workflows" }, // Plan de workflows 4b (7 nov 2026): solo lectura
+  { v: "etiquetas-utms", t: "Etiquetas y UTMs" }, // Plan GHL B2b
   { v: "integraciones", t: "Integraciones GHL" },
   { v: "permisos", t: "Permisos" }, // H5: también el director con Administración
 ];
@@ -200,6 +203,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   let rojos: EventoEntrada[] = [];
   const ultimosDe = new Map<string, EventoEntrada[]>();
   let workflowDe = new Map<string, WorkflowVista>(); // Workflows 4a-1: el workflow en marcha de cada Entrada
+  const canales = tab === "etiquetas-utms" ? await canalesDe(proyecto.id) : null; // B2b
   const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined, sp.editar === "1") : null;
   if (tab === "entradas") {
     const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
@@ -459,6 +463,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             }
           />
         )}
+
+        {tab === "etiquetas-utms" && canales && <EtiquetasUtms sub={typeof sp.sub === "string" ? sp.sub : ""} canales={canales} />}
 
         {tab === "integraciones" && (
           <div className="grid gap-5 xl:grid-cols-2">

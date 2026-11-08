@@ -14,7 +14,7 @@ import { moverLeadDashboard } from "@/lib/leads";
 import { armarEnvioGhl } from "@/lib/entrada-ghl";
 import { avisarPorEmail, mandarEnvioGhl, ESPERA_429, MAX_ESPERA_429, MAX_LEADS_POR_LECTURA, type Avisar, type CacheGhl } from "@/lib/ghl-envios";
 import { GhlEsperar } from "@/lib/ghl";
-import { aplanarPasos, compararEnvios, configDePasos, encajaDisparador, envioDeWorkflow, envioSintetico, tramos, type DisparoCita, type LeadParaEnvio, type Paso, type PasoSimple } from "@/lib/workflows";
+import { aplanarPasos, compararEnvios, configDePasos, encajaDisparador, envioDeWorkflow, envioSintetico, tramos, type Disparo, type LeadParaEnvio, type Paso, type PasoSimple } from "@/lib/workflows";
 
 export type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: typeof fetch; avisar?: Avisar };
 
@@ -38,8 +38,9 @@ export async function crearEjecuciones(o: { proyectoId: string; entradaId: strin
 // Fase 4d (plan GHL 2.4, Cristian 8 nov 2026): se agenda o se cancela una cita → los workflows encendidos del proyecto
 // con ese disparador. Sin Entrada: el envío es sintético (lead + cita) y se guarda en el registro de la ejecución
 // (`{tipo:"disparo"}`), que es de donde lo leen sus tramos. Nunca debe romper a quien llama: que lo proteja.
-export async function dispararWorkflows(proyectoId: string, leadId: string, disparo: DisparoCita, ahora = new Date()) {
-  const { data: wfs, error } = await db().from("workflows").select("id, version, pasos, disparador").eq("proyecto_id", proyectoId).eq("encendido", true).eq("disparador->>tipo", "cita");
+// A3 (plan GHL, Cristian 8 nov 2026): igual con «se pone una etiqueta».
+export async function dispararWorkflows(proyectoId: string, leadId: string, disparo: Disparo, ahora = new Date()) {
+  const { data: wfs, error } = await db().from("workflows").select("id, version, pasos, disparador").eq("proyecto_id", proyectoId).eq("encendido", true).eq("disparador->>tipo", disparo.tipo);
   if (error) throw new Error(`workflows: ${error.message}`);
   const suyos = ((wfs ?? []) as (Wf & { disparador: unknown })[]).filter((w) => encajaDisparador(w.disparador, disparo));
   if (!suyos.length) return 0;
@@ -47,7 +48,13 @@ export async function dispararWorkflows(proyectoId: string, leadId: string, disp
   if (e1) throw new Error(`lead: ${e1.message}`);
   if (!lead) return 0;
   const envio = envioSintetico(lead, disparo);
-  return crearPara(suyos, { proyectoId, leadId, entradaId: null, envio, ahora, registro: [{ tipo: "disparo", evento: disparo.evento, envio, hora: ahora.toISOString() }] });
+  const que = disparo.tipo === "cita" ? { evento: disparo.evento } : { etiqueta: disparo.etiqueta };
+  return crearPara(suyos, { proyectoId, leadId, entradaId: null, envio, ahora, registro: [{ tipo: "disparo", ...que, envio, hora: ahora.toISOString() }] });
+}
+
+// A3: las etiquetas nuevas de un lead, una a una. Nunca debe romper a quien llama: que lo proteja.
+export async function dispararEtiquetas(proyectoId: string, leadId: string, etiquetas: string[]) {
+  for (const etiqueta of etiquetas) await dispararWorkflows(proyectoId, leadId, { tipo: "etiqueta", etiqueta });
 }
 
 type Wf = { id: string; version: number; pasos: Paso[] };
@@ -86,9 +93,9 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
   if (error) throw new Error(`ejecuciones: ${error.message}`);
   const lista = (data ?? []) as Ejecucion[];
   if (!lista.length) return r;
-  const { data: wfs, error: errWf } = await db().from("workflows").select("id, nombre, encendido, modo").in("id", [...new Set(lista.map((x) => x.workflow_id))]);
+  const { data: wfs, error: errWf } = await db().from("workflows").select("id, nombre, encendido, modo, disparador").in("id", [...new Set(lista.map((x) => x.workflow_id))]);
   if (errWf) throw new Error(`workflows: ${errWf.message}`);
-  const wf = new Map(((wfs ?? []) as { id: string; nombre: string; encendido: boolean; modo: string }[]).map((w) => [w.id, w]));
+  const wf = new Map(((wfs ?? []) as { id: string; nombre: string; encendido: boolean; modo: string; disparador: unknown }[]).map((w) => [w.id, w]));
   const cache: CacheGhl = {}; // las columnas de GHL, una vez por vuelta (mejora «menos llamadas», 7 nov)
 
   for (const ej of lista) {
@@ -99,7 +106,7 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
       continue;
     }
     try {
-      const hecho = w.modo === "real" ? await tramoReal(proyectoId, ej, ahora, o.ghl, cache) : await tramoEnPrueba(ej, ahora);
+      const hecho = w.modo === "real" ? await tramoReal(proyectoId, ej, ahora, o.ghl, cache, (w.disparador as { tipo?: unknown } | null)?.tipo === "etiqueta") : await tramoEnPrueba(ej, ahora);
       await cambiar(ej.id, hecho);
       if (hecho.estado === "ok") r.ok++;
     } catch (e) {
@@ -165,7 +172,7 @@ async function enviosDe(ej: Ejecucion) {
 }
 
 // Un tramo en MODO REAL: sus pasos de GHL con las mismas llamadas que hoy (mandarEnvioGhl)
-async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: GhlParaWorkflows | undefined, cache?: CacheGhl): Promise<Json> {
+async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: GhlParaWorkflows | undefined, cache?: CacheGhl, deEtiqueta = false): Promise<Json> {
   if (!ghl) throw new Error("GHL no está conectado en este proyecto: no se puede mandar");
   const envios = await enviosDe(ej);
   const ts = tramos(aplanarPasos(ej.pasos, envios));
@@ -175,7 +182,10 @@ async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: Gh
   if (deGhl.length) {
     const envio = armarEnvioGhl(envios, configDePasos(deGhl));
     const quitarExtra = deGhl.flatMap((p) => (p.tipo === "quitar_etiqueta_ghl" ? [p.etiqueta] : []));
-    await mandarEnvioGhl({ proyectoId, locationId: ghl.locationId, token: ghl.token, envio, leadId: ej.lead_id, quitarExtra, fetchImpl: ghl.fetchImpl, cache });
+    const nuevas = await mandarEnvioGhl({ proyectoId, locationId: ghl.locationId, token: ghl.token, envio, leadId: ej.lead_id, quitarExtra, fetchImpl: ghl.fetchImpl, cache });
+    // A3: sus etiquetas nuevas arrancan los workflows de etiqueta, salvo si este ya es uno (sin bucles). GHL ya está
+    // hecho: un fallo aquí no repite el tramo, solo se registra.
+    if (!deEtiqueta && nuevas.length) await dispararEtiquetas(proyectoId, ej.lead_id, nuevas).catch((e) => console.error("[workflows] etiqueta:", e instanceof Error ? e.message : e));
   }
   // «Mover en el dashboard» (Cristian, 7 nov): después de GHL, en el orden del tramo
   for (const p of pasos) if (p.tipo === "mover_dashboard") await moverLeadDashboard(proyectoId, ej.lead_id, p.pipeline_id, p.etapa_id);

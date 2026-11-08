@@ -9,7 +9,7 @@ import { exigirOk } from "@/lib/resultado-cliente";
 import { actualizarMiembro, cambiarPassword, enviarEnlaceMagico, quitarDelProyecto } from "@/app/(panel)/admin/acciones";
 import { guardarPermisoPipeline } from "@/app/(panel)/crm/acciones";
 import { borrarCuentaFathom, guardarCuentaFathom } from "@/app/(panel)/closer/llamadas/acciones-fathom";
-import { cambiarEmailPersona, guardarContactoPersona, marcarPrueba, type cargarFicha } from "./ficha-acciones";
+import { cambiarEmailPersona, guardarContactoPersona, guardarTambienCloser, marcarPrueba, type cargarFicha } from "./ficha-acciones";
 import type { Rol } from "@/lib/tipos";
 import { confirmar } from "@/components/dialogos";
 import { Pastillas } from "@/components/eleccion";
@@ -91,6 +91,12 @@ export function AccesoPersona({ f, recargar }: { f: Ficha; recargar: () => void 
               Quitar del proyecto
             </button>
           </div>
+        )}
+        {p.rol === "caller" && (
+          <label className="flex items-start gap-2 text-xs">
+            <input type="checkbox" className="interruptor mt-0.5" checked={p.tambien_closer} disabled={pendiente} onChange={(e) => hacer(() => guardarTambienCloser(p.id, e.target.checked), e.target.checked ? "Ahora también es closer" : "Ya no es closer")} />
+            <span><b>También closer</b> · sigue de caller y además ve y cuenta sus citas como closer.</span>
+          </label>
         )}
         {f.soyCeo && !f.soyYo && (
           <label className="flex items-start gap-2 text-xs">

@@ -55,7 +55,7 @@ import { ARRASTRE_COLUMNA, reordenar } from "@/lib/orden";
 import { BarraMasiva, type DestinoMasivo } from "./barra-masiva";
 import { TarjetaCrm, haceDias } from "@/components/tarjeta-crm";
 import { SelectorPipeline } from "./selector-pipeline";
-import { CANALES, PIPELINE_GENERAL, PREFIJO_ETIQUETA, SIN_CANAL, etiquetaCanal } from "@/lib/canal";
+import { PIPELINE_GENERAL, PREFIJO_ETIQUETA, SIN_CANAL, opcionesCanal, type TablaCanales } from "@/lib/canal";
 
 export type LeadTarjeta = {
   id: string;
@@ -103,6 +103,7 @@ export function TableroCrm({
   productos,
   moneda,
   estrellasOpcionales,
+  canales: tablaCanales,
   tableroClosers,
   permisos,
 }: {
@@ -122,6 +123,7 @@ export function TableroCrm({
   productos: Producto[];
   moneda: string;
   estrellasOpcionales: boolean;
+  canales: TablaCanales; // B2b: los del proyecto (los nombres se pueden cambiar)
   tableroClosers: { columnas: ColumnaC[]; sinColumna: number; soloMirar: boolean } | null;
   permisos: { filas: FilaPermiso[]; gente: { id: string; nombre: string; rol: string }[] } | null;
 }) {
@@ -161,8 +163,8 @@ export function TableroCrm({
   // 17 oct (Cristian): en «0. Agendas General» salen siempre todos los canales y «Sin canal»; en el resto, los que hay
   const esGeneral = pipeline?.nombre.trim().toLowerCase() === PIPELINE_GENERAL.toLowerCase();
   const canales = useMemo(
-    () => (esGeneral ? CANALES.map(etiquetaCanal) : [...new Set(leadsIniciales.flatMap((l) => l.etiquetas.filter((e) => e.startsWith(PREFIJO_ETIQUETA))))].sort()),
-    [leadsIniciales, esGeneral]
+    () => (esGeneral ? opcionesCanal(tablaCanales).map((c) => `${PREFIJO_ETIQUETA}${c.nombre}`) : [...new Set(leadsIniciales.flatMap((l) => l.etiquetas.filter((e) => e.startsWith(PREFIJO_ETIQUETA))))].sort()),
+    [leadsIniciales, esGeneral, tablaCanales]
   );
   // 1b (Cristian, 26 oct): filtro por país (sacado del teléfono), con cuántos hay de cada uno en este pipeline;
   // «Sin país» al final. Como el de canal, no cambia los números de las pestañas.

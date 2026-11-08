@@ -22,7 +22,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 vi.mock("@/lib/memoria", () => ({ olvidarTodo: () => undefined, enMemoria: <T,>(_k: string, _ms: number, f: () => T) => f(), UN_MINUTO: 60_000 }));
 vi.mock("@/lib/auth", () => ({ exigir: () => exigirImpl(), puedeAdmin: {}, puedeCrearProyectos: {}, exigirCambiarComisionRol: {} }));
-const { crearWorkflowDeCita, encenderWorkflow, pararWorkflow, pasarWorkflowAReal, devolverAHoy } = await import("@/app/(panel)/admin/acciones");
+const { crearWorkflowDeCita, crearWorkflowDeEtiqueta, encenderWorkflow, pararWorkflow, pasarWorkflowAReal, devolverAHoy } = await import("@/app/(panel)/admin/acciones");
 
 const escrituras = (tabla: string, op: "update" | "insert") => consultas.filter((c) => c.tabla === tabla).flatMap((c) => c.ops.filter(([o]) => o === op).map(([, a]) => a[0] as Record<string, unknown>));
 const deCita = { id: "w1", entrada_id: null, modo: "prueba", encendido: true };
@@ -51,6 +51,18 @@ describe("crearWorkflowDeCita", () => {
       throw new Error("no admin");
     };
     expect(await crearWorkflowDeCita("agendada")).toMatchObject({ error: expect.any(String) });
+    expect(escrituras("workflows", "insert")).toHaveLength(0);
+  });
+});
+
+// A3 (plan GHL, Cristian 8 nov 2026): «cuando se pone la etiqueta…», igual que los de cita
+describe("crearWorkflowDeEtiqueta", () => {
+  it("nace sin Entrada, en prueba, APAGADO, sin pasos y con la etiqueta sin espacios de más", async () => {
+    expect(await crearWorkflowDeEtiqueta("  agenda-dfy ")).toEqual({ ok: true });
+    expect(escrituras("workflows", "insert")).toEqual([{ proyecto_id: "p1", nombre: "Etiqueta «agenda-dfy»", disparador: { tipo: "etiqueta", etiqueta: "agenda-dfy" }, entrada_id: null, pasos: [], modo: "prueba", encendido: false }]);
+  });
+  it("vacía, demasiado larga o no texto: error y no crea nada", async () => {
+    for (const malo of ["", "   ", "x".repeat(101), null, { etiqueta: "a" }]) expect(await crearWorkflowDeEtiqueta(malo as never)).toMatchObject({ error: expect.any(String) });
     expect(escrituras("workflows", "insert")).toHaveLength(0);
   });
 });

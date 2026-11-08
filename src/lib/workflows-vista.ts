@@ -69,6 +69,7 @@ export function condicionTexto(c: Condicion) {
 }
 
 export function disparadorTexto(d: Disparador, n: Nombres): { titulo: string; detalle: string | null } {
+  if (d.tipo === "etiqueta") return { titulo: `Se pone la etiqueta «${d.etiqueta}»`, detalle: null };
   if (d.tipo === "cita") return { titulo: d.evento === "agendada" ? "Se agenda una cita" : "Se cancela una cita", detalle: null };
   return { titulo: "Llega un lead a la Entrada", detalle: n.entradas[d.entrada_id] ?? "Entrada borrada" };
 }
