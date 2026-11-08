@@ -6,6 +6,8 @@ import { CANALES_POR_DEFECTO, type TablaCanales } from "@/lib/canal";
 // proyectos nuevos y los de los tests. canal.ts no lee la base porque lo importa un componente cliente.
 export async function canalesDe(proyectoId: string): Promise<TablaCanales> {
   const { data, error } = await db().from("canales").select("clave, nombre, alias, paginas").eq("proyecto_id", proyectoId).order("orden");
+  // Sin la tabla (código publicado antes que la migración) se usan los de siempre en vez de romper pantallas y lectura
+  if (error?.code === "PGRST205" || error?.code === "42P01") return CANALES_POR_DEFECTO;
   if (error) throw new Error(`No se pudieron leer los canales: ${error.message}`);
   return data?.length ? (data as TablaCanales) : CANALES_POR_DEFECTO;
 }
