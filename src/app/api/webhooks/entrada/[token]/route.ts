@@ -126,13 +126,14 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
 }
 
 // Escritura NUESTRA en GHL de este lead en los últimos 10 min: un envío «ok» de cualquier Entrada (se manda en cuanto
-// llega su ghl_enviar_en) o una ejecución de workflow en real «ok» (las de prueba guardan `coincide`; las reales, null).
-// shortcut: las reales «ok» sin pasos de GHL también cuentan (solo daría un email de más); sin columnas nuevas.
+// llega su ghl_enviar_en) o una ejecución que pasó por algún tramo en real (cada uno apunta {modo:"real"} en su registro
+// y actualiza actualizado_en, también los intermedios que siguen «esperando»: workflows-motor.ts:77-78,148).
+// shortcut: un tramo real sin pasos de GHL (o un reintento) también cuenta (solo daría un email de más); sin columnas nuevas.
 async function avisarSiVuelve(entrada: Entrada, leadId: string) {
   const hace10 = new Date(Date.now() - 10 * 60_000).toISOString();
   const [ev, ej] = await Promise.all([
     db().from("webhook_eventos").select("id").eq("lead_id", leadId).eq("ghl_estado", "ok").gte("ghl_enviar_en", hace10).limit(1),
-    db().from("workflow_ejecuciones").select("id").eq("lead_id", leadId).eq("estado", "ok").is("coincide", null).gte("actualizado_en", hace10).limit(1),
+    db().from("workflow_ejecuciones").select("id").eq("lead_id", leadId).contains("registro", [{ modo: "real" }]).gte("actualizado_en", hace10).limit(1),
   ]);
   if (!ev.data?.length && !ej.data?.length) return;
   if (!(await dentroDelLimite(`ghl-vuelve:${entrada.id}`, 1, 60 * 60_000))) return;

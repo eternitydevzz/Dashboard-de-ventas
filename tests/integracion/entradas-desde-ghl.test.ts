@@ -88,6 +88,21 @@ describe("el endpoint de una Entrada «ghl»", () => {
     expect(count).toBe(2);
   });
 
+  it("un workflow en real a mitad (tramo 1 ya escrito en GHL, aún «esperando») cuenta; uno en prueba, no", async () => {
+    const { data: otra } = await nueva("La del workflow", { envia_desde: "navegador" });
+    const { data: wf } = await db.from("workflows").insert({ proyecto_id: e.proyecto.id, nombre: "wf", disparador: { tipo: "entrada" }, entrada_id: otra!.id }).select("id").single();
+    for (const modo of ["prueba", "real"]) {
+      const { data: en } = await nueva(`GHL tramo ${modo}`, { envia_desde: "ghl" });
+      const email = `${e.pref}-tramo-${modo}@x.test`;
+      const { data: lead } = await db.from("leads").insert({ proyecto_id: e.proyecto.id, nombre: modo, email }).select("id").single();
+      const { error } = await db.from("workflow_ejecuciones").insert({ workflow_id: wf!.id, version: 1, pasos: [], proyecto_id: e.proyecto.id, lead_id: lead!.id, entrada_id: otra!.id, estado: "esperando", tramo: 1, siguiente_en: new Date(Date.now() + 3_600_000).toISOString(), registro: [{ tipo: "tramo", tramo: 0, modo }] });
+      expect(error).toBeNull();
+      const n = recibidos.length;
+      expect((await enviar(en!.token, { email, name: modo })).status).toBe(200);
+      expect(recibidos.length - n).toBe(modo === "real" ? 1 : 0);
+    }
+  });
+
   it("sin escritura nuestra en los últimos 10 min: sin email", async () => {
     const { data: en } = await nueva("GHL tranquila", { envia_desde: "ghl" });
     const { data: otra } = await nueva("La que manda 2", { envia_desde: "navegador" });
