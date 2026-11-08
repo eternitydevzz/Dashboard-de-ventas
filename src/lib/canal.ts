@@ -53,6 +53,9 @@ const DOMINIOS: Record<string, Canal> = { "biblioteca.codigomaestria.com": "bibl
 // Páginas que mandan sobre el utm_source (host/ruta)
 const PAGINAS_FIJAS: Record<string, Canal> = { "codigomaestria.com/agenda-fc": "facu", "services.eternity.llc/software-demo": "dfy" };
 
+export type TablaCanales = { alias: Record<string, Canal>; paginas: Record<string, Canal>; dominios: Record<string, Canal>; fijas: Record<string, Canal> };
+export const CANALES_POR_DEFECTO: TablaCanales = { alias: ALIAS, paginas: PAGINAS, dominios: DOMINIOS, fijas: PAGINAS_FIJAS };
+
 function leerUrl(url: string) {
   try {
     return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
@@ -62,15 +65,16 @@ function leerUrl(url: string) {
 }
 
 // `url`: página desde la que reservó · `utmSource`: el que GHL ya separó (si viene). Sin ninguno de los dos: null.
-export function canalDeOrigen(url?: string | null, utmSource?: string | null): Canal | null {
+// `tabla`: los canales como dato (Plan GHL, B2a); sin ella, los de siempre. Aquí no se lee la base: lo importa un cliente.
+export function canalDeOrigen(url?: string | null, utmSource?: string | null, tabla: TablaCanales = CANALES_POR_DEFECTO): Canal | null {
   const u = url?.trim() ? leerUrl(url.trim()) : null;
-  const fija = u && PAGINAS_FIJAS[`${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, "").toLowerCase()}`];
+  const fija = u && tabla.fijas[`${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, "").toLowerCase()}`];
   if (fija) return fija;
   const utm = (utmSource?.trim() || u?.searchParams.get("utm_source")?.trim() || "").toLowerCase();
-  if (utm) return ALIAS[utm] ?? "otro";
+  if (utm) return tabla.alias[utm] ?? "otro";
   if (!u) return null;
   const pagina = u.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
-  return PAGINAS[pagina] ?? DOMINIOS[u.hostname.toLowerCase()] ?? "directo";
+  return tabla.paginas[pagina] ?? tabla.dominios[u.hostname.toLowerCase()] ?? "directo";
 }
 
 // Para guardar la página sin datos personales: el widget de GHL lleva nombre, email y teléfono en la dirección.

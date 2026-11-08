@@ -1,6 +1,6 @@
 // Plan GHL (16 oct): el canal de cada cita sale del UTM o de la página de agenda. Ejemplos sacados de citas reales.
 import { describe, expect, it } from "vitest";
-import { canalDeOrigen, limpiarUrl, nombreCanal } from "@/lib/canal";
+import { CANALES_POR_DEFECTO, canalDeOrigen, limpiarUrl, nombreCanal } from "@/lib/canal";
 
 describe("canalDeOrigen", () => {
   it("lee utm_source de la página", () => {
@@ -54,6 +54,21 @@ describe("canalDeOrigen", () => {
     expect(canalDeOrigen("https://codigomaestria.com/agenda?utm_source=facebook")).toBe("otro");
     expect(canalDeOrigen(null, null)).toBeNull();
     expect(canalDeOrigen("", "")).toBeNull();
+  });
+
+  it("con otra tabla manda la tabla (Plan GHL, B2a)", () => {
+    const tabla = {
+      alias: { tiktok: "ig" as const },
+      paginas: { "agenda-tt": "ig" as const },
+      dominios: {},
+      fijas: { "codigomaestria.com/agenda-yt": "facu" as const },
+    };
+    expect(canalDeOrigen(null, "tiktok", tabla)).toBe("ig");
+    expect(canalDeOrigen(null, "yt", tabla)).toBe("otro"); // ya no está en la tabla
+    expect(canalDeOrigen("https://codigomaestria.com/agenda-tt", null, tabla)).toBe("ig");
+    expect(canalDeOrigen("https://codigomaestria.com/agenda-yt?utm_source=ig", null, tabla)).toBe("facu");
+    expect(canalDeOrigen("https://biblioteca.codigomaestria.com/recursos", null, tabla)).toBe("directo");
+    expect(canalDeOrigen(null, "yt", CANALES_POR_DEFECTO)).toBe("yt");
   });
 
   it("la página se guarda sin datos personales (solo la ruta y los utm)", () => {
