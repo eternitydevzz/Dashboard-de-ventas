@@ -57,7 +57,8 @@ jobs:
             echo "CLAVE_CIFRADO=$(openssl rand -base64 32)"
             echo "APP_URL=http://localhost:3000"
           } > .env.local
-      - run: npx vitest run tests/integracion
+      # --retry=1: el Supabase local a veces devuelve «invalid response from upstream» (run 42491569552); un reintento basta
+      - run: npx vitest run tests/integracion --retry=1
       - name: Parar Supabase
         if: always()
         run: supabase stop --no-backup
