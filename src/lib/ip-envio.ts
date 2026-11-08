@@ -10,6 +10,7 @@ const valida = (v: unknown) => {
 };
 
 export function ipDelEnvio(o: { cuerpo: Record<string, unknown>; cabecera: string | null; enviaDesde: string | null }) {
+  if (o.enviaDesde === "ghl") return null; // desde un workflow de GHL: sería la IP de GHL (plan GHL, sección 5)
   if (o.cuerpo.ip !== undefined && o.cuerpo.ip !== "") return valida(o.cuerpo.ip);
   if (o.enviaDesde !== "navegador") return null;
   return valida(o.cabecera?.split(",")[0]);

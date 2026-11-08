@@ -43,4 +43,8 @@ describe("ipDelEnvio: qué IP se guarda", () => {
     expect(ipDelEnvio({ cuerpo: {}, cabecera: "198.51.100.1", enviaDesde: "servidor" })).toBeNull();
     expect(ipDelEnvio({ cuerpo: {}, cabecera: "198.51.100.1", enviaDesde: null })).toBeNull();
   });
+  it("desde un workflow de GHL: ninguna, aunque venga `ip` o cabecera (serían las de GHL)", () => {
+    expect(ipDelEnvio({ cuerpo: { ip: "203.0.113.7" }, cabecera: "198.51.100.1", enviaDesde: "ghl" })).toBeNull();
+    expect(ipDelEnvio({ cuerpo: {}, cabecera: "198.51.100.1", enviaDesde: "ghl" })).toBeNull();
+  });
 });

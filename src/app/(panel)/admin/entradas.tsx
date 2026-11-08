@@ -7,7 +7,7 @@ import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { Copiar } from "./cliente";
 import { borrarEntrada, cambiarActivaEntrada, crearEntrada, guardarEntradaCompleta, moverEntrada, nuevaDireccionEntrada } from "./acciones";
 import { OPERADORES, type Regla } from "@/lib/entrada";
-import { direccionCorta, estadoEntrada, jsonEjemplo, leadsRecibidos, type DatosLanding } from "@/lib/entradas-panel";
+import { direccionCorta, estadoEntrada, jsonEjemplo, leadsRecibidos, type DatosLanding, type EnviaDesde } from "@/lib/entradas-panel";
 import type { EnvioEntrada, ResumenEntrada } from "@/lib/entradas-datos";
 import { confirmar } from "@/components/dialogos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
@@ -47,9 +47,10 @@ function SelectorDestino({
 }
 
 // «Desde dónde manda los datos»: en palabras de principiante (null = «No lo sé»)
-const OPCIONES_DESDE: { v: "" | "navegador" | "servidor"; t: string; ayuda: string }[] = [
+const OPCIONES_DESDE: { v: "" | EnviaDesde; t: string; ayuda: string }[] = [
   { v: "navegador", t: "Desde la página", ayuda: "Lo normal en una landing o en GHL." },
   { v: "servidor", t: "Desde un servidor", ayuda: "Si el programador te dice que va por servidor." },
+  { v: "ghl", t: "Desde un workflow de GHL", ayuda: "Si los datos los manda GHL. Así no puede mandar a GHL: sería un círculo sin fin." },
   { v: "", t: "No lo sé", ayuda: "Se puede cambiar después." },
 ];
 
@@ -186,7 +187,7 @@ export function TarjetaEntrada({
         <summary className="cursor-pointer text-sm font-semibold text-texto-2">Para el programador</summary>
         <div className="mt-2 space-y-2 text-sm text-texto-2">
           <p>
-            {entrada.envia_desde === "servidor" ? "Lo manda un servidor" : entrada.envia_desde === "navegador" ? "Lo manda la página (desde el navegador)" : "No está apuntado desde dónde lo manda"}
+            {entrada.envia_desde === "ghl" ? "Lo manda un workflow de GHL" : entrada.envia_desde === "servidor" ? "Lo manda un servidor" : entrada.envia_desde === "navegador" ? "Lo manda la página (desde el navegador)" : "No está apuntado desde dónde lo manda"}
             {entrada.archivo ? <> (<code className="rounded bg-panel-2 px-1">{entrada.archivo}</code>)</> : null}. Hace un POST con este JSON a la dirección de arriba.
           </p>
           <Copiar texto={JSON.stringify(jsonEjemplo(entrada), null, 2)} etiqueta="Copiar ejemplo de lo que tiene que mandar" />

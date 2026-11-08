@@ -25,6 +25,9 @@ describe("datosLandingValidos: landing, formulario, desde dónde envía y archiv
   it("«envía desde» solo acepta navegador o servidor; lo demás es «no lo sé» (null)", () => {
     expect(datosLandingValidos({ envia_desde: "navegador" }).envia_desde).toBe("navegador");
     expect(datosLandingValidos({ envia_desde: "otra cosa" }).envia_desde).toBeNull();
+    // Plan GHL, sección 5 (forma B, 8 nov): «Desde un workflow de GHL»
+    expect(datosLandingValidos({ envia_desde: "ghl" }).envia_desde).toBe("ghl");
+    expect(datosLandingValidos({ envia_desde: "GHL" }).envia_desde).toBeNull();
     expect(datosLandingValidos({}).envia_desde).toBeNull();
   });
   it("landing y formulario, como mucho 80 letras; archivo, 120", () => {
