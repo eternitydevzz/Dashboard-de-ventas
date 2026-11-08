@@ -6,6 +6,7 @@ import { canalDeOrigen } from "@/lib/canal";
 
 type Resp = { data: unknown; error: { message: string } | null };
 let respuesta: Record<string, Resp>;
+let insertadas: Record<string, unknown>[]; // filas que se insertan en `citas`
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (tabla: string) => {
@@ -13,6 +14,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       const tipo = () => (ops.includes("update") ? "update" : ops.includes("insert") ? "insert" : ops.includes("upsert") ? "upsert" : "select");
       const q: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "not", "gte", "lt", "lte", "order", "limit", "update", "insert", "upsert", "maybeSingle", "single"]) q[m] = () => (ops.push(m), q);
+      q.insert = (fila: Record<string, unknown>) => (ops.push("insert"), tabla === "citas" && insertadas.push(fila), q);
       q.then = (r: (v: Resp) => unknown) => Promise.resolve(respuesta[`${tabla}:${tipo()}`] ?? { data: null, error: null }).then(r);
       return q;
     },
@@ -47,6 +49,7 @@ beforeEach(() => {
   vi.mocked(dispararWorkflows).mockReset().mockResolvedValue(1);
   ghl.eventos = [];
   ghl.estado = "existe";
+  insertadas = [];
   respuesta = {
     "proyectos:select": { data: { id: "p1", ghl_token: "x", ghl_location_id: "loc", ghl_calendarios: ["cal1"] }, error: null },
     "miembros_proyecto:select": { data: [], error: null },
@@ -122,5 +125,28 @@ describe("cita que pasa a cancelada → «cancelada»", () => {
     const r = await sincronizarCalendarios("p1", { ahora });
     expect(r.canceladas).toBe(1);
     expect(r.errores).toEqual([expect.stringContaining("uy")]);
+  });
+});
+
+// Plan GHL E1 (Cristian, 8 nov): un caller con «También closer» es closer de las citas de su usuario de GHL
+describe("closer de la cita por el usuario de GHL", () => {
+  const caller = (tambien_closer: boolean) => ({ perfil_id: "facu", ghl_calendar_id: null, ghl_user_id: "u-facu", perfiles: { rol: "caller", nombre: "Facu", tambien_closer } });
+  it("caller con el interruptor: queda de closer", async () => {
+    respuesta["miembros_proyecto:select"] = { data: [caller(true)], error: null };
+    ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1", assignedUserId: "u-facu" }];
+    await sincronizarCalendarios("p1", { ahora });
+    expect(insertadas).toEqual([expect.objectContaining({ closer_id: "facu" })]);
+  });
+  it("caller sin el interruptor: la cita queda sin closer, como hoy", async () => {
+    respuesta["miembros_proyecto:select"] = { data: [caller(false)], error: null };
+    ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1", assignedUserId: "u-facu" }];
+    await sincronizarCalendarios("p1", { ahora });
+    expect(insertadas).toEqual([expect.objectContaining({ closer_id: null })]);
+  });
+  it("un closer sigue siendo closer", async () => {
+    respuesta["miembros_proyecto:select"] = { data: [{ ...caller(false), perfiles: { rol: "closer", nombre: "Ana", tambien_closer: false } }], error: null };
+    ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1", assignedUserId: "u-facu" }];
+    await sincronizarCalendarios("p1", { ahora });
+    expect(insertadas).toEqual([expect.objectContaining({ closer_id: "facu" })]);
   });
 });

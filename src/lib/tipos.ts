@@ -12,6 +12,7 @@ export type Perfil = {
   admin_activo: boolean;
   onboarding_completo: boolean;
   es_prueba?: boolean; // 1.0: perfil de prueba (no cuenta en cifras, reparto ni liquidaciones)
+  tambien_closer?: boolean; // Plan GHL E1: un caller que también es closer (Facu)
   activo: boolean;
 };
 
