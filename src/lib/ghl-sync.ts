@@ -11,6 +11,7 @@ import type { Proyecto } from "@/lib/tipos";
 import { ABIERTAS } from "@/lib/llamadas";
 import { dispararEtiquetas, dispararWorkflows } from "@/lib/workflows-motor";
 import type { DisparoCita } from "@/lib/workflows";
+import { guardarError } from "@/lib/errores-app";
 
 type ProyectoGhl = Proyecto & { ghl_token: string | null; ghl_location_id: string | null };
 export type ResultadoSync = { nuevas: number; actualizadas: number; canceladas: number; sinUnir: number; invalidas: number; closers: number; errores: string[] };
@@ -286,7 +287,9 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
     await cancelar(proyecto.id, borradas, r);
   }
 
-  const resumen = `${r.nuevas} nuevas · ${r.actualizadas} actualizadas${r.canceladas ? ` · ${r.canceladas} canceladas (borradas en GHL)` : ""} · ${r.sinUnir} sin unir · ${r.invalidas} inválidas${r.errores.length ? ` · ${r.errores.length} con error` : ""}`;
+  // F3: los calendarios que no se pudieron leer, aparte (el aviso «calendario» del CEO sale de aquí, avisos-ceo.ts)
+  const sinLeer = lecturas.filter((l) => l.error).length;
+  const resumen = `${r.nuevas} nuevas · ${r.actualizadas} actualizadas${r.canceladas ? ` · ${r.canceladas} canceladas (borradas en GHL)` : ""} · ${r.sinUnir} sin unir · ${r.invalidas} inválidas${r.errores.length ? ` · ${r.errores.length} con error` : ""}${sinLeer ? ` · ${sinLeer} calendario(s) sin leer` : ""}`;
   await db().from("proyectos").update({ ghl_sincronizado_en: ahora.toISOString(), ghl_ultimo_resultado: resumen }).eq("id", proyecto.id);
   return r;
 }
@@ -300,7 +303,11 @@ export async function ponerEtiqueta(leadId: string, etiqueta: string) {
   if (!data || actuales.some((t) => t.toLowerCase() === etiqueta.toLowerCase())) return;
   const { error } = await db().from("leads").update({ etiquetas: [...actuales, etiqueta] }).eq("id", leadId);
   if (error) return;
-  await dispararEtiquetas(data.proyecto_id, leadId, [etiqueta]).catch((e) => console.error("[ghl-sync] workflows de etiqueta:", e instanceof Error ? e.message : e));
+  await dispararEtiquetas(data.proyecto_id, leadId, [etiqueta]).catch(async (e) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[ghl-sync] workflows de etiqueta:", msg);
+    await guardarError("ghl-sync workflows de etiqueta", msg, data.proyecto_id); // F3: a los avisos del CEO
+  });
 }
 
 async function cancelar(proyectoId: string, borradas: { id: string; lead_id: string; canal: string | null; ghl_calendario: string | null; fecha: string }[], r: ResultadoSync) {

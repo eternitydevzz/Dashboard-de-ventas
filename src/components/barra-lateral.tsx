@@ -35,6 +35,8 @@ import { cerrarSesion } from "@/app/login/acciones";
 import { iniciales, ETIQUETA_ROL, type ProyectoMenu } from "@/lib/formato";
 import type { Perfil } from "@/lib/tipos";
 import { Desplegable } from "@/components/eleccion";
+import { CampanaAvisos } from "@/components/campana-avisos";
+import type { AvisoCeo } from "@/lib/avisos-ceo";
 
 const ICONOS = {
   funnel: BarChart3,
@@ -75,11 +77,13 @@ export function BarraLateral({
   proyectos,
   proyecto,
   menu,
+  avisos,
 }: {
   perfil: Perfil;
   proyectos: ProyectoMenu[];
   proyecto: ProyectoMenu;
   menu: { grupo: string; items: ItemMenu[] }[];
+  avisos?: AvisoCeo[]; // solo el CEO los recibe (F1b); sin ellos no hay campana
 }) {
   const ruta = usePathname();
   // Fase 2 (Cristian, 12 oct 2026): el menú ya no precarga todas las pantallas al aparecer (medido: 24 peticiones
@@ -196,6 +200,7 @@ export function BarraLateral({
               <div className="text-[11px] text-texto-3">{ETIQUETA_ROL[perfil.rol]} · Mi perfil</div>
             </div>
           </Link>
+          {avisos && <CampanaAvisos avisos={avisos} />}
           <button
             onClick={cambiarTemaAlInstante}
             className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2 hover:text-texto"

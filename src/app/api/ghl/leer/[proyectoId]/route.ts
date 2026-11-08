@@ -7,6 +7,7 @@ import { leerLeadsGhl } from "@/lib/ghl-leads";
 import { descifrar } from "@/lib/cifrado";
 import { MAX_LEADS_POR_LECTURA, enviarPendientesGhl, type ResultadoEnvios } from "@/lib/ghl-envios";
 import { avanzarEjecuciones, dispararEtiquetas } from "@/lib/workflows-motor";
+import { guardarError } from "@/lib/errores-app";
 import type { Proyecto } from "@/lib/tipos";
 
 // Plan GHL, fase 3 (Cristian, 16 oct 2026): el programador de Supabase llama aquí cada 60 s para leer las citas
@@ -39,12 +40,18 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
   const inicio = Date.now();
   let envios: ResultadoEnvios | null = null;
   let wfHechas: number | null = null;
+  // F3: cada error va al registro y a «otros errores» de los avisos del CEO (mismo texto = un aviso con contador)
+  const anotar = async (parte: string, textos: string[]) => {
+    console.error(`[ghl-leer] ${parte}`, proyectoId, textos.join(" | "));
+    for (const t of textos) await guardarError(`ghl-leer ${parte}`, t, proyectoId);
+  };
+  const motivo = (e: unknown) => (e instanceof Error ? e.message : String(e));
   const enviarYLeer = async () => {
     try {
       envios = await enviarPendientes(proyectoId);
-      if (envios.errores.length) console.error("[ghl-leer] envíos", proyectoId, envios.errores.slice(0, 3).join(" | "));
+      if (envios.errores.length) await anotar("envíos", envios.errores.slice(0, 3));
     } catch (e) {
-      console.error("[ghl-leer] envíos", proyectoId, e instanceof Error ? e.message : e);
+      await anotar("envíos", [motivo(e)]);
     }
     // Workflows, 4a-1 y 4a-2 (7 nov 2026): avanzan los que ya tocan (en prueba no llaman a GHL; en real, sí). Comparten el
     // tope de leads por lectura con el envío de hoy (MAX_LEADS_POR_LECTURA, src/lib/ghl-envios.ts).
@@ -55,17 +62,18 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
       const ghl = await proyectoConGhl(proyectoId).then((x) => ({ locationId: x.proyecto.ghl_location_id as string, token: x.token })).catch(() => undefined);
       const wf = await avanzarEjecuciones(proyectoId, { limite: Math.max(0, MAX_LEADS_POR_LECTURA - usados), ghl });
       wfHechas = wf.hechas;
-      if (wf.errores.length) console.error("[ghl-leer] workflows", proyectoId, wf.errores.slice(0, 3).join(" | "));
+      if (wf.errores.length) await anotar("workflows", wf.errores.slice(0, 3));
     } catch (e) {
-      console.error("[ghl-leer] workflows", proyectoId, e instanceof Error ? e.message : e);
+      await anotar("workflows", [motivo(e)]);
     }
     return leerLeads(proyectoId);
   };
   const [citas, leads] = await Promise.allSettled([sincronizarCalendarios(proyectoId), enviarYLeer()]);
-  if (citas.status === "fulfilled" && citas.value.errores.length) console.error("[ghl-leer] citas", proyectoId, citas.value.errores.slice(0, 3).join(" | "));
-  if (citas.status === "rejected") console.error("[ghl-leer] citas", proyectoId, citas.reason instanceof Error ? citas.reason.message : citas.reason);
-  if (leads.status === "fulfilled" && (leads.value.errores.length || leads.value.avisos.length)) console.error("[ghl-leer] leads", proyectoId, [...leads.value.errores, ...leads.value.avisos].slice(0, 3).join(" | "));
-  if (leads.status === "rejected") console.error("[ghl-leer] leads", proyectoId, leads.reason instanceof Error ? leads.reason.message : leads.reason);
+  if (citas.status === "fulfilled" && citas.value.errores.length) await anotar("citas", citas.value.errores.slice(0, 3));
+  // Si la lectura de citas revienta entera, ghl_ultimo_resultado no se actualiza: el error queda aquí
+  if (citas.status === "rejected") await anotar("citas", [motivo(citas.reason)]);
+  if (leads.status === "fulfilled" && (leads.value.errores.length || leads.value.avisos.length)) await anotar("leads", [...leads.value.errores, ...leads.value.avisos].slice(0, 3));
+  if (leads.status === "rejected") await anotar("leads", [motivo(leads.reason)]);
   // Medición (plan GHL 4.5): una línea por lectura, sin datos personales (null = esa parte falló)
   const en = envios as ResultadoEnvios | null;
   console.log(`[ghl-leer] medicion proyecto=${proyectoId} ms=${Date.now() - inicio} enviados=${en?.enviados ?? null} errores=${en?.errores.length ?? null} workflows=${wfHechas} citas_nuevas=${citas.status === "fulfilled" ? citas.value.nuevas : null}`);
