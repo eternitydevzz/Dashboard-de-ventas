@@ -19,6 +19,7 @@ import type { RolPermiso } from "@/lib/permisos-constantes";
 import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
 import type { Rol } from "@/lib/tipos";
 import { mandarEnlace } from "@/lib/acceso";
+import { reordenar } from "@/lib/orden-entradas";
 
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
 type Res = { ok?: string; error?: string } | null;
@@ -798,6 +799,23 @@ export async function guardarCalendariosProyecto(ids: string[]) {
       if (!limpios.includes(id)) limpios.push(id);
     }
     await escribir(db().from("proyectos").update({ ghl_calendarios: limpios }).eq("id", proyecto.id), "proyectos");
+    refrescar();
+  });
+}
+
+// ---------- Orden de las Entradas (plan GHL 2.8) ----------
+// Intercambia con la vecina y reescribe `orden` de todas (0,1,2…) para que no haya empates
+export async function moverEntrada(id: string, direccion: "arriba" | "abajo") {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const { data } = await db().from("entradas").select("id").eq("proyecto_id", proyecto.id).order("orden").order("creado_en");
+    const actual = (data ?? []).map((e: { id: string }) => e.id);
+    if (!actual.includes(id)) throw new ErrorUsuario("Entrada no encontrada.");
+    const nuevo = reordenar(actual, id, direccion);
+    if (!nuevo) throw new ErrorUsuario(direccion === "arriba" ? "Ya es la primera." : "Ya es la última.");
+    for (const [orden, eid] of nuevo.entries()) {
+      await escribir(db().from("entradas").update({ orden }).eq("id", eid).eq("proyecto_id", proyecto.id), "entradas");
+    }
     refrescar();
   });
 }
