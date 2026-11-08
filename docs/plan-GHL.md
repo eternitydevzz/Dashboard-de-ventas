@@ -21,7 +21,6 @@
 - [ ] Rellenar o descartar el aviso de GHL que pide el **Tax ID** de la cuenta.
 
 ## 2 · Lo que hace Claude, en orden
-- [ ] **Relanzar la prueba de integración del PR #71** (falló al descargar Supabase, error 504 de GitHub; los tests no llegaron a correr).
 - [ ] **Bloquear el bucle** cuando Cristian elija la forma (ver punto 5).
 - [ ] **Vigilar 24 h la landing software-demo** en real (Administración → Workflows → historial; Entradas sin rojos). Si algo va mal: «Volver a lo de hoy» en su tarjeta.
 - [ ] **software-demo:** los que reservan → columna «Agenda» y etiqueta `agenda-demo` (dashboard y GHL). Necesita el disparador «se agenda una cita» (fase 4d): plan corto propio antes.
