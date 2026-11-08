@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 28 (7 nov 2026, 23:15 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
+> Versión 29 (8 nov 2026, 00:00 UTC). **Solo lo que falta**, en orden. Cada punto se explica solo, sin depender del chat.
 > Lo hecho (fases 0 a 3 y A, B y C, con todas sus pruebas) está en git: `git show fe672d9:docs/plan-GHL.md`.
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero).
@@ -29,7 +29,7 @@ Todo publicado en dashboard.eternity.llc, con tests primero y en verde en GitHub
 ## Lo que queda ahora (en orden)
 **Cristian (en GHL y en el dashboard):**
 - [x] **Columnas de GHL de «1. Biblioteca Recursos» renombradas** por Claude (Cristian, 7 nov: «haz tú todo»): «Form incompleto», «Form completo» y «Agendados». Comprobado tras recargar; los ids no cambian.
-- [x] **Calendario de GHL de cada closer** puesto por Claude (Cristian, 7 nov: «Todos: Calendar Principal»): Cristian Ortiz y Junior Closer con «0. Calendar Principal» (`X7qpsbS2ChORZkwO4O3f`). Lucas Gonzalez Diaz no es closer en el dashboard: no se le puso. Sin riesgo de mezclar citas: Maestria lee las citas por sus 4 calendarios y las reparte por usuario asignado (`ghl-sync.ts`). **No comprobado:** que Junior Closer esté dentro de ese calendario en GHL (lo dirá la prueba de agendar).
+- [x] **Calendario de GHL de cada closer** puesto por Claude (Cristian, 7 nov: «Todos: Calendar Principal»): Cristian Ortiz y Junior Closer con «0. Calendar Principal» (**Junior Closer está fuera del proyecto**, Cristian 8 nov: su calendario no cuenta y no hay nada que comprobar con él) (`X7qpsbS2ChORZkwO4O3f`). Lucas Gonzalez Diaz no es closer en el dashboard: no se le puso. Sin riesgo de mezclar citas: Maestria lee las citas por sus 4 calendarios y las reparte por usuario asignado (`ghl-sync.ts`). **No comprobado:** que Junior Closer esté dentro de ese calendario en GHL (lo dirá la prueba de agendar).
 - [ ] Comprobar que la integración de GHL tiene el permiso de **escribir en calendarios** (`calendars/events.write`).
 - [ ] Borrar los leads de prueba (dashboard y GHL): «Prueba Workflow 1» (`info+wf1@eternity.llc`), «Prueba JsonVuno Siete/Ocho/Nueve» (`info+bib7`, `info+bib8`, `info+bib9@eternity.llc`) y los de antes (ver «Lo que hace Cristian»).
 - [ ] **software-demo:** borrar «Prueba Servicios Cinco» (`info+servicios5@eternity.llc`, 201-555-0115) en el dashboard y en GHL (contacto `r37qg6twsiPhcXbopBIy` y su oportunidad en DFY). servicios1-4 ya están borrados (no llegaron a GHL).
@@ -245,9 +245,23 @@ Una cada vez, con tests primero, **un PR por mejora** y comprobación.
 - [x] **Aviso `leads_pkey` en los tests de integración.** *Cerrado el 7 nov sin cambiar código:* lo provoca a propósito `tests/integracion/seguridad.test.ts:177` (comprueba que un error interno no se enseña al usuario). No puede pasar en producción por esto. El registro de GitHub enseña `[acción] error inesperado: duplicate key value violates unique constraint "leads_pkey"`. No hace fallar ningún test y también sale en `main` antes del panel (run `42373520151`). Buscar qué test lo provoca y si es solo del test o puede pasar en producción.
 - [ ] **El formulario de Entradas «se resetea solo».** Visto el 7 nov; no se pudo repetir (149 s sin perder nada, con clics normales). Hipótesis sin comprobar: ese día hubo 12 publicaciones en Vercel (PR #21 a #32) y, cuando la página abierta es de una publicación anterior, Next.js recarga la página entera (`node_modules/next/dist/docs/01-app/02-guides/self-hosting.md`, «Version Skew»). Desde el panel, si hay cambios sin guardar, el navegador avisa antes de recargar. Si vuelve a pasar: mirar si coincidió con una publicación.
 - [x] **Reintentos cada 1 min de verdad.** *Hecho el 7 nov (PR #68):* la lectura va cada 30 s y la del minuto puede llegar un pelo antes de los +60 s; ahora +50 s, en Entradas y workflows, con test. Se vio el 6 nov que van cada 2 min. Arreglo propuesto: programar el siguiente intento a +50 s (hoy +60 s, `REINTENTAR_EN` en `src/lib/ghl-envios.ts`). Comprobar la causa con un test antes de cambiarlo.
-- [ ] **Bloquear el bucle.** *(Necesita una columna nueva en `entradas`: cambio de esquema, se pregunta a Cristian antes.)* *Qué es:* una Entrada puede recibir leads desde un workflow de GHL (como la vieja «GHL · Biblioteca»). Si además tuviera «Mandar a GHL» encendido, el dashboard escribiría en el contacto de GHL, eso podría volver a disparar el workflow, que mandaría otra vez al dashboard, y así sin parar (muchas llamadas y quizá cobros). Hoy no pasa (esa Entrada está desactivada). *Decidido:* (1) interruptor en la Entrada «La alimenta un workflow de GHL»; si está encendido, no deja encender «Mandar a GHL»; (2) **email a info@eternity.llc** en los dos casos: cuando alguien intenta encender «Mandar a GHL» en una Entrada marcada (y se bloquea) y cuando el dashboard ve que pasa de verdad (el mismo lead entra desde GHL justo después de que el dashboard se lo mandara).
+- [ ] **Bloquear el bucle** (decidido por Cristian; explicado el 8 nov). Ver «Bloquear el bucle: cómo se haría».
 
 ---
+
+## Bloquear el bucle: cómo se haría (pendiente del OK de Cristian al cambio en la base)
+**El problema, en sencillo.** Una Entrada puede recibir leads de dos sitios: de una **web** (lo normal) o de un **workflow de GHL** (como la vieja «GHL · Biblioteca», hoy apagada). Si una Entrada que recibe de GHL **también manda a GHL** («Mandar a GHL» encendido o su workflow del dashboard en real), se forma un círculo: el dashboard escribe en el contacto de GHL → eso puede volver a disparar el workflow de GHL → GHL manda el lead otra vez al dashboard → el dashboard vuelve a escribir en GHL… sin parar (muchas llamadas y quizá cobros). **Hoy no pasa**: ninguna Entrada activa recibe de GHL (comprobado el 8 nov: las 2 que lo hacían, «GHL · Biblioteca» y «Prueba GHL», están apagadas).
+
+**Dónde va (lo que se ve).** En **Administración → Entradas → tarjeta de la Entrada → «Cambiar ajustes»**, la pregunta que ya existe **«¿Desde dónde manda los datos?»** (hoy: «Desde la página (navegador)» o «Desde un servidor») gana una tercera opción: **«Desde un workflow de GHL»**. También al crear una Entrada nueva («Conectar una landing nueva», pregunta 4). No hay interruptor nuevo: es la misma pregunta con una opción más.
+
+**Qué hace.**
+1. Si la Entrada está marcada «Desde un workflow de GHL», el dashboard **no deja** encender «Mandar a GHL» ni pasar su workflow a real: sale el aviso «Esta Entrada recibe de GHL: mandar a GHL haría un bucle» y **se manda un email a info@eternity.llc** («alguien intentó encender…», con la Entrada y quién fue).
+2. Si de verdad pasa (el mismo lead vuelve a entrar desde GHL menos de 10 min después de que el dashboard se lo mandara), **email a info@eternity.llc** con la Entrada y el lead. Como mucho un email por Entrada y hora, para no llenar el correo.
+3. En esas Entradas no se guarda la IP (sería la de GHL, no la de la persona): ya funciona así con lo que no es «navegador».
+
+**El cambio en la base (por eso se pregunta antes).** Hoy la base solo deja guardar «navegador» o «servidor» en ese campo (`20261107140000_panel_entradas.sql:9`, una regla `check`). Hace falta una migración pequeña que **cambie esa regla para permitir también «ghl»**. No se crea ninguna columna, no se borra nada y las Entradas de hoy no cambian. *(La otra forma, una columna nueva «La alimenta un workflow de GHL» con su interruptor, hace lo mismo pero añade un interruptor más; Claude recomienda la del campo que ya existe.)*
+
+**Pasos (con el OK):** tests primero (no deja encender, email en los 2 casos, IP) → migración → código → PR → GitHub en verde → migración en producción antes de publicar → merge → comprobar en producción con la Entrada apagada «Prueba GHL».
 
 ## Lo que hace Cristian (Claude no puede)
 - [ ] Borrar en GHL los contactos de prueba y sus oportunidades: «Prueba GHL Claude» (`info+pruebaghl@eternity.llc`) y «Prueba Biblioteca 1» a «6» (`info+bib1@` … `info+bib6@eternity.llc`). Sus citas (bib1 y bib6 el 12 nov, bib5 el 7 nov) ya están canceladas.
