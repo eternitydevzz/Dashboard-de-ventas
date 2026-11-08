@@ -26,6 +26,7 @@ import { reordenar } from "@/lib/orden-entradas";
 import { tablaValida } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
 import { PIPELINE_ETIQUETA } from "@/lib/ghl-leads";
+import { borrarEtiquetaGhl, renombrarEtiquetaGhl } from "@/lib/ghl";
 
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
 type Res = { ok?: string; error?: string } | null;
@@ -940,10 +941,37 @@ export async function renombrarEtiqueta(de: unknown, a: unknown) {
     const d = etiquetaValida(de, true);
     const n = a === null ? null : etiquetaValida(a, true);
     if (n === d) throw new ErrorUsuario("Pon un nombre distinto.");
+    // Revisión de B3a: la base de una Entrada no se renombra ni se une aquí (sus leads llevan <base>-completo/-incompleto)
+    if (n !== null) {
+      const { data: ents } = await db().from("entradas").select("nombre, ghl_etiqueta_base").eq("proyecto_id", proyecto.id);
+      const ent = (ents ?? []).find((x: { ghl_etiqueta_base: string | null }) => etiquetaLimpia(x.ghl_etiqueta_base) === d);
+      if (ent) throw new ErrorUsuario(`Es la etiqueta base de la Entrada «${ent.nombre}»: cámbiala en «Qué hacer en GHL» de la Entrada.`);
+    }
     await escribir(db().rpc("renombrar_etiqueta", { p_proyecto: proyecto.id, p_de: d, p_a: n }), "etiquetas");
     refrescar();
-    return { ok: true as const };
+    return { ok: true as const, ...(await etiquetaEnGhl(proyecto.id, d, n)) };
   });
+}
+
+// B3b (Cristian, 8 nov): lo mismo en GHL, después de la base y solo con GHL conectado. Si GHL falla, la base ya cambió:
+// se dice en el aviso y no se deshace. Unir cambia como mucho MAX_UNIR_GHL contactos por pulsación (≈ 250 ms cada uno,
+// para caber en el tiempo de la acción); repetir la misma acción sigue (en la base ya no hace nada).
+const MAX_UNIR_GHL = 200;
+async function etiquetaEnGhl(proyectoId: string, de: string, a: string | null): Promise<{ aviso?: string; faltan?: number }> {
+  const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyectoId).single();
+  const vuelve = `En GHL sigue «${de}»: si GHL vuelve a mandar uno de esos leads, «${de}» puede volver.`;
+  if (!p?.ghl_token || !p.ghl_location_id) return { aviso: `Este proyecto no tiene GHL conectado. ${vuelve}` };
+  try {
+    const o = { token: descifrar(p.ghl_token, "el token de GHL"), locationId: p.ghl_location_id };
+    if (a === null) {
+      await borrarEtiquetaGhl({ ...o, nombre: de });
+      return {};
+    }
+    const { faltan } = await renombrarEtiquetaGhl({ ...o, de, a, max: MAX_UNIR_GHL });
+    return faltan ? { faltan, aviso: `En GHL faltan ${faltan} contactos por unir: pulsa «Seguir uniendo en GHL».` } : {};
+  } catch (e) {
+    return { aviso: `En el dashboard ya está hecho, pero en GHL no: ${e instanceof Error ? e.message : "error desconocido."} No se ha deshecho nada. ${vuelve}` };
+  }
 }
 
 // Guarda el orden de la lista entera (las de los leads también pasan a tener fila; la marca «usada por GHL» no cambia)
