@@ -1,6 +1,6 @@
 // Plan GHL (16 oct): el canal de cada cita sale del UTM o de la página de agenda. Ejemplos sacados de citas reales.
 import { describe, expect, it } from "vitest";
-import { CANALES_POR_DEFECTO, canalDeOrigen, limpiarUrl, nombreCanal } from "@/lib/canal";
+import { CANALES_POR_DEFECTO, canalDeOrigen, limpiarUrl, nombreCanal, type TablaCanales } from "@/lib/canal";
 
 describe("canalDeOrigen", () => {
   it("lee utm_source de la página", () => {
@@ -57,18 +57,21 @@ describe("canalDeOrigen", () => {
   });
 
   it("con otra tabla manda la tabla (Plan GHL, B2a)", () => {
-    const tabla = {
-      alias: { tiktok: "ig" as const },
-      paginas: { "agenda-tt": "ig" as const },
-      dominios: {},
-      fijas: { "codigomaestria.com/agenda-yt": "facu" as const },
-    };
+    // Filas como las de B2b: «dominio/ruta» gana al UTM; «dominio» solo vale sin UTM; «ruta» es página vieja
+    const tabla: TablaCanales = [
+      { clave: "ig", nombre: "Instagram", alias: ["TikTok"], paginas: ["agenda-tt", "ig.ejemplo.com"] },
+      { clave: "facu", nombre: "Facu", alias: [], paginas: ["codigomaestria.com/agenda-yt"] },
+    ];
     expect(canalDeOrigen(null, "tiktok", tabla)).toBe("ig");
     expect(canalDeOrigen(null, "yt", tabla)).toBe("otro"); // ya no está en la tabla
-    expect(canalDeOrigen("https://codigomaestria.com/agenda-tt", null, tabla)).toBe("ig");
+    expect(canalDeOrigen("https://codigomaestria.com/agenda-tt/", null, tabla)).toBe("ig");
+    expect(canalDeOrigen("https://codigomaestria.com/agenda-tt?utm_source=facebook", null, tabla)).toBe("otro");
+    expect(canalDeOrigen("https://ig.ejemplo.com/hola", null, tabla)).toBe("ig");
+    expect(canalDeOrigen("https://ig.ejemplo.com/hola?utm_source=raro", null, tabla)).toBe("otro");
     expect(canalDeOrigen("https://codigomaestria.com/agenda-yt?utm_source=ig", null, tabla)).toBe("facu");
     expect(canalDeOrigen("https://biblioteca.codigomaestria.com/recursos", null, tabla)).toBe("directo");
     expect(canalDeOrigen(null, "yt", CANALES_POR_DEFECTO)).toBe("yt");
+    expect(CANALES_POR_DEFECTO.find((c) => c.clave === "dfy")).toEqual({ clave: "dfy", nombre: "DFY", alias: ["dfy"], paginas: ["services.eternity.llc/software-demo"] });
   });
 
   it("la página se guarda sin datos personales (solo la ruta y los utm)", () => {

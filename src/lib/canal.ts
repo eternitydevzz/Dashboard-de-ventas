@@ -27,34 +27,31 @@ export const PREFIJO_ETIQUETA = "Canal: ";
 export const SIN_CANAL = "sin_canal"; // valor del filtro para las citas sin canal (las de antes del 13 oct)
 export const etiquetaCanal = (c: Canal) => `${PREFIJO_ETIQUETA}${NOMBRE_CANAL[c]}`;
 
-// Lo que puede venir en utm_source (en minúsculas). «bibliotec»: errata vista en un link real (15 oct).
-const ALIAS: Record<string, Canal> = {
-  callers: "callers",
-  caller: "callers",
-  yt: "yt",
-  youtube: "yt",
-  ig: "ig",
-  instagram: "ig",
-  p1: "p1",
-  email: "email",
-  mail: "email",
-  biblioteca: "biblioteca",
-  bibliotec: "biblioteca",
-  "agenda-biblioteca": "biblioteca", // Plan GHL, A (Cristian, 7 nov): lo que manda la agenda de la Biblioteca
-  webinar: "webinar",
-  dfy: "dfy",
-};
+// Una fila por canal, como las guardará B2b (el orden de la lista es el orden). `alias`: lo que puede venir en
+// utm_source (sin mayúsculas). `paginas`: «dominio/ruta» gana al UTM (Cristian, 8 nov: agenda-fc y software-demo);
+// «dominio» (con punto) vale solo sin UTM; «ruta» (sin punto) es una página vieja de agenda, sin UTM.
+export type TablaCanales = { clave: Canal; nombre: string; alias: string[]; paginas: string[] }[];
 
-// Páginas viejas de agenda (sin UTM)
-const PAGINAS: Record<string, Canal> = { "agenda-yt": "yt", "agenda-ig": "ig", "agenda-callers": "callers" };
-// Cristian, 27 oct: lo que se reserva en la web de la Biblioteca es canal Biblioteca aunque no lleve UTM
-const DOMINIOS: Record<string, Canal> = { "biblioteca.codigomaestria.com": "biblioteca" };
+const fila = (clave: Canal, alias: string[], paginas: string[] = []) => ({ clave, nombre: NOMBRE_CANAL[clave], alias, paginas });
 
-// Páginas que mandan sobre el utm_source (host/ruta)
-const PAGINAS_FIJAS: Record<string, Canal> = { "codigomaestria.com/agenda-fc": "facu", "services.eternity.llc/software-demo": "dfy" };
+// Semilla de B2b. «bibliotec»: errata vista en un link real (15 oct). «agenda-biblioteca»: lo que manda la agenda de la
+// Biblioteca (Cristian, 7 nov). biblioteca.codigomaestria.com es Biblioteca aunque no lleve UTM (Cristian, 27 oct).
+export const CANALES_POR_DEFECTO: TablaCanales = [
+  fila("callers", ["callers", "caller"], ["agenda-callers"]),
+  fila("yt", ["yt", "youtube"], ["agenda-yt"]),
+  fila("ig", ["ig", "instagram"], ["agenda-ig"]),
+  fila("p1", ["p1"]),
+  fila("email", ["email", "mail"]),
+  fila("biblioteca", ["biblioteca", "bibliotec", "agenda-biblioteca"], ["biblioteca.codigomaestria.com"]),
+  fila("webinar", ["webinar"]),
+  fila("dfy", ["dfy"], ["services.eternity.llc/software-demo"]),
+  fila("facu", [], ["codigomaestria.com/agenda-fc"]),
+];
 
-export type TablaCanales = { alias: Record<string, Canal>; paginas: Record<string, Canal>; dominios: Record<string, Canal>; fijas: Record<string, Canal> };
-export const CANALES_POR_DEFECTO: TablaCanales = { alias: ALIAS, paginas: PAGINAS, dominios: DOMINIOS, fijas: PAGINAS_FIJAS };
+// Primer canal de la tabla con un valor de `lista` igual a `v` (sin mayúsculas)
+function buscar(tabla: TablaCanales, lista: (c: TablaCanales[number]) => string[], v: string) {
+  return tabla.find((c) => lista(c).some((x) => x.toLowerCase() === v))?.clave;
+}
 
 function leerUrl(url: string) {
   try {
@@ -68,13 +65,16 @@ function leerUrl(url: string) {
 // `tabla`: los canales como dato (Plan GHL, B2a); sin ella, los de siempre. Aquí no se lee la base: lo importa un cliente.
 export function canalDeOrigen(url?: string | null, utmSource?: string | null, tabla: TablaCanales = CANALES_POR_DEFECTO): Canal | null {
   const u = url?.trim() ? leerUrl(url.trim()) : null;
-  const fija = u && tabla.fijas[`${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, "").toLowerCase()}`];
+  const fijas = (c: TablaCanales[number]) => c.paginas.filter((p) => p.includes("/"));
+  const fija = u && buscar(tabla, fijas, `${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, "").toLowerCase()}`);
   if (fija) return fija;
   const utm = (utmSource?.trim() || u?.searchParams.get("utm_source")?.trim() || "").toLowerCase();
-  if (utm) return tabla.alias[utm] ?? "otro";
+  if (utm) return buscar(tabla, (c) => c.alias, utm) ?? "otro";
   if (!u) return null;
   const pagina = u.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
-  return tabla.paginas[pagina] ?? tabla.dominios[u.hostname.toLowerCase()] ?? "directo";
+  const rutas = (c: TablaCanales[number]) => c.paginas.filter((p) => !p.includes("/") && !p.includes("."));
+  const dominios = (c: TablaCanales[number]) => c.paginas.filter((p) => !p.includes("/") && p.includes("."));
+  return buscar(tabla, rutas, pagina) ?? buscar(tabla, dominios, u.hostname.toLowerCase()) ?? "directo";
 }
 
 // Para guardar la página sin datos personales: el widget de GHL lleva nombre, email y teléfono en la dirección.
