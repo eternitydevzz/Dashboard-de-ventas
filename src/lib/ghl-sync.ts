@@ -17,6 +17,10 @@ export type ResultadoSync = { nuevas: number; actualizadas: number; canceladas: 
 const DIA = 86_400_000;
 // Plan GHL (16 oct): como mucho, cuántas citas que ya no vienen se comprueban una a una en cada lectura
 const MAX_COMPROBAR = 25;
+// Plan GHL 4.5: citas nuevas creadas por lectura (cada una lee su contacto de GHL y hace ~10 consultas); el resto, en
+// la siguiente: siguen dentro de la ventana de fechas (desde/hasta) y, como no están en la app, se vuelven a ver como
+// nuevas. Como MAX_NUEVOS del espejo: solo cuentan las creadas (una sin lead no se come el tope en cada lectura).
+export const MAX_CITAS_NUEVAS = 20;
 
 // De dónde se leen las citas. Plan GHL (16 oct): por calendario (los elegidos en el proyecto; el closer sale del
 // usuario de GHL de cada cita). Sin calendarios elegidos, como antes: el calendario o el usuario de cada closer.
@@ -178,6 +182,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         await sinUnir("invalida");
         continue;
       }
+      if (r.nuevas >= MAX_CITAS_NUEVAS) continue;
 
       // Por calendario: la cita va a General (Cristian, 17 oct). Por closer (como antes, 13 oct): al pipeline donde
       // GHL tiene su oportunidad en «Agendan» (una vez por contacto).
