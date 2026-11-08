@@ -178,15 +178,15 @@ describe("renombrarEtiqueta (acción): primero la base y después GHL", () => {
     expect(llamadas[0].cabeceras.Authorization).toBe("Bearer tok");
   });
 
-  it("unir: como mucho 200 contactos; dice cuántos faltan (se puede volver a pulsar)", async () => {
+  it("unir: como mucho 100 contactos; dice cuántos faltan (se puede volver a pulsar)", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout"] });
-    const contactos = Array.from({ length: 203 }, (_, i) => ({ id: `c${i}` }));
+    const contactos = Array.from({ length: 103 }, (_, i) => ({ id: `c${i}` }));
     const { f, resumen } = falso((l) => lista(l) ?? (l.url.pathname === "/contacts/search" ? Response.json({ contacts: contactos }) : ok(l)));
     vi.stubGlobal("fetch", f);
     const r = renombrarEtiqueta("agenda vieja", "agenda nueva");
     await vi.runAllTimersAsync();
     expect(await r).toEqual({ ok: true, faltan: 3, aviso: expect.stringMatching(/faltan 3 contactos/) });
-    expect(resumen().filter((x) => x.startsWith("POST /contacts/c"))).toHaveLength(200);
+    expect(resumen().filter((x) => x.startsWith("POST /contacts/c"))).toHaveLength(100);
     expect(resumen()).not.toContain("DELETE /locations/loc/tags/t1");
   });
 

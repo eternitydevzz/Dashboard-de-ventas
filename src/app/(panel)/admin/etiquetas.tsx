@@ -17,7 +17,7 @@ const MARCA_GHL = " Está marcada «usada por GHL».";
 export function EditorEtiquetas({ inicial }: { inicial: EtiquetaFila[] }) {
   const [filas, setFilas] = useState(inicial);
   const [nueva, setNueva] = useState("");
-  // Unir en GHL va de 200 en 200 contactos: si faltan, se repite la misma acción (en la base ya no hace nada)
+  // Unir en GHL va de 100 en 100 contactos: si faltan, se repite la misma acción (en la base ya no hace nada)
   const [seguir, setSeguir] = useState<{ de: string; a: string; faltan: number } | null>(null);
   const { pendiente, error, ejecutar } = useAccion();
   const movida = filas.some((f, i) => f.nombre !== inicial[i]?.nombre);

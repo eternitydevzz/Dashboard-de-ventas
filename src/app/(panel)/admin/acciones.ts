@@ -956,7 +956,7 @@ export async function renombrarEtiqueta(de: unknown, a: unknown) {
 // B3b (Cristian, 8 nov): lo mismo en GHL, después de la base y solo con GHL conectado. Si GHL falla, la base ya cambió:
 // se dice en el aviso y no se deshace. Unir cambia como mucho MAX_UNIR_GHL contactos por pulsación (≈ 250 ms cada uno,
 // para caber en el tiempo de la acción); repetir la misma acción sigue (en la base ya no hace nada).
-const MAX_UNIR_GHL = 200;
+const MAX_UNIR_GHL = 100; // ~250 ms por contacto: 100 ≈ 25 s, lejos del límite de la acción
 async function etiquetaEnGhl(proyectoId: string, de: string, a: string | null): Promise<{ aviso?: string; faltan?: number }> {
   const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyectoId).single();
   const vuelve = `En GHL sigue «${de}»: si GHL vuelve a mandar uno de esos leads, «${de}» puede volver.`;
