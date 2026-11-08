@@ -91,7 +91,9 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
 
     // 4 · El envío queda unido a su lead
     const q = db().from("leads").select("id").eq("proyecto_id", proyecto.id);
-    const { data: guardado } = await (lead.email ? q.eq("email", lead.email) : q.eq("telefono", lead.telefono!)).order("creado_en", { ascending: false }).limit(1).maybeSingle();
+    const { data: guardado, error: errGuardado } = await (lead.email ? q.eq("email", lead.email) : q.eq("telefono", lead.telefono!)).order("creado_en", { ascending: false }).limit(1).maybeSingle();
+    // Sin esto el envío se quedaría sin GHL ni workflow en silencio; el catch de abajo responde 500
+    if (errGuardado) throw new Error(`No se pudo buscar el lead guardado: ${errGuardado.message}`);
     // 5 · Plan GHL, fase 1 (Cristian, 6 nov 2026): si la Entrada manda a GHL, el envío espera (1 min por defecto) por
     // si llega el cuestionario; lo manda la lectura de cada 60 s (src/lib/ghl-envios.ts), un solo envío por lead.
     const ghl = entrada.ghl_activo && guardado?.id ? { ghl_estado: "esperando", ghl_enviar_en: new Date(Date.now() + (entrada.ghl_espera_seg ?? 60) * 1000).toISOString() } : {};
