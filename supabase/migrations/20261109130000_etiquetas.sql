@@ -168,9 +168,10 @@ begin
     select p.id, v.nombre, v.orden, true
     from public.proyectos p
     cross join (values
-      ('form llamada youtube', 0), ('form llamada biblioteca', 1), ('form llamada instagram', 2), ('form llamada p1', 3),
-      ('form llamada callers', 4), ('form llamada email', 5), ('form llamada webinar', 6), ('form llamada dfy', 7),
-      ('rellena form llamada', 8), ('agenda biblioteca', 9), ('agenda llamada', 10)
+      -- nombres leídos en los workflows de GHL (C0, 8 nov): «2 . WH - FORM AGENDA GENERAL», «2.1 … FACU» y «2. Agendan llamada»
+      ('form llamada youtube', 0), ('form llamada instagram', 1), ('form llamada p1', 2), ('form llamada callers', 3),
+      ('agenda biblioteca', 4), ('agenda email', 5), ('webinar agenda', 6), ('agenda dfy', 7),
+      ('rellena form llamada', 8), ('agenda llamada', 9), ('agenda callers', 10), ('agenda facu', 11)
     ) as v(nombre, orden)
     where p.ghl_location_id = 'ZGWJLBH58RJtl2iGhykp'
     on conflict (proyecto_id, nombre) do update set usada_ghl = true;
