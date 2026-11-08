@@ -273,9 +273,12 @@ describe("Plan GHL (16 oct): por calendario, con el canal del UTM", () => {
     expect((await cita(`${e.pref}-f1`))!.closer_id).toBeNull();
 
     await db.from("perfiles").update({ tambien_closer: true }).eq("id", e.p.callerA.id);
+    como(e, e.p.ceo);
+    await ok(guardarCalendarioCloser(e.p.callerA.id, "", "u-F")); // con el interruptor ya se le puede guardar su usuario de GHL
     eventos = [{ id: `${e.pref}-f2`, calendarId: "cal-principal", contactId: `${e.pref}-cF2`, assignedUserId: "u-F", startTime: "2026-10-29T10:00:00-04:00", appointmentStatus: "confirmed" }];
     await sync();
     await db.from("perfiles").update({ tambien_closer: false }).eq("id", e.p.callerA.id);
+    await db.from("miembros_proyecto").update({ ghl_user_id: null }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.callerA.id);
     expect((await cita(`${e.pref}-f2`))!.closer_id).toBe(e.p.callerA.id);
   });
 });

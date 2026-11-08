@@ -712,7 +712,7 @@ export async function guardarConexionGhl(token: string, locationId: string) {
 export async function guardarCalendarioCloser(perfilId: string, calendarId: string, userId: string) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
-    const { data } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).eq("perfiles.rol", "closer").maybeSingle();
+    const { data } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }).maybeSingle(); // E1: también closer
     if (!data) throw new ErrorUsuario("Esa persona no es closer de este proyecto.");
     await escribir(db().from("miembros_proyecto").update({ ghl_calendar_id: calendarId.trim() || null, ghl_user_id: userId.trim() || null }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId), "miembros_proyecto");
     refrescar();
