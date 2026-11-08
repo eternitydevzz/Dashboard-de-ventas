@@ -1,8 +1,9 @@
 // Plan GHL (Cristian, 16 oct 2026): cada cita se mide por el UTM de la página donde reservó
 // (`codigomaestria.com/agenda?utm_source=yt`). Las páginas viejas (`/agenda-yt`, `/agenda-ig`) valen igual.
+// Excepción (Cristian, 8 nov): en `agenda-fc` (Facu) y `software-demo` (DFY) gana la página, aunque traiga utm_source.
 // Sin UTM = «directo». Un UTM que no es de la lista = «otro» (la página queda guardada en la cita).
 
-export const CANALES = ["callers", "yt", "ig", "p1", "email", "biblioteca", "webinar", "dfy", "directo", "otro"] as const;
+export const CANALES = ["callers", "yt", "ig", "p1", "email", "biblioteca", "webinar", "dfy", "facu", "directo", "otro"] as const;
 export type Canal = (typeof CANALES)[number];
 
 export const NOMBRE_CANAL: Record<Canal, string> = {
@@ -14,6 +15,7 @@ export const NOMBRE_CANAL: Record<Canal, string> = {
   biblioteca: "Biblioteca",
   webinar: "Webinar",
   dfy: "DFY",
+  facu: "Facu",
   directo: "Directo",
   otro: "Otro",
 };
@@ -48,6 +50,9 @@ const PAGINAS: Record<string, Canal> = { "agenda-yt": "yt", "agenda-ig": "ig", "
 // Cristian, 27 oct: lo que se reserva en la web de la Biblioteca es canal Biblioteca aunque no lleve UTM
 const DOMINIOS: Record<string, Canal> = { "biblioteca.codigomaestria.com": "biblioteca" };
 
+// Páginas que mandan sobre el utm_source (host/ruta)
+const PAGINAS_FIJAS: Record<string, Canal> = { "codigomaestria.com/agenda-fc": "facu", "services.eternity.llc/software-demo": "dfy" };
+
 function leerUrl(url: string) {
   try {
     return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
@@ -59,6 +64,8 @@ function leerUrl(url: string) {
 // `url`: página desde la que reservó · `utmSource`: el que GHL ya separó (si viene). Sin ninguno de los dos: null.
 export function canalDeOrigen(url?: string | null, utmSource?: string | null): Canal | null {
   const u = url?.trim() ? leerUrl(url.trim()) : null;
+  const fija = u && PAGINAS_FIJAS[`${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, "").toLowerCase()}`];
+  if (fija) return fija;
   const utm = (utmSource?.trim() || u?.searchParams.get("utm_source")?.trim() || "").toLowerCase();
   if (utm) return ALIAS[utm] ?? "otro";
   if (!u) return null;
