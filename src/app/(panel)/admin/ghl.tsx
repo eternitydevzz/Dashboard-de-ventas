@@ -21,7 +21,7 @@ export function ConexionGhl({ locationId, tieneToken }: { locationId: string; ti
       <div>
         <label className="etiqueta-campo" htmlFor="ghl-private-integration-token-ajus">Private Integration Token (Ajustes → Private Integrations en GHL)</label>
         <input id="ghl-private-integration-token-ajus" name="token" type="password" autoComplete="off" className="campo" placeholder={tieneToken ? "•••••••• guardado (déjalo vacío para no cambiarlo)" : "pit-…"} />
-        <p className="mt-1 text-xs text-texto-3">Permisos que necesita: <code>calendars/events.readonly</code>, <code>contacts.readonly</code> y <code>conversations/message.readonly</code> (para las llamadas).</p>
+        <p className="mt-1 text-xs text-texto-3">Qué usa la app — lectura: calendarios y citas (<code>calendars.readonly</code>, <code>calendars/events.readonly</code>), contactos (<code>contacts.readonly</code>), conversaciones (<code>conversations/message.readonly</code>), oportunidades (<code>opportunities.readonly</code>), campos (<code>locations/customFields.readonly</code>); escritura: <code>contacts.write</code>, <code>opportunities.write</code>, <code>calendars/events.write</code>. La integración «App Eternity (dashboard)» tiene todos los permisos por decisión de Cristian (8 nov 2026).</p>
       </div>
       <label className="block"><span className="etiqueta-campo">Id de la subcuenta (Location ID)</span><input name="location" required defaultValue={locationId} className="campo" /></label>
       <div className="flex flex-wrap gap-2">
