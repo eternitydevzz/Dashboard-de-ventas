@@ -133,8 +133,10 @@ async function avisarSiVuelve(entrada: Entrada, leadId: string) {
   const hace10 = new Date(Date.now() - 10 * 60_000).toISOString();
   const [ev, ej] = await Promise.all([
     db().from("webhook_eventos").select("id").eq("lead_id", leadId).eq("ghl_estado", "ok").gte("ghl_enviar_en", hace10).limit(1),
-    db().from("workflow_ejecuciones").select("id").eq("lead_id", leadId).contains("registro", [{ modo: "real" }]).gte("actualizado_en", hace10).limit(1),
+    db().from("workflow_ejecuciones").select("id").eq("lead_id", leadId).contains("registro", JSON.stringify([{ modo: "real" }])).gte("actualizado_en", hace10).limit(1),
   ]);
+  // Con un array, postgrest-js manda `cs.{[object Object]}` (no es JSON): por eso va como texto, y el error no se calla
+  if (ev.error || ej.error) throw new Error((ev.error ?? ej.error)!.message);
   if (!ev.data?.length && !ej.data?.length) return;
   if (!(await dentroDelLimite(`ghl-vuelve:${entrada.id}`, 1, 60 * 60_000))) return;
   const r = await enviarEmail({
