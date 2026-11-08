@@ -130,7 +130,7 @@ export function VistaWorkflows({
               <Cuadro icono="rayo" />
               <div className="min-w-0">
                 <div className="break-words text-sm font-semibold">{w.nombre}</div>
-                <div className="break-words text-xs text-texto-3">Llega un lead a «{nombres.entradas[w.disparador.entrada_id] ?? "Entrada borrada"}»</div>
+                <div className="break-words text-xs text-texto-3">{w.disparador.tipo === "entrada" ? `Llega un lead a «${nombres.entradas[w.disparador.entrada_id] ?? "Entrada borrada"}»` : disparadorTexto(w.disparador, nombres).titulo}</div>
                 <div className="mt-1.5"><ChipModo w={w} r={resumen.get(w.id)} /></div>
               </div>
             </Link>

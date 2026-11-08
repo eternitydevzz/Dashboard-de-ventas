@@ -84,6 +84,9 @@ describe("condicionTexto y disparadorTexto", () => {
   it("el disparador con el nombre de su Entrada", () => {
     expect(disparadorTexto({ tipo: "entrada", entrada_id: "e-1" }, NOMBRES)).toEqual({ titulo: "Llega un lead a la Entrada", detalle: "Web · Biblioteca registro" });
     expect(disparadorTexto({ tipo: "entrada", entrada_id: "otra" }, NOMBRES).detalle).toBe("Entrada borrada");
+    // Fase 4d (8 nov): disparo por cita
+    expect(disparadorTexto({ tipo: "cita", evento: "agendada" }, NOMBRES)).toEqual({ titulo: "Se agenda una cita", detalle: null });
+    expect(disparadorTexto({ tipo: "cita", evento: "cancelada" }, NOMBRES)).toEqual({ titulo: "Se cancela una cita", detalle: null });
   });
 });
 

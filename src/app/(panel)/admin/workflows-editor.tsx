@@ -8,8 +8,8 @@ import { Check, Clock, GitBranch, MoveRight, Pencil, Plus, Save, Tag, Target, Tr
 import { useAccion } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
 import { Desplegable } from "@/components/eleccion";
-import type { Paso } from "@/lib/workflows";
-import { describirPaso, condicionTexto, type Icono, type Nombres } from "@/lib/workflows-vista";
+import type { Disparador, Paso } from "@/lib/workflows";
+import { describirPaso, condicionTexto, disparadorTexto, type Icono, type Nombres } from "@/lib/workflows-vista";
 import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
 import { devolverAHoy, encenderWorkflow, guardarWorkflow, pararWorkflow, pasarWorkflowAReal } from "./acciones";
 
@@ -53,7 +53,7 @@ export function EditorWorkflow({
   opciones,
   disparador,
 }: {
-  w: { id: string; nombre: string; pasos: Paso[]; version: number; modo: string; encendido: boolean };
+  w: { id: string; nombre: string; pasos: Paso[]; version: number; modo: string; encendido: boolean; disparador: Disparador };
   enCurso: number;
   nombres: Nombres;
   opciones: OpcionesEditor;
@@ -201,7 +201,7 @@ export function EditorWorkflow({
         <div className="flex min-w-0 flex-col items-center rounded-[20px] border border-borde bg-panel-2 bg-[radial-gradient(rgb(15_23_42/0.10)_1px,transparent_1.2px)] [background-size:18px_18px] px-3 pb-8 pt-7">
           <div className="vidrio flex w-full max-w-[300px] items-center gap-3 rounded-[18px] border border-primario/35 px-3.5 py-3 ring-4 ring-primario/10">
             <Cuadro icono="rayo" />
-            <div className="min-w-0"><div className="text-[11.5px] font-semibold text-texto-3">Cuando</div><div className="text-sm font-semibold">Llega un lead a la Entrada</div><div className="break-words text-xs text-texto-3">{disparador}</div></div>
+            <div className="min-w-0"><div className="text-[11.5px] font-semibold text-texto-3">Cuando</div><div className="text-sm font-semibold">{disparadorTexto(w.disparador, nombres).titulo}</div><div className="break-words text-xs text-texto-3">{disparador}</div></div>
           </div>
           {pintar(pasos, [])}
         </div>

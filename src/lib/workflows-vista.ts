@@ -68,7 +68,8 @@ export function condicionTexto(c: Condicion) {
   return `es «${c.valor ?? ""}»`;
 }
 
-export function disparadorTexto(d: Disparador, n: Nombres) {
+export function disparadorTexto(d: Disparador, n: Nombres): { titulo: string; detalle: string | null } {
+  if (d.tipo === "cita") return { titulo: d.evento === "agendada" ? "Se agenda una cita" : "Se cancela una cita", detalle: null };
   return { titulo: "Llega un lead a la Entrada", detalle: n.entradas[d.entrada_id] ?? "Entrada borrada" };
 }
 
