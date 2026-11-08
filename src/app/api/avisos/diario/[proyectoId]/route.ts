@@ -4,8 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { dentroDelLimite } from "@/lib/limite";
 import { enviarDiario } from "@/lib/avisos-diario";
 
-// Plan GHL F2: el programador de Supabase llama aquí a las 06:00 y 07:00 UTC (migración 20261109120100_avisos_diario.sql).
+// Plan GHL F2: el programador de Supabase llama aquí cada 15 min de 06:00 a 07:45 UTC (migración 20261109120100_avisos_diario.sql).
 // Misma clave que la lectura de GHL (la del proyecto, en la cabecera x-eternity-secreto).
+
+export const maxDuration = 60;
 
 function igual(a: string, b: string) {
   const x = Buffer.from(a);

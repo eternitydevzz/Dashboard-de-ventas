@@ -57,17 +57,18 @@ describe("enviarDiario", () => {
     expect(filas).toEqual([]);
   });
 
-  it("no manda 2 veces el mismo día (las dos llamadas de 06:00 y 07:00 UTC)", async () => {
+  it("no manda 2 veces el mismo día (llamadas del cron a las 07:00Z y 07:15Z)", async () => {
     expect((await enviarDiario(P, OCHO_INVIERNO)).estado).toBe("enviado");
-    expect((await enviarDiario(P, new Date("2026-11-09T07:30:00Z"))).estado).toBe("ya_enviado");
+    expect((await enviarDiario(P, new Date("2026-11-09T07:15:00Z"))).estado).toBe("ya_enviado");
     expect(enviar).toHaveBeenCalledTimes(1);
   });
 
-  it("si el email falla, suelta la fecha para que la siguiente llamada lo reintente", async () => {
+  it("si el email falla, suelta la fecha y el siguiente intento del cron (07:15Z, misma franja de las 8) lo reintenta", async () => {
     enviar.mockResolvedValueOnce({ enviado: false, motivo: "Resend respondió 500" });
     const r = await enviarDiario(P, OCHO_INVIERNO);
     expect(r).toEqual({ estado: "fallo", motivo: "Resend respondió 500" });
     expect(filas).toEqual([]);
-    expect((await enviarDiario(P, OCHO_INVIERNO)).estado).toBe("enviado");
+    expect((await enviarDiario(P, new Date("2026-11-09T07:15:00Z"))).estado).toBe("enviado");
+    expect(enviar).toHaveBeenCalledTimes(2);
   });
 });

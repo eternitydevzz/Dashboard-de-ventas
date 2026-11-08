@@ -9,13 +9,14 @@ create table public.avisos_diario (
 alter table public.avisos_diario enable row level security;
 
 -- Solo en la base de la nube (la de Maestria), como la lectura de GHL (20261017120000_leer_ghl_cada_30s.sql).
--- 06:00 y 07:00 UTC = 8:00 en Madrid en verano y en invierno; la ruta solo manda cuando en Madrid son las 8.
+-- Cada 15 min de 06:00 a 07:45 UTC: 4 intentos dentro de las 8:00-8:59 de Madrid (verano o invierno); la ruta solo manda
+-- cuando en Madrid son las 8 y la fecha guardada evita repetir. Si un intento falla, el siguiente reintenta.
 do $$
 begin
   if exists (select 1 from public.proyectos where ghl_location_id = 'ZGWJLBH58RJtl2iGhykp') then
     perform cron.schedule(
       'avisos-diario',
-      '0 6,7 * * *',
+      '0,15,30,45 6,7 * * *',
       $job$
         select net.http_post(
           url := 'https://dashboard.eternity.llc/api/avisos/diario/' || p.id,
