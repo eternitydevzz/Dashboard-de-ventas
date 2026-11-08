@@ -1,14 +1,14 @@
 // Panel de endpoints (plan GHL, punto 0, Cristian 7 nov 2026): lo que el panel calcula sin base de datos.
 // Se usa en el servidor (validar lo que se guarda) y en el navegador (textos y JSON de ejemplo).
 
-export type EnviaDesde = "navegador" | "servidor";
+export type EnviaDesde = "navegador" | "servidor" | "ghl"; // «ghl» = desde un workflow de GHL (plan GHL, sección 5)
 export type DatosLanding = { landing: string | null; formulario: string | null; envia_desde: EnviaDesde | null; archivo: string | null };
 
 const corto = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
-// Lo que se guarda de la landing: texto limpio o null. «Envía desde» fuera de navegador/servidor = «no lo sé» (null).
+// Lo que se guarda de la landing: texto limpio o null. «Envía desde» fuera de navegador/servidor/ghl = «no lo sé» (null).
 export function datosLandingValidos(x: Partial<Record<keyof DatosLanding, unknown>>): DatosLanding {
-  const desde = x.envia_desde === "navegador" || x.envia_desde === "servidor" ? x.envia_desde : null;
+  const desde = x.envia_desde === "navegador" || x.envia_desde === "servidor" || x.envia_desde === "ghl" ? x.envia_desde : null;
   return { landing: corto(x.landing, 80), formulario: corto(x.formulario, 80), envia_desde: desde, archivo: corto(x.archivo, 120) };
 }
 

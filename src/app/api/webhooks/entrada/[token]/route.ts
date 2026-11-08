@@ -6,6 +6,8 @@ import { aplicarReglas, interpretar, reglasValidas } from "@/lib/entrada";
 import { crearEjecuciones } from "@/lib/workflows-motor";
 import { ipDelEnvio } from "@/lib/ip-envio";
 import { completarLeadDelEvento } from "@/lib/entrada-evento";
+import { enviarEmail, urlApp } from "@/lib/email";
+import { EMAIL_AVISO_GHL } from "@/lib/ghl-envios";
 import type { Proyecto } from "@/lib/tipos";
 
 // Dirección de una landing («Entradas» en Administración). La landing manda aquí el mismo
@@ -107,9 +109,37 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
         console.error("[entrada] workflow:", e instanceof Error ? e.message : e);
       }
     }
+    // 7 · Plan GHL, sección 5, punto 2 (forma B, Cristian 8 nov 2026): Entrada «Desde un workflow de GHL» y el lead
+    // vuelve <10 min después de escribirlo nosotros en GHL = posible bucle → email (no cambia la respuesta).
+    if (entrada.envia_desde === "ghl" && guardado?.id) {
+      try {
+        await avisarSiVuelve(entrada, guardado.id);
+      } catch (e) {
+        console.error("[entrada] aviso de bucle:", e instanceof Error ? e.message : e);
+      }
+    }
     return responder({ ok: true });
   } catch (e) {
     console.error("[entrada] error:", e);
     return await fallo(e instanceof Error ? e.message : "Error", 500, "No se pudo guardar el envío");
   }
+}
+
+// Escritura NUESTRA en GHL de este lead en los últimos 10 min: un envío «ok» de cualquier Entrada (se manda en cuanto
+// llega su ghl_enviar_en) o una ejecución de workflow en real «ok» (las de prueba guardan `coincide`; las reales, null).
+// shortcut: las reales «ok» sin pasos de GHL también cuentan (solo daría un email de más); sin columnas nuevas.
+async function avisarSiVuelve(entrada: Entrada, leadId: string) {
+  const hace10 = new Date(Date.now() - 10 * 60_000).toISOString();
+  const [ev, ej] = await Promise.all([
+    db().from("webhook_eventos").select("id").eq("lead_id", leadId).eq("ghl_estado", "ok").gte("ghl_enviar_en", hace10).limit(1),
+    db().from("workflow_ejecuciones").select("id").eq("lead_id", leadId).eq("estado", "ok").is("coincide", null).gte("actualizado_en", hace10).limit(1),
+  ]);
+  if (!ev.data?.length && !ej.data?.length) return;
+  if (!(await dentroDelLimite(`ghl-vuelve:${entrada.id}`, 1, 60 * 60_000))) return;
+  const r = await enviarEmail({
+    para: [EMAIL_AVISO_GHL],
+    asunto: `GHL: posible bucle en «${entrada.nombre}»`,
+    texto: `Un lead (${leadId}) ha vuelto a la Entrada «${entrada.nombre}» desde GHL menos de 10 min después de que el dashboard lo escribiera en GHL. Puede ser un círculo sin fin: revisa el workflow de GHL que manda a esta Entrada.\n\nEl lead se ha guardado igual.\n\n${urlApp()}/admin?tab=entradas`,
+  });
+  if (!r.enviado) console.error("[entrada] no se pudo mandar el email del bucle:", r.motivo);
 }

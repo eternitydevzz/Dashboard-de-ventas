@@ -11,6 +11,9 @@ import { db, equipo, escribir } from "@/lib/datos";
 import { cifrar, descifrar } from "@/lib/cifrado";
 import { reglasValidas } from "@/lib/entrada";
 import { datosLandingValidos, type DatosLanding } from "@/lib/entradas-panel";
+import { dentroDelLimite } from "@/lib/limite";
+import { enviarEmail, urlApp } from "@/lib/email";
+import { EMAIL_AVISO_GHL } from "@/lib/ghl-envios";
 import { enviosDeEntrada, VER_MAS } from "@/lib/entradas-datos";
 import { workflowDeEntrada, type EntradaParaWorkflow } from "@/lib/workflows";
 import { mismoContenido, pasosValidos } from "@/lib/workflows-editar";
@@ -360,6 +363,7 @@ export async function guardarEntradaCompleta(id: string, c: { entrada: CambiosEn
     await entradaDelProyecto(id, proyecto.id);
     const fila = await validarEntrada(proyecto.id, c.entrada);
     const landing = datosLandingValidos(c.entrada);
+    await exigirNoGhl(id, "guardar sus ajustes mandando a GHL", { desde: landing.envia_desde, enciende: c.ghl?.activo });
     if (c.ghl?.activo) await noLaMandaUnWorkflow(id);
     const ghl = c.ghl ? await validarGhl(proyecto.id, c.ghl) : {};
     await escribir(db().from("entradas").update({ ...fila, ...landing, ...ghl }).eq("id", id), "entradas");
@@ -429,6 +433,7 @@ export async function guardarGhlEntrada(id: string, c: CambiosGhlEntrada) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     await entradaDelProyecto(id, proyecto.id);
+    if (c.activo) await exigirNoGhl(id, "encender «Mandar a GHL»", { enciende: true });
     if (c.activo) await noLaMandaUnWorkflow(id);
     await escribir(db().from("entradas").update(await validarGhl(proyecto.id, c)).eq("id", id), "entradas");
     refrescar();
@@ -564,6 +569,7 @@ export async function pasarWorkflowAReal(workflowId: string) {
     const { proyecto } = await exigir(puedeAdmin);
     const w = await workflowConEntrada(workflowId, proyecto.id);
     if (!w.encendido || w.modo !== "prueba") throw new ErrorUsuario("Solo se puede pasar a real un workflow en prueba y en marcha.");
+    await exigirNoGhl(w.entrada_id, "pasar su workflow a real", { enciende: true });
     const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyecto.id).single();
     if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Este proyecto no tiene GHL conectado (pestaña Integraciones GHL).");
     const ahora = new Date().toISOString();
@@ -586,6 +592,7 @@ export async function devolverAHoy(workflowId: string) {
     const { proyecto } = await exigir(puedeAdmin);
     const w = await workflowConEntrada(workflowId, proyecto.id);
     if (w.modo !== "real") throw new ErrorUsuario("Este workflow no está en real.");
+    await exigirNoGhl(w.entrada_id, "volver a «Mandar a GHL» (Volver a lo de hoy)", { enciende: true });
     const ahora = new Date().toISOString();
     await escribir(db().from("entradas").update({ ghl_activo: true }).eq("id", w.entrada_id), "entradas");
     await escribir(db().from("workflows").update({ modo: "prueba", encendido: false, actualizado_en: ahora }).eq("id", w.id), "workflows");
@@ -603,6 +610,27 @@ export async function devolverAHoy(workflowId: string) {
 async function noLaMandaUnWorkflow(entradaId: string) {
   const { data } = await db().from("workflows").select("id").eq("entrada_id", entradaId).eq("encendido", true).eq("modo", "real").limit(1);
   if (data?.length) throw new ErrorUsuario("Esta Entrada la manda su workflow (modo real). Para volver a «Qué hacer en GHL», usa «Volver a lo de hoy» en la línea del workflow.");
+}
+
+// Plan GHL, sección 5 (forma B, Cristian 8 nov 2026): una Entrada «Desde un workflow de GHL» no manda a GHL, ni con
+// «Mandar a GHL» ni con su workflow en real (círculo sin fin). Si lo intenta: error en pantalla y email a info@ (1 por
+// Entrada y hora). `desde` = lo que va a quedar (si no, lo guardado); `enciende` = si mandará (si no, lo guardado).
+async function exigirNoGhl(entradaId: string, intento: string, o: { desde?: string | null; enciende?: boolean }) {
+  const { data: en } = await db().from("entradas").select("nombre, envia_desde, ghl_activo").eq("id", entradaId).maybeSingle();
+  if (!en || (o.desde === undefined ? en.envia_desde : o.desde) !== "ghl") return;
+  if (!o.enciende) {
+    const { data: real } = await db().from("workflows").select("id").eq("entrada_id", entradaId).eq("encendido", true).eq("modo", "real").limit(1);
+    if (!(o.enciende ?? en.ghl_activo) && !real?.length) return;
+  }
+  if (await dentroDelLimite(`ghl-bloqueado:${entradaId}`, 1, 60 * 60_000)) {
+    const r = await enviarEmail({
+      para: [EMAIL_AVISO_GHL],
+      asunto: `GHL: «${en.nombre}» ha intentado mandar a GHL (bucle)`,
+      texto: `La Entrada «${en.nombre}» recibe desde un workflow de GHL y alguien ha intentado ${intento}. Se ha bloqueado: sería un círculo sin fin.\n\n${urlApp()}/admin?tab=entradas`,
+    });
+    if (!r.enviado) console.error("[entradas] no se pudo mandar el email del bucle:", r.motivo);
+  }
+  throw new ErrorUsuario("Esta Entrada recibe desde un workflow de GHL: no puede mandar a GHL (sería un círculo sin fin). Deja «Mandar a GHL» apagado y su workflow en prueba, o cambia «¿Desde dónde manda los datos?».");
 }
 
 // «Reintentar» las ejecuciones en error de un workflow: vuelven a esperar con los intentos a cero
