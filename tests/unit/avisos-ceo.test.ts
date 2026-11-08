@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       const ops: Op[] = [];
       consultas.push({ tabla, ops });
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "in", "is", "gte", "lt", "order", "maybeSingle"]) q[m] = (...a: unknown[]) => (ops.push([m, a]), q);
+      for (const m of ["select", "eq", "in", "is", "or", "gte", "lt", "order", "limit", "maybeSingle"]) q[m] = (...a: unknown[]) => (ops.push([m, a]), q);
       q.then = (r: (v: unknown) => unknown) => {
         const v = filas[tabla];
         return Promise.resolve(typeof v === "number" ? { count: v, data: null, error: null } : { data: v ?? [], error: null }).then(r);
@@ -55,15 +55,12 @@ describe("avisosCeo", () => {
 
   it("cada uno de los 4 avisos, con cuántos hay", async () => {
     filas = {
-      citas: [
-        { closer_id: null, estado: "pendiente" },
-        { closer_id: null, estado: "confirmada" },
-        { closer_id: null, estado: "cancelada" }, // cerrada: no cuenta (porRecuperar)
-      ],
+      citas: 2, // se cuentan en la base (count, sin tope de 1000 filas)
       entradas: [{ id: "e1" }, { id: "e2" }],
       webhook_eventos: [{ id: "w1" }],
-      workflow_ejecuciones: [{ id: "x1" }, { id: "x2" }, { id: "x3" }],
-      proyectos: { ghl_ultimo_resultado: "0 nuevas · 0 actualizadas · 0 sin unir · 0 inválidas · 2 con error" },
+      workflow_ejecuciones: 3,
+      // «5 con error» cuenta también citas y workflows: el aviso usa solo los calendarios sin leer
+      proyectos: { ghl_ultimo_resultado: "0 nuevas · 0 actualizadas · 0 sin unir · 0 inválidas · 5 con error · 2 calendario(s) sin leer" },
     };
     const avisos = await avisosCeo("p1");
     expect(avisos.map((a) => [a.tipo, a.cuantos])).toEqual([
@@ -77,6 +74,22 @@ describe("avisosCeo", () => {
     for (const t of ["citas", "workflow_ejecuciones", "entradas"]) expect(consultas.find((c) => c.tabla === t)!.ops).toContainEqual(["eq", ["proyecto_id", "p1"]]);
     expect(consultas.find((c) => c.tabla === "webhook_eventos")!.ops).toContainEqual(["in", ["entrada_id", ["e1", "e2"]]]);
     expect(consultas.find((c) => c.tabla === "workflow_ejecuciones")!.ops).toContainEqual(["eq", ["estado", "error"]]);
+    // Las citas sin closer abiertas se filtran en la base (lo mismo que porRecuperar)
+    const citas = consultas.find((c) => c.tabla === "citas")!.ops;
+    expect(citas).toContainEqual(["is", ["closer_id", null]]);
+    expect(citas).toContainEqual(["select", ["id", { count: "exact", head: true }]]);
+  });
+
+  it("F3: otros errores de la app, uno por sitio y texto con sus veces, del proyecto o sin proyecto y del último día", async () => {
+    filas = { errores_app: [{ sitio: "ghl-leer citas", texto: "GHL 500", veces: 5 }] };
+    const antes = Date.now();
+    const avisos = await avisosCeo("p1");
+    expect(avisos).toEqual([{ tipo: "otro_error", cuantos: 5, texto: "ghl-leer citas: GHL 500 (5 veces)" }]);
+    const ops = consultas.find((c) => c.tabla === "errores_app")!.ops;
+    expect(ops).toContainEqual(["or", ["proyecto_id.eq.p1,proyecto_id.is.null"]]);
+    const desde = new Date(ops.find((o) => o[0] === "gte")![1][1] as string).getTime();
+    expect(antes - desde).toBeGreaterThanOrEqual(86_400_000 - 1000);
+    expect(antes - desde).toBeLessThanOrEqual(86_400_000 + 1000);
   });
 });
 
