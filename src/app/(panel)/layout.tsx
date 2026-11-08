@@ -5,6 +5,8 @@ import { ProveedorToasts } from "@/components/toasts";
 import { ProveedorGrabadora } from "@/components/grabadora";
 import { Dialogos } from "@/components/dialogos";
 import { AvisosEnVivo } from "@/components/avisos-en-vivo";
+import { ReporteDia } from "@/components/reporte-dia";
+import { avisosCeo } from "@/lib/avisos-ceo";
 import { proyectoParaMenu } from "@/lib/formato";
 import { seccionesPermitidas, SECCIONES, type Seccion } from "@/lib/permisos";
 import { esCloser } from "@/lib/tipos";
@@ -65,17 +67,22 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
   ].filter((g) => g.items.length > 0);
 
 
+  // F1b: campana y ventana del día, solo para el CEO. Si el cálculo falla, el panel sigue sin campana (se anota)
+  const esCeo = perfil.rol === "ceo";
+  const avisos = esCeo ? await avisosCeo(proyecto.id).catch((e) => (console.error("[avisos del CEO]", e), undefined)) : undefined;
+
   return (
     <ProveedorToasts>
       {/* C10: la grabadora vive aquí, fuera de las páginas: cambiar de sección no corta una grabación */}
       <ProveedorGrabadora>
       <div className="flex min-h-screen">
-        <BarraLateral perfil={perfil} proyectos={proyectos.map(proyectoParaMenu)} proyecto={proyectoParaMenu(proyecto)} menu={menu} />
+        <BarraLateral perfil={perfil} proyectos={proyectos.map(proyectoParaMenu)} proyecto={proyectoParaMenu(proyecto)} menu={menu} avisos={avisos} />
         <div className="min-w-0 flex-1">{children}</div>
       </div>
       </ProveedorGrabadora>
       <Dialogos />
       <AvisosEnVivo proyectoId={proyecto.id} />
+      {esCeo && <ReporteDia />}
       {/* 25 oct 2026: bienvenida apagada (solo esperaba a la precarga de todas las secciones, también apagada) */}
     </ProveedorToasts>
   );
