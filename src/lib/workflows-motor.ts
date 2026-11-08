@@ -34,7 +34,8 @@ export async function crearEjecuciones(o: { proyectoId: string; entradaId: strin
   if (error) throw new Error(`workflows: ${error.message}`);
   let creadas = 0;
   for (const w of (wfs ?? []) as { id: string; version: number; pasos: Paso[] }[]) {
-    const { data: ya } = await db().from("workflow_ejecuciones").select("id").eq("workflow_id", w.id).eq("lead_id", o.leadId).eq("estado", "esperando").limit(1);
+    const { data: ya, error: e1 } = await db().from("workflow_ejecuciones").select("id").eq("workflow_id", w.id).eq("lead_id", o.leadId).eq("estado", "esperando").limit(1);
+    if (e1) throw new Error(`ejecuciones: ${e1.message}`);
     if (ya?.length) continue;
     const primera = tramos(aplanarPasos(w.pasos, [o.envio]))[0]?.espera ?? 0;
     const { error: e2 } = await db()
@@ -62,7 +63,8 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
   if (error) throw new Error(`ejecuciones: ${error.message}`);
   const lista = (data ?? []) as Ejecucion[];
   if (!lista.length) return r;
-  const { data: wfs } = await db().from("workflows").select("id, nombre, encendido, modo").in("id", [...new Set(lista.map((x) => x.workflow_id))]);
+  const { data: wfs, error: errWf } = await db().from("workflows").select("id, nombre, encendido, modo").in("id", [...new Set(lista.map((x) => x.workflow_id))]);
+  if (errWf) throw new Error(`workflows: ${errWf.message}`);
   const wf = new Map(((wfs ?? []) as { id: string; nombre: string; encendido: boolean; modo: string }[]).map((w) => [w.id, w]));
   const cache: CacheGhl = {}; // las columnas de GHL, una vez por vuelta (mejora «menos llamadas», 7 nov)
 

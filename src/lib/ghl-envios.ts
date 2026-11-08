@@ -92,7 +92,8 @@ export async function enviarPendientesGhl(
   if (!grupos.size) return r;
 
   const ids = [...new Set([...grupos.values()].map((g) => g[0].entrada_id).filter((x): x is string => !!x))];
-  const { data: ent } = ids.length ? await db().from("entradas").select("id, nombre, ghl_activo, ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_etiqueta_base, ghl_campo_completo, ghl_oportunidades, ghl_etiquetas_extra").in("id", ids) : { data: [] };
+  const { data: ent, error: errEnt } = ids.length ? await db().from("entradas").select("id, nombre, ghl_activo, ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_etiqueta_base, ghl_campo_completo, ghl_oportunidades, ghl_etiquetas_extra").in("id", ids) : { data: [], error: null };
+  if (errEnt) throw new Error(`No se pudieron leer las Entradas: ${errEnt.message}`);
   const entradas = new Map(((ent ?? []) as EntradaGhl[]).map((x) => [x.id, x]));
 
   // 2 · De uno en uno por lead (las columnas de GHL, una vez para todos)
