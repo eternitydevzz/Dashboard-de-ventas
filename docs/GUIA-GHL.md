@@ -47,7 +47,7 @@ Todo lo que necesitas copiar está en la app: **Administración → Integracione
 
 **Probado con reservas reales:** «#2 Callers» y «#3 Closers» (hora y closer bien). «#1 founders» sin reserva de prueba: lo cubre la sincronización por API.
 
-**Token (API, 12 oct):** Private Integration **«App Eternity (dashboard)»** (Settings → Private Integrations) con solo `calendars/events.readonly`, `contacts.readonly` y `conversations/message.readonly`; Location ID `ZGWJLBH58RJtl2iGhykp`. El token lo pegó Cristian en Administración → Integraciones GHL, donde están también los ids de GHL de los 4 closers. La sincronización trae las citas de cada closer (30 días atrás y 60 adelante) y la API sí manda la hora con zona. Los callers **no tienen id de GHL** todavía: sin él, «Llamadas de GHL» no les atribuye nada.
+**Token (API, 12 oct):** Private Integration **«App Eternity (dashboard)»** (Settings → Private Integrations, 12 oct, con 3 permisos de lectura; hoy tiene todos). Qué usa la app — lectura: calendarios y citas (`calendars.readonly`, `calendars/events.readonly`), contactos (`contacts.readonly`), conversaciones (`conversations/message.readonly`), oportunidades (`opportunities.readonly`), campos (`locations/customFields.readonly`); escritura: `contacts.write`, `opportunities.write`, `calendars/events.write`. La integración «App Eternity (dashboard)» tiene todos los permisos por decisión de Cristian (8 nov 2026). Location ID `ZGWJLBH58RJtl2iGhykp`. El token lo pegó Cristian en Administración → Integraciones GHL, donde están también los ids de GHL de los 4 closers. La sincronización trae las citas de cada closer (30 días atrás y 60 adelante) y la API sí manda la hora con zona. Los callers **no tienen id de GHL** todavía: sin él, «Llamadas de GHL» no les atribuye nada.
 
 **Lo que falta en Maestria** (detalle en el plan, Fase 4): solo la Biblioteca entra sola (Webinar, Orgánico y DFY, sin workflow; se suben con CSV); avisos de reportes por WhatsApp (Parte 2) sin montar; borrar en GHL las citas y contactos de prueba (plan).
 
@@ -165,13 +165,10 @@ Administración → Integraciones → «Nueva clave». Después hay que poner la
 
 ### El token
 
-> **Hecho en Maestria el 12 oct:** Private Integration «App Eternity (dashboard)» con solo los 3 permisos de abajo; Location ID `ZGWJLBH58RJtl2iGhykp`; «Probar conexión» correcto. Ids de usuario de GHL de los closers: Andrés `GFc1HiIWJkr1PlTQOSNn`, Renzo `Dyz4qLnUYxbkfyEJ3srG`, Cristian `DubIbjsps2tK1fhLcgcP`, José `J8xk7z0XlRevokd1bsH8`. Con el id de usuario se traen sus citas de **cualquier** calendario. Primera sincronización: 20 citas, **horas correctas** (la API sí manda la zona).
+> **Hecho en Maestria el 12 oct:** Private Integration «App Eternity (dashboard)» (entonces con 3 permisos; hoy tiene todos, ver abajo); Location ID `ZGWJLBH58RJtl2iGhykp`; «Probar conexión» correcto. Ids de usuario de GHL de los closers: Andrés `GFc1HiIWJkr1PlTQOSNn`, Renzo `Dyz4qLnUYxbkfyEJ3srG`, Cristian `DubIbjsps2tK1fhLcgcP`, José `J8xk7z0XlRevokd1bsH8`. Con el id de usuario se traen sus citas de **cualquier** calendario. Primera sincronización: 20 citas, **horas correctas** (la API sí manda la zona).
 
 1. En GHL (subcuenta de Maestria): **Settings → Private Integrations → Create** (comprobado: el menú se llama así).
-2. Permisos (comprobados en la especificación oficial de GHL):
-   - `calendars/events.readonly` → citas de los closers.
-   - `contacts.readonly` → datos del contacto de cada cita.
-   - `conversations/message.readonly` → llamadas, grabaciones y transcripciones.
+2. Permisos: Qué usa la app — lectura: calendarios y citas (`calendars.readonly`, `calendars/events.readonly`), contactos (`contacts.readonly`), conversaciones (`conversations/message.readonly`), oportunidades (`opportunities.readonly`), campos (`locations/customFields.readonly`); escritura: `contacts.write`, `opportunities.write`, `calendars/events.write`. La integración «App Eternity (dashboard)» tiene todos los permisos por decisión de Cristian (8 nov 2026).
 3. En la app: **Administración → Integraciones → Calendario de GHL** → pega el token y el **id de la subcuenta** (Location ID) → Guardar → **Probar conexión**. El token solo se escribe: no se vuelve a enseñar.
 
 ### Calendario de cada closer
