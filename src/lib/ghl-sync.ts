@@ -8,6 +8,8 @@ import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/li
 import { mismoNombre } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
 import { ABIERTAS } from "@/lib/llamadas";
+import { dispararWorkflows } from "@/lib/workflows-motor";
+import type { DisparoCita } from "@/lib/workflows";
 
 type ProyectoGhl = Proyecto & { ghl_token: string | null; ghl_location_id: string | null };
 export type ResultadoSync = { nuevas: number; actualizadas: number; canceladas: number; sinUnir: number; invalidas: number; closers: number; errores: string[] };
@@ -108,11 +110,11 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
     )
   );
   for (const l of lecturas) for (const ev of l.eventos) if (ev.id) vienen.add(ev.id);
-  type CitaApp = { id: string; ghl_cita_id: string; estado: string; fecha: string; closer_id: string | null; canal: string | null; ghl_calendario: string | null; creado_en: string };
+  type CitaApp = { id: string; ghl_cita_id: string; estado: string; fecha: string; closer_id: string | null; canal: string | null; ghl_calendario: string | null; creado_en: string; lead_id: string };
   const enApp = new Map<string, CitaApp>();
   const ids = [...vienen];
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await db().from("citas").select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en").eq("proyecto_id", proyecto.id).in("ghl_cita_id", ids.slice(i, i + 200));
+    const { data } = await db().from("citas").select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en, lead_id").eq("proyecto_id", proyecto.id).in("ghl_cita_id", ids.slice(i, i + 200));
     for (const c of (data ?? []) as CitaApp[]) enApp.set(c.ghl_cita_id, c);
   }
 
@@ -160,6 +162,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         if (estado !== existe.estado || new Date(existe.fecha).getTime() !== new Date(fecha).getTime() || existe.closer_id !== closer) {
           await db().from("citas").update({ estado, fecha, closer_id: closer }).eq("id", existe.id);
           r.actualizadas++;
+          if (estado === "cancelada" && existe.estado !== "cancelada") await disparar(proyecto.id, existe.lead_id, { tipo: "cita", evento: "cancelada", canal: existe.canal, calendario: existe.ghl_calendario, fecha }, r);
         }
         continue;
       }
@@ -212,7 +215,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       }
       const estado = deGhl ?? "pendiente"; // las inválidas ya salieron antes
       const datosOrigen = calendario ? { ghl_calendario: calendario, ...origen } : {};
-      const { data: creada, error } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, ...(await datosAgendaGhl(leadId)), fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en").single();
+      const { data: creada, error } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, ...(await datosAgendaGhl(leadId)), fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en, lead_id").single();
       if (error) {
         r.errores.push(`Cita ${ev.id}: ${error.message}`);
         continue;
@@ -235,6 +238,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       if (origen?.canal) await ponerEtiqueta(leadId, etiquetaCanal(origen.canal));
       await db().from("actividades").insert({ proyecto_id: proyecto.id, lead_id: leadId, tipo: "cita", resultado: "agendada", nota: `Cita del calendario de GHL${calendario ? ` «${calendario}»` : ` con ${f.nombre}`}` });
       r.nuevas++;
+      if (abierta) await disparar(proyecto.id, leadId, { tipo: "cita", evento: "agendada", canal: origen?.canal ?? null, calendario, fecha }, r);
     }
 
     // Arreglo 21 (por closer): una cita de GHL de este closer, dentro del rango consultado, que ya no viene es que se
@@ -244,7 +248,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
     const vienenAqui = new Set(eventos.map((ev) => ev.id).filter(Boolean));
     const { data: abiertas } = await db()
       .from("citas")
-      .select("id, lead_id, ghl_cita_id")
+      .select("id, lead_id, ghl_cita_id, canal, ghl_calendario, fecha")
       .eq("proyecto_id", proyecto.id)
       .eq("closer_id", f.closerId)
       .not("ghl_cita_id", "is", null)
@@ -261,7 +265,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
   if (porCalendario.length && !fallo) {
     const { data: abiertas } = await db()
       .from("citas")
-      .select("id, lead_id, ghl_cita_id")
+      .select("id, lead_id, ghl_cita_id, canal, ghl_calendario, fecha")
       .eq("proyecto_id", proyecto.id)
       .not("ghl_cita_id", "is", null)
       .in("estado", [...ABIERTAS])
@@ -286,9 +290,22 @@ export async function ponerEtiqueta(leadId: string, etiqueta: string) {
   await db().from("leads").update({ etiquetas: [...actuales, etiqueta] }).eq("id", leadId);
 }
 
-async function cancelar(proyectoId: string, borradas: { id: string; lead_id: string }[], r: ResultadoSync) {
+async function cancelar(proyectoId: string, borradas: { id: string; lead_id: string; canal: string | null; ghl_calendario: string | null; fecha: string }[], r: ResultadoSync) {
   if (!borradas.length) return;
   await db().from("citas").update({ estado: "cancelada" }).in("id", borradas.map((x) => x.id));
   await db().from("actividades").insert(borradas.map((x) => ({ proyecto_id: proyectoId, lead_id: x.lead_id, tipo: "cita", resultado: "cancelada", nota: "La cita ya no está en el calendario de GHL: marcada como cancelada" })));
   r.canceladas += borradas.length;
+  for (const x of borradas) await disparar(proyectoId, x.lead_id, { tipo: "cita", evento: "cancelada", canal: x.canal, calendario: x.ghl_calendario, fecha: x.fecha }, r);
+}
+
+// Fase 4d, B2 (plan GHL 2.4, Cristian 8 nov 2026): los workflows de «cita agendada / cancelada». Un fallo aquí NUNCA
+// rompe la lectura de citas: se registra y va a los errores de la lectura.
+async function disparar(proyectoId: string, leadId: string, disparo: DisparoCita, r: ResultadoSync) {
+  try {
+    await dispararWorkflows(proyectoId, leadId, disparo);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[ghl-sync] workflows de cita:", msg);
+    r.errores.push(`Workflows (cita ${disparo.evento}): ${msg.slice(0, 200)}`);
+  }
 }
