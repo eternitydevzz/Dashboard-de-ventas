@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PlugZap, Save } from "lucide-react";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { exigirOk } from "@/lib/resultado-cliente";
-import { guardarCalendarioCloser, guardarConexionGhl, guardarUsuarioGhl, probarConexionGhl } from "./acciones";
+import { guardarCalendarioCloser, guardarCalendariosProyecto, guardarConexionGhl, guardarUsuarioGhl, probarConexionGhl } from "./acciones";
 
 // Conexión con la API de GHL (token privado + subcuenta). El token nunca vuelve al navegador.
 export function ConexionGhl({ locationId, tieneToken }: { locationId: string; tieneToken: boolean }) {
@@ -41,6 +41,22 @@ export function ConexionGhl({ locationId, tieneToken }: { locationId: string; ti
         </button>
       </div>
       <Mensajes error={error} ok={ok} />
+    </form>
+  );
+}
+
+// Calendarios de GHL del proyecto: un id por línea. Vacío = por closer, como antes.
+export function CalendariosProyecto({ ids }: { ids: string[] }) {
+  const { pendiente, error, ejecutar } = useAccion();
+  return (
+    <form className="space-y-2" action={(fd) => ejecutar(() => guardarCalendariosProyecto(String(fd.get("ids") ?? "").split("\n")), "Calendarios del proyecto guardados")}>
+      <label className="block">
+        <span className="etiqueta-campo">Calendarios de GHL del proyecto (un id por línea)</span>
+        <textarea name="ids" rows={4} defaultValue={ids.join("\n")} className="campo font-mono text-xs" placeholder="Calendar ID" />
+      </label>
+      <p className="text-xs text-texto-3">Si lo dejas vacío, la app lee el calendario de cada closer.</p>
+      <button className="btn-secundario" disabled={pendiente}><Save className="h-4 w-4" /> Guardar</button>
+      {error && <p className="text-xs text-mal">{error}</p>}
     </form>
   );
 }
