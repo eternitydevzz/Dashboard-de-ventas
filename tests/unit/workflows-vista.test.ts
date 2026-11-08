@@ -98,6 +98,9 @@ describe("estadoEjecucion", () => {
     expect(estadoEjecucion({ estado: "ok", coincide: null })).toEqual({ texto: "Enviado a GHL", tono: "ok" });
     expect(estadoEjecucion({ estado: "error", coincide: null })).toEqual({ texto: "Error", tono: "mal" });
     expect(estadoEjecucion({ estado: "parada", coincide: null })).toEqual({ texto: "Parada", tono: "neutro" });
+    // Fase 4d (8 nov): prueba sin Entrada (cita) termina ok sin comparar: no es «Enviado a GHL»
+    expect(estadoEjecucion({ estado: "ok", coincide: null, registro: [{ tipo: "disparo" }, { tipo: "tramo", modo: "prueba" }] })).toEqual({ texto: "Prueba: no se envía", tono: "neutro" });
+    expect(estadoEjecucion({ estado: "ok", coincide: null, registro: [{ tipo: "tramo", modo: "prueba" }, { tipo: "tramo", modo: "real" }] })).toEqual({ texto: "Enviado a GHL", tono: "ok" });
   });
 });
 

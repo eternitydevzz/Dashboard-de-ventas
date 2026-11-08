@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { aplanarPasos, encajaDisparador, envioSintetico, type Paso } from "@/lib/workflows";
 import { armarEnvioGhl } from "@/lib/entrada-ghl";
+import { estadoEjecucion } from "@/lib/workflows-vista";
 
 type Resp = { data: unknown; error: { message: string } | null };
 type Consulta = { tabla: string; ops: [string, unknown[]][] };
@@ -112,5 +113,9 @@ describe("modo prueba sin Entrada", () => {
     expect(u).not.toHaveProperty("coincide");
     expect(u.registro).toEqual([expect.objectContaining({ tipo: "disparo" }), expect.objectContaining({ tipo: "tramo", modo: "prueba", pasos: ["m (mover_dashboard)"] })]);
     expect(consultas.some((c) => c.tabla === "entradas" || c.tabla === "webhook_eventos")).toBe(false);
+    // El aviso de bucle de C1 cuenta registro @> [{modo:"real"}] (algún elemento con modo real): esta no
+    expect((u.registro as Record<string, unknown>[]).some((x) => x.modo === "real")).toBe(false);
+    // y en pantalla no sale como «Enviado a GHL»
+    expect(estadoEjecucion({ estado: "ok", coincide: null, registro: u.registro })).toEqual({ texto: "Prueba: no se envía", tono: "neutro" });
   });
 });
