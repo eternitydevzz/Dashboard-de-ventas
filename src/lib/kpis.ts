@@ -2,7 +2,7 @@ import "server-only";
 import { esContacto } from "@/lib/estados-caller";
 import { porcentaje, type Rango } from "@/lib/formato";
 import { ASISTIDAS, enRango, cashNeto, type Base } from "@/lib/metricas";
-import type { Perfil } from "@/lib/tipos";
+import { esCloser, type Perfil } from "@/lib/tipos";
 
 // KPIs de callers y closers (Paso H2, decisiones de Cristian del 10 oct 2026).
 // Todo por persona y para el periodo elegido; se cuentan personas (leads distintos), no llamadas.
@@ -155,7 +155,7 @@ export function calcularKpis(base: Base, rango: Rango, zona: string) {
     .map((g) => ({ perfil: g, ...kpiCaller(ix, new Set([g.id])) }))
     .filter((c) => !deBaja(c.perfil) || c.llamadas || c.contactados || c.agendados || c.lowTicketVentas);
 
-  const gClosers = base.gente.filter((g) => g.rol === "closer");
+  const gClosers = base.gente.filter(esCloser);
   const closersSin = gClosers
     .map((g) => ({ perfil: g, ...kpiCloser(ix, new Set([g.id])) }))
     .filter((c) => !deBaja(c.perfil) || c.citas || c.ventas || c.cash);

@@ -2,6 +2,9 @@
 
 export type Rol = "ceo" | "director" | "closer" | "caller";
 
+// Plan GHL E2: closer de rol, o caller con el interruptor «También closer»
+export const esCloser = (p: { rol: Rol; tambien_closer?: boolean }) => p.rol === "closer" || !!p.tambien_closer;
+
 export type Perfil = {
   id: string;
   nombre: string;

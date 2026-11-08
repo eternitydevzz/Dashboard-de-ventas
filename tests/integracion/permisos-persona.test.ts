@@ -5,6 +5,7 @@ import { guardarPermisoPersona, guardarPermisoSeccion } from "@/app/(panel)/admi
 import { registrarCobro } from "@/app/(panel)/ventas/acciones";
 import { cambiarEstadoCliente } from "@/app/(panel)/clientes/acciones";
 import { cambiarEstadoCita } from "@/app/(panel)/closer/acciones";
+import { guardarTambienCloser } from "@/app/(panel)/equipo/ficha-acciones";
 import { clientesSuyos } from "@/app/(panel)/clientes/cargar";
 import { calcularPermisos, rutaInicio, seccionesPermitidas, soloLoSuyo } from "@/lib/permisos";
 
@@ -101,5 +102,23 @@ describe("«Lo suyo» (casos confirmados por Cristian)", () => {
     expect((await tiene(e.p.callerA)).has("agendas")).toBe(true); // se la dio el director con Administración arriba
     como(e, e.p.callerA);
     await falla(cambiarEstadoCita(cita!.id, "no_show", ""), /no es tuya/);
+  });
+  // Plan GHL E2: el interruptor «También closer»
+  it("«También closer»: solo un admin lo cambia, solo en callers; con él, el caller ve Agendas y sigue con «Mis leads»", async () => {
+    const perfilC = async () => (await db.from("perfiles").select("*").eq("id", e.p.callerC.id).single()).data as typeof e.p.callerC;
+    expect((await tiene(await perfilC())).has("agendas")).toBe(false); // como hoy
+    como(e, e.p.callerA);
+    await falla(guardarTambienCloser(e.p.callerC.id, true), /No tienes permiso/); // un caller no puede
+    como(e, e.p.director);
+    await falla(guardarTambienCloser(e.p.callerC.id, true), /No tienes permiso/); // un director sin Administración, tampoco
+    como(e, e.p.ceo);
+    await falla(guardarTambienCloser(e.p.closerA.id, true), /solo para callers/);
+    await ok(guardarTambienCloser(e.p.callerC.id, true));
+    const con = await tiene(await perfilC());
+    expect(con.has("agendas")).toBe(true);
+    expect(con.has("cola")).toBe(true);
+    expect(con.has("finanzas")).toBe(false);
+    await ok(guardarTambienCloser(e.p.callerC.id, false));
+    expect((await tiene(await perfilC())).has("agendas")).toBe(false);
   });
 });
