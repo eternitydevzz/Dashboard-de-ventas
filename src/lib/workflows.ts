@@ -17,7 +17,11 @@ export type Paso =
   | { id: string; tipo: "mover_dashboard"; pipeline_id: string; etapa_id: string | null }
   | { id: string; tipo: "rama"; caminos: { condicion: Condicion; pasos: Paso[] }[]; si_no: Paso[] };
 export type PasoSimple = Exclude<Paso, { tipo: "rama" }>;
-export type Disparador = { tipo: "entrada"; entrada_id: string };
+// Fase 4d (plan GHL 2.4, Cristian 8 nov 2026): también arranca al agendarse o cancelarse una cita
+export type EventoCita = "agendada" | "cancelada";
+export type Disparador = { tipo: "entrada"; entrada_id: string } | { tipo: "cita"; evento: EventoCita };
+export type DisparoCita = { tipo: "cita"; evento: EventoCita; canal: string | null; calendario: string | null; fecha: string | null };
+export type LeadParaEnvio = { nombre: string | null; apellido: string | null; email: string | null; telefono: string | null; seguimiento: unknown };
 export type WorkflowNuevo = { nombre: string; disparador: Disparador; pasos: Paso[] };
 
 // Lo que hace falta de una Entrada para pasar su «Qué hacer en GHL» a workflow (columnas de `entradas`)
@@ -47,6 +51,20 @@ export function workflowDeEntrada(en: EntradaParaWorkflow): WorkflowNuevo {
   const destinos = lista.length ? lista : en.ghl_pipeline_id ? [{ pipeline_id: en.ghl_pipeline_id, etapa_id: en.ghl_etapa_id }] : [];
   destinos.forEach((o, i) => pasos.push({ id: `oportunidad-${i + 1}`, tipo: "oportunidad_ghl", pipeline_id: o.pipeline_id, etapa_id: o.etapa_id ?? null }));
   return { nombre: en.nombre, disparador: { tipo: "entrada", entrada_id: en.id }, pasos };
+}
+
+// ¿Este disparador (columna `disparador`, sin validar) arranca con esta cita?
+export function encajaDisparador(d: unknown, disparo: DisparoCita) {
+  const x = d && typeof d === "object" ? (d as Json) : {};
+  return x.tipo === "cita" && x.evento === disparo.evento;
+}
+
+// Sin Entrada no hay envío: se arma uno con los datos del lead y de la cita, con las claves que ya entiende todo
+// (interpretar/armarEnvioGhl y las ramas «si el campo canal = dfy»). Sin vacíos.
+export function envioSintetico(lead: LeadParaEnvio, disparo: DisparoCita): Json {
+  const seg = lead.seguimiento && typeof lead.seguimiento === "object" ? (lead.seguimiento as Json) : {};
+  const todo: Json = { first_name: lead.nombre, last_name: lead.apellido, email: lead.email, phone: lead.telefono, utm_source: seg.utm_source, canal: disparo.canal, calendario: disparo.calendario, fecha: disparo.fecha };
+  return Object.fromEntries(Object.entries(todo).filter(([, v]) => v !== null && v !== undefined && v !== ""));
 }
 
 // Los pasos que hará ESTE lead: cada rama se resuelve con lo juntado de todos sus envíos (el primer camino que se

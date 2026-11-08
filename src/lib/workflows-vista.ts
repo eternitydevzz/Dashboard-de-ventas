@@ -68,17 +68,21 @@ export function condicionTexto(c: Condicion) {
   return `es «${c.valor ?? ""}»`;
 }
 
-export function disparadorTexto(d: Disparador, n: Nombres) {
+export function disparadorTexto(d: Disparador, n: Nombres): { titulo: string; detalle: string | null } {
+  if (d.tipo === "cita") return { titulo: d.evento === "agendada" ? "Se agenda una cita" : "Se cancela una cita", detalle: null };
   return { titulo: "Llega un lead a la Entrada", detalle: n.entradas[d.entrada_id] ?? "Entrada borrada" };
 }
 
 export type Tono = "ok" | "mal" | "espera" | "neutro";
-export function estadoEjecucion(e: { estado: string; coincide: boolean | null }): { texto: string; tono: Tono } {
+export function estadoEjecucion(e: { estado: string; coincide: boolean | null; registro?: unknown }): { texto: string; tono: Tono } {
   if (e.estado === "esperando") return { texto: "Esperando", tono: "espera" };
   if (e.estado === "error") return { texto: "Error", tono: "mal" };
   if (e.estado === "parada") return { texto: "Parada", tono: "neutro" };
   if (e.coincide === true) return { texto: "Coincide", tono: "ok" };
   if (e.coincide === false) return { texto: "No coincide", tono: "mal" };
+  // Fase 4d: una prueba sin Entrada (cita) termina ok sin comparar; su último tramo dice modo «prueba»
+  const ultimo = (Array.isArray(e.registro) ? (e.registro as { tipo?: unknown; modo?: unknown }[]) : []).filter((x) => x?.tipo === "tramo").at(-1);
+  if (ultimo?.modo === "prueba") return { texto: "Prueba: no se envía", tono: "neutro" };
   return { texto: "Enviado a GHL", tono: "ok" };
 }
 

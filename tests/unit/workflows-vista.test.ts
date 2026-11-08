@@ -84,6 +84,9 @@ describe("condicionTexto y disparadorTexto", () => {
   it("el disparador con el nombre de su Entrada", () => {
     expect(disparadorTexto({ tipo: "entrada", entrada_id: "e-1" }, NOMBRES)).toEqual({ titulo: "Llega un lead a la Entrada", detalle: "Web · Biblioteca registro" });
     expect(disparadorTexto({ tipo: "entrada", entrada_id: "otra" }, NOMBRES).detalle).toBe("Entrada borrada");
+    // Fase 4d (8 nov): disparo por cita
+    expect(disparadorTexto({ tipo: "cita", evento: "agendada" }, NOMBRES)).toEqual({ titulo: "Se agenda una cita", detalle: null });
+    expect(disparadorTexto({ tipo: "cita", evento: "cancelada" }, NOMBRES)).toEqual({ titulo: "Se cancela una cita", detalle: null });
   });
 });
 
@@ -95,6 +98,9 @@ describe("estadoEjecucion", () => {
     expect(estadoEjecucion({ estado: "ok", coincide: null })).toEqual({ texto: "Enviado a GHL", tono: "ok" });
     expect(estadoEjecucion({ estado: "error", coincide: null })).toEqual({ texto: "Error", tono: "mal" });
     expect(estadoEjecucion({ estado: "parada", coincide: null })).toEqual({ texto: "Parada", tono: "neutro" });
+    // Fase 4d (8 nov): prueba sin Entrada (cita) termina ok sin comparar: no es «Enviado a GHL»
+    expect(estadoEjecucion({ estado: "ok", coincide: null, registro: [{ tipo: "disparo" }, { tipo: "tramo", modo: "prueba" }] })).toEqual({ texto: "Prueba: no se envía", tono: "neutro" });
+    expect(estadoEjecucion({ estado: "ok", coincide: null, registro: [{ tipo: "tramo", modo: "prueba" }, { tipo: "tramo", modo: "real" }] })).toEqual({ texto: "Enviado a GHL", tono: "ok" });
   });
 });
 

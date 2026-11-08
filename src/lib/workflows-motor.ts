@@ -14,7 +14,7 @@ import { moverLeadDashboard } from "@/lib/leads";
 import { armarEnvioGhl } from "@/lib/entrada-ghl";
 import { avisarPorEmail, mandarEnvioGhl, ESPERA_429, MAX_ESPERA_429, MAX_LEADS_POR_LECTURA, type Avisar, type CacheGhl } from "@/lib/ghl-envios";
 import { GhlEsperar } from "@/lib/ghl";
-import { aplanarPasos, compararEnvios, configDePasos, envioDeWorkflow, tramos, type Paso, type PasoSimple } from "@/lib/workflows";
+import { aplanarPasos, compararEnvios, configDePasos, encajaDisparador, envioDeWorkflow, envioSintetico, tramos, type DisparoCita, type LeadParaEnvio, type Paso, type PasoSimple } from "@/lib/workflows";
 
 export type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: typeof fetch; avisar?: Avisar };
 
@@ -32,15 +32,36 @@ export async function crearEjecuciones(o: { proyectoId: string; entradaId: strin
   const ahora = o.ahora ?? new Date();
   const { data: wfs, error } = await db().from("workflows").select("id, version, pasos").eq("proyecto_id", o.proyectoId).eq("entrada_id", o.entradaId).eq("encendido", true);
   if (error) throw new Error(`workflows: ${error.message}`);
+  return crearPara((wfs ?? []) as Wf[], { proyectoId: o.proyectoId, leadId: o.leadId, entradaId: o.entradaId, envio: o.envio, ahora });
+}
+
+// Fase 4d (plan GHL 2.4, Cristian 8 nov 2026): se agenda o se cancela una cita → los workflows encendidos del proyecto
+// con ese disparador. Sin Entrada: el envío es sintético (lead + cita) y se guarda en el registro de la ejecución
+// (`{tipo:"disparo"}`), que es de donde lo leen sus tramos. Nunca debe romper a quien llama: que lo proteja.
+export async function dispararWorkflows(proyectoId: string, leadId: string, disparo: DisparoCita, ahora = new Date()) {
+  const { data: wfs, error } = await db().from("workflows").select("id, version, pasos, disparador").eq("proyecto_id", proyectoId).eq("encendido", true).eq("disparador->>tipo", "cita");
+  if (error) throw new Error(`workflows: ${error.message}`);
+  const suyos = ((wfs ?? []) as (Wf & { disparador: unknown })[]).filter((w) => encajaDisparador(w.disparador, disparo));
+  if (!suyos.length) return 0;
+  const { data: lead, error: e1 } = await db().from("leads").select("nombre, apellido, email, telefono, seguimiento").eq("id", leadId).eq("proyecto_id", proyectoId).maybeSingle<LeadParaEnvio>();
+  if (e1) throw new Error(`lead: ${e1.message}`);
+  if (!lead) return 0;
+  const envio = envioSintetico(lead, disparo);
+  return crearPara(suyos, { proyectoId, leadId, entradaId: null, envio, ahora, registro: [{ tipo: "disparo", evento: disparo.evento, envio, hora: ahora.toISOString() }] });
+}
+
+type Wf = { id: string; version: number; pasos: Paso[] };
+// Una ejecución por workflow; si ese lead ya tiene una esperando de ese workflow, no se crea otra (se juntan, como hoy)
+async function crearPara(wfs: Wf[], o: { proyectoId: string; leadId: string; entradaId: string | null; envio: Json; ahora: Date; registro?: Json[] }) {
   let creadas = 0;
-  for (const w of (wfs ?? []) as { id: string; version: number; pasos: Paso[] }[]) {
+  for (const w of wfs) {
     const { data: ya, error: e1 } = await db().from("workflow_ejecuciones").select("id").eq("workflow_id", w.id).eq("lead_id", o.leadId).eq("estado", "esperando").limit(1);
     if (e1) throw new Error(`ejecuciones: ${e1.message}`);
     if (ya?.length) continue;
     const primera = tramos(aplanarPasos(w.pasos, [o.envio]))[0]?.espera ?? 0;
     const { error: e2 } = await db()
       .from("workflow_ejecuciones")
-      .insert({ workflow_id: w.id, version: w.version, pasos: w.pasos, proyecto_id: o.proyectoId, lead_id: o.leadId, entrada_id: o.entradaId, siguiente_en: enSegundos(ahora, primera) });
+      .insert({ workflow_id: w.id, version: w.version, pasos: w.pasos, proyecto_id: o.proyectoId, lead_id: o.leadId, entrada_id: o.entradaId, siguiente_en: enSegundos(o.ahora, primera), ...(o.registro ? { registro: o.registro } : {}) });
     if (e2) throw new Error(`ejecución: ${e2.message}`);
     creadas++;
   }
@@ -102,9 +123,16 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
   return r;
 }
 
-// Un tramo en modo prueba: se apunta lo que se haría; en el último, se compara con lo de hoy
+// Un tramo en modo prueba: se apunta lo que se haría; en el último, se compara con lo de hoy.
+// Sin Entrada (disparo por cita, 4d): no hay «lo de hoy» con qué comparar → termina ok sin comparar (Cristian, 8 nov).
 async function tramoEnPrueba(ej: Ejecucion, ahora: Date): Promise<Json> {
-  if (!ej.entrada_id) throw new Error("Sin su Entrada no se puede comparar con lo de hoy");
+  if (!ej.entrada_id) {
+    const ts = tramos(aplanarPasos(ej.pasos, await enviosDe(ej)));
+    const registro = [...ej.registro, { tipo: "tramo", tramo: ej.tramo, pasos: (ts[ej.tramo]?.pasos ?? []).map((p) => `${p.id} (${p.tipo})`), hora: ahora.toISOString(), modo: "prueba" }];
+    const siguiente = ts[ej.tramo + 1];
+    if (siguiente) return { tramo: ej.tramo + 1, siguiente_en: enSegundos(ahora, siguiente.espera), intentos: 0, error: null, registro };
+    return { estado: "ok", error: null, registro };
+  }
   const { data: en, error: e1 } = await db().from("entradas").select("ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_oportunidades, ghl_etiqueta_base, ghl_etiquetas_extra, ghl_campo_completo").eq("id", ej.entrada_id).maybeSingle<EntradaGhl>();
   if (e1 || !en) throw new Error(`No se encontró su Entrada${e1 ? `: ${e1.message}` : ""}`);
   // Todos los envíos del lead a esa Entrada, en orden (como enviarLead hoy)
@@ -131,9 +159,9 @@ async function tramoEnPrueba(ej: Ejecucion, ahora: Date): Promise<Json> {
   return { estado: "ok", coincide: diferencias.length === 0, error: null, registro: [...registro, { tipo: "comparacion", diferencias, envios: envios.length, hora: ahora.toISOString() }] };
 }
 
-// Los envíos del lead a la Entrada de su ejecución, en orden (como enviarLead hoy)
+// Los envíos del lead a la Entrada de su ejecución, en orden (como enviarLead hoy). Sin Entrada: el sintético del disparo.
 async function enviosDe(ej: Ejecucion) {
-  if (!ej.entrada_id) return [];
+  if (!ej.entrada_id) return ej.registro.filter((r) => r.tipo === "disparo").map((r) => (r.envio ?? {}) as Json);
   const { data: evs, error } = await db().from("webhook_eventos").select("payload").eq("entrada_id", ej.entrada_id).eq("lead_id", ej.lead_id).eq("procesado", true).order("recibido_en");
   if (error) throw new Error(`No se pudieron leer los envíos del lead: ${error.message}`);
   return (evs ?? []).map((x) => (x.payload ?? {}) as Json);
