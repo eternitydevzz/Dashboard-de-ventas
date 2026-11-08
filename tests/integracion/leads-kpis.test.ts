@@ -2,7 +2,7 @@
 // lead sale de las llamadas y citas de verdad.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { agendaPorLink, borrarEscenario, como, crearEscenario, db, falla, ok, type Escenario } from "../apoyo/escenario";
-import { cargarLeadsPestana } from "@/app/(panel)/kpis/acciones";
+import { cargarLeadsPestana, cargarUtmsPestana } from "@/app/(panel)/kpis/acciones";
 import { descompactarLeads, MARCA } from "@/lib/leads-vista";
 
 let e: Escenario;
@@ -36,5 +36,18 @@ describe("Pestaña Leads: datos", () => {
     expect(de(e.leads.LeadLibre).marcas).toBe(0);
     expect(d.pipelines.map((p) => p.id)).toEqual(expect.arrayContaining([e.pipeline.id, p2!.id]));
     expect(d.gente.map((g) => g.id)).toContain(e.p.callerA.id);
+  });
+});
+
+describe("Pestaña UTMs: datos (B1)", () => {
+  it("un caller no puede pedirlos", async () => {
+    como(e, e.p.callerA);
+    await falla(cargarUtmsPestana(), /acceso|No tienes|permiso/i);
+  });
+
+  it("el director recibe una fila por lead del proyecto", async () => {
+    como(e, e.p.director);
+    const filas = (await ok(cargarUtmsPestana())) as { id: string }[];
+    expect(filas.map((l) => l.id).sort()).toEqual(Object.values(e.leads).sort());
   });
 });

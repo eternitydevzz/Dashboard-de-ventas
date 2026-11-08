@@ -44,6 +44,10 @@ describe("totales", () => {
   it("por etiqueta: un lead cuenta en cada etiqueta que tiene", () => {
     expect(totalesPor(filas, "etiqueta")).toEqual([{ t: "agenda", n: 3 }, { t: "Canal: YouTube", n: 1 }, { t: SIN_DATO, n: 1 }]);
   });
+  it("una etiqueta repetida en el mismo lead cuenta una vez", () => {
+    const rep = lead("r", {}, ["x", "x"], "2026-11-06T12:00:00Z");
+    expect(totalesPor([rep], "etiqueta")).toEqual([{ t: "x", n: 1 }]);
+  });
   it("por campaña", () => {
     expect(totalesPor(filas, "utm_campaign").find((x) => x.t === "oct")?.n).toBe(1);
   });
