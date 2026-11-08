@@ -25,6 +25,7 @@ import { mandarEnlace } from "@/lib/acceso";
 import { reordenar } from "@/lib/orden-entradas";
 import { tablaValida } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
+import { PIPELINE_ETIQUETA } from "@/lib/ghl-leads";
 
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
 type Res = { ok?: string; error?: string } | null;
@@ -531,7 +532,7 @@ export async function crearWorkflowDeEtiqueta(etiqueta: string) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     const e = typeof etiqueta === "string" ? etiqueta.trim() : "";
-    if (!e || e.length > 100) throw new ErrorUsuario("Escribe la etiqueta (como mucho 100 letras).");
+    if (!e || e.length > 80 || e.includes(",")) throw new ErrorUsuario("Escribe la etiqueta (sin comas y de 80 letras como mucho)."); // B3a: como las fijas
     await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre: `Etiqueta «${e}»`, disparador: { tipo: "etiqueta", etiqueta: e }, entrada_id: null, pasos: [], modo: "prueba", encendido: false }), "workflows");
     refrescar();
     return { ok: true as const };
@@ -901,5 +902,58 @@ export async function guardarCanales(filas: unknown) {
     const p_filas = r.ok.map((c) => ({ ...c, antes: antes.find((a) => a.clave === c.clave)?.nombre ?? null }));
     await escribir(db().rpc("guardar_canales", { p_proyecto: proyecto.id, p_filas }), "canales");
     refrescar();
+  });
+}
+
+// ---------- Etiquetas (Plan GHL B3a, Cristian 8 nov) ----------
+// Siempre en minúsculas (como GHL). Las escritas en el código no se renombran ni se borran: las de los pipelines
+// (ghl-leads.ts), las de la Biblioteca (20261017160000_biblioteca_filas.sql), las `-completo`/`-incompleto` (etiquetas.ts)
+// y «Canal: …» (se cambian en Canales). Nada de esto toca GHL.
+const DEL_CODIGO = [...PIPELINE_ETIQUETA.map((x) => x.etiqueta), "recursos-ia"];
+const delCodigo = (t: string) => DEL_CODIGO.includes(t) || /-(in)?completo$/.test(t) || t.startsWith("canal:");
+const etiquetaLimpia = (x: unknown) => (typeof x === "string" ? x.trim().toLowerCase() : "");
+const etiquetaBuena = (t: string) => !!t && t.length <= 80 && !t.includes(",");
+function etiquetaValida(x: unknown, cambia = false) {
+  const t = etiquetaLimpia(x);
+  if (!etiquetaBuena(t)) throw new ErrorUsuario("Escribe la etiqueta (sin comas y de 80 letras como mucho).");
+  if (cambia && delCodigo(t)) throw new ErrorUsuario(`«${t}» la usa el código de la app: no se puede renombrar, unir ni borrar.`);
+  return t;
+}
+
+export async function crearEtiqueta(nombre: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const t = etiquetaValida(nombre);
+    const { data: ultima } = await db().from("etiquetas").select("orden").eq("proyecto_id", proyecto.id).order("orden", { ascending: false }).limit(1).maybeSingle();
+    const { error } = await db().from("etiquetas").insert({ proyecto_id: proyecto.id, nombre: t, orden: ultima ? Number(ultima.orden) + 1 : 0 });
+    if (error) throw new ErrorUsuario(error.code === "23505" ? "Esa etiqueta ya existe." : error.message);
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// Renombrar (si `a` ya existe, se unen sin repetir) o borrar (`a` = null), en una sola función SQL que cambia a la vez
+// leads, Entradas, reglas, pasos y disparadores de los workflows (supabase/migrations/20261109130000_etiquetas.sql).
+export async function renombrarEtiqueta(de: unknown, a: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const d = etiquetaValida(de, true);
+    const n = a === null ? null : etiquetaValida(a, true);
+    if (n === d) throw new ErrorUsuario("Pon un nombre distinto.");
+    await escribir(db().rpc("renombrar_etiqueta", { p_proyecto: proyecto.id, p_de: d, p_a: n }), "etiquetas");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
+// Guarda el orden de la lista entera (las de los leads también pasan a tener fila; la marca «usada por GHL» no cambia)
+export async function ordenarEtiquetas(nombres: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    if (!Array.isArray(nombres) || nombres.length > 2000) throw new ErrorUsuario("Lista de etiquetas no válida.");
+    const lista = [...new Set(nombres.map(etiquetaLimpia).filter(etiquetaBuena))];
+    await escribir(db().from("etiquetas").upsert(lista.map((nombre, orden) => ({ proyecto_id: proyecto.id, nombre, orden })), { onConflict: "proyecto_id,nombre" }), "etiquetas");
+    refrescar();
+    return { ok: true as const };
   });
 }
