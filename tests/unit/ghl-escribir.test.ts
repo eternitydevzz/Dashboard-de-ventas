@@ -2,7 +2,7 @@
 // especificación oficial (github.com/GoHighLevel/highlevel-api-docs, apps/contacts.json y apps/opportunities.json).
 // GHL se simula: cada test mira qué petición exacta se mandó.
 import { describe, expect, it } from "vitest";
-import { anadirEtiquetasGhl, crearOActualizarContactoGhl, crearOportunidadGhl, quitarEtiquetasGhl } from "@/lib/ghl";
+import { anadirEtiquetasGhl, crearOActualizarContactoGhl, crearOportunidadGhl, oportunidadesContactoGhl, quitarEtiquetasGhl } from "@/lib/ghl";
 
 type Llamada = { url: URL; metodo: string; cabeceras: Record<string, string>; cuerpo: unknown };
 function falso(respuestas: ((l: Llamada) => Response)[]) {
@@ -114,5 +114,33 @@ describe("crearOportunidadGhl (buscar y crear si no hay: decisión de Cristian, 
   it("sin el permiso de oportunidades, el error lo dice", async () => {
     const { f } = falso([() => Response.json({ opportunities: [] }), () => new Response("{}", { status: 403 })]);
     await expect(crearOportunidadGhl({ ...base, fetchImpl: f })).rejects.toThrow(/Edit Opportunities/);
+  });
+
+  // Mejora «menos llamadas a GHL» (Cristian, 7 nov): las oportunidades del contacto se buscan UNA vez para todos sus pipelines
+  it("con `existentes` no busca: usa esa lista (ya tiene una en ese pipeline y columna → 0 llamadas)", async () => {
+    const { f, llamadas } = falso([]);
+    const existentes = [{ id: "o9", pipelineId: "p1", pipelineStageId: "e1", contactId: "c1" }];
+    expect(await crearOportunidadGhl({ ...base, existentes, fetchImpl: f })).toEqual({ id: "o9", nueva: false, movida: false });
+    expect(llamadas).toHaveLength(0);
+  });
+  it("con `existentes` sin ese pipeline: solo la crea (1 llamada) y la añade a la lista", async () => {
+    const { f, llamadas } = falso([() => Response.json({ opportunity: { id: "o1" } }, { status: 201 })]);
+    const existentes = [{ id: "o5", pipelineId: "otro" }];
+    expect(await crearOportunidadGhl({ ...base, existentes, fetchImpl: f })).toEqual({ id: "o1", nueva: true, movida: false });
+    expect(llamadas.map((l) => [l.metodo, l.url.pathname])).toEqual([["POST", "/opportunities/"]]);
+    expect(existentes.map((x) => x.id)).toEqual(["o5", "o1"]);
+  });
+});
+
+describe("oportunidadesContactoGhl (una sola búsqueda por contacto)", () => {
+  it("GET /opportunities/search con el contacto, sin pipeline y con el máximo de GHL (100)", async () => {
+    const { f, llamadas } = falso([() => Response.json({ opportunities: [{ id: "a", pipelineId: "p1" }, { id: "b", pipelineId: "p2" }] })]);
+    expect((await oportunidadesContactoGhl({ token: "t", locationId: "loc", contactId: "c1", fetchImpl: f })).map((x) => x.id)).toEqual(["a", "b"]);
+    expect(llamadas).toHaveLength(1);
+    expect(llamadas[0].url.pathname).toBe("/opportunities/search");
+    expect(llamadas[0].cabeceras.Version).toBe("2021-07-28");
+    const q = Object.fromEntries(llamadas[0].url.searchParams);
+    expect(q).toMatchObject({ location_id: "loc", contact_id: "c1", limit: "100" });
+    expect(q).not.toHaveProperty("pipeline_id");
   });
 });

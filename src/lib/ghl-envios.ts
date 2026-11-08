@@ -11,7 +11,19 @@ import "server-only";
 // une, el dashboard no), el envío queda «ok», este lead no guarda el id y su historial lo apunta.
 import { db } from "@/lib/datos";
 import { armarEnvioGhl, etiquetasApp, type EnvioGhl } from "@/lib/entrada-ghl";
-import { anadirEtiquetasGhl, crearOActualizarContactoGhl, crearOportunidadGhl, pipelinesGhl, primeraColumnaGhl, quitarEtiquetasGhl } from "@/lib/ghl";
+import { anadirEtiquetasGhl, crearOActualizarContactoGhl, crearOportunidadGhl, oportunidadesContactoGhl, pipelinesGhl, primeraColumnaGhl, quitarEtiquetasGhl, type OportunidadGhl2, type PipelineGhl } from "@/lib/ghl";
+
+// Mejora «menos llamadas a GHL» (Cristian, 7 nov 2026): lo que se lee de GHL una sola vez por vuelta (cada lectura de
+// 60 s), para todos sus leads. Hoy: las columnas de los pipelines. Si la lectura falla, se borra y el siguiente lo reintenta.
+export type CacheGhl = { pipelines?: Promise<PipelineGhl[]> };
+function columnasGhl(cache: CacheGhl | undefined, o: { token: string; locationId: string; fetchImpl?: Fetch }) {
+  if (!cache) return pipelinesGhl(o);
+  cache.pipelines ??= pipelinesGhl(o).catch((e) => {
+    delete cache.pipelines;
+    throw e;
+  });
+  return cache.pipelines;
+}
 import { enviarEmail, urlApp } from "@/lib/email";
 
 type Fetch = typeof fetch;
@@ -83,7 +95,8 @@ export async function enviarPendientesGhl(
   const { data: ent } = ids.length ? await db().from("entradas").select("id, nombre, ghl_activo, ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_etiqueta_base, ghl_campo_completo, ghl_oportunidades, ghl_etiquetas_extra").in("id", ids) : { data: [] };
   const entradas = new Map(((ent ?? []) as EntradaGhl[]).map((x) => [x.id, x]));
 
-  // 2 · De uno en uno por lead
+  // 2 · De uno en uno por lead (las columnas de GHL, una vez para todos)
+  const cache: CacheGhl = {};
   for (const grupo of [...grupos.values()].slice(0, MAX_LEADS_POR_LECTURA)) {
     const { entrada_id, lead_id } = grupo[0];
     const entrada = entrada_id ? entradas.get(entrada_id) : undefined;
@@ -93,7 +106,7 @@ export async function enviarPendientesGhl(
       continue;
     }
     try {
-      await enviarLead(proyecto.id, proyecto.ghl_location_id, token, entrada, lead_id, opciones.fetchImpl);
+      await enviarLead(proyecto.id, proyecto.ghl_location_id, token, entrada, lead_id, opciones.fetchImpl, cache);
       // Todos sus envíos a esta Entrada que esperaban (también los que aún no tocaban) han ido en este envío
       const { error: errOk } = await db()
         .from("webhook_eventos")
@@ -123,7 +136,7 @@ async function marcar(ids: string[], cambios: Json) {
   if (error) console.error("[ghl-envios] no se pudo apuntar el estado:", error.message);
 }
 
-async function enviarLead(proyectoId: string, locationId: string, token: string, entrada: EntradaGhl, leadId: string, fetchImpl?: Fetch) {
+async function enviarLead(proyectoId: string, locationId: string, token: string, entrada: EntradaGhl, leadId: string, fetchImpl?: Fetch, cache?: CacheGhl) {
   // Todos los envíos del lead a esta Entrada, en orden de llegada (registro, cuestionario, uno tardío…)
   const { data: evs, error } = await db().from("webhook_eventos").select("payload").eq("entrada_id", entrada.id).eq("lead_id", leadId).eq("procesado", true).order("recibido_en");
   if (error) throw new Error(`No se pudieron leer los envíos del lead: ${error.message}`);
@@ -139,13 +152,13 @@ async function enviarLead(proyectoId: string, locationId: string, token: string,
       campoCompleto: entrada.ghl_campo_completo ?? "",
     }
   );
-  await mandarEnvioGhl({ proyectoId, locationId, token, envio, leadId, fetchImpl });
+  await mandarEnvioGhl({ proyectoId, locationId, token, envio, leadId, fetchImpl, cache });
 }
 
 // Lo que se hace en GHL con un envío ya calculado (hoy, desde la Entrada; desde la 4a-2, también desde un workflow en
 // modo real): contacto → etiquetas → quitar → oportunidades → el lead guarda su contacto de GHL y sus etiquetas.
 // `quitarExtra`: etiquetas que un paso «Quitar etiqueta» del workflow quita además de `-incompleto`.
-export async function mandarEnvioGhl(o: { proyectoId: string; locationId: string; token: string; envio: EnvioGhl; leadId: string; quitarExtra?: string[]; fetchImpl?: Fetch }) {
+export async function mandarEnvioGhl(o: { proyectoId: string; locationId: string; token: string; envio: EnvioGhl; leadId: string; quitarExtra?: string[]; fetchImpl?: Fetch; cache?: CacheGhl }) {
   const { proyectoId, locationId, token, envio, leadId, fetchImpl } = o;
   if (!envio.contacto.email && !envio.contacto.phone) throw new Error("El lead no tiene email ni teléfono para GHL");
 
@@ -156,13 +169,16 @@ export async function mandarEnvioGhl(o: { proyectoId: string; locationId: string
   if (envio.quitar && (!c.etiquetas || c.etiquetas.some((t) => t.toLowerCase() === q))) await quitarEtiquetasGhl({ token, contactId: c.id, etiquetas: [envio.quitar], fetchImpl });
   const extra = [...new Set((o.quitarExtra ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean))];
   if (extra.length) await quitarEtiquetasGhl({ token, contactId: c.id, etiquetas: extra, fetchImpl });
-  // Sin columna fijada: la primera de GHL (una sola lectura de pipelines por lead) y la que ya existe no se mueve
+  // Sin columna fijada: la primera de GHL (columnas leídas una vez por vuelta) y la que ya existe no se mueve
   const sinColumna = envio.oportunidades.some((o) => !o.etapaId);
-  const pipelines = sinColumna ? await pipelinesGhl({ token, locationId, fetchImpl }) : [];
-  for (const o of envio.oportunidades) {
-    const etapaId = o.etapaId ?? primeraColumnaGhl(pipelines, o.pipelineId);
-    if (!etapaId) throw new Error(`El pipeline ${o.pipelineId} no está en GHL o no tiene columnas`);
-    await crearOportunidadGhl({ token, locationId, contactId: c.id, pipelineId: o.pipelineId, etapaId, nombre: o.nombre, mover: !!o.etapaId, fetchImpl });
+  const pipelines = sinColumna ? await columnasGhl(o.cache, { token, locationId, fetchImpl }) : [];
+  // Con 2 o más pipelines, sus oportunidades se buscan UNA vez (antes, una búsqueda por pipeline). Con 1, la búsqueda
+  // de siempre (filtrada por pipeline): cuesta lo mismo
+  const existentes: OportunidadGhl2[] | undefined = envio.oportunidades.length > 1 ? await oportunidadesContactoGhl({ token, locationId, contactId: c.id, fetchImpl }) : undefined;
+  for (const op of envio.oportunidades) {
+    const etapaId = op.etapaId ?? primeraColumnaGhl(pipelines, op.pipelineId);
+    if (!etapaId) throw new Error(`El pipeline ${op.pipelineId} no está en GHL o no tiene columnas`);
+    await crearOportunidadGhl({ token, locationId, contactId: c.id, pipelineId: op.pipelineId, etapaId, nombre: op.nombre, mover: !!op.etapaId, existentes, fetchImpl });
   }
 
   // El lead del dashboard: su contacto de GHL (así la lectura de 60 s lo reconoce) y la misma etiqueta que en GHL

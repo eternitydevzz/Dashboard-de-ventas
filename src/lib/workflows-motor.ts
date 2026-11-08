@@ -12,7 +12,7 @@ import "server-only";
 import { db } from "@/lib/datos";
 import { moverLeadDashboard } from "@/lib/leads";
 import { armarEnvioGhl } from "@/lib/entrada-ghl";
-import { avisarPorEmail, mandarEnvioGhl, type Avisar } from "@/lib/ghl-envios";
+import { avisarPorEmail, mandarEnvioGhl, type Avisar, type CacheGhl } from "@/lib/ghl-envios";
 import { aplanarPasos, compararEnvios, configDePasos, envioDeWorkflow, tramos, type Paso, type PasoSimple } from "@/lib/workflows";
 
 export type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: typeof fetch; avisar?: Avisar };
@@ -64,6 +64,7 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
   if (!lista.length) return r;
   const { data: wfs } = await db().from("workflows").select("id, nombre, encendido, modo").in("id", [...new Set(lista.map((x) => x.workflow_id))]);
   const wf = new Map(((wfs ?? []) as { id: string; nombre: string; encendido: boolean; modo: string }[]).map((w) => [w.id, w]));
+  const cache: CacheGhl = {}; // las columnas de GHL, una vez por vuelta (mejora «menos llamadas», 7 nov)
 
   for (const ej of lista) {
     r.hechas++;
@@ -73,7 +74,7 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
       continue;
     }
     try {
-      const hecho = w.modo === "real" ? await tramoReal(proyectoId, ej, ahora, o.ghl) : await tramoEnPrueba(ej, ahora);
+      const hecho = w.modo === "real" ? await tramoReal(proyectoId, ej, ahora, o.ghl, cache) : await tramoEnPrueba(ej, ahora);
       await cambiar(ej.id, hecho);
       if (hecho.estado === "ok") r.ok++;
     } catch (e) {
@@ -130,7 +131,7 @@ async function enviosDe(ej: Ejecucion) {
 }
 
 // Un tramo en MODO REAL: sus pasos de GHL con las mismas llamadas que hoy (mandarEnvioGhl)
-async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: GhlParaWorkflows | undefined): Promise<Json> {
+async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: GhlParaWorkflows | undefined, cache?: CacheGhl): Promise<Json> {
   if (!ghl) throw new Error("GHL no está conectado en este proyecto: no se puede mandar");
   const envios = await enviosDe(ej);
   const ts = tramos(aplanarPasos(ej.pasos, envios));
@@ -140,7 +141,7 @@ async function tramoReal(proyectoId: string, ej: Ejecucion, ahora: Date, ghl: Gh
   if (deGhl.length) {
     const envio = armarEnvioGhl(envios, configDePasos(deGhl));
     const quitarExtra = deGhl.flatMap((p) => (p.tipo === "quitar_etiqueta_ghl" ? [p.etiqueta] : []));
-    await mandarEnvioGhl({ proyectoId, locationId: ghl.locationId, token: ghl.token, envio, leadId: ej.lead_id, quitarExtra, fetchImpl: ghl.fetchImpl });
+    await mandarEnvioGhl({ proyectoId, locationId: ghl.locationId, token: ghl.token, envio, leadId: ej.lead_id, quitarExtra, fetchImpl: ghl.fetchImpl, cache });
   }
   // «Mover en el dashboard» (Cristian, 7 nov): después de GHL, en el orden del tramo
   for (const p of pasos) if (p.tipo === "mover_dashboard") await moverLeadDashboard(proyectoId, ej.lead_id, p.pipeline_id, p.etapa_id);
