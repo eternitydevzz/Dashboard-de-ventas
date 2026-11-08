@@ -478,3 +478,20 @@ export async function borrarLeads(leadIds: string[]) {
     return { borrados: borrar.length, saltados: protegidos.size };
   });
 }
+
+// D2 · Unir dos leads duplicados (solo jefes). Se queda el más antiguo; el otro se borra y todo lo suyo pasa al
+// antiguo (función `unir_leads`, D1: todo o nada). Devuelve el contacto de GHL que sobra, para unirlo o borrarlo en GHL.
+export async function unirLeads(queda: string, sobra: string) {
+  return seguro(async () => {
+    await exigirSeccion("crm");
+    const { proyecto } = await exigir(esJefe);
+    // Los dos, de este proyecto (la función también lo comprueba, pero así el mensaje es claro)
+    const { data } = await db().from("leads").select("id, creado_en").eq("proyecto_id", proyecto.id).in("id", [queda, sobra]);
+    if (queda === sobra || data?.length !== 2) throw new ErrorUsuario("Esos leads no son de este proyecto.");
+    if (data.find((l) => l.id === queda)!.creado_en > data.find((l) => l.id === sobra)!.creado_en) throw new ErrorUsuario("Se queda el más antiguo.");
+    const { data: ghl, error } = await db().rpc("unir_leads", { p_proyecto: proyecto.id, p_queda: queda, p_sobra: sobra });
+    if (error) throw new Error(`No se pudo unir: ${error.message}`);
+    refrescar();
+    return { ok: true as const, ghlSobra: (ghl as string | null) ?? null };
+  });
+}
