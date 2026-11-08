@@ -38,7 +38,7 @@ export function filaUtm(l: LeadBase, entrada?: string): FilaUtm {
 
 // Los valores de una fila para una clave (las etiquetas pueden ser varias; sin valor = «Sin dato»)
 function valores(f: FilaUtm, clave: Clave): string[] {
-  if (clave === "etiqueta") return f.etiquetas.length ? f.etiquetas : [SIN_DATO];
+  if (clave === "etiqueta") return f.etiquetas.length ? [...new Set(f.etiquetas)] : [SIN_DATO];
   return [f[clave] || SIN_DATO];
 }
 
