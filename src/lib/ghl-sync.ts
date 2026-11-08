@@ -3,7 +3,7 @@ import { db } from "@/lib/datos";
 import { descifrar } from "@/lib/cifrado";
 import { columnaCitasGhl, datosAgendaGhl, guardarLeads, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
-import { contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
+import { GhlEsperar, contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
 import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/lib/canal";
 import { mismoNombre } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
@@ -53,7 +53,8 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
     if (!contactos.has(id)) {
       try {
         contactos.set(id, await contactoGhl({ token, contactId: id, fetchImpl }));
-      } catch {
+      } catch (e) {
+        if (e instanceof GhlEsperar) throw e; // con null, la cita se quedaría sin canal para siempre
         contactos.set(id, null);
       }
     }

@@ -11,7 +11,7 @@ import "server-only";
 // une, el dashboard no), el envío queda «ok», este lead no guarda el id y su historial lo apunta.
 import { db } from "@/lib/datos";
 import { armarEnvioGhl, etiquetasApp, type EnvioGhl } from "@/lib/entrada-ghl";
-import { anadirEtiquetasGhl, crearOActualizarContactoGhl, crearOportunidadGhl, oportunidadesContactoGhl, pipelinesGhl, primeraColumnaGhl, quitarEtiquetasGhl, type OportunidadGhl2, type PipelineGhl } from "@/lib/ghl";
+import { GhlEsperar, anadirEtiquetasGhl, crearOActualizarContactoGhl, crearOportunidadGhl, oportunidadesContactoGhl, pipelinesGhl, primeraColumnaGhl, quitarEtiquetasGhl, type OportunidadGhl2, type PipelineGhl } from "@/lib/ghl";
 
 // Mejora «menos llamadas a GHL» (Cristian, 7 nov 2026): lo que se lee de GHL una sola vez por vuelta (cada lectura de
 // 60 s), para todos sus leads. Hoy: las columnas de los pipelines. Si la lectura falla, se borra y el siguiente lo reintenta.
@@ -31,12 +31,16 @@ type Json = Record<string, unknown>;
 
 export const MAX_INTENTOS = 5;
 export const EMAIL_AVISO_GHL = "info@eternity.llc"; // Cristian, 6 nov 2026
-// Con 2 pipelines sin columna: upsert, etiquetas, quitar, pipelines y 2 × (buscar + crear) = hasta 8 llamadas por lead.
-// 10 leads = 80 llamadas, por debajo del límite de GHL (100 cada 10 s). Antes 15 leads × 4 llamadas.
-const MAX_LEADS_POR_LECTURA = 10;
-// Reintentos cada 1 min de verdad (Cristian, 7 nov 2026): la lectura va cada 30 s y la del minuto puede llegar un pelo
-// antes; con +60 s se iba a la siguiente (1,5-2 min). Con +50 s la coge la lectura del minuto
+// Con 2 pipelines (mandarEnvioGhl): upsert, etiquetas, quitar, 1 búsqueda de oportunidades y 2 × crear/mover = 6 por
+// lead (+1 «quitar etiqueta» de un workflow) y las columnas, 1 vez por vuelta. 10 leads ≈ 70, por debajo del límite de
+// GHL (100 cada 10 s). Envíos y workflows comparten este tope en cada lectura (/api/ghl/leer).
+export const MAX_LEADS_POR_LECTURA = 10;
+// Reintentos cada 1 min de verdad (Cristian, 7 nov 2026): la lectura va cada 60 s y puede llegar un pelo antes;
+// con +60 s se iba a la siguiente (~2 min). Con +50 s la coge la lectura del minuto
 const REINTENTAR_EN = 50_000;
+// 429 (plan GHL 4.5): se espera a la lectura siguiente sin gastar intento; pasados 30 min, cuenta como fallo normal
+export const ESPERA_429 = 60_000;
+export const MAX_ESPERA_429 = 30 * 60_000;
 
 export type EntradaGhl = {
   id: string;
@@ -49,8 +53,9 @@ export type EntradaGhl = {
   ghl_campo_completo: string | null;
   ghl_oportunidades: { pipeline_id: string; etapa_id: string | null }[] | null;
   ghl_etiquetas_extra: string[] | null;
+  ghl_espera_seg?: number | null;
 };
-type Evento = { id: string; entrada_id: string | null; lead_id: string | null; ghl_intentos: number | null };
+type Evento = { id: string; entrada_id: string | null; lead_id: string | null; ghl_intentos: number | null; recibido_en: string };
 export type ResultadoEnvios = { enviados: number; reintentos: number; errores: string[] };
 export type Avisar = (o: { entrada: string; lead: string; error: string }) => Promise<unknown>;
 
@@ -77,7 +82,7 @@ export async function enviarPendientesGhl(
   // 1 · Los envíos cuya hora ya llegó, los más antiguos primero, agrupados por Entrada y lead
   const { data: filas, error } = await db()
     .from("webhook_eventos")
-    .select("id, entrada_id, lead_id, ghl_intentos")
+    .select("id, entrada_id, lead_id, ghl_intentos, recibido_en")
     .eq("proyecto_id", proyecto.id)
     .eq("ghl_estado", "esperando")
     .lte("ghl_enviar_en", ahora.toISOString())
@@ -92,7 +97,7 @@ export async function enviarPendientesGhl(
   if (!grupos.size) return r;
 
   const ids = [...new Set([...grupos.values()].map((g) => g[0].entrada_id).filter((x): x is string => !!x))];
-  const { data: ent, error: errEnt } = ids.length ? await db().from("entradas").select("id, nombre, ghl_activo, ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_etiqueta_base, ghl_campo_completo, ghl_oportunidades, ghl_etiquetas_extra").in("id", ids) : { data: [], error: null };
+  const { data: ent, error: errEnt } = ids.length ? await db().from("entradas").select("id, nombre, ghl_activo, ghl_campos, ghl_pipeline_id, ghl_etapa_id, ghl_etiqueta_base, ghl_campo_completo, ghl_oportunidades, ghl_etiquetas_extra, ghl_espera_seg").in("id", ids) : { data: [], error: null };
   if (errEnt) throw new Error(`No se pudieron leer las Entradas: ${errEnt.message}`);
   const entradas = new Map(((ent ?? []) as EntradaGhl[]).map((x) => [x.id, x]));
 
@@ -118,6 +123,12 @@ export async function enviarPendientesGhl(
       if (errOk) throw new Error(`No se pudo marcar el envío como hecho: ${errOk.message}`);
       r.enviados++;
     } catch (e) {
+      // 429: debía salir al llegar el primer envío + la espera de la Entrada; si aún no pasan 30 min, espera y se corta
+      const debiaSalir = Math.min(...grupo.map((x) => new Date(x.recibido_en).getTime())) + (entrada.ghl_espera_seg ?? 60) * 1000;
+      if (e instanceof GhlEsperar && ahora.getTime() - debiaSalir <= MAX_ESPERA_429) {
+        await marcar(grupo.map((x) => x.id), { ghl_enviar_en: new Date(ahora.getTime() + ESPERA_429).toISOString() });
+        break;
+      }
       const msg = (e instanceof Error ? e.message : String(e)).slice(0, 300);
       const intentos = Math.max(...grupo.map((x) => x.ghl_intentos ?? 0)) + 1;
       const final = intentos >= MAX_INTENTOS;

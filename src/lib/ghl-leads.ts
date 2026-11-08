@@ -1,5 +1,5 @@
 import "server-only";
-// Leads nuevos de GHL por la API (Cristian, 16-17 oct 2026: «todo por API, sin workflows»). Cada 30 s, junto a las
+// Leads nuevos de GHL por la API (Cristian, 16-17 oct 2026: «todo por API, sin workflows»). Cada 60 s, junto a las
 // citas, se leen los contactos creados en GHL y cada uno entra en la app según su etiqueta. Se leen contactos, no
 // oportunidades: con el workflow apagado, GHL crea el contacto pero no la oportunidad (comprobado el 16 oct con el
 // test de Cristian). Decisiones de Cristian:

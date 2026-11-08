@@ -12,17 +12,17 @@ import "server-only";
 import { db } from "@/lib/datos";
 import { moverLeadDashboard } from "@/lib/leads";
 import { armarEnvioGhl } from "@/lib/entrada-ghl";
-import { avisarPorEmail, mandarEnvioGhl, type Avisar, type CacheGhl } from "@/lib/ghl-envios";
+import { avisarPorEmail, mandarEnvioGhl, ESPERA_429, MAX_ESPERA_429, MAX_LEADS_POR_LECTURA, type Avisar, type CacheGhl } from "@/lib/ghl-envios";
+import { GhlEsperar } from "@/lib/ghl";
 import { aplanarPasos, compararEnvios, configDePasos, envioDeWorkflow, tramos, type Paso, type PasoSimple } from "@/lib/workflows";
 
 export type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: typeof fetch; avisar?: Avisar };
 
 type Json = Record<string, unknown>;
 export const MAX_INTENTOS_WF = 5;
-const POR_LECTURA = 10; // como el envío a GHL de hoy (src/lib/ghl-envios.ts)
 const REINTENTAR_EN = 50_000; // como los envíos de las Entradas: lo coge la lectura del minuto (src/lib/ghl-envios.ts)
 
-type Ejecucion = { id: string; workflow_id: string; pasos: Paso[]; lead_id: string; entrada_id: string | null; tramo: number; intentos: number; registro: Json[] };
+type Ejecucion = { id: string; workflow_id: string; pasos: Paso[]; lead_id: string; entrada_id: string | null; tramo: number; intentos: number; registro: Json[]; creado_en: string };
 type EntradaGhl = { ghl_campos: Record<string, string> | null; ghl_pipeline_id: string | null; ghl_etapa_id: string | null; ghl_oportunidades: { pipeline_id: string; etapa_id: string | null }[] | null; ghl_etiqueta_base: string | null; ghl_etiquetas_extra: string[] | null; ghl_campo_completo: string | null };
 
 const enSegundos = (ahora: Date, seg: number) => new Date(ahora.getTime() + seg * 1000).toISOString();
@@ -54,12 +54,12 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
   if (o.limite !== undefined && o.limite <= 0) return r;
   const { data, error } = await db()
     .from("workflow_ejecuciones")
-    .select("id, workflow_id, pasos, lead_id, entrada_id, tramo, intentos, registro")
+    .select("id, workflow_id, pasos, lead_id, entrada_id, tramo, intentos, registro, creado_en")
     .eq("proyecto_id", proyectoId)
     .eq("estado", "esperando")
     .lte("siguiente_en", ahora.toISOString())
     .order("siguiente_en")
-    .limit(o.limite ?? POR_LECTURA);
+    .limit(o.limite ?? MAX_LEADS_POR_LECTURA);
   if (error) throw new Error(`ejecuciones: ${error.message}`);
   const lista = (data ?? []) as Ejecucion[];
   if (!lista.length) return r;
@@ -80,6 +80,13 @@ export async function avanzarEjecuciones(proyectoId: string, o: { ahora?: Date; 
       await cambiar(ej.id, hecho);
       if (hecho.estado === "ok") r.ok++;
     } catch (e) {
+      // 429: espera a la lectura siguiente sin gastar intento y se corta; pasados 30 min desde que se creó, fallo normal
+      // shortcut: se mide desde creado_en (no hay columna con la hora original de cada tramo); un tramo tras una espera
+      // larga cuenta el 429 como fallo normal desde el primero. Si molesta, guardar la hora en que debía salir el tramo.
+      if (e instanceof GhlEsperar && ahora.getTime() - new Date(ej.creado_en).getTime() <= MAX_ESPERA_429) {
+        await cambiar(ej.id, { siguiente_en: new Date(ahora.getTime() + ESPERA_429).toISOString() });
+        break;
+      }
       const msg = (e instanceof Error ? e.message : String(e)).slice(0, 300);
       const intentos = ej.intentos + 1;
       const final = intentos >= MAX_INTENTOS_WF;
