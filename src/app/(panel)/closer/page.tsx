@@ -28,7 +28,7 @@ export default async function AgendasMetricasPage({ searchParams }: PageProps<"/
 
   const datos = await cargarAgendas(proyecto, !!perfil.es_prueba);
   if (mirar) {
-    datos.citas = datos.citas.filter((c) => c.agendada_por === perfil.id);
+    datos.citas = datos.citas.filter((c) => c.agendada_por === perfil.id || c.closer_id === perfil.id);
     const leads = new Set(datos.citas.map((c) => c.lead_id));
     datos.ventas = datos.ventas.filter((v) => leads.has(v.lead_id));
     const ventas = new Set(datos.ventas.map((v) => v.id));

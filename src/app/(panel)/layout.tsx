@@ -7,6 +7,7 @@ import { Dialogos } from "@/components/dialogos";
 import { AvisosEnVivo } from "@/components/avisos-en-vivo";
 import { proyectoParaMenu } from "@/lib/formato";
 import { seccionesPermitidas, SECCIONES, type Seccion } from "@/lib/permisos";
+import { esCloser } from "@/lib/tipos";
 
 // Cristian (13 oct 2026): «Llamadas de GHL» oculto en el menú para todos; se retomará más adelante (ver plan).
 // La página sigue existiendo (/caller/grabadas); para volver a enseñarla, poner true.
@@ -40,7 +41,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
         ...(tiene("grabaciones") ? [{ href: "/grabaciones", texto: "Grabaciones", icono: "grabaciones" as const }] : []),
         ...(tiene("agendas") ? [{ href: "/closer", texto: jefe ? "Agendas" : "Mis agendas", icono: "closer" as const }] : []),
         // Bloque 7 de 1.0: onboarding de los clientes de cada closer (aparte del onboarding de Clientes)
-        ...(tiene("agendas") && (jefe || perfil.rol === "closer") ? [{ href: "/onboarding-closers", texto: jefe ? "Onboarding closers" : "Onboarding", icono: "onboarding" as const }] : []),
+        ...(tiene("agendas") && (jefe || esCloser(perfil)) ? [{ href: "/onboarding-closers", texto: jefe ? "Onboarding closers" : "Onboarding", icono: "onboarding" as const }] : []),
         ...(LLAMADAS_GHL_VISIBLE && tiene("grabadas") ? [{ href: "/caller/grabadas", texto: jefe ? "Llamadas de GHL" : "Mis llamadas grabadas", icono: "grabadas" as const }] : []),
         ...(tiene("ventas") ? [{ href: "/ventas", texto: jefe ? "Ventas" : "Mis ventas", icono: "ventas" as const }] : []),
         ...(tiene("ranking") ? [{ href: "/ranking", texto: "Ranking del equipo", icono: "ranking" as const }] : []),

@@ -251,7 +251,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const agendas = await cargarAgendas(proyecto, !!perfil.es_prueba);
     const mirar = perfil.rol === "caller";
     if (mirar) {
-      agendas.citas = agendas.citas.filter((c) => c.agendada_por === perfil.id);
+      agendas.citas = agendas.citas.filter((c) => c.agendada_por === perfil.id || c.closer_id === perfil.id);
       const suyos = new Set(agendas.citas.map((c) => c.lead_id));
       agendas.ventas = agendas.ventas.filter((v) => suyos.has(v.lead_id));
       const ventas = new Set(agendas.ventas.map((v) => v.id));
