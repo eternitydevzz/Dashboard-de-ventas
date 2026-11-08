@@ -2,7 +2,7 @@
 // Cita nueva → «agendada»; cita que pasa a cancelada (estado de GHL o borrada en GHL) → «cancelada».
 // Un fallo de los workflows nunca rompe la lectura. Base, GHL y motor simulados (patrón de ghl-429.test.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { canalDeOrigen } from "@/lib/canal";
+import { CANALES_POR_DEFECTO, canalDeOrigen } from "@/lib/canal";
 
 type Resp = { data: unknown; error: { message: string } | null };
 let respuesta: Record<string, Resp>;
@@ -148,5 +148,21 @@ describe("closer de la cita por el usuario de GHL", () => {
     ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1", assignedUserId: "u-facu" }];
     await sincronizarCalendarios("p1", { ahora });
     expect(insertadas).toEqual([expect.objectContaining({ closer_id: "facu" })]);
+  });
+});
+
+// Plan GHL B2b: los canales salen de la tabla `canales` del proyecto; sin filas, los de siempre
+describe("canales del proyecto", () => {
+  it("sin filas, los de siempre", async () => {
+    ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1" }];
+    await sincronizarCalendarios("p1", { ahora });
+    expect(insertadas).toEqual([expect.objectContaining({ canal: "dfy" })]);
+  });
+  it("con filas, mandan sus alias", async () => {
+    const tabla = CANALES_POR_DEFECTO.map((c) => (c.clave === "dfy" ? { ...c, alias: [] } : c.clave === "webinar" ? { ...c, alias: ["dfy"] } : c));
+    respuesta["canales:select"] = { data: tabla, error: null };
+    ghl.eventos = [{ id: "g1", startTime: FECHA, calendarId: "cal1", contactId: "c1" }];
+    await sincronizarCalendarios("p1", { ahora });
+    expect(insertadas).toEqual([expect.objectContaining({ canal: "webinar" })]);
   });
 });
