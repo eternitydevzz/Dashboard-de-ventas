@@ -38,6 +38,16 @@ describe("canalDeOrigen", () => {
     expect(canalDeOrigen("http://localhost:4321/recursos.html")).toBe("directo");
   });
 
+  it("Facu y DFY: gana la página aunque traiga utm_source (Cristian, 8 nov)", () => {
+    expect(canalDeOrigen("https://codigomaestria.com/agenda-fc")).toBe("facu");
+    expect(canalDeOrigen("https://codigomaestria.com/agenda-fc/?utm_source=ig")).toBe("facu");
+    expect(canalDeOrigen("codigomaestria.com/agenda-fc/")).toBe("facu");
+    expect(canalDeOrigen("https://services.eternity.llc/software-demo")).toBe("dfy");
+    expect(canalDeOrigen("https://services.eternity.llc/software-demo?utm_source=prueba")).toBe("dfy");
+    expect(canalDeOrigen("https://codigomaestria.com/agenda?utm_source=callers&utm_source=caller")).toBe("callers");
+    expect(nombreCanal("facu")).toBe("Facu");
+  });
+
   it("sin UTM es «directo»; un UTM desconocido es «otro»; sin datos, null", () => {
     expect(canalDeOrigen("https://codigomaestria.com/agenda")).toBe("directo");
     expect(canalDeOrigen("https://api.leadconnectorhq.com/widget/booking/X7qpsbS2ChORZkwO4O3f")).toBe("directo");
