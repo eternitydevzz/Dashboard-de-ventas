@@ -783,3 +783,21 @@ export async function guardarRotacion(pcts: Record<string, number>) {
     refrescar();
   });
 }
+
+// ---------- Calendarios de GHL del proyecto (columna proyectos.ghl_calendarios) ----------
+// Vacíos y repetidos fuera; un id con forma rara rechaza toda la lista. Lista vacía = sync por closer, como antes.
+export async function guardarCalendariosProyecto(ids: string[]) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    if (!Array.isArray(ids)) throw new ErrorUsuario("Lista de calendarios no válida.");
+    const limpios: string[] = [];
+    for (const x of ids) {
+      if (typeof x === "string" && !x.trim()) continue;
+      const id = idGhl(x);
+      if (!id) throw new ErrorUsuario(`El calendario «${String(x).slice(0, 40)}» no es válido (solo letras, números, - y _).`);
+      if (!limpios.includes(id)) limpios.push(id);
+    }
+    await escribir(db().from("proyectos").update({ ghl_calendarios: limpios }).eq("id", proyecto.id), "proyectos");
+    refrescar();
+  });
+}

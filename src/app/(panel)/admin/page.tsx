@@ -18,7 +18,7 @@ import { EditorWorkflow, type OpcionesEditor } from "./workflows-editor";
 import type { Nombres } from "@/lib/workflows-vista";
 import { camposGhl, columnasEnOrdenGhl, pipelinesGhl } from "@/lib/ghl";
 import { descifrar } from "@/lib/cifrado";
-import { ConexionGhl, CalendarioCloser, UsuarioGhl } from "./ghl";
+import { ConexionGhl, CalendariosProyecto, CalendarioCloser, UsuarioGhl } from "./ghl";
 import { reglasValidas } from "@/lib/entrada";
 import { cargarDatosPermisos } from "@/lib/permisos-datos";
 import { TablaPermisos, type DatosPermisos } from "./permisos";
@@ -466,7 +466,10 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               <Seccion titulo="Calendario de GHL de cada closer (por API)" className="xl:col-span-2">
                 <p className="mb-3 text-sm text-texto-2">La app pregunta a GHL por las citas de cada closer (desde hace 30 días hasta dentro de 60) al pulsar «Sincronizar GHL» en Agendas y, sola, al abrir Agendas si han pasado más de 10 minutos. Funciona también en local.</p>
                 <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-                  <ConexionGhl locationId={ghl.location} tieneToken={ghl.tieneToken} />
+                  <div className="space-y-5">
+                    <ConexionGhl locationId={ghl.location} tieneToken={ghl.tieneToken} />
+                    <CalendariosProyecto ids={proyecto.ghl_calendarios ?? []} />
+                  </div>
                   <div className="space-y-2">
                     {ghl.closers.length === 0 ? <p className="text-sm text-texto-3">No hay closers en este proyecto.</p> : ghl.closers.map((c) => <CalendarioCloser key={c.id} perfilId={c.id} nombre={c.nombre} calendarId={c.cal} userId={c.user} />)}
                     <p className="text-xs text-texto-3">Basta con uno de los dos: el id del calendario del closer o su id de usuario en GHL.</p>
