@@ -9,6 +9,7 @@ import { db, todas } from "@/lib/datos";
 import { dinero, pct, hoyEnZona, sumarDias, rangoDe, ETIQUETA_ROL, type Periodo } from "@/lib/formato";
 import { Filtros } from "@/components/filtros";
 import { PestanaLeads } from "./leads";
+import { PestanaUtms } from "./utms";
 import { Cabecera, Contenido, Seccion, Vacio } from "@/components/ui";
 import { TablasKpis, ExplicacionKpis } from "@/components/tablas-kpis";
 import { BarrasObjetivos } from "@/components/barras-objetivos";
@@ -49,7 +50,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
   const vista =
     (sp.vista === "funnel" && conFunnel) || !conKpis
       ? "funnel"
-      : !propio && sp.vista === "objetivos" ? "objetivos" : !propio && sp.vista === "personas" ? "personas" : jefe && !propio ? "leads" : "personas";
+      : jefe && !propio && sp.vista === "utms" ? "utms" : !propio && sp.vista === "objetivos" ? "objetivos" : !propio && sp.vista === "personas" ? "personas" : jefe && !propio ? "leads" : "personas";
   const $ = (n: number) => dinero(n, proyecto);
 
   // Boceto B (Cristian, 26 oct): texto con una línea azul debajo de la pestaña activa, en las 4 pestañas
@@ -57,6 +58,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     <div className="flex gap-6" role="tablist">
       {[
         ...(jefe && conKpis ? [{ v: "leads", t: "Leads", href: "/kpis" }] : []),
+        ...(jefe && conKpis ? [{ v: "utms", t: "UTMs", href: "/kpis?vista=utms" }] : []),
         ...(conFunnel ? [{ v: "funnel", t: "Funnel", href: "/kpis?vista=funnel" }] : []),
         ...(conKpis
           ? [
@@ -106,6 +108,27 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
                 </div>
               </div>
             } desde={rango.desde?.getTime() ?? null} hasta={rango.hasta?.getTime() ?? null} zona={proyecto.zona_horaria} ofertas={ofertas} csv={csv} />
+        </Contenido>
+      </>
+    );
+  }
+  // B1 (plan GHL): pestaña «UTMs», solo jefes. Como «Leads»: los datos los pide la pestaña después de pintar
+  if (vista === "utms") {
+    const periodo = (typeof sp.periodo === "string" ? sp.periodo : "todo") as Periodo;
+    const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string | undefined, sp.hasta as string | undefined);
+    return (
+      <>
+        <Cabecera titulo="KPIs" subtitulo={`${proyecto.nombre} · UTMs · ${rango.etiqueta}`} />
+        <Contenido>
+          <PestanaUtms
+            barra={
+              <div className="-mx-4 flex flex-wrap items-center justify-between gap-x-4 border-b border-borde px-4">
+                {listaPestanas()}
+                <div className="py-1.5">
+                  <Filtros periodoPorDefecto="todo" ligero />
+                </div>
+              </div>
+            } desde={rango.desde?.getTime() ?? null} hasta={rango.hasta?.getTime() ?? null} />
         </Contenido>
       </>
     );

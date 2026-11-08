@@ -3,7 +3,7 @@
 import { exigirSeccion } from "@/lib/permisos";
 import { revalidatePath } from "next/cache";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
-import { db, escribir } from "@/lib/datos";
+import { db, escribir, todas } from "@/lib/datos";
 import { esJefe, exigir } from "@/lib/auth";
 import { leerNumero } from "@/lib/numero";
 import { CIFRAS, PERIODOS, type Cifra, type PeriodoObjetivo, type RolObjetivo } from "@/lib/objetivos-constantes";
@@ -116,5 +116,33 @@ export async function cargarLeadsPestana() {
     const { proyecto } = await exigir(esJefe);
     const { cargarLeadsKpis } = await import("@/lib/leads-kpis");
     return cargarLeadsKpis(proyecto);
+  });
+}
+
+// B1 (plan GHL): la pestaña «UTMs» pide aquí los leads con su seguimiento (CAMPOS_LEAD no lo trae). Solo director y CEO.
+// Landing: la ruta de page_url; si no hay, la Entrada del último envío del lead.
+export async function cargarUtmsPestana() {
+  return seguro(async () => {
+    await exigirSeccion("kpis");
+    const { proyecto } = await exigir(esJefe);
+    const { filaUtm } = await import("@/lib/utms");
+    const pid = proyecto.id;
+    const [leads, { data: entradas, error }] = await Promise.all([
+      todas<{ id: string; nombre: string | null; apellido: string | null; creado_en: string; etiquetas: string[] | null; seguimiento: Record<string, string> | null }>((a, b) =>
+        db().from("leads").select("id, nombre, apellido, creado_en, etiquetas, seguimiento").eq("proyecto_id", pid).order("id").range(a, b)
+      ),
+      db().from("entradas").select("id, nombre").eq("proyecto_id", pid),
+    ]);
+    if (error) throw new Error(error.message);
+    const nombreEntrada = new Map((entradas ?? []).map((e) => [e.id as string, e.nombre as string]));
+    // Del envío más reciente al más antiguo: el primero que sale de cada lead es su Entrada
+    const entradaDe = new Map<string, string>();
+    if (nombreEntrada.size) {
+      const envios = await todas<{ lead_id: string; entrada_id: string }>((a, b) =>
+        db().from("webhook_eventos").select("lead_id, entrada_id").in("entrada_id", [...nombreEntrada.keys()]).not("lead_id", "is", null).order("recibido_en", { ascending: false }).order("id").range(a, b)
+      );
+      for (const e of envios) if (!entradaDe.has(e.lead_id)) entradaDe.set(e.lead_id, nombreEntrada.get(e.entrada_id) ?? "");
+    }
+    return leads.map((l) => filaUtm(l, entradaDe.get(l.id)));
   });
 }
