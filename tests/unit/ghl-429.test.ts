@@ -106,4 +106,38 @@ describe("workflows-motor · GHL responde 429", () => {
     expect(updates("workflow_ejecuciones")[0]).toMatchObject({ estado: "error", intentos: 5 });
     expect(avisar).toHaveBeenCalled();
   });
+  // Mejora del revisor (8 nov): los 30 min se miden desde que el tramo DEBÍA salir, no desde que se creó la ejecución
+  describe("con una espera de 2 h, 429 en el 2.º tramo", () => {
+    const PASOS = [{ id: "c1", tipo: "contacto_ghl", campos: {} }, { id: "e", tipo: "esperar", segundos: 7200 }, { id: "c2", tipo: "contacto_ghl", campos: {} }];
+    const segundoTramo = (debiaSalirHaceMin: number) => {
+      respuesta["workflow_ejecuciones:select"] = {
+        data: [{ id: "ej1", workflow_id: "w1", pasos: PASOS, lead_id: "l1", entrada_id: "en1", tramo: 1, intentos: 4, creado_en: haceMin(debiaSalirHaceMin + 121), registro: [{ tipo: "tramo", tramo: 0, hora: haceMin(debiaSalirHaceMin + 120), modo: "real", siguiente_en: haceMin(debiaSalirHaceMin) }] }],
+        error: null,
+      };
+      respuesta["workflows:select"] = { data: [{ id: "w1", nombre: "WF", encendido: true, modo: "real" }], error: null };
+      respuesta["webhook_eventos:select"] = { data: [{ payload: { email: "l@x.com" } }], error: null };
+    };
+    it("a los 5 min de cuando debía salir NO cuenta como fallo (aunque la ejecución tenga más de 2 h)", async () => {
+      segundoTramo(5);
+      await avanzarEjecuciones("p1", { ahora, ghl: { locationId: "loc", token: "tok", fetchImpl, avisar } });
+      const [u] = updates("workflow_ejecuciones");
+      expect(u).toEqual({ siguiente_en: new Date(ahora.getTime() + 60_000).toISOString(), actualizado_en: expect.any(String) });
+      expect(avisar).not.toHaveBeenCalled();
+    });
+    it("a los 31 min sí cuenta (5.º intento: rojo y email)", async () => {
+      segundoTramo(31);
+      await avanzarEjecuciones("p1", { ahora, ghl: { locationId: "loc", token: "tok", fetchImpl, avisar } });
+      expect(updates("workflow_ejecuciones")[0]).toMatchObject({ estado: "error", intentos: 5 });
+      expect(avisar).toHaveBeenCalled();
+    });
+    it("al hacer el 1.er tramo, su registro guarda cuándo debe salir el siguiente", async () => {
+      respuesta["workflow_ejecuciones:select"] = { data: [{ id: "ej1", workflow_id: "w1", pasos: PASOS, lead_id: "l1", entrada_id: null, tramo: 0, intentos: 0, creado_en: haceMin(1), registro: [{ tipo: "disparo", envio: { email: "l@x.com" } }] }], error: null };
+      respuesta["workflows:select"] = { data: [{ id: "w1", nombre: "WF", encendido: true, modo: "prueba" }], error: null };
+      await avanzarEjecuciones("p1", { ahora });
+      const [u] = updates("workflow_ejecuciones");
+      const sale = new Date(ahora.getTime() + 7_200_000).toISOString();
+      expect(u).toMatchObject({ tramo: 1, siguiente_en: sale });
+      expect((u.registro as Record<string, unknown>[]).at(-1)).toMatchObject({ tipo: "tramo", tramo: 0, siguiente_en: sale });
+    });
+  });
 });
