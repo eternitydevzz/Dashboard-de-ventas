@@ -58,10 +58,12 @@ async function crearPara(wfs: Wf[], o: { proyectoId: string; leadId: string; ent
     const { data: ya, error: e1 } = await db().from("workflow_ejecuciones").select("id").eq("workflow_id", w.id).eq("lead_id", o.leadId).eq("estado", "esperando").limit(1);
     if (e1) throw new Error(`ejecuciones: ${e1.message}`);
     if (ya?.length) continue;
-    const primera = tramos(aplanarPasos(w.pasos, [o.envio]))[0]?.espera ?? 0;
+    const primera = enSegundos(o.ahora, tramos(aplanarPasos(w.pasos, [o.envio]))[0]?.espera ?? 0);
+    // «inicio»: cuándo debe salir el 1.er tramo (el 429 mide desde ahí; sin `modo`, no lo cuenta el aviso de bucle)
+    const registro = [...(o.registro ?? []), { tipo: "inicio", siguiente_en: primera }];
     const { error: e2 } = await db()
       .from("workflow_ejecuciones")
-      .insert({ workflow_id: w.id, version: w.version, pasos: w.pasos, proyecto_id: o.proyectoId, lead_id: o.leadId, entrada_id: o.entradaId, siguiente_en: enSegundos(o.ahora, primera), ...(o.registro ? { registro: o.registro } : {}) });
+      .insert({ workflow_id: w.id, version: w.version, pasos: w.pasos, proyecto_id: o.proyectoId, lead_id: o.leadId, entrada_id: o.entradaId, siguiente_en: primera, registro });
     if (e2) throw new Error(`ejecución: ${e2.message}`);
     creadas++;
   }
@@ -190,9 +192,10 @@ function trasTramo(ej: Ejecucion, ts: ReturnType<typeof tramos>, ahora: Date, mo
   return { registro, siguiente: siguienteEn ? { tramo: ej.tramo + 1, siguiente_en: siguienteEn, intentos: 0, error: null, registro } : null };
 }
 
-// Cuándo debía salir el tramo que toca: lo que apuntó el tramo anterior; sin él (el 1.º o registros de antes), creado_en
+// Cuándo debía salir el tramo que toca: lo que apuntó el tramo anterior (o el «inicio», para el 1.º); sin eso
+// (ejecuciones de antes), creado_en
 function debiaSalir(ej: Ejecucion) {
-  const ultimo = ej.registro.filter((x) => x.tipo === "tramo").at(-1);
+  const ultimo = ej.registro.filter((x) => x.tipo === "tramo" || x.tipo === "inicio").at(-1);
   const t = typeof ultimo?.siguiente_en === "string" ? new Date(ultimo.siguiente_en).getTime() : NaN;
   return Number.isNaN(t) ? new Date(ej.creado_en).getTime() : t;
 }

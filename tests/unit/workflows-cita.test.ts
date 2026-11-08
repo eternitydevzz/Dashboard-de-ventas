@@ -84,7 +84,8 @@ describe("dispararWorkflows: crea la ejecución de los workflows que encajan", (
     const ins = inserts("workflow_ejecuciones");
     expect(ins).toHaveLength(1);
     expect(ins[0]).toMatchObject({ workflow_id: "w-ag", version: 2, proyecto_id: "p1", lead_id: "l1", entrada_id: null });
-    expect(ins[0].registro).toEqual([expect.objectContaining({ tipo: "disparo", evento: "agendada", envio: envioSintetico(LEAD, AGENDADA) })]);
+    // El envío sintético va primero (de ahí lo leen los tramos); después, cuándo debe salir el 1.er tramo (sin modo)
+    expect(ins[0].registro).toEqual([expect.objectContaining({ tipo: "disparo", evento: "agendada", envio: envioSintetico(LEAD, AGENDADA) }), { tipo: "inicio", siguiente_en: ins[0].siguiente_en }]);
     // Solo workflows encendidos del proyecto con disparador de cita
     const q = consultas.find((c) => c.tabla === "workflows")!.ops;
     expect(q).toEqual(expect.arrayContaining([["eq", ["proyecto_id", "p1"]], ["eq", ["encendido", true]], ["eq", ["disparador->>tipo", "cita"]]]));
