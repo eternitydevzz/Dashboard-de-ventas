@@ -177,8 +177,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   if (tab === "integraciones") {
     const [{ data: pg }, { data: mc }, { data: mo }] = await Promise.all([
       db().from("proyectos").select("ghl_location_id, ghl_token, ghl_sincronizado_en, ghl_ultimo_resultado").eq("id", proyecto.id).single(),
-      db().from("miembros_proyecto").select("perfil_id, ghl_calendar_id, ghl_user_id, perfiles!inner(nombre, rol)").eq("proyecto_id", proyecto.id).eq("perfiles.rol", "closer"),
-      db().from("miembros_proyecto").select("perfil_id, ghl_user_id, perfiles!inner(nombre, rol, activo)").eq("proyecto_id", proyecto.id).in("perfiles.rol", ["caller", "director"]),
+      db().from("miembros_proyecto").select("perfil_id, ghl_calendar_id, ghl_user_id, perfiles!inner(nombre, rol)").eq("proyecto_id", proyecto.id).or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }), // E1: también closer
+      db().from("miembros_proyecto").select("perfil_id, ghl_user_id, perfiles!inner(nombre, rol, activo)").eq("proyecto_id", proyecto.id).in("perfiles.rol", ["caller", "director"]).eq("perfiles.tambien_closer", false),
     ]);
     ghl = {
       location: pg?.ghl_location_id ?? "",

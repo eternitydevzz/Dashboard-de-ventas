@@ -30,7 +30,7 @@ export async function closerDeLaRotacion(proyectoId: string) {
     .from("miembros_proyecto")
     .select("perfil_id, rotacion_pct, rotacion_cuenta, perfiles!inner(rol, activo)")
     .eq("proyecto_id", proyectoId)
-    .eq("perfiles.rol", "closer")
+    .or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }) // Plan GHL E1: también closer
     .eq("perfiles.activo", true);
   const elegido = elegirCloser((data ?? []).map((c) => ({ perfil_id: c.perfil_id, rotacion_pct: Number(c.rotacion_pct), rotacion_cuenta: c.rotacion_cuenta })));
   if (!elegido) throw new ErrorUsuario("No hay ningún closer en la rotación: pide al director que ponga el % de cada closer.");

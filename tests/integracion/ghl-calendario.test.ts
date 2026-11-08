@@ -263,4 +263,19 @@ describe("Plan GHL (16 oct): por calendario, con el canal del UTM", () => {
     expect(r.canceladas).toBe(0);
     expect((await cita(`${e.pref}-o2`))!.estado).not.toBe("cancelada");
   });
+
+  it("Plan GHL E1: la cita del usuario de GHL de un caller con «También closer» queda con él de closer; sin el interruptor, sin closer", async () => {
+    await db.from("miembros_proyecto").update({ ghl_user_id: "u-F" }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.callerA.id);
+    contactos[`${e.pref}-cF1`] = { firstName: "Fa", lastName: "Uno", email: `${e.pref}-f1@x.test` };
+    contactos[`${e.pref}-cF2`] = { firstName: "Fa", lastName: "Dos", email: `${e.pref}-f2@x.test` };
+    eventos = [{ id: `${e.pref}-f1`, calendarId: "cal-principal", contactId: `${e.pref}-cF1`, assignedUserId: "u-F", startTime: "2026-10-28T10:00:00-04:00", appointmentStatus: "confirmed" }];
+    await sync();
+    expect((await cita(`${e.pref}-f1`))!.closer_id).toBeNull();
+
+    await db.from("perfiles").update({ tambien_closer: true }).eq("id", e.p.callerA.id);
+    eventos = [{ id: `${e.pref}-f2`, calendarId: "cal-principal", contactId: `${e.pref}-cF2`, assignedUserId: "u-F", startTime: "2026-10-29T10:00:00-04:00", appointmentStatus: "confirmed" }];
+    await sync();
+    await db.from("perfiles").update({ tambien_closer: false }).eq("id", e.p.callerA.id);
+    expect((await cita(`${e.pref}-f2`))!.closer_id).toBe(e.p.callerA.id);
+  });
 });

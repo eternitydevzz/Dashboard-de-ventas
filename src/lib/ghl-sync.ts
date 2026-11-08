@@ -38,10 +38,10 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
 
   const { data: miembros } = await db()
     .from("miembros_proyecto")
-    .select("perfil_id, ghl_calendar_id, ghl_user_id, perfiles!inner(rol, nombre)")
-    .eq("proyecto_id", proyecto.id)
-    .eq("perfiles.rol", "closer");
-  const closers = ((miembros ?? []) as unknown as { perfil_id: string; ghl_calendar_id: string | null; ghl_user_id: string | null; perfiles: { nombre: string } }[]).filter((m) => m.ghl_calendar_id || m.ghl_user_id);
+    .select("perfil_id, ghl_calendar_id, ghl_user_id, perfiles!inner(rol, nombre, tambien_closer)")
+    .eq("proyecto_id", proyecto.id);
+  // Plan GHL E1: closer = rol closer o un caller con «También closer»
+  const closers = ((miembros ?? []) as unknown as { perfil_id: string; ghl_calendar_id: string | null; ghl_user_id: string | null; perfiles: { rol: string; nombre: string; tambien_closer: boolean } }[]).filter((m) => (m.perfiles.rol === "closer" || m.perfiles.tambien_closer) && (m.ghl_calendar_id || m.ghl_user_id));
   const closerDeUsuario = new Map(closers.filter((c) => c.ghl_user_id).map((c) => [c.ghl_user_id as string, c.perfil_id]));
 
   const porCalendario = (proyecto.ghl_calendarios ?? []).filter((x) => x?.trim());
