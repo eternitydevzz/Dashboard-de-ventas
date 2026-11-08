@@ -1,6 +1,6 @@
 # Plan · Leads al dashboard primero (sin webhooks de GHL)
 
-> Versión 34 (8 nov 2026, 13:30 UTC). **Solo lo que falta.** Cada punto se explica solo, sin depender del chat.
+> Versión 35 (8 nov 2026, 16:30 CET). **Solo lo que falta.** Cada punto se explica solo, sin depender del chat.
 > **Es el único plan de GHL.** La v33 entera: `git show 8cc14fd:docs/plan-GHL.md` (ahí siguen los textos largos de lo ya hecho). Lo hecho hasta el 8 nov por la mañana: `git show 9294e2e:docs/plan-GHL.md`. Planes viejos fusionados aquí: `git show 4a3798a:docs/plan-workflows.md` (lo citan comentarios de `src/lib/workflows*.ts` y `admin/`) y `git show 30d395f:docs/mejora-llamadas-ghl.md`. El plan general es `docs/plan.md`; lo de callers, `docs/plan-callers.md` (otra sesión).
 
 **Objetivo:** web → dashboard.eternity.llc → el dashboard hace en GHL, por la API, contacto, campos, etiquetas y oportunidades. Sin «Inbound Webhook» de pago (en octubre: $66,60, el 28 % del monedero). **Solo la subcuenta de Maestria.**
@@ -24,6 +24,7 @@ Por la tarde, con agentes (cada PR con todos los checks de GitHub en verde salvo
 - **2.7** Forma B del bucle (sección 5) → #79 + migración `20261108140000` aplicada.
 - **2.8** Error de GHL entero en las lecturas → #76 · pantalla de calendarios del proyecto → #77 · Entradas con ↑ ↓ × → #80 + migración `20261108130000` aplicada.
 - **Nuevo (Cristian dijo sí):** un fallo pasajero de Supabase ya no deja envíos en rojo ni workflows parados → #78 · un 429 de GHL no gasta intentos ni pone en rojo, un solo tope de 10 y una línea de medición por lectura → #81.
+- **Después (Cristian: «continúa»):** editor de workflows, los pasos dentro de una rama ya no se aplastan (texto letra a letra) → #88 · como mucho 20 citas nuevas por lectura (4.5) → #90 · el «429 de más de 30 min» de un workflow se cuenta desde que debía salir cada tramo → #91 · un reintento en los tests de integración por un fallo puntual del Supabase local de CI → #89.
 
 ## 1 · Lo que hace Cristian (Claude no puede)
 - [ ] **Borrar los leads de prueba** (dashboard y GHL, con sus oportunidades): en el dashboard `info+bib1`, `info+bib5` a `info+bib9`, `info+wf2` y «PRUEBA CLAUDE» (`team@test.com`); en GHL además `info+wf1`, `info+bib2` a `info+bib4`, `info+pruebaghl`, `info+servicios5`. **Nuevo:** `info+bib9` tiene la cita cancelada de 2.3 y una oportunidad en «0. Agendas Orgánico → Agendan» que creó GHL.
@@ -38,19 +39,17 @@ Por la tarde, con agentes (cada PR con todos los checks de GitHub en verde salvo
 - [ ] **2.4c · Disparadores «se pone una etiqueta» y «el lead cambia de columna»** (fuera de la primera tanda, decisión de Cristian). Ojo: «columna» se cambia en ~8 sitios sin función común y puede hacer bucle con «mover en el dashboard».
 - [ ] **2.8 · Solo si hace falta:** campos sugeridos de «Reglas» (salen de los 15 últimos envíos), y «el formulario de Entradas se resetea solo» (visto una vez el 7 nov; si vuelve, mirar si coincidió con una publicación de Vercel).
 - [ ] **Mejoras pequeñas apuntadas por los revisores** (ninguna rompe nada hoy):
-  - workflows con espera larga: el «429 durante 30 min» se cuenta desde `creado_en` de la ejecución (`workflows-motor.ts`, comentario `shortcut`);
   - una cita creada desde la app (ya trae su id de GHL) no dispara «cita agendada»;
   - si `dispararWorkflows` falla, ese disparo no se reintenta (queda en el log);
   - el aviso del bucle (forma B) recorre `webhook_eventos` y `workflow_ejecuciones` sin índice por `lead_id` (hoy 0 Entradas «ghl»);
-  - una Entrada nueva va al final del orden; `moverEntrada` reescribe el orden sin transacción (si falla a medias, el siguiente ↑ ↓ lo arregla);
-  - quedan 2 comentarios «30 s» en `ghl-leads.ts` (`:43`, `:235`): hoy es 60 s.
+  - una Entrada nueva va al final del orden; `moverEntrada` reescribe el orden sin transacción (si falla a medias, el siguiente ↑ ↓ lo arregla).
 
 ## 3 · Para decidir (Cristian)
 | Decisión | Opciones | Recomendación de Claude |
 |---|---|---|
 | Pasar a real el workflow de citas de software-demo | ya / tras la primera reserva real en prueba | Tras la primera reserva real: hoy no hay forma de probarlo sin una reserva |
 | Subir `MAX_LEADS_POR_LECTURA` (hoy 10 → 300 leads tardan ~30 min) | dejar 10 / subir con números | Mirar 1 día de la línea `[leer]` en `vercel logs` (#81) y decidir con esos ms |
-| `build.py --publicar` genera 337 archivos distintos de `main` de la Biblioteca (p. ej. «IA» → «AI») | investigar / dejar | Investigar antes del próximo `--publicar`: si se publica tal cual, cambian textos de la web |
+| **Biblioteca: no publicar con `build.py --publicar` hasta arreglar «AI»** (investigado el 8 nov, solo lectura). Causa: el 30 oct «AI» → «IA» se cambió a mano en `index.html` (generado, `f519931`) y no en su fuente `original/landing.html`; si se publica hoy, la landing vuelve a decir «vender AI», «Agentes AI»… (~10 frases). Los otros ~330 cambios son solo el `?v=` (hash de `web/`), inofensivos | corregir «AI» → «IA» en `original/landing.html` / dejar | Corregirlo en `original/landing.html`, regenerar, comprobar con `git diff` que solo cambia el `?v=` y publicar |
 | Retención de `webhook_eventos.payload` (el cuerpo entero de cada envío, con email, teléfono, IP, se guarda para siempre) | dejar / borrar los «ok» de más de N meses | Decidirlo antes de un lanzamiento |
 
 ## 4 · Fases siguientes
@@ -78,7 +77,7 @@ Pasos:
 - [ ] Mover `codigomaestria.com` de GHL a Vercel.
 
 **Al final (en este orden)**
-- [ ] **4.5 · Que aguante un lanzamiento.** Hecho ya (#81): el 429 no gasta intentos y la lectura deja una línea con sus números. Contado leyendo el código (revisión del 8 nov): cada lectura hace envíos (hasta 10 leads, 6-7 llamadas por lead), workflows (comparten el tope de 10), 4 calendarios, contactos de citas nuevas (sin tope), hasta 25 comprobaciones de citas abiertas, el espejo de oportunidades (hasta 20 páginas) y hasta 10 contactos que se releen. Límites: GHL 100 cada 10 s; la función de Vercel, 60 s; cada Entrada, 300 envíos por minuto. Con 300 leads en 5 min el último sale ~30 min tarde. **Falta:** leer 1 día de la línea `[leer]`, decidir (3), tope de citas nuevas por lectura (20) y espaciar el espejo si pasa de 5 páginas.
+- [ ] **4.5 · Que aguante un lanzamiento.** Hecho ya (#81): el 429 no gasta intentos y la lectura deja una línea con sus números. Contado leyendo el código (revisión del 8 nov): cada lectura hace envíos (hasta 10 leads, 6-7 llamadas por lead), workflows (comparten el tope de 10), 4 calendarios, contactos de citas nuevas (sin tope), hasta 25 comprobaciones de citas abiertas, el espejo de oportunidades (hasta 20 páginas) y hasta 10 contactos que se releen. Límites: GHL 100 cada 10 s; la función de Vercel, 60 s; cada Entrada, 300 envíos por minuto. Con 300 leads en 5 min el último sale ~30 min tarde. **Hecho también:** tope de 20 citas nuevas por lectura (#90). **Medido en producción (8 nov, 50 lecturas sin trabajo):** una lectura tarda 2,6-6,7 s (mediana 3,7 s) frente a 60 s; el espejo copia 774 oportunidades (~8 páginas = 8 llamadas por minuto frente a 600 por minuto de GHL): **no se espacia** (era un criterio de Claude; los números dicen que no hace falta). **Falta:** leer la línea `[ghl-leer] medicion` en un día con leads (`vercel logs … --query medicion --json`) y decidir el tope de 10 (3).
 - [ ] **4.6 · Un caller que también sea closer** (Facu el primero; hoy `perfiles.rol` es uno solo). Plan corto y boceto antes. Hace falta el usuario de GHL de Facundo (plan de callers).
 - [ ] **4.7 · Avisos del CEO**: al entrar, ventana con el reporte general; campana; un email al día; avisos de cita sin closer, envío a GHL en rojo, workflow con error, calendario de GHL que no se puede leer y cualquier otro error. Plan corto y boceto antes.
 - [ ] **4.8 · Revisar todos los planes, manuales y documentos** (`docs/plan.md`, `docs/plan-callers.md`, `docs/Mejorar-velocidad.md`, `docs/GUIA-GHL.md`, `docs/GUIA-PUBLICAR.md`, los 2 `manual-branding`, `Team/`).
@@ -90,11 +89,11 @@ Una Entrada «Desde un workflow de GHL» (`envia_desde = 'ghl'`): no deja encend
 
 ## 6 · Cómo se trabaja
 - **Simple:** la solución más corta que deje todo igual en todos sitios (Cristian, 8 nov).
-- **Navegador: siempre Playwright**, con la sesión de Cristian (su Chrome: no cambiar el tamaño; pestaña aparte). Con la pestaña en segundo plano los clics de Playwright no llegan: se usa `browser_evaluate` y se comprueba en la base. En el dashboard, cada cambio y su «Guardar» en una sola ejecución. GHL: `app.gohighlevel.com` (las URL directas dan 404; entrar por la raíz y navegar dentro).
+- **Navegador: siempre Playwright**, con la sesión de Cristian (su Chrome: no cambiar el tamaño; pestaña aparte). **Antes de cualquier clic, `await page.bringToFront()`** (`browser_run_code_unsafe`) y comprobar que `document.visibilityState` es `visible` (Cristian, 8 nov): en segundo plano los clics no llegan o se quedan esperando y se ejecutan después (así salió un workflow duplicado). Después de cada cambio, comprobarlo en la base. En el dashboard, cada cambio y su «Guardar» en una sola ejecución. GHL: `app.gohighlevel.com` (las URL directas dan 404; entrar por la raíz y navegar dentro).
 - **Solo la cuenta de Eternity** (`eternitydevzz`, `info-79696548`). En la Biblioteca el remoto bueno es `eternity`.
 - **Archivos de otras sesiones** (`plan-callers.md`, `maqueta-callers.html`, `manual-branding-rojo.md`, 3 docs borrados, `.claude/`, `.specify/`): no se tocan.
 - **Tests primero.** En local solo `npx next typegen`, `npx tsc --noEmit`, `npx eslint .` y `npx vitest run tests/unit` (sin Docker). La integración corre en GitHub.
-- **Siempre con PR** y fusión **solo con todos los checks en verde**: `gh pr checks N > archivo && gh pr merge N` (sin `!` ni tuberías: el 8 nov una guarda con `! … | grep -q` dejó pasar #83 con la integración en rojo). Migraciones en producción **antes** del código (`supabase db push --dry-run` antes; en un worktree, copiar `supabase/.temp`).
+- **Siempre con PR** y fusión **solo con todos los checks en verde**: `gh pr checks N > archivo && gh pr merge N`; si falla un test que no tiene que ver, mirar el error antes de relanzar (sin `!` ni tuberías: el 8 nov una guarda con `! … | grep -q` dejó pasar #83 con la integración en rojo). Migraciones en producción **antes** del código (`supabase db push --dry-run` antes; en un worktree, copiar `supabase/.temp`).
 - **Con agentes (8 nov):** un worktree por tarea en `VENTAS/wt-<tarea>`, ramas desde `main`, `node_modules` enlazado; 3 opus (complejas y revisión) y 3 sonnet (sencillas y revisión), máx. 3 vueltas por tarea; el orquestador revisa cada 5 min y es el único que fusiona, aplica migraciones, escribe en producción y usa el navegador.
 - **Producción:** lecturas con `app/.env.produccion` por la API REST. Nunca imprimir claves. Registros: `vercel logs -p dashboard-de-ventas --environment production --no-branch --since 1h --query "…"`.
 - **Pruebas reales:** `info+…@eternity.llc` y teléfonos 555-01xx; si hay calendario, cancelar la cita. Revisar en dashboard.eternity.llc.
