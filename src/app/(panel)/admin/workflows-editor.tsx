@@ -49,7 +49,7 @@ export function NuevoWorkflowCita() {
   return (
     <div className="flex flex-wrap gap-2">
       {(["agendada", "cancelada"] as const).map((ev) => (
-        <button key={ev} type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => crearWorkflowDeCita(ev), "Workflow creado en prueba: ponle sus pasos con «Editar»")}>
+        <button key={ev} type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => crearWorkflowDeCita(ev), "Workflow creado (apagado): ponle sus pasos con «Editar» y enciéndelo")}>
           <Plus className="h-3.5 w-3.5" /> Nuevo: cuando se {ev === "agendada" ? "agenda" : "cancela"} una cita
         </button>
       ))}
@@ -162,7 +162,7 @@ export function EditorWorkflow({
   );
 
   const real = w.modo === "real";
-  // Sin Entrada (cita): no hay «Qué hacer en GHL» que apagar ni al que volver; para sacarlo de real, se apaga
+  // Sin Entrada (cita): no hay «Qué hacer en GHL» que apagar ni al que volver; «Prueba» solo lo vuelve a prueba
   const cita = w.disparador.tipo === "cita";
   const quien = cita ? `las citas que se ${w.disparador.tipo === "cita" && w.disparador.evento === "cancelada" ? "cancelen" : "agenden"}` : "los leads de su Entrada";
   return (
@@ -191,17 +191,18 @@ export function EditorWorkflow({
               <button
                 key={m}
                 type="button"
-                disabled={pendiente || sinGuardar || !w.encendido || w.modo === m || (cita && m === "prueba")}
-                title={cita && m === "prueba" && real ? "Sin Entrada no hay «lo de hoy»: para que deje de mandar, apágalo" : undefined}
+                disabled={pendiente || sinGuardar || w.modo === m || (!w.encendido && !(cita && m === "prueba"))}
                 onClick={() =>
                   void confirmar(
                     m === "real"
                       ? cita
                         ? `¿Pasar a real? El workflow manda a GHL con ${quien}. En prueba no se compara con nada: mira antes en el historial que sus pasos son los que esperas.`
                         : "¿Pasar a real? El workflow manda a GHL y «Qué hacer en GHL» de su Entrada se apaga. Criterio acordado: 3 días en prueba, 20 leads de registro, todos los de agenda y 0 diferencias."
-                      : "¿Volver a lo de hoy? «Qué hacer en GHL» de su Entrada vuelve a mandar y el workflow se para."
+                      : cita
+                        ? "¿Volver a prueba? Deja de mandar a GHL: solo apunta lo que haría."
+                        : "¿Volver a lo de hoy? «Qué hacer en GHL» de su Entrada vuelve a mandar y el workflow se para."
                   ).then(
-                    (ok) => ok && ejecutar(() => (m === "real" ? pasarWorkflowAReal(w.id) : devolverAHoy(w.id)), m === "real" ? "Ya manda a GHL" : "Vuelve a mandar «Qué hacer en GHL»")
+                    (ok) => ok && ejecutar(() => (m === "real" ? pasarWorkflowAReal(w.id) : devolverAHoy(w.id)), m === "real" ? "Ya manda a GHL" : cita ? "Vuelve a prueba" : "Vuelve a mandar «Qué hacer en GHL»")
                   )
                 }
                 className={`rounded-[10px] px-3 py-1 text-sm font-semibold ${w.modo === m ? "bg-panel text-texto shadow-sm" : "text-texto-2 disabled:opacity-60"}`}

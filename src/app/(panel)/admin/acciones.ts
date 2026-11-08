@@ -512,13 +512,13 @@ export async function crearWorkflowDePrueba(entradaId: string) {
 }
 
 // Fase 4d, B3 (plan GHL 2.4, Cristian 8 nov 2026): un workflow «cuando se agenda / se cancela una cita», sin Entrada.
-// Nace en prueba, sin pasos (se ponen en el editor) y encendido, como crearWorkflowDePrueba (default de la columna).
+// Nace en prueba, sin pasos (se ponen en el editor) y APAGADO: no crea ejecuciones vacías hasta que se encienda.
 export async function crearWorkflowDeCita(evento: "agendada" | "cancelada") {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     if (evento !== "agendada" && evento !== "cancelada") throw new ErrorUsuario("Evento de cita no válido.");
     const nombre = evento === "agendada" ? "Cita agendada" : "Cita cancelada";
-    await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre, disparador: { tipo: "cita", evento }, entrada_id: null, pasos: [], modo: "prueba" }), "workflows");
+    await escribir(db().from("workflows").insert({ proyecto_id: proyecto.id, nombre, disparador: { tipo: "cita", evento }, entrada_id: null, pasos: [], modo: "prueba", encendido: false }), "workflows");
     refrescar();
     return { ok: true as const };
   });
@@ -585,7 +585,7 @@ export async function pasarWorkflowAReal(workflowId: string) {
     const { proyecto } = await exigir(puedeAdmin);
     const w = await workflowConEntrada(workflowId, proyecto.id);
     if (!w.encendido || w.modo !== "prueba") throw new ErrorUsuario("Solo se puede pasar a real un workflow en prueba y en marcha.");
-    await exigirNoGhl(w.entrada_id, "pasar su workflow a real", { enciende: true });
+    if (w.entrada_id) await exigirNoGhl(w.entrada_id, "pasar su workflow a real", { enciende: true });
     const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id").eq("id", proyecto.id).single();
     if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Este proyecto no tiene GHL conectado (pestaña Integraciones GHL).");
     const ahora = new Date().toISOString();
@@ -611,8 +611,13 @@ export async function devolverAHoy(workflowId: string) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     const w = await workflowConEntrada(workflowId, proyecto.id);
-    if (!w.entrada_id) throw new ErrorUsuario("Este workflow no tiene Entrada.");
     if (w.modo !== "real") throw new ErrorUsuario("Este workflow no está en real.");
+    // Cita (sin Entrada): no hay «lo de hoy»; solo vuelve a prueba (sigue encendido o apagado como estaba)
+    if (!w.entrada_id) {
+      await escribir(db().from("workflows").update({ modo: "prueba", actualizado_en: new Date().toISOString() }).eq("id", w.id), "workflows");
+      refrescar();
+      return { ok: true as const };
+    }
     await exigirNoGhl(w.entrada_id, "volver a «Mandar a GHL» (Volver a lo de hoy)", { enciende: true });
     const ahora = new Date().toISOString();
     await escribir(db().from("entradas").update({ ghl_activo: true }).eq("id", w.entrada_id), "entradas");

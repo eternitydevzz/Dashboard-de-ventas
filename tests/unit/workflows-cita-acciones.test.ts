@@ -34,12 +34,12 @@ beforeEach(() => {
 });
 
 describe("crearWorkflowDeCita", () => {
-  it("«agendada» y «cancelada»: nace sin Entrada, en prueba, sin pasos y con su nombre", async () => {
+  it("«agendada» y «cancelada»: nace sin Entrada, en prueba, APAGADO, sin pasos y con su nombre", async () => {
     expect(await crearWorkflowDeCita("agendada")).toEqual({ ok: true });
     expect(await crearWorkflowDeCita("cancelada")).toEqual({ ok: true });
     expect(escrituras("workflows", "insert")).toEqual([
-      { proyecto_id: "p1", nombre: "Cita agendada", disparador: { tipo: "cita", evento: "agendada" }, entrada_id: null, pasos: [], modo: "prueba" },
-      { proyecto_id: "p1", nombre: "Cita cancelada", disparador: { tipo: "cita", evento: "cancelada" }, entrada_id: null, pasos: [], modo: "prueba" },
+      { proyecto_id: "p1", nombre: "Cita agendada", disparador: { tipo: "cita", evento: "agendada" }, entrada_id: null, pasos: [], modo: "prueba", encendido: false },
+      { proyecto_id: "p1", nombre: "Cita cancelada", disparador: { tipo: "cita", evento: "cancelada" }, entrada_id: null, pasos: [], modo: "prueba", encendido: false },
     ]);
   });
   it("otro evento: error y no crea nada", async () => {
@@ -68,12 +68,19 @@ describe("un workflow de cita (sin Entrada) se maneja igual", () => {
     respuesta["proyectos:select"] = { data: { ghl_token: "x", ghl_location_id: "loc" }, error: null };
     expect(await pasarWorkflowAReal("w1")).toEqual({ ok: true });
     expect(escrituras("workflows", "update")).toEqual([expect.objectContaining({ modo: "real" })]);
-    expect(escrituras("entradas", "update")).toHaveLength(0);
+    // Ni la comprobación de C1 (exigirNoGhl) ni el apagado de «Mandar a GHL»: no hay Entrada
+    expect(consultas.some((c) => c.tabla === "entradas")).toBe(false);
     expect(escrituras("webhook_eventos", "update")).toHaveLength(0);
   });
-  it("«Volver a lo de hoy» no vale sin Entrada: error claro y nada cambia", async () => {
+  it("en real, «Prueba» lo vuelve a prueba sin tocar ninguna Entrada (y no lo apaga)", async () => {
     respuesta["workflows:select"] = { data: { ...deCita, modo: "real" }, error: null };
-    expect(await devolverAHoy("w1")).toEqual({ error: "Este workflow no tiene Entrada." });
+    expect(await devolverAHoy("w1")).toEqual({ ok: true });
+    expect(escrituras("workflows", "update")).toEqual([{ modo: "prueba", actualizado_en: expect.any(String) }]);
+    expect(consultas.some((c) => c.tabla === "entradas" || c.tabla === "webhook_eventos" || c.tabla === "workflow_ejecuciones")).toBe(false);
+  });
+  it("si ya está en prueba, «Volver» da error y nada cambia", async () => {
+    respuesta["workflows:select"] = { data: deCita, error: null };
+    expect(await devolverAHoy("w1")).toEqual({ error: "Este workflow no está en real." });
     expect(consultas.some((c) => c.ops.some(([o]) => o === "update"))).toBe(false);
   });
   it("un workflow de otro proyecto (o que no existe) sigue dando «Workflow no encontrado.»", async () => {
