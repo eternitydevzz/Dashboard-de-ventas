@@ -203,7 +203,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined, sp.editar === "1") : null;
   if (tab === "entradas") {
     const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
-      db().from("entradas").select("*").eq("proyecto_id", proyecto.id).order("creado_en"),
+      db().from("entradas").select("*").eq("proyecto_id", proyecto.id).order("orden").order("creado_en"),
       db().from("pipelines").select("id, nombre, etapas(id, nombre, orden)").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden"),
       db().from("proyectos").select("ghl_location_id, ghl_token").eq("id", proyecto.id).single(),
     ]);

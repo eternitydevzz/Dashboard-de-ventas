@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { Plus, Trash2, RefreshCw, Save, Power } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Save, Power, ArrowUp, ArrowDown, X } from "lucide-react";
 import { sinVaciar } from "@/components/sin-vaciar";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { Copiar } from "./cliente";
-import { borrarEntrada, cambiarActivaEntrada, crearEntrada, guardarEntradaCompleta, nuevaDireccionEntrada } from "./acciones";
+import { borrarEntrada, cambiarActivaEntrada, crearEntrada, guardarEntradaCompleta, moverEntrada, nuevaDireccionEntrada } from "./acciones";
 import { OPERADORES, type Regla } from "@/lib/entrada";
 import { direccionCorta, estadoEntrada, jsonEjemplo, leadsRecibidos, type DatosLanding } from "@/lib/entradas-panel";
 import type { EnvioEntrada, ResumenEntrada } from "@/lib/entradas-datos";
@@ -153,6 +153,7 @@ export function TarjetaEntrada({
     <section className="tarjeta p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="min-w-0 break-words text-base font-semibold">{entrada.nombre}</h2>
+        <BotonesCabecera id={entrada.id} />
         <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${estado.tono === "ok" ? "bg-ok-suave text-ok" : "bg-panel-2 text-texto-3 ring-1 ring-borde"}`}>{estado.tono === "ok" ? "● " : ""}{estado.texto}</span>
       </div>
       {viene ? (
@@ -404,6 +405,25 @@ function AjustesEntrada({ entrada, pipelines, opciones }: { entrada: EntradaVist
 
       <ZonaPeligro entrada={entrada} />
     </div>
+  );
+}
+
+// ↑ ↓ y × de la cabecera: la × hace lo mismo que «Borrar» de la zona de peligro
+function BotonesCabecera({ id }: { id: string }) {
+  const { pendiente, error, ejecutar } = useAccion();
+  return (
+    <span className="flex items-center gap-1">
+      <button type="button" className="btn-secundario px-1.5 py-1" aria-label="Subir esta entrada" disabled={pendiente} onClick={() => ejecutar(() => moverEntrada(id, "arriba"))}><ArrowUp className="h-3.5 w-3.5" /></button>
+      <button type="button" className="btn-secundario px-1.5 py-1" aria-label="Bajar esta entrada" disabled={pendiente} onClick={() => ejecutar(() => moverEntrada(id, "abajo"))}><ArrowDown className="h-3.5 w-3.5" /></button>
+      <button
+        type="button"
+        className="btn-secundario px-1.5 py-1 text-mal"
+        aria-label="Borrar esta entrada"
+        disabled={pendiente}
+        onClick={() => void confirmar("¿Borrar esta entrada? La landing dejará de poder enviar aquí. Los leads y envíos ya recibidos se quedan.").then((ok) => ok && ejecutar(() => borrarEntrada(id), "Entrada borrada"))}
+      ><X className="h-3.5 w-3.5" /></button>
+      {error && <span className="text-xs text-mal">{error}</span>}
+    </span>
   );
 }
 
