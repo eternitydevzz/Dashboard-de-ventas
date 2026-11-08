@@ -37,6 +37,9 @@ export type ContactoGhl = {
 };
 type Fetch = typeof fetch;
 
+// 429: GHL pide esperar. Error propio para que el envío y el workflow esperen sin gastar intento (plan GHL 4.5)
+export class GhlEsperar extends Error {}
+
 // GHL explica el error en `message` (texto o lista): solo eso, sin tokens y recortado a 200. Nunca el cuerpo entero.
 async function errorGhl(res: Response) {
   const j = (await res.json().catch(() => null)) as { message?: unknown } | null;
@@ -48,7 +51,7 @@ async function errorGhl(res: Response) {
 async function llamar(fetchImpl: Fetch, token: string, ruta: string, version: string) {
   const res = await fetchImpl(`${GHL_BASE}${ruta}`, { headers: { Authorization: `Bearer ${token}`, Version: version, Accept: "application/json" }, cache: "no-store" });
   if (res.status === 401 || res.status === 403) throw new Error("GHL no acepta el token (revisa que sea de esta subcuenta y que tenga los permisos de calendario y contactos).");
-  if (res.status === 429) throw new Error("GHL pide esperar (demasiadas peticiones). Prueba en unos minutos.");
+  if (res.status === 429) throw new GhlEsperar("GHL pide esperar (demasiadas peticiones). Prueba en unos minutos.");
   if (!res.ok) throw await errorGhl(res);
   return res.json();
 }
@@ -141,7 +144,7 @@ export async function contactosNuevosGhl(o: { token: string; locationId: string;
     cache: "no-store",
   });
   if (res.status === 401 || res.status === 403) throw new Error("GHL no acepta el token (revisa el permiso de contactos).");
-  if (res.status === 429) throw new Error("GHL pide esperar (demasiadas peticiones).");
+  if (res.status === 429) throw new GhlEsperar("GHL pide esperar (demasiadas peticiones).");
   if (!res.ok) throw await errorGhl(res);
   const j = await res.json();
   return Array.isArray(j?.contacts) ? j.contacts.filter((c: { id?: unknown }) => typeof c?.id === "string") : [];
@@ -207,7 +210,7 @@ async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "PUT" 
     cache: "no-store",
   });
   if (res.status === 401 || res.status === 403) throw new Error(`GHL no acepta el token (revisa que la integración tenga el permiso ${permiso}).`);
-  if (res.status === 429) throw new Error("GHL pide esperar (demasiadas peticiones).");
+  if (res.status === 429) throw new GhlEsperar("GHL pide esperar (demasiadas peticiones).");
   if (!res.ok) throw await errorGhl(res);
   return res.json().catch(() => ({}));
 }

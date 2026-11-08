@@ -5,12 +5,12 @@ import { dentroDelLimite } from "@/lib/limite";
 import { sincronizarCalendarios } from "@/lib/ghl-sync";
 import { leerLeadsGhl } from "@/lib/ghl-leads";
 import { descifrar } from "@/lib/cifrado";
-import { enviarPendientesGhl, type ResultadoEnvios } from "@/lib/ghl-envios";
+import { MAX_LEADS_POR_LECTURA, enviarPendientesGhl, type ResultadoEnvios } from "@/lib/ghl-envios";
 import { avanzarEjecuciones } from "@/lib/workflows-motor";
 import type { Proyecto } from "@/lib/tipos";
 
-// Plan GHL, fase 3 (Cristian, 16 oct 2026): el programador de Supabase llama aquí cada 30 s para leer las citas
-// de GHL (migración 20261017120000_leer_ghl_cada_30s.sql). Misma clave que el webhook (la del proyecto, en la
+// Plan GHL, fase 3 (Cristian, 16 oct 2026): el programador de Supabase llama aquí cada 60 s para leer las citas
+// de GHL (migración 20261017190000_leer_ghl_cada_60s.sql). Misma clave que el webhook (la del proyecto, en la
 // cabecera x-eternity-secreto): así no hay otra clave que guardar en Vercel.
 
 export const maxDuration = 60;
@@ -36,7 +36,9 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
   // Citas y leads van por separado: si falla una parte, la otra se lee igual
   // Plan GHL, fase 1 (6 nov 2026): antes de leer los leads se mandan a GHL los de las Entradas que ya esperaron.
   // Van primero: así, cuando su contacto vuelve en la lectura, el lead ya tiene su ghl_contact_id y no se duplica.
+  const inicio = Date.now();
   let envios: ResultadoEnvios | null = null;
+  let wfHechas: number | null = null;
   const enviarYLeer = async () => {
     try {
       envios = await enviarPendientes(proyectoId);
@@ -45,12 +47,14 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
       console.error("[ghl-leer] envíos", proyectoId, e instanceof Error ? e.message : e);
     }
     // Workflows, 4a-1 y 4a-2 (7 nov 2026): avanzan los que ya tocan (en prueba no llaman a GHL; en real, sí). Comparten el
-    // tope de 10 leads por lectura con el envío de hoy (hasta 80 llamadas, por debajo de las 100 cada 10 s de GHL).
+    // tope de leads por lectura con el envío de hoy (MAX_LEADS_POR_LECTURA, src/lib/ghl-envios.ts).
     // Un fallo no para la lectura.
     try {
-      const usados = envios ? envios.enviados + envios.reintentos + envios.errores.length : 0;
+      // Cada lead con fallo ya está en `errores` (también los que se reintentan): no se cuentan dos veces
+      const usados = envios ? envios.enviados + envios.errores.length : 0;
       const ghl = await proyectoConGhl(proyectoId).then((x) => ({ locationId: x.proyecto.ghl_location_id as string, token: x.token })).catch(() => undefined);
-      const wf = await avanzarEjecuciones(proyectoId, { limite: Math.max(0, 10 - usados), ghl });
+      const wf = await avanzarEjecuciones(proyectoId, { limite: Math.max(0, MAX_LEADS_POR_LECTURA - usados), ghl });
+      wfHechas = wf.hechas;
       if (wf.errores.length) console.error("[ghl-leer] workflows", proyectoId, wf.errores.slice(0, 3).join(" | "));
     } catch (e) {
       console.error("[ghl-leer] workflows", proyectoId, e instanceof Error ? e.message : e);
@@ -62,10 +66,12 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
   if (citas.status === "rejected") console.error("[ghl-leer] citas", proyectoId, citas.reason instanceof Error ? citas.reason.message : citas.reason);
   if (leads.status === "fulfilled" && (leads.value.errores.length || leads.value.avisos.length)) console.error("[ghl-leer] leads", proyectoId, [...leads.value.errores, ...leads.value.avisos].slice(0, 3).join(" | "));
   if (leads.status === "rejected") console.error("[ghl-leer] leads", proyectoId, leads.reason instanceof Error ? leads.reason.message : leads.reason);
+  // Medición (plan GHL 4.5): una línea por lectura, sin datos personales (null = esa parte falló)
+  const en = envios as ResultadoEnvios | null;
+  console.log(`[ghl-leer] medicion proyecto=${proyectoId} ms=${Date.now() - inicio} enviados=${en?.enviados ?? null} errores=${en?.errores.length ?? null} workflows=${wfHechas} citas_nuevas=${citas.status === "fulfilled" ? citas.value.nuevas : null}`);
   if (citas.status === "rejected" && leads.status === "rejected") return NextResponse.json({ ok: false, error: "No se pudo leer GHL" }, { status: 500 });
   const c = citas.status === "fulfilled" ? citas.value : null;
   const l = leads.status === "fulfilled" ? leads.value : null;
-  const en = envios as ResultadoEnvios | null;
   return NextResponse.json({
     ok: true,
     envios: en ? { enviados: en.enviados, reintentos: en.reintentos, errores: en.errores.length } : { fallo: true },
