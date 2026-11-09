@@ -12,7 +12,7 @@ import { ABIERTAS } from "@/lib/llamadas";
 import { Cabecera, Contenido } from "@/components/ui";
 import { FiltroUrl } from "@/components/barra-periodo";
 import { TableroCrm, type LeadTarjeta } from "./tablero";
-import type { Etapa, Pipeline, Producto, Respuesta } from "@/lib/tipos";
+import { esCloser, type Etapa, type Pipeline, type Producto, type Respuesta } from "@/lib/tipos";
 
 // Un solo CRM para todos (Paso H7) con los pipelines del equipo (Paso 0, como GHL): los de origen (Webinar 1…),
 // «Callers» (los leads con caller, por el resultado de su llamada) y «Closers» (Pre-call y Post-call juntos).
@@ -72,7 +72,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
       : (columnaCitasPorNombre(todos.filter((p) => p.tipo === "normal").map((p) => ({ id: p.id, nombre: p.nombre, etapas: todasEtapas.filter((e) => e.pipeline_id === p.id) })))?.id ?? null);
 
   // «Closers»: qué citas ve cada uno (como Agendas): el closer las suyas; el caller las que agendó (solo mirar)
-  const closersIds = gente.filter((g) => g.rol === "closer").map((g) => g.id);
+  const closersIds = gente.filter(esCloser).map((g) => g.id);
   const deCloser = !persona ? closersIds : persona.rol === "closer" ? [persona.id] : closersIds;
   const agendadasPor = persona?.rol === "caller" ? persona.id : null;
 
@@ -174,7 +174,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           leads={leads}
           conteos={Object.fromEntries(conteos.map(([id, n]) => [id, n + (id === pipeline?.id ? extraLeads.length : extraPorPipeline[id] ?? 0)]))}
           callers={gente.filter((g) => g.rol === "caller").map((g) => ({ id: g.id, nombre: g.nombre }))}
-          closers={gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }))}
+          closers={gente.filter(esCloser).map((g) => ({ id: g.id, nombre: g.nombre }))}
           admin={admin}
           citasGhl={citasGhl}
           destinos={destinos}

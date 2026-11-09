@@ -3,6 +3,7 @@ import { db } from "@/lib/datos";
 import { ETIQUETA_ROL } from "@/lib/formato";
 import { horarioValido } from "@/lib/horarios";
 import { ajustesDe } from "@/lib/disponibilidad";
+import { esCloser } from "@/lib/tipos";
 import { Cabecera, Contenido, Seccion } from "@/components/ui";
 import { EditorHorario } from "@/components/editor-horario";
 import { FormMisDatos, FormMiPassword } from "./cliente";
@@ -13,7 +14,7 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
   const bienvenida = (await searchParams).bienvenida === "1"; // Fase 1: llega desde un enlace de entrar
   const conHorario = perfil.rol === "caller" || perfil.rol === "closer";
   const { data: miembro } = conHorario ? await db().from("miembros_proyecto").select("horario, calendario").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).maybeSingle() : { data: null };
-  const ajustes = perfil.rol === "closer" ? ajustesDe(proyecto.calendario, miembro?.calendario) : null;
+  const ajustes = esCloser(perfil) ? ajustesDe(proyecto.calendario, miembro?.calendario) : null;
   return (
     <>
       <Cabecera titulo="Mi perfil" subtitulo={<>{ETIQUETA_ROL[perfil.rol]} · {perfil.email}</>} />
