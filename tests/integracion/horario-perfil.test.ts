@@ -57,6 +57,12 @@ describe("Ajustes de las llamadas de los closers (solo el administrador)", () =>
     await falla(guardarCalendario(e.p.callerA.id, { duracion: 30, descanso: 0, aviso: 0, max_dia: 1 }), /para closers/);
     await ok(guardarCalendario(e.p.closerB.id, { duracion: 30, descanso: 0, aviso: 0, max_dia: 1 }));
   });
+  it("un caller con «También closer» (Facu) también tiene sus ajustes (9 nov)", async () => {
+    await db.from("perfiles").update({ tambien_closer: true }).eq("id", e.p.callerA.id);
+    como(e, e.p.directorAdmin);
+    await ok(guardarCalendario(e.p.callerA.id, { duracion: 30, descanso: 0, aviso: 0, max_dia: 2 }));
+    await db.from("perfiles").update({ tambien_closer: false }).eq("id", e.p.callerA.id);
+  });
 });
 
 describe("¿Está libre el closer? (con sus citas de verdad)", () => {

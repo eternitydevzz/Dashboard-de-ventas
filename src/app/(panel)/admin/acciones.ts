@@ -20,7 +20,7 @@ import { mismoContenido, pasosValidos } from "@/lib/workflows-editar";
 import { SECCIONES_TODAS, NUNCA, ROLES_PERMISO, seccionesPermitidas } from "@/lib/permisos";
 import type { RolPermiso } from "@/lib/permisos-constantes";
 import { ajustesValidos, type AjustesCalendario } from "@/lib/disponibilidad";
-import type { Rol } from "@/lib/tipos";
+import { esCloser, type Rol } from "@/lib/tipos";
 import { mandarEnlace } from "@/lib/acceso";
 import { reordenar } from "@/lib/orden-entradas";
 import { tablaValida } from "@/lib/canal";
@@ -824,8 +824,8 @@ export async function guardarCalendario(perfilId: string | null, ajustes: { dura
       if (!valor) throw new ErrorUsuario("Faltan los ajustes.");
       await escribir(db().from("proyectos").update({ calendario: valor }).eq("id", proyecto.id), "proyectos");
     } else {
-      const { data: quien } = await db().from("perfiles").select("rol").eq("id", perfilId).maybeSingle();
-      if (quien?.rol !== "closer") throw new ErrorUsuario("Estos ajustes son para closers.");
+      const { data: quien } = await db().from("perfiles").select("rol, tambien_closer").eq("id", perfilId).maybeSingle();
+      if (!quien || !esCloser(quien as { rol: Rol; tambien_closer: boolean })) throw new ErrorUsuario("Estos ajustes son para closers."); // también Facu (9 nov)
       const { data, error } = await db().from("miembros_proyecto").update({ calendario: valor }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).select("perfil_id");
       if (error) throw new ErrorUsuario(error.message);
       if (!data?.length) throw new ErrorUsuario("Esa persona no está en este proyecto.");
