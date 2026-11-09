@@ -17,6 +17,7 @@ import {
   ArrowRight,
   KeyRound,
   CheckSquare,
+  UserPlus,
 } from "lucide-react";
 import {
   borrarEtapa,
@@ -397,6 +398,10 @@ export function TableroCrm({
         </div>}
         {jefe && deOrigen && (
           <>
+            {/* 9 nov: el formulario «Nuevo lead» ya existía sin botón (crea el lead solo en el dashboard, no en GHL) */}
+            <button onClick={() => setModal("lead")} className="btn-secundario px-2.5" title="Nuevo lead" aria-label="Nuevo lead">
+              <UserPlus className="h-4 w-4" />
+            </button>
             <button onClick={() => setModal("importar")} className="btn-secundario px-2.5" title="Subir CSV" aria-label="Subir CSV">
               <Upload className="h-4 w-4" />
             </button>

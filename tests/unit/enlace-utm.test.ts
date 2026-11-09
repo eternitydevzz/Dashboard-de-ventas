@@ -1,6 +1,7 @@
 // B4 (plan GHL): generador de enlaces con UTM. El enlace trae utm_source y utm_campaign sin repetir parámetros.
 import { describe, expect, it } from "vitest";
-import { enlaceUtm } from "@/lib/enlace-utm";
+import { LANDINGS, enlaceUtm } from "@/lib/enlace-utm";
+import { CANALES_POR_DEFECTO, canalDeOrigen } from "@/lib/canal";
 
 describe("enlaceUtm", () => {
   it("añade utm_source y utm_campaign", () => {
@@ -15,5 +16,8 @@ describe("enlaceUtm", () => {
   it("sin campaña no pone utm_campaign; una landing rota da null", () => {
     expect(enlaceUtm("https://codigomaestria.com/agenda", "yt", "  ")).toBe("https://codigomaestria.com/agenda?utm_source=yt");
     expect(enlaceUtm("no es una url", "yt", "x")).toBeNull();
+  });
+  it("no ofrece landings donde gana la página al UTM (agenda-fc, software-demo; 9 nov)", () => {
+    for (const l of LANDINGS) expect(canalDeOrigen(enlaceUtm(l, "yt", "x"), "yt", CANALES_POR_DEFECTO), l).toBe("yt");
   });
 });

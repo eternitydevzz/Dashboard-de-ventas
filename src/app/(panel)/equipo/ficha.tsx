@@ -10,7 +10,7 @@ import { CalendarioCloser, UsuarioGhl } from "@/app/(panel)/admin/ghl";
 import { DatosYComision, type Area, type Miembro, type Puesto } from "./cliente";
 import { AccesoPersona, FathomPersona, PctPersona, PipelinesPersona, type Ficha } from "./ficha-partes";
 import { cargarFicha } from "./ficha-acciones";
-import type { Rol } from "@/lib/tipos";
+import { esCloser, type Rol } from "@/lib/tipos";
 
 type Pestana = "datos" | "acceso" | "permisos" | "agenda" | "integraciones";
 
@@ -101,7 +101,7 @@ export function FichaPersona({
                   <h3 className="mb-2 text-sm font-semibold">{rol === "closer" ? "Horario para recibir llamadas" : "Horario de trabajo"}</h3>
                   <EditorHorario inicial={f.horario} zona={f.zona} perfilId={f.persona.id} />
                 </div>
-                {rol === "closer" && (
+                {esCloser(f.persona) && ( // también Facu (caller con «También closer», 9 nov)
                   <div className="border-t border-borde pt-3">
                     <h3 className="mb-1 text-sm font-semibold">Sus llamadas</h3>
                     <p className="mb-2 text-xs text-texto-3">Si no le pones unos propios, usa los del proyecto ({f.calendario.general.duracion} min, descanso {f.calendario.general.descanso} min…).</p>
