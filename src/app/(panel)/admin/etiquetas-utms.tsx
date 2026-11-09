@@ -16,7 +16,15 @@ async function Etiquetas() {
   const { data, error } = await db().rpc("etiquetas_del_proyecto", { p_proyecto: proyecto.id });
   if (error) throw new Error(`No se pudieron leer las etiquetas: ${error.message}`);
   const filas = ((data ?? []) as { nombre: string; leads: number; usada_ghl: boolean }[]).map((f) => ({ nombre: f.nombre, leads: Number(f.leads), usada_ghl: f.usada_ghl }) satisfies EtiquetaFila);
-  return <EditorEtiquetas key={JSON.stringify(filas)} inicial={filas} />;
+  // 1.7 (9 nov): los workflows que arrancan con cada etiqueta, para avisar antes de unir dos que tienen workflow
+  const { data: wfs, error: errW } = await db().from("workflows").select("nombre, disparador").eq("proyecto_id", proyecto.id).eq("disparador->>tipo", "etiqueta");
+  if (errW) throw new Error(`No se pudieron leer los workflows: ${errW.message}`);
+  const workflows: Record<string, string[]> = {};
+  for (const w of (wfs ?? []) as { nombre: string; disparador: { etiqueta?: string } }[]) {
+    const t = (w.disparador.etiqueta ?? "").trim().toLowerCase();
+    if (t) workflows[t] = [...(workflows[t] ?? []), w.nombre];
+  }
+  return <EditorEtiquetas key={JSON.stringify(filas)} inicial={filas} workflows={workflows} />;
 }
 
 export function EtiquetasUtms({ sub, canales }: { sub: string; canales: TablaCanales }) {
@@ -39,7 +47,7 @@ export function EtiquetasUtms({ sub, canales }: { sub: string; canales: TablaCan
       {actual === "etiquetas" && (
         <Seccion titulo="Etiquetas">
           <p className="mb-3 text-sm text-texto-2">
-            Las etiquetas de los leads de este proyecto, en minúsculas. Renombrar, unir o borrar una la cambia también en las Entradas (etiqueta base, fijas y reglas) y en los workflows (pasos y disparadores), todo a la vez. Las que usa el código de la app (por ejemplo las <code>-completo</code>/<code>-incompleto</code> o «Canal: …», que se cambian en Canales) no se pueden cambiar. Aquí no se cambia nada en GHL.
+            Las etiquetas de los leads de este proyecto, en minúsculas. Renombrar, unir o borrar una la cambia también en las Entradas (etiqueta base, fijas y reglas) y en los workflows (pasos y disparadores), todo a la vez. Las que usa el código de la app (por ejemplo las <code>-completo</code>/<code>-incompleto</code> o «Canal: …», que se cambian en Canales) no se pueden cambiar. Renombrar, unir y borrar la cambian también en GHL (si el proyecto tiene GHL conectado); crear solo la crea aquí.
           </p>
           <Etiquetas />
         </Seccion>

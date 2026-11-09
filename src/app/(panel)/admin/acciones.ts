@@ -78,7 +78,14 @@ export async function actualizarMiembro(perfilId: string, cambios: { rol?: Rol; 
     // desactivar a alguien afecta a todos sus proyectos → solo el CEO. El director puede quitarlo de su proyecto.
     if ((cambios.rol !== undefined || cambios.activo !== undefined) && perfil.rol !== "ceo") throw new ErrorUsuario("Solo el CEO cambia el rol o desactiva a alguien (afecta a todos sus proyectos). Puedes quitarlo de este proyecto.");
     if (cambios.rol && !ROLES.includes(cambios.rol)) throw new ErrorUsuario("Rol no válido.");
-    await escribir(db().from("perfiles").update(cambios).eq("id", perfilId), "perfiles");
+    // 1.7 (9 nov): a la base solo van estos 3 campos (una acción del servidor puede recibir cualquier objeto)
+    const permitidos = {
+      ...(cambios.rol !== undefined ? { rol: cambios.rol } : {}),
+      ...(typeof cambios.activo === "boolean" ? { activo: cambios.activo } : {}),
+      ...(typeof cambios.admin_activo === "boolean" ? { admin_activo: cambios.admin_activo } : {}),
+    };
+    if (!Object.keys(permitidos).length) throw new ErrorUsuario("No hay nada que cambiar.");
+    await escribir(db().from("perfiles").update(permitidos).eq("id", perfilId), "perfiles");
     refrescar();
   });
 }
@@ -941,9 +948,32 @@ export async function renombrarEtiqueta(de: unknown, a: unknown) {
     const d = etiquetaValida(de, true);
     const n = a === null ? null : etiquetaValida(a, true);
     if (n === d) throw new ErrorUsuario("Pon un nombre distinto.");
+    // Plan GHL 1.7 (9 nov): si es la etiqueta base de una Entrada, sus «-completo»/«-incompleto» cambian con ella
+    const { data: bases, error: errB } = n === null ? { data: [], error: null } : await db().from("entradas").select("id").eq("proyecto_id", proyecto.id).ilike("ghl_etiqueta_base", d.replace(/[\\%_]/g, "\\$&")).limit(1); // la base puede ir con mayúsculas («Biblioteca-form»)
+    if (errB) throw new Error(`No se pudieron leer las Entradas: ${errB.message}`);
     await escribir(db().rpc("renombrar_etiqueta", { p_proyecto: proyecto.id, p_de: d, p_a: n }), "etiquetas");
+    const r = await etiquetaEnGhl(proyecto.id, d, n);
+    const avisos = r.aviso ? [r.aviso] : [];
+    if (n !== null && bases?.length) {
+      for (const suf of ["-completo", "-incompleto"]) {
+        await escribir(db().rpc("renombrar_etiqueta", { p_proyecto: proyecto.id, p_de: d + suf, p_a: n + suf }), "etiquetas");
+        const rs = await etiquetaEnGhl(proyecto.id, d + suf, n + suf);
+        if (rs.aviso && !avisos.includes(rs.aviso)) avisos.push(rs.aviso);
+      }
+    }
     refrescar();
-    return { ok: true as const, ...(await etiquetaEnGhl(proyecto.id, d, n)) };
+    return { ok: true as const, ...r, ...(avisos.length ? { aviso: avisos.join(" ") } : {}) };
+  });
+}
+
+// Plan GHL 1.7 (9 nov): la marca «usada por GHL» se cambia en pantalla
+export async function marcarEtiquetaGhl(nombre: unknown, usada: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const t = etiquetaValida(nombre);
+    await escribir(db().from("etiquetas").upsert({ proyecto_id: proyecto.id, nombre: t, usada_ghl: usada === true }, { onConflict: "proyecto_id,nombre" }), "etiquetas");
+    refrescar();
+    return { ok: true as const };
   });
 }
 

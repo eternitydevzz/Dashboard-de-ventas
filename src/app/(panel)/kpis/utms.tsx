@@ -10,6 +10,7 @@ import { Seccion } from "@/components/ui";
 import { CAMPOS_UTM, filtrarUtms, totalesPor, type Clave, type FilaUtm, type FiltroUtm } from "@/lib/utms";
 import { cargarUtmsPestana } from "./acciones";
 import { GeneradorEnlaces } from "./generador-enlaces";
+import type { TablaCanales } from "@/lib/canal";
 
 const FILAS_MAX = 200; // shortcut: la tabla enseña las 200 primeras (los totales cuentan todas); paginar si hace falta
 const FILTROS: { c: Clave; t: string }[] = [{ c: "landing", t: "Landing" }, ...CAMPOS_UTM.map((c) => ({ c, t: c })), { c: "etiqueta", t: "Etiqueta" }];
@@ -17,7 +18,7 @@ const TOTALES: { c: Clave; t: string }[] = [{ c: "utm_source", t: "Por utm_sourc
 const VACIO: FiltroUtm = { desde: null, hasta: null, landing: "", etiqueta: "", utm_source: "", utm_medium: "", utm_campaign: "", utm_content: "", utm_term: "" };
 
 // B1 (plan GHL): KPIs → «UTMs» (solo jefes). Carga como «Leads» (después de pintar) y todo lo demás se calcula aquí.
-export function PestanaUtms({ barra, desde, hasta }: { barra: React.ReactNode; desde: number | null; hasta: number | null }) {
+export function PestanaUtms({ barra, desde, hasta, canales }: { barra: React.ReactNode; desde: number | null; hasta: number | null; canales: TablaCanales }) {
   const [filas, setFilas] = useState<FilaUtm[] | null>(null);
   const [error, setError] = useState("");
   const etiquetaUrl = useSearchParams().get("etiqueta") ?? ""; // B4: cada etiqueta enlaza a /kpis?vista=utms&etiqueta=…
@@ -52,7 +53,7 @@ export function PestanaUtms({ barra, desde, hasta }: { barra: React.ReactNode; d
     );
   return (
     <div className="space-y-5">
-      <GeneradorEnlaces />
+      <GeneradorEnlaces canales={canales} />
       <div className="tarjeta space-y-3 px-4 pb-3.5">
         {barra}
         <div className="flex flex-wrap gap-2">

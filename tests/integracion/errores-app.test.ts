@@ -36,4 +36,11 @@ describe("Otros errores de la app", () => {
     expect(data).toEqual([{ proyecto_id: null, veces: 3 }]);
     await db.from("errores_app").delete().eq("sitio", "acción").eq("texto", `${sitio} se rompió`);
   });
+  it("al guardar un error se borran los de más de 30 días (Cristian, 9 nov)", async () => {
+    await db.from("errores_app").insert({ proyecto_id: e.proyecto.id, sitio: `${sitio}-viejo`, texto: "viejo", ultimo_en: new Date(Date.now() - 31 * 86_400_000).toISOString() });
+    await db.from("errores_app").insert({ proyecto_id: e.proyecto.id, sitio: `${sitio}-reciente`, texto: "reciente", ultimo_en: new Date(Date.now() - 29 * 86_400_000).toISOString() });
+    await guardarError(sitio, "nuevo", e.proyecto.id);
+    const { data } = await db.from("errores_app").select("texto").like("sitio", `${sitio}-%`);
+    expect(data).toEqual([{ texto: "reciente" }]);
+  });
 });

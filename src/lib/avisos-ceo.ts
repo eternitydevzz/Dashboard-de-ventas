@@ -25,7 +25,7 @@ export async function avisosCeo(proyectoId: string): Promise<AvisoCeo[]> {
     db().from("workflow_ejecuciones").select("id", contar).eq("proyecto_id", proyectoId).eq("estado", "error"),
     db().from("proyectos").select("ghl_ultimo_resultado").eq("id", proyectoId).maybeSingle(),
     // F3: los que pasaron en el último día, del proyecto o sin proyecto (las acciones); uno por sitio y texto
-    db().from("errores_app").select("sitio, texto, veces").or(`proyecto_id.eq.${proyectoId},proyecto_id.is.null`).gte("ultimo_en", new Date(Date.now() - 86_400_000).toISOString()).order("ultimo_en", { ascending: false }).limit(20),
+    db().from("errores_app").select("sitio, texto, veces, proyecto_id").or(`proyecto_id.eq.${proyectoId},proyecto_id.is.null`).gte("ultimo_en", new Date(Date.now() - 86_400_000).toISOString()).order("ultimo_en", { ascending: false }).limit(20),
   ]);
   for (const [que, r] of [["citas sin closer", citas], ["entradas", entradas], ["workflows con error", workflows], ["última lectura de GHL", proyecto], ["otros errores", errores]] as const)
     if (r.error) throw new Error(`avisos del CEO (${que}): ${r.error.message}`);
@@ -42,7 +42,8 @@ export async function avisosCeo(proyectoId: string): Promise<AvisoCeo[]> {
     { tipo: "envio_rojo", cuantos: rojos.length, texto: `${rojos.length} envío(s) en rojo que no llegaron a GHL` },
     { tipo: "workflow_error", cuantos: nWorkflows, texto: `${nWorkflows} ejecución(es) de workflow con error` },
     { tipo: "calendario", cuantos: errLectura, texto: `En la última lectura de GHL, ${errLectura} calendario(s) no se pudieron leer: ${resumen}` },
-    ...((errores.data ?? []) as { sitio: string; texto: string; veces: number }[]).map((e) => ({ tipo: "otro_error" as const, cuantos: e.veces, texto: `${e.sitio}: ${e.texto} (${e.veces} ${e.veces === 1 ? "vez" : "veces"})` })),
+    // 1.7 (9 nov): los sin proyecto (las acciones) salen en todos los proyectos: se marcan para que se vea
+    ...((errores.data ?? []) as { sitio: string; texto: string; veces: number; proyecto_id?: string | null }[]).map((e) => ({ tipo: "otro_error" as const, cuantos: e.veces, texto: `${e.sitio}: ${e.texto} (${e.veces} ${e.veces === 1 ? "vez" : "veces"})${e.proyecto_id === null ? " · sin proyecto" : ""}` })),
   ];
   return avisos.filter((a) => a.cuantos > 0);
 }
