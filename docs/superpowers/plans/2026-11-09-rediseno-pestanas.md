@@ -4,7 +4,7 @@
 
 **Objetivo:** que Entradas, Workflows, Etiquetas y UTMs (Administración) y UTMs (KPIs) se vean como KPIs → Leads: números grandes, círculos, barras y gráficos, en vez de listas de texto.
 
-**Cómo:** primero una maqueta en un solo `.html` con datos reales de Maestria. Cristian la aprueba. Solo entonces se cambia el código, una pestaña por PR, reutilizando los componentes que ya usa KPIs → Leads.
+**Cómo:** primero una maqueta en un solo `.html` con datos reales de Maestria. Cristian la aprueba. Solo entonces se cambia el código de las 4 pestañas, todo en **un solo PR** (decisión de Cristian, 9 nov: «si no, no termino nunca»), reutilizando los componentes que ya usa KPIs → Leads.
 
 **Tecnología:** Next.js 16 + Tailwind 4, componentes propios (`src/components`), tests con Vitest (`npm run test:unit`).
 
@@ -89,7 +89,7 @@
 - [ ] Rehacer `entradas.tsx` como en la maqueta aprobada. Reutilizar `Kpi` (`components/ui.tsx`) para los números grandes y `GraficoLeads` para el gráfico pequeño, si en tamaño mini se lee bien; si no, un SVG de barras dentro del mismo archivo.
 - [ ] `npm run lint && npx tsc --noEmit && npm run test:unit` → todo en verde.
 - [ ] Mirar con Playwright: Maestria y Test, claro y oscuro, y móvil en una pestaña aparte. Crear y copiar dirección siguen funcionando, comprobado en Test.
-- [ ] Commit, PR, fusionar en verde y mirar en dashboard.eternity.llc.
+- [ ] Commit en la rama (sin PR todavía).
 
 ### Tarea 4: Workflows en el código
 
@@ -97,7 +97,7 @@
 
 - [ ] Rehacer la lista como en la maqueta: números grandes arriba con `Kpi` y tarjetas. Los números salen de lo que la pestaña ya carga hoy (leads, con error, esperando, coincidencias en prueba), sin consultas nuevas.
 - [ ] Lint, tipos y unitarios en verde. Mirar con Playwright como en la Tarea 3. «Pasar a real» y «Parar la prueba» siguen ahí (comprobar que se ven; no pulsarlos en Maestria).
-- [ ] Commit, PR, fusionar en verde y mirar en producción.
+- [ ] Commit en la rama (sin PR todavía).
 
 ### Tarea 5: Etiquetas y UTMs (Administración) en el código
 
@@ -106,7 +106,7 @@
 - [ ] Añadir arriba `AnilloPartes` (leads por canal y por etiqueta, `max=6`) y `Barras` por canal, como en la maqueta. Las cuentas por etiqueta ya llegan («24 leads»). Las de canal salen de la misma consulta.
 - [ ] Las listas para editar se quedan con las mismas acciones y el aspecto de la maqueta.
 - [ ] Lint, tipos y unitarios en verde. Mirar con Playwright en Maestria y Test. Renombrar se prueba solo en Test.
-- [ ] Commit, PR, fusionar en verde y mirar en producción.
+- [ ] Commit en la rama (sin PR todavía).
 
 ### Tarea 6: UTMs (KPIs) en el código
 
@@ -128,7 +128,14 @@
 - [ ] Rehacer `utms.tsx` como en la maqueta: `Kpi`, `AnilloPartes` en lugar de las 3 tablas, `GraficoLeads`, `EmbudoVidrio` por canal y `Barras`. Debajo siguen los filtros, la tabla y `GeneradorEnlaces`.
 - [ ] Medir cuánto tarda en cargar, antes y después, en Maestria «Todo». Si tarda más de 1 s más, avisar a Cristian.
 - [ ] Lint, tipos y unitarios en verde. Mirar con Playwright como en la Tarea 3.
-- [ ] Commit, PR, fusionar en verde y mirar en producción.
+- [ ] Commit en la rama (sin PR todavía).
+
+### Tarea 7: Un solo PR con las 4 pestañas
+
+- [ ] `npm run lint && npx tsc --noEmit && npm run test:unit` en verde con todo junto.
+- [ ] Push de la rama y PR único `feat: rediseño de Entradas, Workflows, Etiquetas y UTMs`, con las capturas antes/después de cada pestaña.
+- [ ] Fusionar solo en verde: `gh pr checks N > f && gh pr merge N --merge`.
+- [ ] Mirar las 4 pestañas en dashboard.eternity.llc con Playwright (Maestria y Test, claro y oscuro) y enseñárselas a Cristian.
 
 ## Pendiente de decidir (Cristian)
 
