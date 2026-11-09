@@ -3,6 +3,7 @@ import { Phone, PhoneIncoming, CalendarDays, Handshake, UserCheck, ShoppingCart,
 import { exigirPagina } from "@/lib/permisos";
 import { cargarBase, calcularFunnel } from "@/lib/metricas";
 import { calcularKpis } from "@/lib/kpis";
+import { esCloser } from "@/lib/tipos";
 import { panelObjetivos } from "@/lib/objetivos";
 import { dinero, rangoDe, pct, hoyEnZona, type Periodo } from "@/lib/formato";
 import { Cabecera, Contenido, Kpi, Seccion } from "@/components/ui";
@@ -24,7 +25,7 @@ export default async function MiFunnelPage({ searchParams }: PageProps<"/mi-funn
   const m = calcularFunnel(base, rango, perfil, zona);
   const $ = (n: number) => dinero(n, proyecto);
   const caller = perfil.rol === "caller" ? kpis.callers.find((c) => c.perfil.id === perfil.id) : undefined;
-  const closer = perfil.rol === "closer" ? kpis.closers.find((c) => c.perfil.id === perfil.id) : undefined;
+  const closer = esCloser(perfil) ? kpis.closers.find((c) => c.perfil.id === perfil.id) : undefined;
 
   return (
     <>

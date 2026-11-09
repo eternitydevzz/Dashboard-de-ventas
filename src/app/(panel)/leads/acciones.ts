@@ -127,7 +127,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
       .select("perfil_id, perfiles!inner(rol, nombre)")
       .eq("proyecto_id", proyecto.id)
       .eq("perfil_id", closerId)
-      .eq("perfiles.rol", "closer")
+      .or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }) // E1: también closer (Facu)
       .maybeSingle();
     if (!closer) throw new ErrorUsuario("Elige un closer del proyecto.");
     // Paso H6: un doble clic creaba dos citas iguales; la base ya no deja repetir lead, closer y hora

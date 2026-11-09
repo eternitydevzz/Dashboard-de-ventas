@@ -21,7 +21,9 @@ export function calcularPermisos(rol: Perfil["rol"], deRol: Fila[], dePersona: F
   if (rol === "ceo") return new Set(SECCIONES_TODAS.map((s) => s.v));
   const r = new Map(deRol.map((f) => [f.seccion, f.permitido]));
   const p = new Map(dePersona.map((f) => [f.seccion, f.permitido]));
-  return new Set(SECCIONES_TODAS.map((s) => s.v).filter((s) => !NUNCA[rol].has(s) && (p.get(s) ?? r.get(s) ?? (DEFECTO[rol].has(s) || (tambienCloser && rol === "caller" && DEFECTO.closer.has(s))))));
+  // «También closer» gana al permiso del rol en lo de un closer (Cristian, 9 nov); la ficha de la persona sigue mandando
+  const deCloser = (s: Seccion) => tambienCloser && rol === "caller" && DEFECTO.closer.has(s);
+  return new Set(SECCIONES_TODAS.map((s) => s.v).filter((s) => !NUNCA[rol].has(s) && (p.get(s) ?? (deCloser(s) || (r.get(s) ?? DEFECTO[rol].has(s))))));
 }
 
 // Una vez por petición (el menú y la página la piden a la vez)

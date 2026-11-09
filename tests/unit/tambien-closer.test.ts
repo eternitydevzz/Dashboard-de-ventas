@@ -53,6 +53,11 @@ describe("Permisos: sus 2 pantallas", () => {
   it("manda la persona: si le cierran Agendas en su ficha, no la ve", () => {
     expect(calcularPermisos("caller", [], [{ seccion: "agendas", permitido: false }], true).has("agendas")).toBe(false);
   });
+  it("gana el interruptor al permiso del rol «caller» (Cristian, 9 nov)", () => {
+    const rolSinAgendas = [{ seccion: "agendas", permitido: false }];
+    expect(calcularPermisos("caller", rolSinAgendas, [], true).has("agendas")).toBe(true);
+    expect(calcularPermisos("caller", rolSinAgendas, []).has("agendas")).toBe(false); // sin interruptor, manda el rol
+  });
   it("un closer o un director no cambian", () => {
     expect([...calcularPermisos("closer", [], [], true)].sort()).toEqual([...calcularPermisos("closer", [], [])].sort());
     expect([...calcularPermisos("director", [], [], true)].sort()).toEqual([...calcularPermisos("director", [], [])].sort());

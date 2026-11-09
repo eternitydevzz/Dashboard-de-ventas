@@ -12,7 +12,7 @@ import { OfertaChip } from "@/components/oferta-chip";
 import { AccionesLead } from "@/components/acciones-lead";
 import { SelectoresLead } from "./selectores";
 import { VerEstrellas } from "@/components/estrellas";
-import type { Actividad, Cita, Etapa, Lead, Pipeline, Producto, Venta } from "@/lib/tipos";
+import { esCloser, type Actividad, type Cita, type Etapa, type Lead, type Pipeline, type Producto, type Venta } from "@/lib/tipos";
 import { ABIERTAS } from "@/lib/llamadas";
 
 const ICONO_ACT: Record<string, string> = {
@@ -203,7 +203,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                   closerId={lead.closer_id}
                   pipelines={(pipelines.data as Pipeline[]).map((p) => ({ ...p, etapas: (etapas.data as Etapa[]).filter((e) => e.pipeline_id === p.id) }))}
                   callers={gente.filter((g) => g.rol === "caller").map((g) => ({ id: g.id, nombre: g.nombre }))}
-                  closers={gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }))}
+                  closers={gente.filter(esCloser).map((g) => ({ id: g.id, nombre: g.nombre }))}
                 />
               </div>
             </Seccion>
@@ -212,7 +212,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
               <AccionesLead
                 leadId={lead.id}
                 telefono={lead.telefono}
-                closers={gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }))}
+                closers={gente.filter(esCloser).map((g) => ({ id: g.id, nombre: g.nombre }))}
                 productos={(productos.data ?? []) as Producto[]}
                 rol={perfil.rol}
                 vendedores={jefe ? gente.filter((g) => g.rol === "closer" || g.rol === "caller").map((g) => ({ id: g.id, nombre: g.nombre })) : undefined}

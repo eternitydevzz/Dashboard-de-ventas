@@ -6,7 +6,7 @@ import { db } from "@/lib/datos";
 import { dinero, fechaHora, ETIQUETA_ROL } from "@/lib/formato";
 import { Cabecera, Contenido, Seccion, Insignia, Avatar } from "@/components/ui";
 import { Plantilla, AnadirExistente, FormUsuario, FormProyecto, FormNuevoProyecto, LinkAgenda, Secreto } from "./cliente";
-import type { Perfil, Producto, Rol } from "@/lib/tipos";
+import { esCloser, type Perfil, type Producto, type Rol } from "@/lib/tipos";
 import { PLANTILLAS_GHL, CABECERA_SECRETO } from "@/lib/plantillas-ghl";
 import { NuevaEntrada, TarjetaEntrada, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
 import { haceCuanto, type DatosLanding } from "@/lib/entradas-panel";
@@ -299,7 +299,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               />
             </Seccion>
             <Seccion titulo="Rotación de closers («Agendado» del caller)">
-              <RotacionClosers closers={gente.filter((g) => g.rol === "closer" && g.activo && !g.es_prueba).map((g) => ({ id: g.id, nombre: g.nombre, pct: Number(filaDe.get(g.id)?.rotacion_pct ?? 0), cuenta: Number(filaDe.get(g.id)?.rotacion_cuenta ?? 0), horario: !!horarioValido(filaDe.get(g.id)?.horario) }))} />
+              <RotacionClosers closers={gente.filter((g) => esCloser(g) && g.activo && !g.es_prueba).map((g) => ({ id: g.id, nombre: g.nombre, pct: Number(filaDe.get(g.id)?.rotacion_pct ?? 0), cuenta: Number(filaDe.get(g.id)?.rotacion_cuenta ?? 0), horario: !!horarioValido(filaDe.get(g.id)?.horario) }))} />
             </Seccion>
             <Seccion titulo={`Horarios del equipo (hora de ${proyecto.zona_horaria})`} className="xl:col-span-2">
               <p className="mb-3 text-xs text-texto-3">Callers y closers ponen el suyo al entrar y lo cambian en «Mi perfil»; desde aquí puedes cambiar el de cualquiera. Los días sueltos (vacaciones, festivos) mandan sobre la semana.</p>
