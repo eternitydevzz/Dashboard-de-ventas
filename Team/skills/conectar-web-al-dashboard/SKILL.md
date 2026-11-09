@@ -1,30 +1,40 @@
 ---
 name: conectar-web-al-dashboard
-description: Conecta una landing o formulario web al dashboard de ventas de Eternity (dashboard.eternity.llc) con el JSON v1, sin «Inbound Webhook» de GHL. Crea su Entrada, cambia la landing para que envíe al dashboard, prueba con leads de prueba y apaga el webhook de GHL. Úsala siempre que pidan «conectar la landing al dashboard», «quitar el webhook de GHL de esta landing», «que este formulario mande al dashboard», «nueva Entrada para la landing X» o «pasar la landing al JSON v1».
+description: Conecta una web nueva o una landing que ya existe (página de GHL o web propia en Vercel) al dashboard de ventas de Eternity (dashboard.eternity.llc) con el JSON v1, sin «Inbound Webhook» de GHL. Crea su Entrada y su workflow, pone el código en la web y prueba con 1 lead de prueba. Úsala siempre que pidan «conectar la web al dashboard», «conectar esta landing», «que este formulario mande al dashboard», «nueva Entrada para la web X», «quitar el webhook de GHL de esta landing» o «pasar la landing al JSON v1».
 ---
 
 # Conectar una web al dashboard
 
-Lo que hay que saber está en `Team/Template-landing.md` (qué es el JSON v1, la tabla de campos, las respuestas del dashboard y el código). Léelo entero antes de empezar. El código listo está en `Team/templates/enviar-al-dashboard.js`.
+El manual del equipo es `Team/Template-landing.md` (JSON v1, campos, respuestas, código y «si algo falla»). Léelo antes de empezar. El código listo está en `Team/templates/enviar-al-dashboard.js`.
+
+## Primero, preguntar (en una sola pregunta)
+1. **¿Página de GHL o web propia en Vercel?** (y dónde está su código: funnel y página de GHL, o carpeta/repo).
+2. **¿Web nueva o ya mandaba a un webhook de GHL?** Nueva = paso rápido. Ya existía = paso rápido + lo de «Si ya existía».
+3. **Proyecto del dashboard, pipeline y qué tiene que pasar en GHL** (campos, pipeline/columna de GHL, etiquetas). Si no lo sabe, proponer: etiqueta base `<web>-<formulario>` y el pipeline del dashboard con el mismo nombre en GHL.
 
 ## Reglas
-- **La landing solo manda datos.** Etiquetas, pipeline y GHL los decide la Entrada del dashboard (y su workflow).
-- **La clave de la dirección es secreta:** nunca la escribas en documentos, chats ni en el código del navegador sin que el usuario lo sepa; en un servidor, en una variable de entorno.
-- **Una landing cada vez.** Hasta que funciona en producción no se pasa a la siguiente.
-- **Pruebas solo con leads de prueba:** `info+<landing>N@eternity.llc` y teléfonos de ficción 555-01xx. Si hay calendario, comprobar el día antes de reservar y cancelar la cita al terminar (las citas mandan email y SMS).
-- **Pregunta antes de:** publicar la landing, encender «Mandar a GHL», apagar un workflow o webhook de GHL, y borrar cualquier cosa.
+- **La web solo manda datos.** Etiquetas, pipeline y GHL los decide la Entrada (y su workflow).
+- **La dirección es secreta:** no escribirla en documentos, chats ni commits. En un servidor, en una variable de entorno.
+- **Siempre con workflow** (decisión de Cristian, 7 nov 2026): se crea con «Probar como workflow» y nace en prueba.
+- **Pruebas solo con leads de prueba:** `info+<web>N@eternity.llc` y teléfonos 555-01xx. Si hay calendario, cancelar la cita al terminar.
+- **Navegador:** dashboard y GHL con Playwright; `page.bringToFront()` y `visibilityState === "visible"` antes de cada clic.
+- **Preguntar antes de:** publicar la web, «Pasar a real», apagar un workflow o webhook de GHL y borrar cualquier cosa.
 
-## Pasos
-1. **Leer lo de hoy.** Abre el código de la landing y apunta el JSON que manda y a dónde. Con Playwright, lee su workflow de GHL: campos, etiqueta, pipeline, columna y ramas. Si el editor de GHL no carga, pide capturas al usuario.
-2. **Crear su Entrada y su workflow (siempre con workflow, decisión de Cristian del 7 nov).** En Administración → Entradas → «Conectar una landing nueva»: nombre `Web · <landing> <form>`, landing, formulario, desde dónde envía (navegador o servidor) y pipeline del dashboard. En «Cambiar ajustes» → «Qué hacer en GHL»: los campos (lo que llega → campo de GHL, UTM incluidos), sus pipelines de GHL, etiqueta base `<landing>-<form>` en minúsculas, etiquetas fijas si las usaba GHL y espera de 300 s, **con «Mandar a GHL» apagado**. Después pulsa **«Probar como workflow»** en su tarjeta y, en Administración → Workflows → «Editar», ajústalo (ramas por `utm_source`, más pasos…) hasta que haga lo mismo que su workflow de GHL.
-3. **Cambiar la landing** para que mande el JSON v1 a la dirección de su Entrada:
-   - desde el **navegador**: `enviarAlDashboard(url, datos, { source, eventId })`;
-   - desde un **servidor**: `enviarAlDashboardServidor(process.env.DASHBOARD_ENTRADA_URL, datos, req)` y la variable en Vercel (Production y Preview).
-   Quita la URL del webhook de GHL. Mismo `event_id` en todos los envíos de la misma persona.
-4. **Probar** en el preview con leads de prueba: completo, incompleto y uno que llega tarde. En el dashboard: 1 lead, su pipeline y el envío en verde (Administración → Entradas). En GHL: contacto, campos, etiquetas y oportunidades.
-5. **Con el OK del usuario:** con el workflow en prueba diciendo «coincide», **«Pasar a real»**, publicar la landing y apagar su workflow de GHL (o solo su rama, si el webhook lo comparten otras webs).
-6. **Probar una vez en producción** y vigilar 24 h: Administración → Entradas sin rojos.
-7. **Apuntar cómo volver atrás** (commit anterior de la landing + encender el workflow de GHL) y pasar al usuario los contactos de prueba para que los borre.
+## Paso rápido (web nueva, ~1 minuto)
+1. **Entrada:** Administración → Entradas → «Conectar una landing nueva»: nombre `Web · <web> <formulario>`, landing, formulario, desde dónde manda («Desde la página» o «Desde un servidor») y pipeline → «Crear y ver su dirección».
+2. **GHL:** en su tarjeta, «Cambiar ajustes» → «Qué hacer en GHL»: campos, pipeline de GHL, etiqueta base y **«Mandar a GHL» encendido** → Guardar. Después **«Probar como workflow»** (solo sale con «Mandar a GHL» encendido).
+3. **Código** con la dirección de «Copiar dirección»:
+   - **GHL:** el formulario tiene que ser código propio de la página (elemento HTML / código personalizado). Pegar `enviarAlDashboard` y llamarlo al enviar, con `source: "<web>"`. Si el formulario es nativo de GHL, parar y avisar: sin código propio no puede mandar al dashboard.
+   - **Vercel:** desde el navegador, igual; desde una función, `enviarAlDashboardServidor(process.env.DASHBOARD_ENTRADA_URL, datos, req)` y la variable en Vercel (Production y Preview).
+   - Mismo `event_id` en todos los envíos de la misma persona.
+4. **1 lead de prueba:** en la tarjeta, envío en verde y 1 lead en su pipeline; a los ~2 min, en GHL, contacto, campos, etiqueta `<base>-completo`/`-incompleto` y oportunidad.
+5. **Con el OK de Cristian:** publicar la web y «Pasar a real» el workflow (la app apaga sola «Mandar a GHL»).
+
+## Si ya existía (tenía webhook de GHL)
+- Antes del paso 1: leer el código de la web (JSON que manda y a dónde) y, con Playwright, su workflow de GHL (campos, etiquetas, pipeline, columna y ramas). Si el editor de GHL no carga, pedir capturas.
+- En el paso 2: copiar eso en «Qué hacer en GHL» y ajustar el workflow en Administración → Workflows → «Editar» (ramas por `utm_source`, más pasos) hasta que haga lo mismo.
+- En el paso 3: quitar la dirección del webhook de GHL y apuntarla para volver atrás.
+- Después del paso 5, con el OK: apagar el workflow de GHL (o solo su rama) y vigilar 24 h que la Entrada no tenga rojos.
 
 ## Al terminar
-Di qué salió mal, qué no se probó con datos reales, qué falta y una puntuación del 0 al 10.
+Dar a Cristian: la Entrada creada, dónde se cambió el código, cómo volver atrás, los contactos de prueba para borrar, qué no se probó con datos reales y una puntuación del 0 al 10.
