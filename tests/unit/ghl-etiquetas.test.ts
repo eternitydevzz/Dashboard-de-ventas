@@ -13,8 +13,12 @@ vi.mock("@/lib/supabase/admin", () => ({
     rpc: (...a: unknown[]) => (rpcs.push(a), Promise.resolve({ data: null, error: null })),
     from: (tabla: string) => {
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "single", "maybeSingle", "insert"]) q[m] = () => q;
-      q.then = (r: (v: unknown) => unknown) => Promise.resolve({ data: tabla === "entradas" ? entradas : proyectoGhl, error: null }).then(r);
+      for (const m of ["select", "eq", "single", "maybeSingle", "insert", "limit"]) q[m] = () => q;
+      // 1.7: ¿es la base de alguna Entrada? (ilike sin comodines = igual sin mayúsculas)
+      let base: string | undefined;
+      q.ilike = (_c: string, v: string) => ((base = v.toLowerCase()), q);
+      const filas = () => (base === undefined ? entradas : entradas.filter((e) => e.ghl_etiqueta_base?.toLowerCase() === base));
+      q.then = (r: (v: unknown) => unknown) => Promise.resolve({ data: tabla === "entradas" ? filas() : proyectoGhl, error: null }).then(r);
       return q;
     },
   }),

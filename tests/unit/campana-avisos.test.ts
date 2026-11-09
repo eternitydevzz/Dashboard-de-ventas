@@ -28,7 +28,7 @@ describe("F1b · reporte al entrar", () => {
   it("el CEO lo recibe la primera vez y se apunta el día en su cookie", async () => {
     como("ceo");
     expect(await reporteAlEntrar()).toEqual({ dia: "2026-11-07", leads: 5, agendas: 2 });
-    expect(puestas[0].slice(0, 2)).toEqual(["eternity_reporte_u1", "2026-11-07"]);
+    expect(puestas[0].slice(0, 2)).toEqual(["eternity_reporte_u1_p1", "2026-11-07"]);
   });
   it("el mismo día no sale otra vez; otro día, sí", async () => {
     como("ceo");

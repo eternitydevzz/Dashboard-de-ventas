@@ -2,7 +2,7 @@
 // las Entradas (base, fijas y reglas), los pasos de los workflows (también en ramas) y los disparadores de A3.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { borrarEscenario, como, crearEscenario, db, falla, ok, type Escenario } from "../apoyo/escenario";
-import { crearEtiqueta, ordenarEtiquetas, renombrarEtiqueta } from "@/app/(panel)/admin/acciones";
+import { crearEtiqueta, marcarEtiquetaGhl, ordenarEtiquetas, renombrarEtiqueta } from "@/app/(panel)/admin/acciones";
 
 let e: Escenario;
 beforeAll(async () => {
@@ -97,5 +97,20 @@ describe("Etiquetas en el dashboard", () => {
     await ok(ordenarEtiquetas(["canal: youtube", "agenda llamada", "agenda vieja"]));
     expect((await lista()).map((x) => x.nombre).slice(0, 3)).toEqual(["canal: youtube", "agenda llamada", "agenda vieja"]);
     expect((await lista()).find((x) => x.nombre === "agenda llamada")?.usada_ghl).toBe(true);
+  });
+  it("renombrar la etiqueta base de una Entrada cambia también sus -completo/-incompleto (1.7, 9 nov)", async () => {
+    await db.from("leads").update({ etiquetas: ["Base-Prueba-completo", "vip"] }).eq("id", e.leads.LeadB);
+    await db.from("entradas").insert({ proyecto_id: e.proyecto.id, nombre: "Con base", ghl_etiqueta_base: "Base-Prueba" });
+    como(e, e.p.directorAdmin);
+    await ok(renombrarEtiqueta("base-prueba", "base-nueva"));
+    expect(await etiquetas(e.leads.LeadB)).toEqual(["base-nueva-completo", "vip"]);
+  });
+
+  it("la marca «usada por GHL» se cambia en pantalla", async () => {
+    como(e, e.p.directorAdmin);
+    await ok(marcarEtiquetaGhl("marca-ghl", true));
+    expect((await lista()).find((f) => f.nombre === "marca-ghl")?.usada_ghl).toBe(true);
+    await ok(marcarEtiquetaGhl("marca-ghl", false));
+    expect((await lista()).find((f) => f.nombre === "marca-ghl")?.usada_ghl).toBe(false);
   });
 });

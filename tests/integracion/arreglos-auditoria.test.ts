@@ -170,6 +170,14 @@ describe("Arreglos 23 y 24: Administración", () => {
     await ok(actualizarMiembro(e.p.callerB.id, { activo: false }));
     await ok(actualizarMiembro(e.p.callerB.id, { activo: true }));
   });
+  it("1.7 (9 nov): a la base solo van rol, activo y admin_activo, aunque lleguen más campos", async () => {
+    como(e, e.p.directorAdmin);
+    const raro = { nombre: "Cambiado", tambien_closer: true } as unknown as Parameters<typeof actualizarMiembro>[1];
+    await falla(actualizarMiembro(e.p.callerB.id, raro), /nada que cambiar/);
+    const p = (await db.from("perfiles").select("nombre, tambien_closer").eq("id", e.p.callerB.id).single()).data!;
+    expect(p.nombre).not.toBe("Cambiado");
+    expect(p.tambien_closer).toBe(false);
+  });
 });
 
 describe("Arreglo 26: borrar una venta", () => {

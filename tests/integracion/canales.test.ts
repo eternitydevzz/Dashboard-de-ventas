@@ -55,4 +55,30 @@ describe("Canales en la base", () => {
     expect(await etiquetas(e.leads.LeadB)).toEqual(["Canal: IG"]);
     expect((await canalesDe(e.proyecto.id)).find((c) => c.clave === "ig")?.nombre).toBe("IG");
   });
+  it("renombrar cambia también la base y las fijas de las Entradas y los pasos de los workflows (Plan GHL 1.7, 9 nov)", async () => {
+    // Ahora yt se llama «Callers» y callers «YouTube» (test anterior): se vuelven a cambiar entre sí
+    const { data: en } = await db
+      .from("entradas")
+      .insert({ proyecto_id: e.proyecto.id, nombre: "Canales base", ghl_etiqueta_base: "Canal: Callers", ghl_etiquetas_extra: ["Canal: YouTube", "x"] })
+      .select("id")
+      .single();
+    const pasos = [
+      { tipo: "etiquetas_ghl", base: "Canal: Callers", fijas: ["Canal: YouTube", "y"] },
+      { tipo: "quitar_etiqueta_ghl", etiqueta: "canal: youtube" },
+    ];
+    const { data: wf } = await db.from("workflows").insert({ proyecto_id: e.proyecto.id, nombre: "Pasos con canal", disparador: { tipo: "entrada" }, pasos }).select("id, version").single();
+
+    como(e, e.p.directorAdmin);
+    const actual = await canalesDe(e.proyecto.id);
+    await ok(guardarCanales(actual.map((c) => (c.clave === "yt" ? { ...c, nombre: "YouTube" } : c.clave === "callers" ? { ...c, nombre: "Callers" } : c))));
+
+    const fila = (await db.from("entradas").select("ghl_etiqueta_base, ghl_etiquetas_extra").eq("id", en!.id).single()).data!;
+    expect(fila).toEqual({ ghl_etiqueta_base: "Canal: YouTube", ghl_etiquetas_extra: ["Canal: Callers", "x"] });
+    const w = (await db.from("workflows").select("pasos, version").eq("id", wf!.id).single()).data!;
+    expect(w.pasos).toEqual([
+      { tipo: "etiquetas_ghl", base: "Canal: YouTube", fijas: ["Canal: Callers", "y"] },
+      { tipo: "quitar_etiqueta_ghl", etiqueta: "Canal: Callers" },
+    ]);
+    expect(w.version).toBeGreaterThan(wf!.version);
+  });
 });

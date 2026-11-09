@@ -3,17 +3,16 @@
 import { useState } from "react";
 import { Desplegable } from "@/components/eleccion";
 import { Seccion } from "@/components/ui";
-import { CANALES, NOMBRE_CANAL } from "@/lib/canal";
+import type { TablaCanales } from "@/lib/canal";
 import { LANDINGS, enlaceUtm } from "@/lib/enlace-utm";
 import { CopiarLink } from "@/app/(panel)/recursos/cliente";
 
-// Canales que se eligen con utm_source; Facu, DFY y Directo los decide la página, y «Otro» no es un canal
-const CANALES_ENLACE = CANALES.filter((c) => c !== "facu" && c !== "dfy" && c !== "directo" && c !== "otro");
-
-// B4 (plan GHL): elige landing, canal y campaña → enlace listo para copiar
-export function GeneradorEnlaces() {
+// B4 (plan GHL): elige landing, canal y campaña → enlace listo para copiar. Los canales y sus nombres, los del proyecto
+// (Administración → Canales, 1.7 del 9 nov); Facu y DFY no: los decide la página (Directo y Otro no son filas)
+export function GeneradorEnlaces({ canales }: { canales: TablaCanales }) {
+  const lista = canales.filter((c) => c.clave !== "facu" && c.clave !== "dfy");
   const [landing, setLanding] = useState(LANDINGS[0]);
-  const [canal, setCanal] = useState<string>(CANALES_ENLACE[0]);
+  const [canal, setCanal] = useState<string>(lista[0]?.clave ?? "");
   const [campana, setCampana] = useState("");
   const enlace = campana.trim() ? enlaceUtm(landing, canal, campana) : null;
   return (
@@ -22,7 +21,7 @@ export function GeneradorEnlaces() {
         <input list="landings-enlace" aria-label="Landing" value={landing} onChange={(e) => setLanding(e.target.value)} className="campo min-w-0 flex-1 sm:w-72 sm:flex-none" />
         <datalist id="landings-enlace">{LANDINGS.map((l) => <option key={l} value={l} />)}</datalist>
         <Desplegable aria-label="Canal" value={canal} onChange={(e) => setCanal(e.target.value)} className="campo min-w-0 flex-1 sm:w-44 sm:flex-none">
-          {CANALES_ENLACE.map((c) => <option key={c} value={c}>{NOMBRE_CANAL[c]}</option>)}
+          {lista.map((c) => <option key={c.clave} value={c.clave}>{c.nombre}</option>)}
         </Desplegable>
         <input aria-label="Campaña" placeholder="Campaña (utm_campaign)" value={campana} onChange={(e) => setCampana(e.target.value)} className="campo min-w-0 flex-1 sm:w-56 sm:flex-none" />
       </div>

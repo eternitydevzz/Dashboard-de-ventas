@@ -91,6 +91,10 @@ describe("avisosCeo", () => {
     expect(antes - desde).toBeGreaterThanOrEqual(86_400_000 - 1000);
     expect(antes - desde).toBeLessThanOrEqual(86_400_000 + 1000);
   });
+  it("1.7 (9 nov): un error sin proyecto sale marcado, porque sale en todos los proyectos", async () => {
+    filas = { errores_app: [{ sitio: "acción", texto: "falló", veces: 1, proyecto_id: null }, { sitio: "ghl", texto: "500", veces: 2, proyecto_id: "p1" }] };
+    expect((await avisosCeo("p1")).map((a) => a.texto)).toEqual(["acción: falló (1 vez) · sin proyecto", "ghl: 500 (2 veces)"]);
+  });
 });
 
 describe("reporteDia", () => {

@@ -115,4 +115,14 @@ describe("unir_leads", () => {
     expect(data).toBeNull();
     expect((await db.from("leads").select("ghl_contact_id").eq("id", a).single()).data!.ghl_contact_id).toBe(`${e.pref}-c-b`);
   });
+  it("las etiquetas se juntan sin distinguir mayúsculas y la tarjeta extra del pipeline donde acaba el lead se borra (1.7, 9 nov)", async () => {
+    const [p3] = (await db.from("pipelines").insert({ proyecto_id: pid, nombre: "Tercero", orden: 2 }).select()).data!;
+    const a = (await insertar("leads", { proyecto_id: pid, nombre: "A2", etiquetas: ["Agenda"], creado_en: "2026-01-01T00:00:00Z" })).id;
+    const b = (await insertar("leads", { proyecto_id: pid, nombre: "B2", etiquetas: ["agenda", "vip"], pipeline_id: p3.id, creado_en: "2026-03-01T00:00:00Z" })).id;
+    await insertar("tarjetas_extra", { proyecto_id: pid, lead_id: a, pipeline_id: p3.id });
+    expect((await unir(a, b)).error).toBeNull();
+    const l = (await db.from("leads").select("etiquetas, pipeline_id").eq("id", a).single()).data!;
+    expect(l).toEqual({ etiquetas: ["Agenda", "vip"], pipeline_id: p3.id });
+    expect(await cuenta("tarjetas_extra", a)).toBe(0);
+  });
 });
