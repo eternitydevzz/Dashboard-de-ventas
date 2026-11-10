@@ -21,6 +21,11 @@ describe("cambiarUsuarioCitaGhl", () => {
     expect((llamadas[0].init.headers as Record<string, string>).Version).toBe("2021-04-15");
     expect(JSON.parse(String(llamadas[0].init.body))).toEqual({ assignedUserId: "usr", ignoreFreeSlotValidation: true });
   });
+  it("con calendarId también lo manda (la cita pasa al calendario del nuevo closer)", async () => {
+    const { f, llamadas } = falso(200, { id: "c1" });
+    await cambiarUsuarioCitaGhl({ token: "tok", citaId: "c1", usuarioId: "usr", calendarId: "cal-F", fetchImpl: f });
+    expect(JSON.parse(String(llamadas[0].init.body))).toEqual({ assignedUserId: "usr", ignoreFreeSlotValidation: true, calendarId: "cal-F" });
+  });
   it("si GHL falla, lanza (la app no cambia)", async () => {
     const { f } = falso(400, { message: "malo" });
     await expect(cambiarUsuarioCitaGhl({ token: "tok", citaId: "c1", usuarioId: "u", fetchImpl: f })).rejects.toThrow("GHL respondió 400: malo");

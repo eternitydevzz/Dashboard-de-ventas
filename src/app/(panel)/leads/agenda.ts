@@ -34,11 +34,13 @@ export async function consultarAgenda(fechaLocal: string, closerId: string | nul
 
 // Ventana de «Agendado» del caller (plan Callers 7c.3; Cristian, 7 nov): las horas libres del closer de la rotación
 // en los próximos 21 días, para el calendario. Se piden al abrir la ventana (no viajan con la cola).
-export async function huecosAgendaRotacion() {
+export async function huecosAgendaRotacion(leadId?: string) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes");
     const { proyecto } = await getSesion();
-    const closerId = await closerDeLaRotacion(proyecto.id);
+    // 11 nov: el closer depende del país del lead (el mismo que pondrá agendarCita)
+    const { data: lead } = leadId ? await db().from("leads").select("pais").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle() : { data: null };
+    const closerId = await closerDeLaRotacion(proyecto.id, (lead?.pais as string | null | undefined) ?? null);
     const ahora = new Date();
     const [{ data: m }, { data: citas, error }] = await Promise.all([
       db().from("miembros_proyecto").select("horario, calendario, perfiles(nombre)").eq("proyecto_id", proyecto.id).eq("perfil_id", closerId).maybeSingle(),

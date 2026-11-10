@@ -252,8 +252,11 @@ export async function crearCitaGhl(o: { token: string; locationId: string; calen
 // lectura de cada minuto lo deshace). Especificación oficial (apps/calendars.json), Version 2021-04-15, permiso
 // calendars/events.write: PUT /calendars/events/appointments/{id} con assignedUserId (e ignoreFreeSlotValidation: Cristian,
 // 10 nov, la cita pasa al nuevo closer aunque en GHL no tenga ese hueco libre; sin él GHL da 400 «slot no longer available») · DELETE /calendars/events/{id} con cuerpo {}.
-export async function cambiarUsuarioCitaGhl(o: { token: string; citaId: string; usuarioId: string; fetchImpl?: Fetch }) {
-  await escribir(o.fetchImpl ?? fetch, o.token, "PUT", `/calendars/events/appointments/${encodeURIComponent(o.citaId)}`, { assignedUserId: o.usuarioId, ignoreFreeSlotValidation: true }, "calendars/events.write", "2021-04-15");
+// calendarId (11 nov): la cita pasa también al calendario del nuevo closer (Facu tiene el suyo)
+export async function cambiarUsuarioCitaGhl(o: { token: string; citaId: string; usuarioId: string; calendarId?: string | null; fetchImpl?: Fetch }) {
+  const cuerpo: Json = { assignedUserId: o.usuarioId, ignoreFreeSlotValidation: true };
+  if (o.calendarId) cuerpo.calendarId = o.calendarId;
+  await escribir(o.fetchImpl ?? fetch, o.token, "PUT", `/calendars/events/appointments/${encodeURIComponent(o.citaId)}`, cuerpo, "calendars/events.write", "2021-04-15");
 }
 
 // Devuelve false si GHL ya no la tiene: no hay nada que borrar allí. Comprobado en producción (10 nov): GHL no da 404
