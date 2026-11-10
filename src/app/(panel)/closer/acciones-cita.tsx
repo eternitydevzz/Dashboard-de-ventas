@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ShoppingCart, ListChecks, UserX, CalendarClock, XCircle, Ban, ThumbsDown } from "lucide-react";
-import { cambiarEstadoCita, reagendarCita } from "./acciones";
+import { Check, ShoppingCart, ListChecks, UserX, CalendarClock, XCircle, Ban, ThumbsDown, UserCog, Trash2 } from "lucide-react";
+import { borrarCita, cambiarCloserCita, cambiarEstadoCita, reagendarCita } from "./acciones";
+import { confirmar } from "@/components/dialogos";
 import { registrarVenta } from "@/app/(panel)/leads/acciones";
 import { useAccion, Mensajes, FormVenta } from "@/components/acciones-lead";
 import { Modal } from "@/components/modal";
@@ -15,14 +16,17 @@ export function AccionesCita({
   pasada,
   productos,
   moneda,
+  ceo,
 }: {
-  cita: { id: string; estado: EstadoCita; lead_id: string };
+  cita: { id: string; estado: EstadoCita; lead_id: string; closer_id?: string | null };
   pasada: boolean;
   productos: Producto[];
   moneda: string;
+  // Solo el CEO: cambiar el closer o borrar la cita (también en GHL)
+  ceo?: { closers: { id: string; nombre: string }[] };
 }) {
   const { pendiente, error, ok, ejecutar } = useAccion();
-  const [modal, setModal] = useState<null | "venta" | "reagendar" | "seguimiento" | "perdida">(null);
+  const [modal, setModal] = useState<null | "venta" | "reagendar" | "seguimiento" | "perdida" | "closer">(null);
   const b = "btn-secundario px-2.5 py-1.5 text-xs";
   const abierta = cita.estado === "pendiente" || cita.estado === "confirmada" || cita.estado === "confirmacion_pendiente";
   const estado = (e: EstadoCita, msg: string) => ejecutar(() => cambiarEstadoCita(cita.id, e, ""), msg);
@@ -48,6 +52,12 @@ export function AccionesCita({
             {cita.estado !== "seguimiento" && <button className={b} disabled={pendiente} onClick={() => setModal("reagendar")}><CalendarClock className="h-3.5 w-3.5" />Reagendar</button>}
           </>
         ) : null}
+        {ceo && cita.estado !== "cerrada" && (
+          <>
+            <button className={b} disabled={pendiente} onClick={() => setModal("closer")}><UserCog className="h-3.5 w-3.5" />Cambiar closer</button>
+            <button className={b} disabled={pendiente} onClick={async () => { if (await confirmar("¿Borrar esta cita? Se borra también en GHL y no se puede deshacer.", { boton: "Borrar" })) ejecutar(() => borrarCita(cita.id), "Cita borrada"); }}><Trash2 className="h-3.5 w-3.5 text-mal" />Borrar cita</button>
+          </>
+        )}
       </div>
       <Mensajes error={error} ok={ok} />
       {modal === "venta" && (
@@ -76,6 +86,25 @@ export function AccionesCita({
             <SelectorEstrellas quien="closer" />
             <label className="block"><span className="etiqueta-campo">Nota (opcional)</span><textarea name="nota" rows={2} className="campo" placeholder={modal === "seguimiento" ? "Qué falta para que decida" : "Por qué no compró"} /></label>
             <button className="btn-primario w-full">Guardar</button>
+          </form>
+        </Modal>
+      )}
+      {modal === "closer" && ceo && (
+        <Modal titulo="Cambiar closer" onCerrar={() => setModal(null)}>
+          <form
+            className="space-y-3"
+            action={(fd) => {
+              ejecutar(() => cambiarCloserCita(cita.id, String(fd.get("closer"))), "Closer cambiado");
+              setModal(null);
+            }}
+          >
+            <label className="block"><span className="etiqueta-campo">Nuevo closer (también en GHL)</span>
+              <select name="closer" required className="campo" defaultValue="">
+                <option value="" disabled>Elige un closer</option>
+                {ceo.closers.filter((c) => c.id !== cita.closer_id).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </label>
+            <button className="btn-primario w-full">Cambiar</button>
           </form>
         </Modal>
       )}

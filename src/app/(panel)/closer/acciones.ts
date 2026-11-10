@@ -5,7 +5,9 @@ import { TEXTO_MOTIVO } from "@/lib/disponibilidad";
 import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
 import { revalidatePath } from "next/cache";
-import { getSesion, esJefe } from "@/lib/auth";
+import { getSesion, esJefe, exigir } from "@/lib/auth";
+import { descifrar } from "@/lib/cifrado";
+import { borrarCitaGhl, cambiarUsuarioCitaGhl } from "@/lib/ghl";
 import { db, registrarActividad, todas, escribir } from "@/lib/datos";
 import { localAIso, ETIQUETA_ESTADO_CITA } from "@/lib/formato";
 import { estrellasEntre } from "@/lib/estrellas";
@@ -90,6 +92,54 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
       nota: cita.nota,
     }), "citas");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "reagendada", nota: "Cita reagendada" });
+    revalidatePath("/", "layout");
+  });
+}
+
+// Cristian (10 nov 2026): el CEO cambia el closer de una cita o la borra. Si la cita está en GHL, primero se escribe
+// allí (si GHL falla, la app no cambia): si no, la lectura de cada minuto la devolvería al closer anterior o la traería otra vez.
+async function citaDelCeo(citaId: string) {
+  await exigirSeccion("agendas");
+  const { proyecto, perfil } = await exigir((p) => p.rol === "ceo");
+  const { data: cita } = await db().from("citas").select("*").eq("id", citaId).eq("proyecto_id", proyecto.id).maybeSingle<Cita & { ghl_cita_id: string | null }>();
+  if (!cita) throw new ErrorUsuario("Cita no encontrada.");
+  const { data: p } = await db().from("proyectos").select("ghl_token").eq("id", proyecto.id).single();
+  const token = () => {
+    if (!p?.ghl_token) throw new ErrorUsuario("Esta cita está en GHL y el proyecto no tiene GHL conectado.");
+    return descifrar(p.ghl_token, "el token de GHL");
+  };
+  return { cita, proyecto, perfil, token };
+}
+
+const errorGhl = (e: unknown) => new ErrorUsuario(`GHL no lo aceptó, no se ha cambiado nada: ${e instanceof Error ? e.message : String(e)}`);
+
+export async function cambiarCloserCita(citaId: string, closerId: string) {
+  return seguro(async () => {
+    const { cita, proyecto, perfil, token } = await citaDelCeo(citaId);
+    if (cita.closer_id === closerId) throw new ErrorUsuario("Ya es su closer.");
+    const { data: m } = await db().from("miembros_proyecto").select("ghl_user_id, perfiles!inner(nombre, rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", closerId).maybeSingle();
+    const nuevo = m as unknown as { ghl_user_id: string | null; perfiles: { nombre: string; rol: string } } | null;
+    if (!nuevo || nuevo.perfiles.rol !== "closer") throw new ErrorUsuario("Elige un closer de este proyecto.");
+    if (cita.ghl_cita_id) {
+      if (!nuevo.ghl_user_id) throw new ErrorUsuario(`${nuevo.perfiles.nombre} no tiene usuario de GHL: ponlo en su ficha antes de pasarle citas de GHL.`);
+      try { await cambiarUsuarioCitaGhl({ token: token(), citaId: cita.ghl_cita_id, usuarioId: nuevo.ghl_user_id }); } catch (e) { throw errorGhl(e); }
+    }
+    await escribir(db().from("citas").update({ closer_id: closerId }).eq("id", citaId), "citas");
+    await escribir(db().from("leads").update({ closer_id: closerId }).eq("id", cita.lead_id), "leads");
+    await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "closer", nota: `Cita pasada a ${nuevo.perfiles.nombre}` });
+    revalidatePath("/", "layout");
+  });
+}
+
+export async function borrarCita(citaId: string) {
+  return seguro(async () => {
+    const { cita, proyecto, perfil, token } = await citaDelCeo(citaId);
+    if (cita.estado === "cerrada") throw new ErrorUsuario("Esta cita tiene su venta: no se puede borrar.");
+    if (cita.ghl_cita_id) {
+      try { await borrarCitaGhl({ token: token(), citaId: cita.ghl_cita_id }); } catch (e) { throw errorGhl(e); }
+    }
+    await escribir(db().from("citas").delete().eq("id", citaId), "citas");
+    await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "borrada", nota: "Cita borrada" });
     revalidatePath("/", "layout");
   });
 }

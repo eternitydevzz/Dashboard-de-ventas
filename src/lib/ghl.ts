@@ -248,6 +248,24 @@ export async function crearCitaGhl(o: { token: string; locationId: string; calen
   return id;
 }
 
+// Cristian (10 nov 2026): el CEO cambia el closer o borra una cita desde la app y se escribe también en GHL (si no, la
+// lectura de cada minuto lo deshace). Especificación oficial (apps/calendars.json), Version 2021-04-15, permiso
+// calendars/events.write: PUT /calendars/events/appointments/{id} con assignedUserId · DELETE /calendars/events/{id} con cuerpo {}.
+export async function cambiarUsuarioCitaGhl(o: { token: string; citaId: string; usuarioId: string; fetchImpl?: Fetch }) {
+  await escribir(o.fetchImpl ?? fetch, o.token, "PUT", `/calendars/events/appointments/${encodeURIComponent(o.citaId)}`, { assignedUserId: o.usuarioId }, "calendars/events.write", "2021-04-15");
+}
+
+// Devuelve false si GHL ya no la tiene (404): no hay nada que borrar allí
+export async function borrarCitaGhl(o: { token: string; citaId: string; fetchImpl?: Fetch }): Promise<boolean> {
+  try {
+    await escribir(o.fetchImpl ?? fetch, o.token, "DELETE", `/calendars/events/${encodeURIComponent(o.citaId)}`, {}, "calendars/events.write", "2021-04-15");
+    return true;
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("GHL respondió 404")) return false;
+    throw e;
+  }
+}
+
 export async function anadirEtiquetasGhl(o: { token: string; contactId: string; etiquetas: string[]; fetchImpl?: Fetch }) {
   if (!o.etiquetas.length) return;
   await escribir(o.fetchImpl ?? fetch, o.token, "POST", `/contacts/${encodeURIComponent(o.contactId)}/tags`, { tags: o.etiquetas }, "Edit Contacts (contacts.write)");
