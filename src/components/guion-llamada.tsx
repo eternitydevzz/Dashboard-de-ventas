@@ -5,6 +5,7 @@ import { ArrowRight, ClipboardList, Copy, Lightbulb, MessageSquare, Search, Shie
 import { Modal } from "@/components/modal";
 import { useToast } from "@/components/toasts";
 import { PanelFicha, useFicha } from "@/components/ficha-cualificacion";
+import { BotonRecursos } from "@/components/popup-recursos";
 import { guardarMarcasGuion } from "@/app/(panel)/guiones/acciones";
 import { bloquesGuion, rellenar, type Guion } from "@/lib/guiones";
 import type { Respuesta } from "@/lib/tipos";
@@ -153,16 +154,15 @@ export function GuionLlamada({
               )}
             </div>
           </div>
-          {(grabador || telWsp) && (
-            <div className="order-3 flex flex-wrap items-center gap-2 sm:order-none">
-              {telWsp && (
-                <a href={`https://wa.me/${telWsp}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#25D366] bg-[#25D366]/10 px-3 py-1.5 text-[12.5px] font-bold text-ok-texto hover:bg-[#25D366]/20">
-                  <LogoWsp /> Abrir en wsp
-                </a>
-              )}
-              {grabador}
-            </div>
-          )}
+          <div className="order-3 flex flex-wrap items-center gap-2 sm:order-none">
+            {telWsp && (
+              <a href={`https://wa.me/${telWsp}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-[#25D366] bg-[#25D366]/10 px-3 py-1.5 text-[12.5px] font-bold text-ok-texto hover:bg-[#25D366]/20">
+                <LogoWsp /> Abrir en wsp
+              </a>
+            )}
+            <BotonRecursos />
+            {grabador}
+          </div>
           <button type="button" onClick={cerrar} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-borde bg-panel-2 text-texto-2 hover:text-texto" aria-label="Cerrar el guion"><X className="h-4 w-4" /></button>
         </header>
       }

@@ -7,7 +7,42 @@ import { olvidarTodo } from "@/lib/memoria";
 import { exigir, puedeRecursos } from "@/lib/auth";
 import { db, escribir } from "@/lib/datos";
 import { borrarSubida, leerSubida, prepararSubida } from "@/lib/subidas";
-import { esHttps, linksValidos } from "@/lib/links-pago";
+import { esHttps, linksDe, linksValidos, type LinkPago } from "@/lib/links-pago";
+import { recursosVisibles } from "@/lib/recursos";
+import { dinero } from "@/lib/formato";
+import type { Producto, Recurso } from "@/lib/tipos";
+
+// Popup «Recursos» del guion (Cristian, 10 nov): lo mismo que la página /recursos, solo para leer y copiar
+export type RecursosLlamada = {
+  productos: { id: string; nombre: string; precio: string; dossier: string | null; links: LinkPago[] }[];
+  reserva: string | null;
+  recursos: { id: string; titulo: string; tipo: Recurso["tipo"]; href: string | null; contenido: string | null }[];
+};
+export async function recursosLlamada() {
+  return seguro(async (): Promise<RecursosLlamada> => {
+    const { perfil, proyecto } = await exigirSeccion("recursos");
+    const editor = puedeRecursos(perfil);
+    const [{ data: productos }, { data: recursosData }] = await Promise.all([
+      db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
+      db().from("recursos").select("*").eq("proyecto_id", proyecto.id).order("creado_en", { ascending: false }),
+    ]);
+    const recursos = recursosVisibles((recursosData ?? []) as Recurso[], perfil);
+    // Enlaces firmados (1 hora) para los PDF privados, como en la página
+    const firmados = new Map<string, string>();
+    const pdfs = recursos.filter((r) => r.archivo_path).map((r) => r.archivo_path!);
+    if (pdfs.length) {
+      const { data } = await db().storage.from("recursos").createSignedUrls(pdfs, 3600);
+      data?.forEach((d) => d.signedUrl && d.path && firmados.set(d.path, d.signedUrl));
+    }
+    return {
+      productos: ((productos ?? []) as Producto[])
+        .filter((p) => editor || perfil.rol !== "caller" || p.vende_caller)
+        .map((p) => ({ id: p.id, nombre: p.nombre, precio: p.precio ? dinero(Number(p.precio), proyecto) : "Precio personalizado", dossier: p.link_dossier ?? null, links: linksDe(p) })),
+      reserva: proyecto.link_reserva ?? null,
+      recursos: recursos.map((r) => ({ id: r.id, titulo: r.titulo, tipo: r.tipo, href: r.archivo_path ? (firmados.get(r.archivo_path) ?? null) : (r.url ?? null), contenido: r.tipo === "guion" ? (r.contenido ?? "") : null })),
+    };
+  });
+}
 
 const TIPOS = ["pdf", "enlace", "guion", "video"] as const;
 const ROLES = ["todos", "caller", "closer"] as const;
