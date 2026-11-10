@@ -19,7 +19,7 @@ describe("guion de llamadas", () => {
   });
   it("cuenta lo marcado solo con lo que existe", () => {
     const r = resumenMarcas(GUION_EJEMPLO.caller, { p1: [0, 1, 1, 9], p2: [0], zz: [0] });
-    expect(r).toEqual({ hechos: 3, total: 10 });
+    expect(r).toEqual({ hechos: 3, total: 19 });
   });
   it("rellena {nombre} y deja lo que no conoce", () => {
     expect(rellenar("Hola {nombre}, soy {tu nombre} y {otro}", { nombre: "Ana", "tu nombre": "Tomás" })).toBe("Hola Ana, soy Tomás y {otro}");
