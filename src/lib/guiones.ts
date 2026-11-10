@@ -24,12 +24,12 @@ Si hay silencio 2 segundos: "¿{nombre}?"
 
 Paso 2
 {nombre}: "Sí… ¿quién es?"
-"Soy Carlos."
+"Soy {tu nombre}."
 (Silencio. Esperas a que pregunte quién.)
 
 Paso 3
-{nombre}: "¿Qué Carlos?"
-"Carlos, de la academia de inteligencia artificial. Rellenaste un formulario para aprender de IA y generar ingresos. Cuéntame (o decime), ¿usas ChatGPT, Claude o Gemini?"`, checklist: ["Dije su nombre y esperé a que preguntara quién soy", "Le pregunté qué IA usa: ChatGPT, Claude o Gemini"], pistas: [] },
+{nombre}: "¿Qué {tu nombre}?"
+"{tu nombre}, de la academia de inteligencia artificial. Rellenaste un formulario para aprender de IA y generar ingresos. Cuéntame (o decime), ¿usas ChatGPT, Claude o Gemini?"`, checklist: ["Dije su nombre y esperé a que preguntara quién soy", "Le pregunté qué IA usa: ChatGPT, Claude o Gemini"], pistas: [] },
       { id: "p2", titulo: "Cualificar", texto: `"Entiendo. ¿Y hace mucho que usas [la IA que te diga]?"
 "¿Y qué es lo que te gustaría aprender? ¿Qué es lo que te llama la atención de la IA?"
 Si no sabe qué decir: "La mayoría viene por tres cosas: un dinero extra, dejar su trabajo o montar su propio negocio con IA. ¿Cuál es la tuya?"
@@ -120,6 +120,28 @@ export function resumenMarcas(guion: Guion, marcas: Marcas) {
     hechos += new Set((marcas[p.id] ?? []).filter((i) => Number.isInteger(i) && i >= 0 && i < p.checklist.length)).size;
   }
   return { hechos, total };
+}
+
+// Para leer el guion con aire (Cristian, 10 nov): bloques separados por una línea en blanco y, en cada línea, qué es.
+// titulo «Paso 2» · nota «(Silencio…)» · si «Si dice X: "…"» (etiqueta + frase) · punto «• …» · lead «Lorena: "…"» · frase
+export type LineaGuion = { tipo: "titulo" | "nota" | "si" | "punto" | "lead" | "frase"; texto: string; etiqueta?: string };
+export function bloquesGuion(texto: string): LineaGuion[][] {
+  return texto
+    .split(/\n\s*\n/)
+    .map((b) => b.split("\n").map((l) => l.trim()).filter(Boolean).map(tipoLinea))
+    .filter((b) => b.length);
+}
+function tipoLinea(l: string): LineaGuion {
+  if (/^Paso \d+(\s*·.*)?$/i.test(l)) return { tipo: "titulo", texto: l };
+  if (/^\(.*\)$/.test(l)) return { tipo: "nota", texto: l.slice(1, -1) };
+  if (/^[•*-]\s/.test(l)) return { tipo: "punto", texto: l.replace(/^[•*-]\s+/, "") };
+  const conEtiqueta = l.match(/^([^"]{1,80}?):\s+(".*)$/); // «algo: "frase"»
+  if (conEtiqueta) {
+    const [, etiqueta, frase] = conEtiqueta;
+    return { tipo: /^(si|cuando)\b/i.test(etiqueta) ? "si" : "lead", etiqueta, texto: frase };
+  }
+  if (/^(si|cuando)\b[^"]*:$/i.test(l)) return { tipo: "si", etiqueta: l.slice(0, -1), texto: "" };
+  return { tipo: "frase", texto: l };
 }
 
 // «{nombre}» y compañía del texto del guion, con los datos del lead
