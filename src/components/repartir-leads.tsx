@@ -21,9 +21,11 @@ export function RepartirLeads({
   ofertaInicial,
   paisesIniciales,
   seleccion,
+  pipelines,
   etiqueta = "Repartir leads", // vacía = solo el icono (CRM, Cristian 13 oct)
 }: {
   callers: Persona[];
+  pipelines?: { id: string; nombre: string; etapas: { id: string; nombre: string }[] }[]; // Cristian (10 nov): elegir pipeline y columna (CRM)
   fijo?: Partial<PeticionReparto>; // filtros que vienen de la pantalla (p. ej. pipeline del CRM, solo Biblioteca)
   ofertaInicial?: string | null;
   paisesIniciales?: string[]; // 1b: el filtro de país que tenga la pantalla al abrir (CRM)
@@ -32,7 +34,10 @@ export function RepartirLeads({
 }) {
   const haySeleccion = !!seleccion?.length;
   const [abierto, setAbierto] = useState(false);
-  const [origen, setOrigen] = useState<"sin_asignar" | "reasignar">("sin_asignar");
+  const [origen, setOrigen] = useState<"sin_asignar" | "reasignar" | "todos">("sin_asignar");
+  const pipelineInicial = pipelines?.some((p) => p.id === fijo?.pipelineId) ? fijo!.pipelineId! : "";
+  const [pipelineId, setPipelineId] = useState(pipelineInicial);
+  const [etapaId, setEtapaId] = useState("");
   const [deCallers, setDeCallers] = useState<string[]>([]);
   const [oferta, setOferta] = useState(ofertaInicial ?? "");
   const [paises, setPaises] = useState<string[]>(paisesIniciales ?? []);
@@ -48,6 +53,7 @@ export function RepartirLeads({
 
   const peticion = (): PeticionReparto => ({
     ...(haySeleccion ? { leadIds: seleccion } : fijo),
+    ...(pipelines && !haySeleccion ? { pipelineId: pipelineId || null, etapaId: etapaId || null } : {}),
     origen: haySeleccion ? "seleccion" : origen,
     deCallers: !haySeleccion && origen === "reasignar" ? deCallers : undefined,
     oferta: oferta || null,
@@ -118,6 +124,8 @@ export function RepartirLeads({
           // Con selección, todos los marcados (sin filtro de país y el número = cuántos hay)
           setPaises(haySeleccion ? [] : paisesIniciales ?? []);
           if (haySeleccion) setNumero(String(seleccion!.length));
+          setPipelineId(pipelineInicial); // al abrir, el pipeline que tenga el CRM
+          setEtapaId("");
           setUltimosPaises(null);
           setVista(null);
           setAbierto(true);
@@ -141,6 +149,7 @@ export function RepartirLeads({
               {[
                 { v: "sin_asignar", t: "Los que no tienen caller" },
                 { v: "reasignar", t: "Reasignar los de unos callers" },
+                { v: "todos", t: "Todos" },
               ].map((o) => (
                 <button key={o.v} type="button" onClick={() => cambiar(setOrigen)(o.v as typeof origen)} className={`rounded-full px-3 py-1 ${origen === o.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2"}`}>{o.t}</button>
               ))}
@@ -154,6 +163,24 @@ export function RepartirLeads({
                     <label key={c.id} className="flex items-center gap-1.5 rounded-lg bg-panel-2 px-2 py-0.5"><input type="checkbox" checked={deCallers.includes(c.id)} onChange={() => cambiar(setDeCallers)(alternar(deCallers, c.id))} />{c.nombre}</label>
                   ))}
                 </div>
+              </div>
+            )}
+            {pipelines && !haySeleccion && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="etiqueta-campo">Pipeline</span>
+                  <Desplegable className="campo py-1.5 text-xs" value={pipelineId} onChange={(e) => { setEtapaId(""); cambiar(setPipelineId)(e.target.value); }}>
+                    <option value="">Todos los pipelines</option>
+                    {pipelines.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  </Desplegable>
+                </label>
+                <label className="block">
+                  <span className="etiqueta-campo">Columna</span>
+                  <Desplegable className="campo py-1.5 text-xs" value={etapaId} disabled={!pipelineId} onChange={(e) => cambiar(setEtapaId)(e.target.value)}>
+                    <option value="">Todas</option>
+                    {pipelines.find((p) => p.id === pipelineId)?.etapas.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                  </Desplegable>
+                </label>
               </div>
             )}
             <label className="block">

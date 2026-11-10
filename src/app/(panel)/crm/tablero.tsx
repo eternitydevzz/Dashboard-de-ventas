@@ -98,6 +98,7 @@ export function TableroCrm({
   admin,
   citasGhl = null,
   destinos = [],
+  paraReparto,
   ceo = false,
   editar,
   jefe,
@@ -118,6 +119,7 @@ export function TableroCrm({
   admin: boolean; // crear pipelines y sus permisos (CEO y director con Administración)
   citasGhl?: string | null; // Fase 4: columna donde van los leads con cita de GHL (solo la ve un administrador)
   destinos?: DestinoMasivo[]; // Fase 4: columnas a las que se pueden mover leads en masa
+  paraReparto?: { id: string; nombre: string; etapas: { id: string; nombre: string }[] }[]; // Repartir leads: pipelines y columnas a elegir
   ceo?: boolean; // borrar en masa, solo el CEO
   editar: boolean; // Paso 0: «Editar» en este pipeline = sus columnas, renombrar y borrar
   jefe: boolean; // importar, crear y asignar leads (director y CEO)
@@ -405,7 +407,7 @@ export function TableroCrm({
             <button onClick={() => setModal("importar")} className="btn-secundario px-2.5" title="Subir CSV" aria-label="Subir CSV">
               <Upload className="h-4 w-4" />
             </button>
-            <RepartirLeads callers={callers} fijo={{ pipelineId: pipeline?.id ?? null }} paisesIniciales={pais ? [pais] : []} seleccion={seleccion.size ? [...seleccion] : undefined} etiqueta="" />
+            <RepartirLeads callers={callers} fijo={{ pipelineId: pipeline?.id ?? null }} pipelines={paraReparto} paisesIniciales={pais ? [pais] : []} seleccion={seleccion.size ? [...seleccion] : undefined} etiqueta="" />
           </>
         )}
         {editar && pipeline && (

@@ -12,7 +12,7 @@ import { planReparto, resumenPlan, SIN_TRABAJAR, type ModoReparto } from "@/lib/
 // Qué leads: los sin asignar (con filtros) o reasignar los de unos callers. Entre qué callers. Cómo (lib/reparto).
 // «seleccion» (Cristian, 28 oct): los leads marcados en el CRM (`leadIds`), tengan o no caller (se les cambia)
 export type PeticionReparto = {
-  origen: "sin_asignar" | "reasignar" | "seleccion";
+  origen: "sin_asignar" | "reasignar" | "todos" | "seleccion"; // «todos» (Cristian, 10 nov): tengan o no caller
   deCallers?: string[]; // al reasignar: de quién se quitan
   pipelineId?: string | null;
   etapaId?: string | null;
@@ -46,7 +46,8 @@ async function preparar(p: PeticionReparto, vista = false) {
   // Con `ids`, esos leads (los de las tarjetas extra) en vez de los del pipeline y la columna principales
   const consulta = (ids?: string[]) => {
     let q = db().from("leads").select("id, caller_id, pais, creado_en").eq("proyecto_id", proyecto.id);
-    q = p.origen === "sin_asignar" ? q.is("caller_id", null) : q.in("caller_id", p.deCallers!);
+    if (p.origen === "sin_asignar") q = q.is("caller_id", null);
+    else if (p.origen === "reasignar") q = q.in("caller_id", p.deCallers!);
     if (ids) q = q.in("id", ids);
     else {
       if (p.pipelineId) q = q.eq("pipeline_id", p.pipelineId);
@@ -145,7 +146,7 @@ export async function repartirLeads(p: PeticionReparto) {
         const { error } = await db().from("leads").update({ caller_id: caller }).in("id", trozo).eq("proyecto_id", proyecto.id);
         if (error) throw new Error(`No se pudo repartir: ${error.message}`);
         // Cada reparto queda en el historial del lead
-        await db().from("actividades").insert(trozo.map((id) => ({ proyecto_id: proyecto.id, lead_id: id, perfil_id: perfil.id, tipo: "asignacion", nota: `Caller: ${nombre(caller)} · reparto ${modo}${p.origen === "reasignar" ? " (reasignado)" : p.origen === "seleccion" ? " (selección)" : ""}` })));
+        await db().from("actividades").insert(trozo.map((id) => ({ proyecto_id: proyecto.id, lead_id: id, perfil_id: perfil.id, tipo: "asignacion", nota: `Caller: ${nombre(caller)} · reparto ${modo}${p.origen === "reasignar" ? " (reasignado)" : p.origen === "todos" ? " (todos)" : p.origen === "seleccion" ? " (selección)" : ""}` })));
       }
     }
     revalidatePath("/", "layout");
