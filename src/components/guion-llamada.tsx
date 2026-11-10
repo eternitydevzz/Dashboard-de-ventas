@@ -142,7 +142,8 @@ export function GuionLlamada({
       claseFondo="p-0 sm:p-6"
       claseVentana="flex h-dvh w-full flex-col [--panel:#ffffff]! dark:[--panel:#121c3a]! overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-[920px] sm:rounded-[20px]"
       cabecera={
-        <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-4 py-3 sm:px-5">
+        // Cristian, 10 nov: cualquier botón de arriba (wsp, Recursos, grabar, copiar) también guarda la ficha al pulsarlo
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-4 py-3 sm:px-5" onClickCapture={() => void ficha.guardar()}>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[17px] font-semibold">Guion · {nombreLead}</h2>
             <div className="mt-0.5 flex items-center gap-2">
@@ -216,7 +217,7 @@ export function GuionLlamada({
               {objeciones.length === 0 && <p className="py-4 text-center text-xs text-texto-3">No hay ninguna con eso.</p>}
               {objeciones.map((o) => (
                 <div key={o.id} className={`rounded-xl border bg-panel ${abierta === o.id ? "border-primario/40" : "border-borde hover:border-borde-fuerte"}`}>
-                  <button type="button" className="block w-full px-3 py-2 text-left text-sm font-semibold" onClick={() => setAbierta(abierta === o.id ? null : o.id)} aria-expanded={abierta === o.id}>
+                  <button type="button" className="block w-full px-3 py-2 text-left text-sm font-semibold" onClick={() => { setAbierta(abierta === o.id ? null : o.id); void ficha.guardar(); }} aria-expanded={abierta === o.id}>
                     «{o.objecion}»
                   </button>
                   {abierta === o.id && <div className="px-3 pb-3"><TextoGuion texto={rellenar(o.respuesta, datos)} pequeno /></div>}

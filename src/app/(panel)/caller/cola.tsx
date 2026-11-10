@@ -118,6 +118,9 @@ export function ColaCaller({
   // «Siguiente» del guion: el siguiente de la lista tal como se ve ahora (orden, filtro y buscador)
   const abrirGuion = (abierto: boolean) => {
     if (abierto && seleccionado) posicion.current = Math.max(0, filas.findIndex((l) => l.id === seleccionado.id));
+    // Cristian, 10 nov: el lead que sale elegido de serie no iba en la URL; al cambiarlo de columna salía de la lista,
+    // se cerraba su guion y la pantalla saltaba a otro lead (con su ficha vacía). Con él en la URL se queda en pantalla.
+    if (abierto && seleccionado && seleccionado.id !== elegido) window.history.replaceState(null, "", enlace(seleccionado.id));
     setGuionDe(abierto ? seleccionado?.id ?? null : null);
   };
   const siguiente = () => {
