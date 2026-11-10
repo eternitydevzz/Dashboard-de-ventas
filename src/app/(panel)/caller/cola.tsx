@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Inbox, Search } from "lucide-react";
-import { ETIQUETA_ESTADO_CALLER, nombrePais } from "@/lib/formato";
+import { ETIQUETA_ESTADO_CALLER, fechaHora, nombrePais } from "@/lib/formato";
 import { nivel } from "@/lib/prioridad";
 import { Insignia, Vacio } from "@/components/ui";
 import { AccionesLead } from "@/components/acciones-lead";
@@ -13,7 +13,7 @@ import type { Lead, Producto, Proyecto, Rol } from "@/lib/tipos";
 import type { CampoOrden, OrdenCola } from "@/lib/cola";
 import { colorEstado } from "@/lib/estados-caller";
 
-export type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id"> & { puntos: number };
+export type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id"> & { puntos: number };
 
 const iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]?.toUpperCase()).join("") || "?";
 const nombreDe = (l: Pick<LeadCola, "nombre" | "apellido">) => `${l.nombre} ${l.apellido}`.trim() || "Sin nombre";
@@ -177,7 +177,7 @@ export function ColaCaller({
                         <span className="hidden h-8 w-8 shrink-0 place-items-center rounded-[10px] text-[11.5px] font-bold sm:grid" style={{ background: `color-mix(in srgb, ${c} 16%, var(--panel-2))` }}>{iniciales(nombreDe(l))}</span>
                         <div className="min-w-0">
                           <div className="truncate font-semibold">{nombreDe(l)}</div>
-                          <div className="flex items-center gap-1 truncate text-[11.5px] text-texto-3"><span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: c }} />{ETIQUETA_ESTADO_CALLER[l.estado_caller] ?? l.estado_caller}</div>
+                          <div className="flex items-center gap-1 truncate text-[11.5px] text-texto-3"><span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: c }} />{ETIQUETA_ESTADO_CALLER[l.estado_caller] ?? l.estado_caller}{l.estado_caller === "llamar_luego" && l.llamar_en && <span className="font-semibold text-texto-2"> · {fechaHora(l.llamar_en, { zona_horaria: zona })}</span>}</div>
                         </div>
                       </div>
                     </td>

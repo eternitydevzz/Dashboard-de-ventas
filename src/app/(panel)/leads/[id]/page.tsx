@@ -103,6 +103,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
               </Link>
             ))}
             <Insignia>{ETIQUETA_ESTADO_CALLER[lead.estado_caller]}</Insignia>
+            {lead.estado_caller === "llamar_luego" && lead.llamar_en && <Insignia>📞 Llamar el {fechaHora(lead.llamar_en, proyecto)}</Insignia>}
             <OfertaChip oferta={lead.oferta} vacio={false} />
             <span className="text-texto-3">· entró el {fechaHora(lead.creado_en, proyecto)} · origen {lead.origen.toUpperCase()}</span>
           </span>

@@ -19,8 +19,8 @@ import { ColaCaller } from "./cola";
 // C11 (7c.1): una pastilla por columna; la primera, «Leads» = toda la cola (no hay una solo para los nuevos)
 const FILTROS = [{ v: "todos", t: "Leads" }, ...ESTADOS_CALLER.filter((e) => e.v !== "nuevo").map((e) => ({ v: e.v, t: e.t }))];
 
-const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, creado_en, etiquetas, respuestas, pipeline_id"; // C5: + pipeline (su nombre sale en la cabecera del lead)
-type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id">;
+const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, llamar_en, creado_en, etiquetas, respuestas, pipeline_id"; // C5: + pipeline (su nombre sale en la cabecera del lead)
+type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id">;
 
 export default async function CallerPage({ searchParams }: PageProps<"/caller">) {
   const { perfil, proyecto, tiene } = await exigirPagina("cola"); // H5
