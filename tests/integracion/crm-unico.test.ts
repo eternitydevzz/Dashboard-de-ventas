@@ -27,7 +27,7 @@ afterAll(async () => {
 describe("Pipelines del equipo", () => {
   it("al crear un proyecto se crean «Callers» y «Closers» con sus columnas unidas, y no se pueden borrar", async () => {
     const { data: c } = await db.from("etapas").select("nombre, estado_caller").eq("pipeline_id", callers).order("orden");
-    expect(c!.map((x) => x.estado_caller)).toEqual(["nuevo", "llamado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "reagendado", "descartado", "vendido"]); // C11: 12
+    expect(c!.map((x) => x.estado_caller)).toEqual(["nuevo", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "link_enviado", "agendado", "confirma_agenda", "reagendado", "descartado", "vendido"]); // C11: 12
     const { data: k } = await db.from("etapas").select("columna_cita").eq("pipeline_id", closers).order("orden");
     expect(k!.map((x) => x.columna_cita)).toEqual(["pendiente", "confirmacion_pendiente", "confirmada", "no_califica", "pendientes", "reagendadas", "reserva", "cuotas", "cerradas", "seguimiento", "no_show", "cancelada", "perdida"]);
     como(e, e.p.ceo);
@@ -45,7 +45,7 @@ describe("Uniones de columnas", () => {
     await falla(unirEstado(e.etapas.Nuevos, "nuevo"), /Callers/); // pipeline de origen
     await ok(crearEtapa(callers, "Libre", "#7c3aed"));
     const libre = await col(callers, "Libre");
-    await falla(unirEstado(libre, "llamado"), /ya está unida/);
+    await falla(unirEstado(libre, "link_enviado"), /ya está unida/);
     await falla(unirEstado(libre, "no_contesta"), /no válido/); // C11: ya no existe
     await falla(unirEstado(libre, "inventado"), /no válido/);
     await ok(crearEtapa(closers, "Revisar", "#7c3aed"));
@@ -56,8 +56,8 @@ describe("Uniones de columnas", () => {
 describe("Los botones del caller", () => {
   it("en «Callers» la tarjeta va sola a su columna; en el de origen, por el nombre (como antes del H7)", async () => {
     como(e, e.p.callerA);
-    await ok(registrarLlamada(e.leads.LeadA, "llamado", ""));
-    expect(await lead(e.leads.LeadA)).toEqual({ etapa_id: e.etapas.Nuevos, etapa_callers_id: await col(callers, "Llamado") });
+    await ok(registrarLlamada(e.leads.LeadA, "link_enviado", ""));
+    expect(await lead(e.leads.LeadA)).toEqual({ etapa_id: e.etapas.Nuevos, etapa_callers_id: await col(callers, "Link enviado") });
     await ok(volverANuevo(e.leads.LeadA));
     expect((await lead(e.leads.LeadA)).etapa_callers_id).toBe(await col(callers, "Leads"));
     // C11: «Seguimiento» (el de origen no tiene esa columna) y agenda un jefe
@@ -75,7 +75,7 @@ describe("Arrastrar en «Callers»", () => {
     como(e, e.p.callerA);
     await ok(moverLead(e.leads.LeadA, libre));
     expect(await lead(e.leads.LeadA)).toEqual({ etapa_id: e.etapas.Agendados, etapa_callers_id: libre }); // el de origen no cambia
-    await falla(moverLead(e.leads.LeadA, await col(callers, "Llamado")), /unida a un estado/);
+    await falla(moverLead(e.leads.LeadA, await col(callers, "Link enviado")), /unida a un estado/);
     await falla(moverLead(e.leads.LeadB, libre), /no está asignado a ti/);
     await ok(moverLead(e.leads.LeadA, await col(callers, "Agendado"))); // la de su mismo estado: sí
   });

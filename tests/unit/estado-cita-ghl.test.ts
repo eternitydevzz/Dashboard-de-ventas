@@ -13,7 +13,7 @@ describe("estadoTrasCitaGhl", () => {
     expect(ETIQUETA_REAGENDADO).toBe("Reagendado");
   });
   it("el resto (y sin estado): agendado, sin etiqueta", () => {
-    for (const x of ["nuevo", "llamado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "reagendado", null, undefined])
+    for (const x of ["nuevo", "link_enviado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "reagendado", null, undefined])
       expect(estadoTrasCitaGhl(x)).toEqual({ estado: "agendado", etiqueta: null });
   });
 });

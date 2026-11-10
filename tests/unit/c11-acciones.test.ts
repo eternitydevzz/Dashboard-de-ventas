@@ -42,14 +42,15 @@ describe("C11 · rotación de closers", () => {
 });
 
 describe("C11 · botones de resultado", () => {
-  it("«Llamado» apunta una llamada (KPI «Llamadas hoy») y no toca las estrellas", async () => {
-    expect(await registrarLlamada("l1", "llamado", "")).toBeUndefined();
-    expect(updateDe("leads")).toEqual({ estado_caller: "llamado", llamar_en: null });
-    expect(insertDe("actividades")).toMatchObject({ tipo: "llamada", resultado: "llamado" });
+  const insertsDe = (t: string) => consultas.filter((c) => c.tabla === t).flatMap((c) => c.ops.filter(([o]) => o === "insert").map(([, a]) => a[0] as Record<string, unknown>));
+  it("«Link de agenda» lleva a «Link enviado», apunta una llamada (KPI «Llamadas hoy») y no toca las estrellas", async () => {
+    expect(await registrarLlamada("l1", "link_enviado", "")).toBeUndefined();
+    expect(updateDe("leads")).toEqual({ estado_caller: "link_enviado", llamar_en: null });
+    expect(insertsDe("actividades")).toEqual([expect.objectContaining({ tipo: "llamada", resultado: "link_enviado" })]);
   });
-  it("«Wsp enviado» apunta un WhatsApp; «No responde», un cambio de columna", async () => {
+  it("«Wsp enviado» apunta una llamada y un WhatsApp (10 nov); «No responde», un cambio de columna", async () => {
     await registrarLlamada("l1", "wsp_enviado", "");
-    expect(insertDe("actividades")).toMatchObject({ tipo: "whatsapp", resultado: "wsp_enviado" });
+    expect(insertsDe("actividades")).toEqual([expect.objectContaining({ tipo: "llamada", resultado: "wsp_enviado" }), expect.objectContaining({ tipo: "whatsapp", resultado: "wsp_enviado" })]);
     consultas = [];
     await registrarLlamada("l1", "no_responde", "");
     expect(insertDe("actividades")).toMatchObject({ tipo: "cambio_etapa", resultado: "no_responde" });
@@ -77,7 +78,8 @@ describe("C11 · botones de resultado", () => {
   });
   it("un caller no mueve un lead que ya compró", async () => {
     respuesta["leads:select"] = { data: { id: "l1", caller_id: "u1", closer_id: null, estado_caller: "vendido" }, error: null };
-    expect(await registrarLlamada("l1", "llamado", "")).toMatchObject({ error: expect.stringMatching(/compró/) });
+    expect(await registrarLlamada("l1", "link_enviado", "")).toMatchObject({ error: expect.stringMatching(/compró/) });
+    expect(await registrarLlamada("l1", "llamado" as never, "")).toMatchObject({ error: "Resultado no válido." }); // 10 nov: ya no existe
   });
 });
 

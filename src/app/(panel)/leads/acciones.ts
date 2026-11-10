@@ -44,10 +44,11 @@ const aIso = localAIso;
 // ---------- Caller: resultado (C11, plan Callers, 7 nov) ----------
 // Un clic = el lead pasa a esa columna de «Callers» (el trigger de la base lo mueve). Los que piden estrellas
 // (Llamar luego, No interesa, Seguimiento) las guardan, como hoy; los demás no tocan las que hubiera (F2: antes
-// «No contesta» ponía 1★ encima). Sin fechas (punto 11). Historial: «Llamado» = llamada, «Wsp enviado» = WhatsApp
-// (KPIs de la cola, 7c.1); el resto, cambio de columna con el estado nuevo (contacto = los que avanzan, punto 16).
-export type ResultadoSimple = "nuevo" | "llamado" | "wsp_enviado" | "no_responde" | "no_interesa" | "seguimiento" | "llamar_luego" | "descartado" | "reagendado";
-const SIMPLES: ResultadoSimple[] = ["nuevo", "llamado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado"];
+// «No contesta» ponía 1★ encima). Historial (Cristian, 10 nov): «Link de agenda» = llamada; «Wsp enviado» = llamada y
+// WhatsApp (suma en los dos KPIs); las dos cuentan como contacto. El resto, cambio de columna con el estado nuevo
+// (contacto = los que avanzan, punto 16). «Llamado» ya no existe.
+export type ResultadoSimple = "nuevo" | "link_enviado" | "wsp_enviado" | "no_responde" | "no_interesa" | "seguimiento" | "llamar_luego" | "descartado" | "reagendado";
+const SIMPLES: ResultadoSimple[] = ["nuevo", "link_enviado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado"];
 
 // «Llamar luego» vuelve a guardar cuándo (Cristian, 10 nov 2026; opcional y solo se muestra): `llamarEn` = «AAAA-MM-DDTHH:MM»
 export async function registrarLlamada(leadId: string, resultado: ResultadoSimple, nota: string, estrellas?: number, llamarEn?: string) {
@@ -61,8 +62,10 @@ export async function registrarLlamada(leadId: string, resultado: ResultadoSimpl
     const llamar = resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, proyecto.zona_horaria) : null; // aIso valida el formato
     // F3 (plan Callers, 7 nov): si falla, error (antes salía «Guardado» aunque el estado no cambiara)
     await escribir(db().from("leads").update({ estado_caller: resultado, llamar_en: llamar, ...(n ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");
-    const tipo = resultado === "llamado" ? "llamada" : resultado === "wsp_enviado" ? "whatsapp" : "cambio_etapa";
-    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo, resultado, nota: [`→ ${etiquetaEstado(resultado)}`, n ? `${n}★` : "", llamar ? `Llamar el ${fechaHora(llamar, proyecto)}` : "", nota].filter(Boolean).join(" · ") });
+    const tipo = resultado === "link_enviado" || resultado === "wsp_enviado" ? "llamada" : "cambio_etapa";
+    const texto = [`→ ${etiquetaEstado(resultado)}`, n ? `${n}★` : "", llamar ? `Llamar el ${fechaHora(llamar, proyecto)}` : "", nota].filter(Boolean).join(" · ");
+    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo, resultado, nota: texto });
+    if (resultado === "wsp_enviado") await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "whatsapp", resultado, nota: texto });
     if (resultado === "no_interesa" || resultado === "descartado") await moverAColumna(lead, resultado, ["descartados", "descartado", "no interesa"]);
     if (resultado === "nuevo") await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
     refrescar();

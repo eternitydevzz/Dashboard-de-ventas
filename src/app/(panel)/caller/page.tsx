@@ -60,7 +60,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   ]);
   const nombresPipeline = Object.fromEntries((pipelines.data ?? []).map((x) => [x.id, x.nombre.replace(/^\d+\.\s*/, "")]));
   const pesos = (scoring.data?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
-  // KPIs de hoy (7c.1): Llamadas (botón «Llamado») · Contactos (los que avanzan, punto 16) · Agendas (% de los
+  // KPIs de hoy (7c.1): Llamadas («Link de agenda» y «Wsp enviado», 10 nov) · Contactos (los que avanzan, punto 16) · Agendas (% de los
   // contactos) · WhatsApps (botón «Wsp enviado») · Confirmadas («Confirma Agenda»). Fuera «No contestan» y «Ventas» (F6).
   const { acts, citas: agendasHoy } = kpis;
   const llamadas = acts.filter((a) => a.tipo === "llamada").length;
@@ -104,7 +104,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
             C11 (punto 11): sin aviso «Te tocan X llamadas»: ya no hay fechas */}
         <PanelObjetivos panel={panel} dinero={(n: number) => dinero(n, proyecto)} celebrar={jefe ? null : `${caller.id}-${hoyEnZona(proyecto.zona_horaria)}`} />
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" aria-label="Tus números de hoy">
-          <KpiCola titulo="Llamadas hoy" valor={llamadas} nota="botón «Llamado»" color="#2b59d1" icono={Phone} />
+          <KpiCola titulo="Llamadas hoy" valor={llamadas} nota="«Link de agenda» y «Wsp enviado»" color="#2b59d1" icono={Phone} />
           <KpiCola titulo="Contactos hoy" valor={contactos} nota="los que avanzan" color="#7c4ddb" icono={UserCheck} />
           <KpiCola titulo="Agendas hoy" valor={agendasHoy} nota={`${pct(porcentaje(agendasHoy, contactos))} de los contactos`} color="#15924a" icono={CalendarDays} />
           <KpiCola titulo="WhatsApps hoy" valor={whatsapps} nota="botón «Wsp enviado»" color="#16a34a" icono={MessageCircle} />

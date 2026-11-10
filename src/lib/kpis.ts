@@ -41,7 +41,7 @@ export function kpiCaller(ix: Indices, ids: Set<string>) {
   const acts = base.actividades.filter((a) => a.perfil_id !== null && ids.has(a.perfil_id) && enRango(a.creado_en, rango));
   const llamadas = acts.filter((a) => a.tipo === "llamada").length;
   // Contactado = le llamó o le mandó un WhatsApp · contesta = el lead avanzó (C11, punto 16: No interesa, Seguimiento,
-  // Llamar luego, Agendado, Confirma Agenda, Reagendado o Cerrados; Llamado, Wsp enviado y No responde no cuentan)
+  // Llamar luego, Agendado, Confirma Agenda, Reagendado o Cerrados; desde el 10 nov también Link de agenda y Wsp enviado)
   const contactados = new Set(acts.filter((a) => a.tipo === "llamada" || a.tipo === "whatsapp").map((a) => a.lead_id));
   const contestan = new Set(acts.filter(esContacto).map((a) => a.lead_id));
 

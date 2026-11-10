@@ -54,13 +54,13 @@ beforeEach(() => {
 describe("F3 · si falla guardar el estado, no dice «Guardado»", () => {
   it("falla el cambio de estado del lead: devuelve error y no apunta la llamada", async () => {
     respuesta["leads:update"] = fallo;
-    const r = await registrarLlamada("l1", "llamado", "");
+    const r = await registrarLlamada("l1", "no_responde", "");
     expect(r).toMatchObject({ error: expect.any(String) });
     expect(inserts("actividades")).toHaveLength(0);
   });
   it("todo bien: no hay error y la llamada queda apuntada", async () => {
     respuesta["leads:update"] = { data: null, error: null };
-    const r = await registrarLlamada("l1", "llamado", "");
+    const r = await registrarLlamada("l1", "no_responde", "");
     expect(r).toBeUndefined();
     expect(inserts("actividades")).toHaveLength(1);
   });

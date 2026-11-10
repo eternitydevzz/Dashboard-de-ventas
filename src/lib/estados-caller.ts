@@ -1,15 +1,15 @@
 // C11 (plan Callers, 7 nov 2026; decisiones de Cristian): los estados del caller = las 12 columnas del pipeline
-// «Callers», en su orden. Sin «No contesta» ni «Link enviado» (los que había pasaron a «Seguimiento», migración
-// 20261107150200). «Llamar luego» guarda cuándo (opcional, solo se muestra; 10 nov), sin aviso de vencidos ni vuelta
+// «Callers», en su orden. Sin «No contesta» (pasó a «Seguimiento», migración 20261107150200). 10 nov: fuera «Llamado»
+// (sus leads volvieron a «Leads») y vuelve «Link enviado» antes de «Agendado» (migración 20261110120000). «Llamar luego» guarda cuándo (opcional, solo se muestra; 10 nov), sin aviso de vencidos ni vuelta
 // sola a la cola.
 export const ESTADOS_CALLER = [
   { v: "nuevo", t: "Leads", color: "#64748b" },
-  { v: "llamado", t: "Llamado", color: "#2b59d1" },
   { v: "wsp_enviado", t: "Wsp enviado", color: "#15924a" },
   { v: "no_responde", t: "No responde", color: "var(--estado-no-responde)" },
   { v: "no_interesa", t: "No interesa", color: "#d0303f" },
   { v: "seguimiento", t: "Seguimiento", color: "#c98a12" },
   { v: "llamar_luego", t: "Llamar luego", color: "#c46a08" },
+  { v: "link_enviado", t: "Link enviado", color: "#0d9488" },
   { v: "agendado", t: "Agendado", color: "#3f6ee6" },
   { v: "confirma_agenda", t: "Confirma Agenda", color: "#0891b2" },
   { v: "reagendado", t: "Reagendado", color: "#7c4ddb" },
@@ -19,10 +19,12 @@ export const ESTADOS_CALLER = [
 export type EstadoCaller = (typeof ESTADOS_CALLER)[number]["v"];
 
 // Los 9 botones de «¿Cómo ha ido?» (7c.1). «Leads» es la entrada, «Reagendado» lo pone GHL y «Cerrados» el closer.
-export const BOTONES_RESULTADO = ["llamado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "descartado"] as const;
+// 10 nov: «Link de agenda» (estado «Link enviado») ocupa el sitio de «Llamado».
+export const BOTONES_RESULTADO = ["link_enviado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "descartado"] as const;
 export type BotonResultado = (typeof BOTONES_RESULTADO)[number];
 
-// Punto 16: «contacto» = el lead avanzó (hablaste con él). Llamado, Wsp enviado y No responde no cuentan.
+// Punto 16: «contacto» = el lead avanzó (hablaste con él). No responde no cuenta. Desde el 10 nov «Wsp enviado» y
+// «Link de agenda» apuntan una llamada y sí cuentan (ver esContacto).
 export const AVANZAN: ReadonlySet<string> = new Set(["no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "reagendado", "vendido"]);
 // Estrellas de cómo fue la llamada (2 a 5), como hoy (Cristian, 7 nov). Se copian a la cita del closer.
 export const CON_ESTRELLAS: ReadonlySet<string> = new Set(["llamar_luego", "no_interesa", "seguimiento", "agendado"]);
@@ -36,7 +38,7 @@ export function esContacto(a: { tipo: string; resultado: string | null }) {
   return false;
 }
 
-const VIEJOS: Record<string, string> = { no_contesta: "No contesta", link_enviado: "Link enviado" };
+const VIEJOS: Record<string, string> = { no_contesta: "No contesta", llamado: "Llamado" }; // historial de antes
 export const ETIQUETA_ESTADO: Record<string, string> = { ...VIEJOS, ...Object.fromEntries(ESTADOS_CALLER.map((e) => [e.v, e.t])) };
 export const etiquetaEstado = (v: string) => ETIQUETA_ESTADO[v] ?? v;
 export const colorEstado = (v: string) => ESTADOS_CALLER.find((e) => e.v === v)?.color ?? "#64748b";
