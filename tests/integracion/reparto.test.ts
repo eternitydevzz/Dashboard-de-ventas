@@ -77,6 +77,17 @@ describe("Repartir leads", () => {
     const despues = new Map((await db.from("leads").select("id, caller_id").in("id", ids)).data!.map((l) => [l.id, l.caller_id]));
     expect(ids.map((id) => despues.get(id))).toEqual([e.p.callerA.id, e.p.callerA.id, null, e.p.callerA.id]); // el argentino (P2), no
   });
+  it("10 nov: «todos» reparte los que tienen caller y los que no (los de los callers elegidos se quedan)", async () => {
+    const { data } = await db.from("leads").insert([0, 1, 2].map((i) => ({ proyecto_id: e.proyecto.id, nombre: `T${i}`, apellido: "", email: `${e.pref}-todos${i}@x.test`, oferta: "empresas", pipeline_id: e.pipeline.id }))).select("id");
+    const ids = data!.map((x) => x.id);
+    await db.from("leads").update({ caller_id: e.p.callerA.id }).eq("id", ids[0]);
+    await db.from("leads").update({ caller_id: e.p.callerB.id }).eq("id", ids[1]);
+    como(e, e.p.director);
+    const v = await ok(previsualizarReparto({ origen: "todos", oferta: "empresas", callers: [e.p.callerB.id], modo: "equitativo", n: 10 }));
+    expect(v.disponibles).toBe(2); // el de callerA y el libre; el de callerB ya es suyo
+    await ok(repartirLeads({ origen: "todos", oferta: "empresas", callers: [e.p.callerB.id], modo: "equitativo", n: 10 }));
+    expect(await callerDe(ids)).toEqual(Array(3).fill(e.p.callerB.id));
+  });
   it("10 nov: la vista previa cuenta los países aunque no haya callers elegidos (repartir sigue pidiéndolos)", async () => {
     como(e, e.p.director);
     const v = await ok(previsualizarReparto({ origen: "sin_asignar", pipelineId: e.pipeline.id, callers: [], modo: "equitativo", n: 10 }));

@@ -178,6 +178,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           admin={admin}
           citasGhl={citasGhl}
           destinos={destinos}
+          paraReparto={jefe ? pipelines.filter((p) => p.tipo === "normal").map((p) => ({ id: p.id, nombre: p.nombre, etapas: todasEtapas.filter((e) => e.pipeline_id === p.id).map((e) => ({ id: e.id, nombre: e.nombre })) })) : undefined}
           ceo={perfil.rol === "ceo"}
           editar={nivel === "editar"}
           jefe={jefe}
