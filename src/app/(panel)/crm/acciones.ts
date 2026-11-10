@@ -106,13 +106,18 @@ export async function renombrarPipeline(pipelineId: string, nombre: string) {
   });
 }
 
+// Cristian (11 nov 2026): con la «x» del selector, solo admins, y solo si está vacío (ningún lead se queda sin pipeline)
 export async function borrarPipeline(pipelineId: string) {
   return seguro(async () => {
     await exigirSeccion("crm"); // H5
     const { perfil, proyecto } = await getSesion();
     const { pipeline } = await exigirNivel(perfil, proyecto.id, pipelineId, "editar");
+    if (!puedeAdmin(perfil)) throw new ErrorUsuario("Solo un administrador puede borrar pipelines.");
     if (pipeline.tipo !== "normal") throw new ErrorUsuario(`«${pipeline.nombre}» es el pipeline del equipo: se puede renombrar, pero no borrar.`);
-    await escribir(db().from("leads").update({ pipeline_id: null, etapa_id: null }).eq("pipeline_id", pipelineId), "leads");
+    const cuenta = async (tabla: "leads" | "tarjetas_extra" | "entradas") => (await db().from(tabla).select("id", { count: "exact", head: true }).eq("pipeline_id", pipelineId)).count ?? 0;
+    const [leads, tarjetas, entradas] = await Promise.all([cuenta("leads"), cuenta("tarjetas_extra"), cuenta("entradas")]);
+    const hay = [leads && `${leads} lead${leads === 1 ? "" : "s"}`, tarjetas && `${tarjetas} tarjeta${tarjetas === 1 ? "" : "s"}`, entradas && `${entradas} entrada${entradas === 1 ? "" : "s"} de leads`].filter(Boolean);
+    if (hay.length) throw new ErrorUsuario(`«${pipeline.nombre}» tiene ${hay.join(", ")}. Vacíalo antes de borrarlo.`);
     await escribir(db().from("pipelines").delete().eq("id", pipelineId), "pipelines");
     refrescar();
   });

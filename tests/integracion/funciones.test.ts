@@ -132,10 +132,12 @@ describe("Pipelines y columnas", () => {
     await db.from("leads").update({ pipeline_id: id, etapa_id: extra.id }).eq("id", e.leads.LeadLibre);
     await ok(borrarEtapa(extra.id));
     expect((await leerLead(e.leads.LeadLibre)).etapa_id).toBe(lista[0].id);
+    // 11 nov: con un lead dentro no se borra (ningún lead se queda sin pipeline); vacío, sí
+    await falla(borrarPipeline(id), /1 lead\. Vacíalo/);
+    expect((await leerLead(e.leads.LeadLibre)).pipeline_id).toBe(id);
+    await db.from("leads").update({ pipeline_id: e.pipeline.id, etapa_id: e.etapas.Nuevos }).eq("id", e.leads.LeadLibre);
     await ok(borrarPipeline(id));
-    const l = await leerLead(e.leads.LeadLibre);
-    expect(l.pipeline_id).toBeNull(); // el lead NO se borra
-    expect(l.etapa_id).toBeNull();
+    expect((await db.from("pipelines").select("id").eq("id", id)).data).toHaveLength(0);
   });
   it("subir CSV (directo a Supabase) con mapeo elegido; el archivo se borra al importarlo", async () => {
     como(e, e.p.director);

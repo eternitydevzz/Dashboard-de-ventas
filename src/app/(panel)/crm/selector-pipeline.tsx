@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Plus } from "lucide-react";
+import { Check, ChevronDown, Plus, X } from "lucide-react";
 import { Portal } from "@/components/portal";
 import type { Pipeline } from "@/lib/tipos";
 
@@ -23,6 +23,7 @@ export function SelectorPipeline({
   alReordenar,
   alNuevo,
   alRenombrar,
+  alBorrar,
 }: {
   pipelines: Pipeline[];
   actual: Pipeline | null;
@@ -35,6 +36,7 @@ export function SelectorPipeline({
   alReordenar: (desde: string, hasta: string) => void;
   alNuevo: () => void;
   alRenombrar: (p: Pipeline) => void;
+  alBorrar: (p: Pipeline) => void; // Cristian (11 nov): la «x» de cada pipeline, solo admins
 }) {
   const boton = useRef<HTMLButtonElement>(null);
   const lista = useRef<HTMLDivElement>(null);
@@ -135,7 +137,25 @@ export function SelectorPipeline({
                     className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 hover:bg-panel-2 ${es ? "bg-panel-2 font-medium text-primario" : "text-texto"} ${sobre === p.id ? "ring-2 ring-primario" : ""}`}
                   >
                     <span className="truncate">{p.nombre}</span>
-                    {es && <Check className="h-4 w-4 shrink-0" />}
+                    <span className="flex shrink-0 items-center gap-1">
+                      {es && <Check className="h-4 w-4" />}
+                      {admin && p.tipo === "normal" && (
+                        <button
+                          type="button"
+                          aria-label={`Borrar el pipeline ${p.nombre}`}
+                          title="Borrar pipeline"
+                          onClick={(ev) => {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            setAbierto(false);
+                            alBorrar(p);
+                          }}
+                          className="rounded-md p-0.5 text-texto-3 hover:bg-mal-suave hover:text-mal"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </span>
                   </Link>
                 );
               })}
