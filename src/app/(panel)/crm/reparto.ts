@@ -28,32 +28,54 @@ export type PeticionReparto = {
   tope?: number;
 };
 
-async function preparar(p: PeticionReparto) {
+// `vista`: la vista previa cuenta los países aunque aún no haya callers elegidos (Cristian, 10 nov: se quedaba en «Calculando…»)
+async function preparar(p: PeticionReparto, vista = false) {
   const { perfil, proyecto } = await exigirSeccion("crm", "kpis");
   if (!esJefe(perfil)) throw new ErrorUsuario("Solo el CEO y los directores reparten leads.");
   // Solo callers de verdad de este proyecto (sin perfiles de prueba)
   const gente = await equipo(proyecto.id);
   const callersOk = gente.filter((g) => g.rol === "caller").map((g) => g.id);
   const callers = [...new Set(p.callers)].filter((c) => callersOk.includes(c));
-  if (!callers.length) throw new ErrorUsuario("Elige al menos un caller.");
+  if (!callers.length && !vista) throw new ErrorUsuario("Elige al menos un caller.");
   if (p.origen === "reasignar" && !p.deCallers?.length) throw new ErrorUsuario("Elige de quién se quitan los leads.");
   const seleccion = p.origen === "seleccion";
   if (seleccion && !p.leadIds?.length) throw new ErrorUsuario("Selecciona leads en el CRM.");
 
   // Los leads que se pueden repartir, de los más nuevos a los más antiguos (como la cola del caller)
-  type Fila = { id: string; caller_id: string | null; pais: string | null };
+  type Fila = { id: string; caller_id: string | null; pais: string | null; creado_en: string };
+  // Con `ids`, esos leads (los de las tarjetas extra) en vez de los del pipeline y la columna principales
+  const consulta = (ids?: string[]) => {
+    let q = db().from("leads").select("id, caller_id, pais, creado_en").eq("proyecto_id", proyecto.id);
+    q = p.origen === "sin_asignar" ? q.is("caller_id", null) : q.in("caller_id", p.deCallers!);
+    if (ids) q = q.in("id", ids);
+    else {
+      if (p.pipelineId) q = q.eq("pipeline_id", p.pipelineId);
+      if (p.etapaId) q = q.eq("etapa_id", p.etapaId);
+    }
+    if (p.evento) q = q.eq("evento", p.evento);
+    if (p.oferta) q = q.eq("oferta", p.oferta);
+    else if (p.soloBiblioteca) q = q.not("oferta", "is", null);
+    return q;
+  };
   const pool = seleccion
     ? await porIds(proyecto.id, p.leadIds!, p.oferta ?? null)
-    : await todas<Fila>((a, b) => {
-        let q = db().from("leads").select("id, caller_id, pais").eq("proyecto_id", proyecto.id);
-        q = p.origen === "sin_asignar" ? q.is("caller_id", null) : q.in("caller_id", p.deCallers!);
-        if (p.pipelineId) q = q.eq("pipeline_id", p.pipelineId);
-        if (p.etapaId) q = q.eq("etapa_id", p.etapaId);
-        if (p.evento) q = q.eq("evento", p.evento);
-        if (p.oferta) q = q.eq("oferta", p.oferta);
-        else if (p.soloBiblioteca) q = q.not("oferta", "is", null);
-        return q.order("creado_en", { ascending: false }).order("id").range(a, b);
-      });
+    : await todas<Fila>((a, b) => consulta().order("creado_en", { ascending: false }).order("id").range(a, b));
+  // Cristian, 10 nov: en un pipeline también cuentan sus tarjetas extra (p. ej. «Todos los leads», que solo tiene esas)
+  if (!seleccion && p.pipelineId) {
+    const tarjetas = await todas<{ lead_id: string }>((a, b) => {
+      let q = db().from("tarjetas_extra").select("lead_id").eq("pipeline_id", p.pipelineId!);
+      if (p.etapaId) q = q.eq("etapa_id", p.etapaId);
+      return q.order("id").range(a, b);
+    });
+    const ya = new Set(pool.map((l) => l.id));
+    const ids = [...new Set(tarjetas.map((t) => t.lead_id))].filter((id) => !ya.has(id));
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await consulta(ids.slice(i, i + 200));
+      if (error) throw new Error(`No se pudieron leer los leads: ${error.message}`);
+      pool.push(...((data ?? []) as Fila[]));
+    }
+    pool.sort((a, b) => b.creado_en.localeCompare(a.creado_en) || a.id.localeCompare(b.id));
+  }
   const permitidos = p.leadIds?.length ? new Set(p.leadIds) : null;
   // Con selección entran todos los marcados, también los que ya son de uno de estos callers
   const candidatos = pool.filter((l) => !permitidos || permitidos.has(l.id)).filter((l) => seleccion || !callers.includes(l.caller_id ?? ""));
@@ -97,7 +119,7 @@ async function porIds(proyectoId: string, ids: string[], oferta: string | null) 
 // Vista previa: «Carla 20 · Diego 20…» sin cambiar nada
 export async function previsualizarReparto(p: PeticionReparto) {
   return seguro(async () => {
-    const { gente, callers, leads, plan, carga, porPais, conCaller } = await preparar(p);
+    const { gente, callers, leads, plan, carga, porPais, conCaller } = await preparar(p, true);
     const n = resumenPlan(plan, callers);
     return {
       porPais,

@@ -77,4 +77,24 @@ describe("Repartir leads", () => {
     const despues = new Map((await db.from("leads").select("id, caller_id").in("id", ids)).data!.map((l) => [l.id, l.caller_id]));
     expect(ids.map((id) => despues.get(id))).toEqual([e.p.callerA.id, e.p.callerA.id, null, e.p.callerA.id]); // el argentino (P2), no
   });
+  it("10 nov: la vista previa cuenta los países aunque no haya callers elegidos (repartir sigue pidiéndolos)", async () => {
+    como(e, e.p.director);
+    const v = await ok(previsualizarReparto({ origen: "sin_asignar", pipelineId: e.pipeline.id, callers: [], modo: "equitativo", n: 10 }));
+    expect(v.disponibles).toBeGreaterThan(0);
+    expect(Object.keys(v.porPais).length).toBeGreaterThan(0);
+    expect(v.total).toBe(0);
+    await falla(repartirLeads({ origen: "sin_asignar", pipelineId: e.pipeline.id, callers: [], modo: "equitativo", n: 10 }), /al menos un caller/);
+  });
+  it("10 nov: en un pipeline cuentan también sus tarjetas extra (como «Todos los leads»)", async () => {
+    const { data: todos } = await db.from("pipelines").insert({ proyecto_id: e.proyecto.id, nombre: "Todos test", orden: 9 }).select().single();
+    const { data: col } = await db.from("etapas").insert({ pipeline_id: todos!.id, nombre: "Biblioteca", orden: 0 }).select().single();
+    const { data: lead } = await db.from("leads").insert({ proyecto_id: e.proyecto.id, nombre: "Extra", apellido: "", email: `${e.pref}-extra@x.test`, pipeline_id: e.pipeline.id }).select("id").single();
+    await db.from("tarjetas_extra").insert({ proyecto_id: e.proyecto.id, lead_id: lead!.id, pipeline_id: todos!.id, etapa_id: col!.id });
+    como(e, e.p.director);
+    const v = await ok(previsualizarReparto({ origen: "sin_asignar", pipelineId: todos!.id, callers: [e.p.callerA.id], modo: "equitativo", n: 10 }));
+    expect(v.disponibles).toBe(1);
+    const r = await ok(repartirLeads({ origen: "sin_asignar", pipelineId: todos!.id, callers: [e.p.callerA.id], modo: "equitativo", n: 10 }));
+    expect(r.repartidos).toBe(1);
+    expect(await callerDe([lead!.id])).toEqual([e.p.callerA.id]);
+  });
 });

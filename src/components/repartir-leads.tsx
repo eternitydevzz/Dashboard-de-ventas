@@ -214,7 +214,7 @@ export function RepartirLeads({
           </div>
           <div className="mt-3 border-t border-borde pt-3">
             <button className="btn-primario w-full" disabled={pendiente || calculando || !vista || !vista.total} onClick={repartir}>
-              {pendiente ? "Repartiendo…" : vista && !vista.total ? "No hay leads que repartir con esos filtros" : `Repartir ${vista ? vista.total : ""}`}
+              {pendiente ? "Repartiendo…" : !elegidos.length ? "Elige al menos un caller" : vista && !vista.total ?"No hay leads que repartir con esos filtros" : `Repartir ${vista ? vista.total : ""}`}
             </button>
           </div>
           </div>
