@@ -32,14 +32,14 @@ describe("Caller", () => {
   });
   it("no puede tocar un lead de otro caller ni uno sin asignar", async () => {
     como(e, e.p.callerA);
-    await falla(registrarLlamada(e.leads.LeadB, "llamado", ""), /no está asignado a ti/);
-    await falla(registrarLlamada(e.leads.LeadLibre, "llamado", ""), /no está asignado a ti/);
+    await falla(registrarLlamada(e.leads.LeadB, "link_enviado", ""), /no está asignado a ti/);
+    await falla(registrarLlamada(e.leads.LeadLibre, "link_enviado", ""), /no está asignado a ti/);
   });
   it("sí puede registrar la llamada de su propio lead", async () => {
     como(e, e.p.callerA);
-    await ok(registrarLlamada(e.leads.LeadA, "llamado", ""));
+    await ok(registrarLlamada(e.leads.LeadA, "link_enviado", ""));
     const { data } = await db.from("leads").select("estado_caller").eq("id", e.leads.LeadA).single();
-    expect(data?.estado_caller).toBe("llamado");
+    expect(data?.estado_caller).toBe("link_enviado");
   });
   it("no registra ventas, ni siquiera de productos low ticket (Cristian, 12 oct)", async () => {
     como(e, e.p.callerA);

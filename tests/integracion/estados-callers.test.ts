@@ -28,12 +28,19 @@ const TODO = { semana: Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((d) => [d, [
 // Revisión del 7 nov: el caller solo agenda en horas libres del closer, así que el closer de la prueba tiene horario
 const rotacion = (perfilId: string, pct: number) => db.from("miembros_proyecto").update({ rotacion_pct: pct, rotacion_cuenta: 0, horario: TODO }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", perfilId);
 
-describe("La base solo acepta los 12 estados", () => {
-  it("los viejos «no_contesta» y «link_enviado» se rechazan", async () => {
+describe("La base solo acepta los 12 estados (10 nov: «Link enviado» en vez de «Llamado»)", () => {
+  it("los viejos «no_contesta» y «llamado» se rechazan; «link_enviado» vuelve (10 nov)", async () => {
     const { error } = await db.from("leads").update({ estado_caller: "no_contesta" }).eq("id", e.leads.LeadA);
     expect(error?.message).toMatch(/estado_caller_check/);
-    const { error: e2 } = await db.from("leads").update({ estado_caller: "link_enviado" }).eq("id", e.leads.LeadA);
+    const { error: e2 } = await db.from("leads").update({ estado_caller: "llamado" }).eq("id", e.leads.LeadA);
     expect(e2?.message).toMatch(/estado_caller_check/);
+    const { error: e3 } = await db.from("leads").update({ estado_caller: "link_enviado" }).eq("id", e.leads.LeadA);
+    expect(e3).toBeNull();
+  });
+  it("«Callers» nace con las 12 columnas en su orden: «Link enviado» antes de «Agendado» y sin «Llamado»", async () => {
+    const { data: p } = await db.from("pipelines").select("id").eq("proyecto_id", e.proyecto.id).eq("tipo", "callers").single();
+    const { data: cols } = await db.from("etapas").select("nombre, estado_caller").eq("pipeline_id", p!.id).not("estado_caller", "is", null).order("orden");
+    expect(cols!.map((c) => c.nombre)).toEqual(["Leads", "Wsp enviado", "No responde", "No interesa", "Seguimiento", "Llamar luego", "Link enviado", "Agendado", "Confirma Agenda", "Reagendado", "Descartado", "Cerrados"]);
   });
 });
 

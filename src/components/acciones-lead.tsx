@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, Phone, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
+import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
 import { anadirNota, confirmarAgenda, registrarLlamada, registrarVenta, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
 import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado, type BotonResultado } from "@/lib/estados-caller";
 import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "@/app/(panel)/crm/ventanas-estado";
@@ -51,9 +51,12 @@ export function Mensajes({ error, ok }: { error: string; ok: string }) {
   );
 }
 
+// El botón de «Link enviado» se llama «Link de agenda» (Cristian, 10 nov); el resto, como su columna
+const textoBoton = (k: string) => (k === "link_enviado" ? "Link de agenda" : etiquetaEstado(k));
+
 // C11 (plan Callers, 7 nov): iconos de los 9 resultados (los de la maqueta, lucide)
 export const ICONO_RESULTADO: Record<BotonResultado, LucideIcon> = {
-  llamado: Phone,
+  link_enviado: Link2, // 10 nov: «Link de agenda» en el sitio de «Llamado»
   wsp_enviado: MessageCircle,
   no_responde: PhoneOff,
   no_interesa: CircleX,
@@ -136,8 +139,14 @@ export function AccionesLead({
   const verGuion = controlado ? guionAbierto : modal === "guion";
   const abrirGuion = (b: boolean) => (controlado ? onGuionAbierto?.(b) : setModal(b ? "guion" : null));
 
-  function resultado(clave: string) {
+  function resultado(clave: string, desdeMoverA = false) {
     if (CON_VENTANA.includes(clave)) return setVentana(clave as DestinoConVentana);
+    // «Link de agenda» (Cristian, 10 nov): copia el link de GHL y lo apunta (lead a «Link enviado», cuenta como llamada)
+    if (clave === "link_enviado" && !desdeMoverA) {
+      if (!linkAgenda) return aviso("Este proyecto no tiene link de agenda: ponlo en Administración.", "error");
+      void copiarLinkAgenda();
+      return ejecutar(() => registrarLlamada(leadId, "link_enviado", ""), "Link de agenda copiado y apuntado");
+    }
     if (clave === "confirma_agenda") return ejecutar(() => confirmarAgenda(leadId), "Guardado: Confirma Agenda (cita confirmada)");
     ejecutar(() => registrarLlamada(leadId, clave as ResultadoSimple, ""), `Guardado: ${etiquetaEstado(clave)}`);
   }
@@ -156,7 +165,7 @@ export function AccionesLead({
           grabador={puedeGrabar ? <BotonGrabar leadId={leadId} nombre={nombre} /> : undefined}
           resultados={BOTONES_RESULTADO.map((k) => {
             const Icono = ICONO_RESULTADO[k];
-            return { clave: k, texto: etiquetaEstado(k), icono: <Icono className="h-4 w-4 shrink-0" style={{ color: colorEstado(k) }} /> };
+            return { clave: k, texto: textoBoton(k), icono: <Icono className="h-4 w-4 shrink-0" style={{ color: colorEstado(k) }} /> };
           })}
           onResultado={resultado}
           onSiguiente={onSiguiente}
@@ -244,7 +253,7 @@ export function AccionesLead({
             </div>
             <label className="flex items-center gap-2 text-[12.5px] font-semibold text-texto-2">
               Mover a
-              <select className="campo w-auto py-1.5" value={estado ?? ""} disabled={pendiente} onChange={(e) => e.target.value && e.target.value !== estado && resultado(e.target.value)}>
+              <select className="campo w-auto py-1.5" value={estado ?? ""} disabled={pendiente} onChange={(e) => e.target.value && e.target.value !== estado && resultado(e.target.value, true)}>
                 {ESTADOS_CALLER.filter((x) => x.v !== "vendido").map((x) => <option key={x.v} value={x.v}>{x.t}</option>)}
               </select>
             </label>
@@ -267,7 +276,7 @@ export function AccionesLead({
                   <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] ${actual ? "bg-[var(--c)] text-white" : "bg-[color-mix(in_srgb,var(--c)_15%,transparent)] text-[var(--c)]"}`}>
                     <Icono className="h-[18px] w-[18px]" />
                   </span>
-                  {etiquetaEstado(k)}
+                  {textoBoton(k)}
                 </button>
               );
             })}
@@ -315,7 +324,7 @@ export function AccionesLead({
             const actual = estado === k;
             return (
               <button key={k} type="button" className={`${boton} ${actual ? "border-primario bg-primario-suave text-primario" : ""}`} aria-current={actual ? "true" : undefined} disabled={pendiente} onClick={() => resultado(k)}>
-                <Icono className="h-4 w-4" style={{ color: colorEstado(k) }} /> {etiquetaEstado(k)}
+                <Icono className="h-4 w-4" style={{ color: colorEstado(k) }} /> {textoBoton(k)}
               </button>
             );
           })}

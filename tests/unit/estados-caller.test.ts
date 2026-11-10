@@ -4,17 +4,19 @@ import { ESTADOS_CALLER, BOTONES_RESULTADO, AVANZAN, CON_ESTRELLAS, esContacto, 
 
 describe("C11 · estados del caller", () => {
   it("12 columnas en el orden decidido (punto 12)", () => {
-    expect(ESTADOS_CALLER.map((e) => e.t)).toEqual(["Leads", "Llamado", "Wsp enviado", "No responde", "No interesa", "Seguimiento", "Llamar luego", "Agendado", "Confirma Agenda", "Reagendado", "Descartado", "Cerrados"]);
+    expect(ESTADOS_CALLER.map((e) => e.t)).toEqual(["Leads", "Wsp enviado", "No responde", "No interesa", "Seguimiento", "Llamar luego", "Link enviado", "Agendado", "Confirma Agenda", "Reagendado", "Descartado", "Cerrados"]);
     expect(ESTADOS_CALLER.map((e) => e.v)).not.toContain("no_contesta");
-    expect(ESTADOS_CALLER.map((e) => e.v)).not.toContain("link_enviado");
+    expect(ESTADOS_CALLER.map((e) => e.v)).not.toContain("llamado"); // 10 nov: fuera «Llamado»
   });
   it("9 botones de resultado (7c.1): sin Leads, Reagendado ni Cerrados", () => {
-    expect(BOTONES_RESULTADO).toEqual(["llamado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "descartado"]);
+    expect(BOTONES_RESULTADO).toEqual(["link_enviado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "descartado"]);
   });
-  it("contacto = los que avanzan (punto 16); Llamado, Wsp enviado y No responde no cuentan", () => {
+  it("contacto = los que avanzan (punto 16), y desde el 10 nov Link de agenda y Wsp enviado; No responde no", () => {
     expect([...AVANZAN].sort()).toEqual(["agendado", "confirma_agenda", "llamar_luego", "no_interesa", "reagendado", "seguimiento", "vendido"]);
     expect(esContacto({ tipo: "cambio_etapa", resultado: "seguimiento" })).toBe(true);
-    expect(esContacto({ tipo: "llamada", resultado: "llamado" })).toBe(false);
+    expect(esContacto({ tipo: "llamada", resultado: "llamado" })).toBe(false); // historial de antes del 10 nov
+    expect(esContacto({ tipo: "llamada", resultado: "link_enviado" })).toBe(true);
+    expect(esContacto({ tipo: "llamada", resultado: "wsp_enviado" })).toBe(true);
     expect(esContacto({ tipo: "whatsapp", resultado: "wsp_enviado" })).toBe(false);
     expect(esContacto({ tipo: "cambio_etapa", resultado: "no_responde" })).toBe(false);
     expect(esContacto({ tipo: "cambio_etapa", resultado: null })).toBe(false); // mover a mano en el CRM

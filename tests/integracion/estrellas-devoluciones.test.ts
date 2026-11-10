@@ -16,9 +16,9 @@ const lead = async (id: string) => (await db.from("leads").select("*").eq("id", 
 const citaDe = async (leadId: string) => (await db.from("citas").select("*").eq("lead_id", leadId).order("creado_en", { ascending: false }).limit(1).single()).data!;
 
 describe("Estrellas del caller", () => {
-  it("C11: «Llamado» no toca las estrellas (F2: antes «No contesta» ponía 1★ encima)", async () => {
+  it("C11: «Link de agenda» no toca las estrellas (F2: antes «No contesta» ponía 1★ encima)", async () => {
     como(e, e.p.callerA);
-    await ok(registrarLlamada(e.leads.LeadA, "llamado", ""));
+    await ok(registrarLlamada(e.leads.LeadA, "link_enviado", ""));
     expect((await lead(e.leads.LeadA)).estrellas_caller).toBeNull();
   });
   it("«Llamar luego», «No interesa» y «Seguimiento» exigen elegir de 2 a 5", async () => {
