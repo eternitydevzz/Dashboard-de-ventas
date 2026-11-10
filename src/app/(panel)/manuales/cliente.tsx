@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
 import { BookOpen, Maximize2, Upload } from "lucide-react";
 import { Modal } from "@/components/modal";
+import { BarraDeslizable } from "@/components/barra-deslizable";
 import { useToast } from "@/components/toasts";
 import { subirDelFormulario } from "@/lib/subir-cliente";
 import { exigirOk } from "@/lib/resultado-cliente";
@@ -20,7 +21,7 @@ export function VisorManuales({ manuales, elegido, editor, zona }: { manuales: M
   return (
     <section className="tarjeta flex flex-col overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-borde px-3 py-2.5 sm:px-4">
-        <nav className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]" aria-label="Manuales">
+        <BarraDeslizable role="navigation" className="flex min-w-0 flex-1 gap-1.5" aria-label="Manuales">
           {manuales.map((m) => {
             const on = m.id === elegido.id;
             return (
@@ -29,7 +30,7 @@ export function VisorManuales({ manuales, elegido, editor, zona }: { manuales: M
               </Link>
             );
           })}
-        </nav>
+        </BarraDeslizable>
         <a href={src} target="_blank" rel="noreferrer" className="btn-secundario px-2.5 py-1.5 text-xs"><Maximize2 className="h-3.5 w-3.5" /> Pantalla completa</a>
         {editor && <SubirManual cambiar={elegido} />}
       </div>
