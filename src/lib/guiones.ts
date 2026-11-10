@@ -15,19 +15,60 @@ const id = (prefijo: string, i: number) => `${prefijo}${i + 1}`;
 
 // Guiones de ejemplo (Cristian, 12 oct: «exacto, ponlo así»; los reales los carga él después)
 export const GUION_EJEMPLO: Record<RolGuion, Guion> = {
+  // Guion de la academia de IA (Cristian, 10 nov 2026). Las ramas «Si pregunta / Si dice…» van en objeciones.
   caller: {
     pasos: [
-      { id: "p1", titulo: "Saludo y permiso", texto: "Hola {nombre}, soy {tu nombre} de Código MaestrIA. Te escribo porque descargaste la biblioteca de recursos. ¿Tienes 3 minutos?", checklist: ["Me presenté con nombre y empresa", "Pedí permiso para hablar"], pistas: ["Sonríe al hablar: se nota en la voz", "Si no puede, agenda otro momento con «Llamar luego»"] },
-      { id: "p2", titulo: "Situación", texto: "¿A qué te dedicas ahora mismo y qué te llevó a descargar la biblioteca?", checklist: ["Sé a qué se dedica", "Sé por qué descargó la biblioteca"], pistas: ["Mira antes sus respuestas del formulario en la ficha", "Escucha más de lo que hablas"] },
-      { id: "p3", titulo: "Objetivo y dolor", texto: "¿Qué te gustaría conseguir en los próximos 90 días? ¿Qué te lo está impidiendo hoy?", checklist: ["Tengo su objetivo con una cifra", "Tengo lo que le frena"], pistas: ["Repite su objetivo con sus palabras"] },
-      { id: "p4", titulo: "Encaje", texto: "Por lo que me cuentas, tiene sentido que hables con {closer}, que te enseña cómo lo hacemos. ¿Te viene bien esta semana?", checklist: ["Le expliqué el siguiente paso", "Aceptó la llamada"], pistas: ["Si duda, usa las objeciones de abajo"] },
-      { id: "p5", titulo: "Cierre: link de agenda", texto: "Te mando ahora el link para que elijas la hora que mejor te venga.", checklist: ["Mandé el link", "Confirmé que le llegó"], pistas: ["Marca «Link enviado» con sus estrellas"] },
+      { id: "p1", titulo: "Abrir la llamada", texto: `Paso 1
+"¿{nombre}?"
+Si hay silencio 2 segundos: "¿{nombre}?"
+
+Paso 2
+{nombre}: "Sí… ¿quién es?"
+"Soy Carlos."
+(Silencio. Esperas a que pregunte quién.)
+
+Paso 3
+{nombre}: "¿Qué Carlos?"
+"Carlos, de la academia de inteligencia artificial. Rellenaste un formulario para aprender de IA y generar ingresos. Cuéntame (o decime), ¿usas ChatGPT, Claude o Gemini?"`, checklist: ["Dije su nombre y esperé a que preguntara quién soy", "Le pregunté qué IA usa: ChatGPT, Claude o Gemini"], pistas: [] },
+      { id: "p2", titulo: "Cualificar", texto: `"Entiendo. ¿Y hace mucho que usas [la IA que te diga]?"
+"¿Y qué es lo que te gustaría aprender? ¿Qué es lo que te llama la atención de la IA?"
+Si no sabe qué decir: "La mayoría viene por tres cosas: un dinero extra, dejar su trabajo o montar su propio negocio con IA. ¿Cuál es la tuya?"
+"¿Y a qué te dedicas ahora mismo? ¿Más o menos cuánto sacas al mes con eso?"
+Si vive en EE. UU.: "¿Cuánto te entra a la semana?"`, checklist: ["Sé qué IA usa y desde cuándo", "Sé qué quiere conseguir con la IA", "Sé a qué se dedica y cuánto gana"], pistas: [] },
+      { id: "p3", titulo: "El dolor", texto: `"¿Qué no te gusta de tu situación ahora mismo?"
+"¿Ganar más para qué? ¿Qué cambiaría en tu vida si ganaras más?"
+"¿Y cuánto tiempo llevas así?"
+"¿Ya probaste otros métodos?"`, checklist: ["Sé qué no le gusta de su situación", "Sé para qué quiere ganar más", "Sé cuánto tiempo lleva así y qué ha probado"], pistas: [] },
+      { id: "p4", titulo: "La oportunidad", texto: `Si ya probó otro método: "¿Sabes por qué creo que no te funcionó [Amazon o lo que probó]? Porque llegaste tarde. Quien entró en Amazon hace diez años ganó; quien entra hoy se encuentra un mercado saturado. Con la IA todavía estás a tiempo, porque todo el mundo habla de IA, pero ¿cuántas personas conoces que hagan dinero con ella?"
+"¿Sabes por qué? Porque la gente la usa mal. Si usas la IA, tienes dos caminos. El primero: usarla para hacer videítos graciosos. Y el segundo: usar la mejor herramienta de la historia para hacer dinero. ¿A ti cuál te gusta más?"`, checklist: ["Si probó otro método, le expliqué por qué no le funcionó", "Eligió el segundo camino: hacer dinero con IA"], pistas: [] },
+      { id: "p5", titulo: "El filtro · Tiempo y dinero", texto: `"Perfecto. Para el segundo camino, hacer dinero con IA, hay que dedicarle tiempo. ¿Cuántas horas podrías dedicarle al día?"
+"Para poder [deseo 1], [deseo 2] y [deseo 3] tienes que invertir para crear tu agencia de IA, ¿me entiendes?"
+"¿Cuánto podrías invertir para [deseo 1], [deseo 2] y [deseo 3] gracias a la inteligencia artificial?"
+• 200 $ o más → se agenda.
+• Menos de 200 $ → Membresía.`, checklist: ["Sé cuántas horas al día puede dedicarle", "Sé cuánto puede invertir", "Decidí: se agenda (200 $ o más) o Membresía"], pistas: [] },
+      { id: "p6", titulo: "Agendar · La cita", texto: `"Perfecto, pues por lo que me has contado, creo que encajas dentro de nuestra academia. Pero es importante que sepas que esto no es un curso: nosotros te damos los sistemas listos para copiar, pegar y vender. ¿Te hace sentido?"
+"Nosotros te enseñamos cómo configurarlos y cómo venderlos. ¿Qué te parece?"
+"Perfecto, pues ahí te envío el link para que puedas agendar tu sesión estratégica con nuestro equipo especialista en IA, para que evalúen tu caso y veamos si podemos colaborar juntos. Revisa tu WhatsApp."
+(Le envías el link.)`, checklist: ["Le expliqué que no es un curso: son sistemas listos", "Le mandé el link para agendar por WhatsApp"], pistas: [] },
+      { id: "p7", titulo: "Confirmar si viene con su pareja", texto: `"En caso de que el equipo vea que podemos trabajar juntos, la decisión de inversión, ¿la tomas solo tú o se lo tendrías que consultar a tu pareja?"
+Si dice que lo consultaría: "Perfecto. ¿Y ella podría estar también en la reunión? Porque al ser una decisión que podría [deseo 1], [deseo 2] y [deseo 3], sería importante que ella estuviera, ¿sí?"`, checklist: ["Sé si decide solo o con su pareja", "Si lo consulta con su pareja, le pedí que venga a la reunión"], pistas: [] },
+      { id: "p8", titulo: "Blindar la cita", texto: `"¿Me puedes enviar una captura por WhatsApp cuando agendes la llamada, para asegurar que todo esté correcto en nuestro sistema?"
+Cuando envíe la captura: "Perfecto, pues un placer, {nombre}. Ya nuestro equipo confirmó tu llamada, nos vemos el [día]. Antes de la llamada te mando dos vídeos cortos para que veas cómo es por dentro nuestro sistema, ¿ok?"
+"Perfecto, {nombre}. ¡Buen día!"`, checklist: ["Me mandó la captura de la cita agendada", "Le avisé de los dos vídeos antes de la llamada"], pistas: [] },
     ],
     objeciones: [
-      { id: "o1", objecion: "No tengo tiempo", respuesta: "Lo entiendo. Justo por eso la llamada es corta y te dice si encaja contigo o no. ¿Qué día tienes 30 minutos?" },
-      { id: "o2", objecion: "No tengo dinero", respuesta: "En esta llamada no se compra nada: es para ver si tiene sentido. Si encaja, hay varias formas de pago." },
-      { id: "o3", objecion: "Mándame información", respuesta: "Claro. Para mandarte lo que de verdad te sirve, ¿qué es lo que más te interesa conseguir?" },
-      { id: "o4", objecion: "Lo tengo que pensar", respuesta: "Perfecto. ¿Qué es lo que te gustaría tener claro para decidir? Lo vemos en la llamada." },
+      { id: "o1", objecion: "¿De dónde sacaste mi número?", respuesta: `"Lo dejaste tú en nuestro formulario, junto con tu email. Eres [nombre y apellidos], ¿cierto?"
+Cuando diga que sí: "¿Sigues interesado en aprender a usar la IA para hacer dinero?"` },
+      { id: "o2", objecion: "Ahora no puedo / estoy ocupado", respuesta: `"Te entiendo, {nombre}, pero una sola pregunta: ¿sigues queriendo aprender a ganar dinero con IA, o ya no?"
+• Sí → "Perfecto. ¿Y qué IA sueles usar, ChatGPT, Claude o Gemini?"
+• No → "Perfecto. Entonces, ¿no crees que la IA sea la herramienta más poderosa de la historia para generar ingresos?"` },
+      { id: "o3", objecion: "De verdad no puede ahora", respuesta: `"Perfecto, {nombre}. ¿A qué hora te viene bien que te llame?"
+Si dice "no sé": "¿Te queda bien a las [hora]?"
+"Perfecto, a esa hora te llamo entonces. ¡Buen día!"` },
+      { id: "o4", objecion: "No me interesa", respuesta: `"{nombre}, ¿no te interesa aprender a usar la IA para hacer dinero?"
+• Sí → "Perfecto. ¿Y qué IA sueles usar, ChatGPT, Claude o Gemini?"
+• No → "Perfecto. Entonces, ¿no crees que la IA sea la herramienta más poderosa de la historia para generar ingresos?"` },
+      { id: "o5", objecion: "¿Qué sistemas?", respuesta: `"Bueno, tenemos un sistema que crea páginas web en 30 minutos. Tenemos un sistema que envía miles de emails al día para conseguir clientes. Tenemos un sistema que automatiza las conversaciones de WhatsApp para las empresas, y tenemos un montón de sistemas para poder vendérselos a los empresarios por miles de dólares. ¿Te hace sentido?"` },
     ],
   },
   closer: {

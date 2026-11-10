@@ -192,7 +192,7 @@ export function GuionLlamada({
               {objeciones.map((o) => (
                 <button key={o.id} type="button" className={`block w-full rounded-xl border bg-panel px-3 py-2 text-left text-sm font-semibold ${abierta === o.id ? "border-primario" : "border-borde hover:border-borde-fuerte"}`} onClick={() => setAbierta(abierta === o.id ? null : o.id)} aria-expanded={abierta === o.id}>
                   «{o.objecion}»
-                  {abierta === o.id && <span className="mt-1.5 block text-xs font-normal leading-relaxed text-texto-2">{rellenar(o.respuesta, datos)}</span>}
+                  {abierta === o.id && <span className="mt-1.5 block whitespace-pre-line text-xs font-normal leading-relaxed text-texto-2">{rellenar(o.respuesta, datos)}</span>}
                 </button>
               ))}
             </div>
