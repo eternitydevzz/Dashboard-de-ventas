@@ -13,13 +13,13 @@ function falso(status: number, cuerpo: unknown = {}) {
 }
 
 describe("cambiarUsuarioCitaGhl", () => {
-  it("manda solo assignedUserId con PUT a la cita", async () => {
+  it("manda assignedUserId e ignoreFreeSlotValidation con PUT a la cita", async () => {
     const { f, llamadas } = falso(200, { id: "c1" });
     await cambiarUsuarioCitaGhl({ token: "tok", citaId: "c 1", usuarioId: "usr", fetchImpl: f });
     expect(llamadas[0].url).toBe("https://services.leadconnectorhq.com/calendars/events/appointments/c%201");
     expect(llamadas[0].init.method).toBe("PUT");
     expect((llamadas[0].init.headers as Record<string, string>).Version).toBe("2021-04-15");
-    expect(JSON.parse(String(llamadas[0].init.body))).toEqual({ assignedUserId: "usr" });
+    expect(JSON.parse(String(llamadas[0].init.body))).toEqual({ assignedUserId: "usr", ignoreFreeSlotValidation: true });
   });
   it("si GHL falla, lanza (la app no cambia)", async () => {
     const { f } = falso(400, { message: "malo" });
