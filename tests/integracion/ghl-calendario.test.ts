@@ -7,14 +7,14 @@ import { descartarCitaSinLead, unirCitaSinLead } from "@/app/(panel)/closer/acci
 import { guardarCalendarioCloser, guardarConexionGhl } from "@/app/(panel)/admin/acciones";
 
 let e: Escenario;
-const llamadas: { url: string; headers: Record<string, string> }[] = [];
+const llamadas: { url: string; headers: Record<string, string>; method?: string; body?: string }[] = [];
 let eventos: Record<string, unknown>[] = [];
 const contactos: Record<string, unknown> = {};
 const nombresCal: Record<string, string> = {}; // sin nombre = 401, como el token real (sin calendars.readonly)
 const citasGhl: Record<string, number | string> = {}; // GET de una cita: 404 o su estado («confirmed» por defecto)
 let rechazar = false;
-const falsoFetch = (async (url: string, init?: { headers?: Record<string, string> }) => {
-  llamadas.push({ url, headers: init?.headers ?? {} });
+const falsoFetch = (async (url: string, init?: { headers?: Record<string, string>; method?: string; body?: string }) => {
+  llamadas.push({ url, headers: init?.headers ?? {}, method: init?.method, body: init?.body });
   if (rechazar) return new Response("{}", { status: 401 });
   const u = new URL(url);
   if (u.pathname === "/calendars/events") return Response.json({ events: eventos });
@@ -280,5 +280,26 @@ describe("Plan GHL (16 oct): por calendario, con el canal del UTM", () => {
     await db.from("perfiles").update({ tambien_closer: false }).eq("id", e.p.callerA.id);
     await db.from("miembros_proyecto").update({ ghl_user_id: null }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.callerA.id);
     expect((await cita(`${e.pref}-f2`))!.closer_id).toBe(e.p.callerA.id);
+  });
+
+  it("11 nov: una cita nueva de un lead de un país de otro closer pasa a ese closer, también en GHL (usuario y calendario)", async () => {
+    await db.from("miembros_proyecto").update({ ghl_user_id: "u-B", ghl_calendar_id: "cal-B", paises_closer: ["ES", "IT"] }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.closerB.id);
+    await db.from("miembros_proyecto").update({ ghl_user_id: "u-A" }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.closerA.id);
+    contactos[`${e.pref}-cEs`] = { firstName: "Es", lastName: "Paña", email: `${e.pref}-es@x.test`, phone: "+34 611 222 333" };
+    contactos[`${e.pref}-cPasada`] = { firstName: "Pa", lastName: "Sada", email: `${e.pref}-pa@x.test`, phone: "+34 611 222 444" };
+    eventos = [
+      { id: `${e.pref}-es1`, calendarId: "cal-principal", contactId: `${e.pref}-cEs`, assignedUserId: "u-A", startTime: "2026-10-30T10:00:00-04:00", appointmentStatus: "confirmed" },
+      // ya pasada: no se toca
+      { id: `${e.pref}-es2`, calendarId: "cal-principal", contactId: `${e.pref}-cPasada`, assignedUserId: "u-A", startTime: "2026-10-01T10:00:00-04:00", appointmentStatus: "confirmed" },
+    ];
+    llamadas.length = 0;
+    await sync();
+    const puts = llamadas.filter((l) => l.method === "PUT");
+    expect(puts).toHaveLength(1);
+    expect(puts[0].url).toContain(`/calendars/events/appointments/${e.pref}-es1`);
+    expect(JSON.parse(puts[0].body!)).toEqual({ assignedUserId: "u-B", calendarId: "cal-B", ignoreFreeSlotValidation: true });
+    expect((await cita(`${e.pref}-es1`))!.closer_id).toBe(e.p.closerB.id);
+    expect((await cita(`${e.pref}-es2`))!.closer_id).toBe(e.p.closerA.id);
+    await db.from("miembros_proyecto").update({ ghl_user_id: null, ghl_calendar_id: null, paises_closer: [] }).eq("proyecto_id", e.proyecto.id).in("perfil_id", [e.p.closerA.id, e.p.closerB.id]);
   });
 });

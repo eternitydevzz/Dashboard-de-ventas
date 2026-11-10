@@ -1,6 +1,6 @@
 // C11 (plan Callers, 7 nov): botones nuevos. Base simulada como en arreglos-callers.test.ts.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { elegirCloser } from "@/lib/rotacion";
+import { elegirCloser, elegirCloserPorPais } from "@/lib/rotacion";
 
 type Resp = { data: unknown; error: { message: string } | null };
 type Consulta = { tabla: string; ops: [string, unknown[]][] };
@@ -38,6 +38,17 @@ describe("C11 · rotación de closers", () => {
     expect(elegirCloser([{ perfil_id: "cristian", rotacion_pct: 100, rotacion_cuenta: 9 }, { perfil_id: "junior", rotacion_pct: 0, rotacion_cuenta: 0 }])).toBe("cristian");
     expect(elegirCloser([{ perfil_id: "a", rotacion_pct: 50, rotacion_cuenta: 3 }, { perfil_id: "b", rotacion_pct: 50, rotacion_cuenta: 2 }])).toBe("b");
     expect(elegirCloser([{ perfil_id: "a", rotacion_pct: 0, rotacion_cuenta: 0 }])).toBeNull();
+  });
+  it("11 nov: el país del lead manda (España, Europa → Facu); sin país o de otro país, la rotación (Thiago 100 %)", () => {
+    const c = [
+      { perfil_id: "thiago", rotacion_pct: 100, rotacion_cuenta: 7, paises_closer: [] },
+      { perfil_id: "facu", rotacion_pct: 0, rotacion_cuenta: 0, paises_closer: ["ES", "IT", "AE"] },
+    ];
+    expect(elegirCloserPorPais(c, "ES")).toBe("facu");
+    expect(elegirCloserPorPais(c, " it ")).toBe("facu");
+    expect(elegirCloserPorPais(c, "AR")).toBe("thiago");
+    expect(elegirCloserPorPais(c, null)).toBe("thiago");
+    expect(elegirCloserPorPais(c, "Sin país")).toBe("thiago");
   });
 });
 

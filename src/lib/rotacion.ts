@@ -25,14 +25,26 @@ export function validarRotacion(pcts: Record<string, number>) {
   return limpio;
 }
 
-export async function closerDeLaRotacion(proyectoId: string) {
+type MiembroRotacion = { perfil_id: string; rotacion_pct: number; rotacion_cuenta: number; paises_closer: string[] };
+
+// Cristian (11 nov 2026): si el país del lead es de un closer (paises_closer), va a ese; si no, la rotación por %
+export function elegirCloserPorPais(closers: MiembroRotacion[], pais: string | null | undefined) {
+  const p = (pais ?? "").trim().toUpperCase();
+  const delPais = p ? closers.find((c) => (c.paises_closer ?? []).some((x) => x.toUpperCase() === p)) : undefined;
+  return delPais?.perfil_id ?? elegirCloser(closers);
+}
+
+export async function closerDeLaRotacion(proyectoId: string, pais?: string | null) {
   const { data } = await db()
     .from("miembros_proyecto")
-    .select("perfil_id, rotacion_pct, rotacion_cuenta, perfiles!inner(rol, activo)")
+    .select("perfil_id, rotacion_pct, rotacion_cuenta, paises_closer, perfiles!inner(rol, activo)")
     .eq("proyecto_id", proyectoId)
     .or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }) // Plan GHL E1: también closer
     .eq("perfiles.activo", true);
-  const elegido = elegirCloser((data ?? []).map((c) => ({ perfil_id: c.perfil_id, rotacion_pct: Number(c.rotacion_pct), rotacion_cuenta: c.rotacion_cuenta })));
+  const elegido = elegirCloserPorPais(
+    (data ?? []).map((c) => ({ perfil_id: c.perfil_id, rotacion_pct: Number(c.rotacion_pct), rotacion_cuenta: c.rotacion_cuenta, paises_closer: (c.paises_closer as string[] | null) ?? [] })),
+    pais
+  );
   if (!elegido) throw new ErrorUsuario("No hay ningún closer en la rotación: pide al director que ponga el % de cada closer.");
   return elegido;
 }

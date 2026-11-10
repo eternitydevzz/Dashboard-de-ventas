@@ -11,7 +11,7 @@ const DIAS = ["L", "M", "X", "J", "V", "S", "D"];
 // «Agendado» del caller como la maqueta (plan Callers 7c.3; Cristian, 7 nov): un calendario con los días que tienen
 // hueco y, al elegir uno, las horas libres del closer de la rotación (su horario y sus citas). Deja en el formulario
 // `fecha` = «AAAA-MM-DDTHH:MM» en la hora del proyecto; el servidor vuelve a comprobar que sigue libre al guardar.
-export function CalendarioAgenda() {
+export function CalendarioAgenda({ leadId }: { leadId?: string }) {
   const [datos, setDatos] = useState<{ closer: string; sinHorario: boolean; dias: Dia[]; zona: string } | null>(null);
   const [error, setError] = useState("");
   const [dia, setDia] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export function CalendarioAgenda() {
 
   useEffect(() => {
     let vivo = true;
-    void huecosAgendaRotacion().then((r) => {
+    void huecosAgendaRotacion(leadId).then((r) => {
       if (!vivo) return;
       if (r && typeof r === "object" && "error" in r) return setError(String(r.error));
       setDatos(r);
@@ -29,7 +29,7 @@ export function CalendarioAgenda() {
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [leadId]);
 
   const conHueco = useMemo(() => new Map((datos?.dias ?? []).map((d) => [d.ymd, d.horas])), [datos]);
   const meses = useMemo(() => [...new Set((datos?.dias ?? []).map((d) => d.ymd.slice(0, 7)))], [datos]);

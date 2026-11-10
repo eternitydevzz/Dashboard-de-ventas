@@ -118,7 +118,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
     if (!fechaLocal) throw new ErrorUsuario("Elige fecha y hora.");
     const esCaller = perfil.rol === "caller";
-    if (esCaller) closerId = await closerDeLaRotacion(proyecto.id);
+    if (esCaller) closerId = await closerDeLaRotacion(proyecto.id, lead.pais);
     // El caller elige una hora libre del calendario; se vuelve a mirar al guardar (otro caller pudo cogerla antes)
     if (esCaller) {
       const libre = await closerLibreA(proyecto, closerId, new Date(aIso(fechaLocal, proyecto.zona_horaria)));

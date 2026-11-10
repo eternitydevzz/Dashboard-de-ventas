@@ -61,7 +61,7 @@ export function VentanaEstado({
           }
         >
           {/* El caller elige en el calendario las horas libres del closer de la rotación (maqueta 7c.3) */}
-          {esCaller ? <CalendarioAgenda /> : <CamposCita closers={closers} id={`ventana-estado-closer-${lead.id}`} />}
+          {esCaller ? <CalendarioAgenda leadId={lead.id} /> : <CamposCita closers={closers} id={`ventana-estado-closer-${lead.id}`} />}
           <label className="block"><span className="etiqueta-campo">Nota para el closer</span><textarea name="nota" rows={3} className="campo" placeholder="Situación, dolor, cifra…" /></label>
           <SelectorEstrellas quien="caller" opcional={!esCaller} />
           <button className="btn-primario w-full">Agendar</button>

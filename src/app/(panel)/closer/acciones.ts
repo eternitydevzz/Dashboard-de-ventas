@@ -117,12 +117,12 @@ export async function cambiarCloserCita(citaId: string, closerId: string) {
   return seguro(async () => {
     const { cita, proyecto, perfil, token } = await citaDelCeo(citaId);
     if (cita.closer_id === closerId) throw new ErrorUsuario("Ya es su closer.");
-    const { data: m } = await db().from("miembros_proyecto").select("ghl_user_id, perfiles!inner(nombre, rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", closerId).maybeSingle();
-    const nuevo = m as unknown as { ghl_user_id: string | null; perfiles: { nombre: string; rol: string } } | null;
-    if (!nuevo || nuevo.perfiles.rol !== "closer") throw new ErrorUsuario("Elige un closer de este proyecto.");
+    const { data: m } = await db().from("miembros_proyecto").select("ghl_user_id, ghl_calendar_id, perfiles!inner(nombre, rol, tambien_closer)").eq("proyecto_id", proyecto.id).eq("perfil_id", closerId).maybeSingle();
+    const nuevo = m as unknown as { ghl_user_id: string | null; ghl_calendar_id: string | null; perfiles: { nombre: string; rol: string; tambien_closer: boolean } } | null;
+    if (!nuevo || (nuevo.perfiles.rol !== "closer" && !nuevo.perfiles.tambien_closer)) throw new ErrorUsuario("Elige un closer de este proyecto.");
     if (cita.ghl_cita_id) {
       if (!nuevo.ghl_user_id) throw new ErrorUsuario(`${nuevo.perfiles.nombre} no tiene usuario de GHL: ponlo en su ficha antes de pasarle citas de GHL.`);
-      try { await cambiarUsuarioCitaGhl({ token: token(), citaId: cita.ghl_cita_id, usuarioId: nuevo.ghl_user_id }); } catch (e) { throw errorGhl(e); }
+      try { await cambiarUsuarioCitaGhl({ token: token(), citaId: cita.ghl_cita_id, usuarioId: nuevo.ghl_user_id, calendarId: nuevo.ghl_calendar_id }); } catch (e) { throw errorGhl(e); }
     }
     await escribir(db().from("citas").update({ closer_id: closerId }).eq("id", citaId), "citas");
     await escribir(db().from("leads").update({ closer_id: closerId }).eq("id", cita.lead_id), "leads");

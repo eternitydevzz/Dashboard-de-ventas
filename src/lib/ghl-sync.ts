@@ -3,7 +3,7 @@ import { db } from "@/lib/datos";
 import { descifrar } from "@/lib/cifrado";
 import { columnaCitasGhl, datosAgendaGhl, guardarLeads, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
-import { GhlEsperar, contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
+import { GhlEsperar, cambiarUsuarioCitaGhl, contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
 import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
 import { mismoNombre } from "@/lib/formato";
@@ -12,6 +12,7 @@ import { ABIERTAS } from "@/lib/llamadas";
 import { dispararEtiquetas, dispararWorkflows } from "@/lib/workflows-motor";
 import type { DisparoCita } from "@/lib/workflows";
 import { guardarError } from "@/lib/errores-app";
+import { closerDeLaRotacion } from "@/lib/rotacion";
 
 type ProyectoGhl = Proyecto & { ghl_token: string | null; ghl_location_id: string | null };
 export type ResultadoSync = { nuevas: number; actualizadas: number; canceladas: number; sinUnir: number; invalidas: number; closers: number; errores: string[] };
@@ -223,8 +224,25 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         continue;
       }
       const estado = deGhl ?? "pendiente"; // las inválidas ya salieron antes
+      // Cristian (11 nov 2026): una cita nueva y futura va al closer del país del lead (España, Europa y Emiratos → Facu;
+      // el resto → la rotación). Si GHL la puso a otro, se cambia también en GHL (usuario y calendario de ese closer);
+      // si GHL no lo acepta, se queda como venía y se apunta el error.
+      let closerFinal = closerId;
+      if (abierta && new Date(fecha).getTime() > ahora.getTime()) {
+        const { data: l } = await db().from("leads").select("pais").eq("id", leadId).maybeSingle();
+        const correcto = await closerDeLaRotacion(proyecto.id, (l?.pais as string | null) ?? null).catch(() => null);
+        const destino = correcto && correcto !== closerId ? closers.find((c) => c.perfil_id === correcto) : undefined;
+        if (destino?.ghl_user_id) {
+          try {
+            await cambiarUsuarioCitaGhl({ token, citaId: ev.id, usuarioId: destino.ghl_user_id, calendarId: destino.ghl_calendar_id, fetchImpl });
+            closerFinal = destino.perfil_id;
+          } catch (e) {
+            r.errores.push(`Cita ${ev.id}: no se pudo pasar a ${destino.perfiles.nombre} en GHL: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+      }
       const datosOrigen = calendario ? { ghl_calendario: calendario, ...origen } : {};
-      const { data: creada, error } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, ...(await datosAgendaGhl(leadId)), fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en, lead_id").single();
+      const { data: creada, error } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerFinal, ...(await datosAgendaGhl(leadId)), fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en, lead_id").single();
       if (error) {
         r.errores.push(`Cita ${ev.id}: ${error.message}`);
         continue;
@@ -237,7 +255,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         const { data: l } = await db().from("leads").select("estado_caller").eq("id", leadId).maybeSingle();
         const tras = estadoTrasCitaGhl(l?.estado_caller);
         if (tras) {
-          await db().from("leads").update({ estado_caller: tras.estado, ...(closerId ? { closer_id: closerId } : {}), llamar_en: null }).eq("id", leadId);
+          await db().from("leads").update({ estado_caller: tras.estado, ...(closerFinal ? { closer_id: closerFinal } : {}), llamar_en: null }).eq("id", leadId);
           if (tras.etiqueta) await ponerEtiqueta(leadId, tras.etiqueta);
           if (calendario) for (const d of destinosCanal) await moverAAgendadosOrganico(proyecto.id, leadId, d.nombre);
           else await moverAAgendadosOrganico(proyecto.id, leadId, pipelineCita);
