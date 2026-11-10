@@ -17,7 +17,8 @@ import type { Lead, Producto } from "@/lib/tipos";
 import { ColaCaller } from "./cola";
 
 // C11 (7c.1): una pastilla por columna; la primera, «Leads» = toda la cola (no hay una solo para los nuevos)
-const FILTROS = [{ v: "todos", t: "Leads" }, ...ESTADOS_CALLER.filter((e) => e.v !== "nuevo").map((e) => ({ v: e.v, t: e.t }))];
+// «Leads» = solo los que siguen en «Leads» (Cristian, 10 nov: antes salían todos y el equipo se liaba); cada estado, en su pestaña
+const FILTROS = ESTADOS_CALLER.map((e) => ({ v: e.v, t: e.t }));
 
 const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, llamar_en, creado_en, etiquetas, respuestas, pipeline_id"; // C5: + pipeline (su nombre sale en la cabecera del lead)
 type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id">;
@@ -35,7 +36,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   ]);
   const callers = gente.filter((g) => g.rol === "caller");
   const caller = jefe ? callers.find((c) => c.id === sp.caller) ?? callers[0] : perfil;
-  const filtro = typeof sp.columna === "string" && FILTROS.some((f) => f.v === sp.columna) ? sp.columna : "todos";
+  const filtro = typeof sp.columna === "string" && FILTROS.some((f) => f.v === sp.columna) ? sp.columna : "nuevo";
   const orden = leerOrden(sp.orden, sp.dir); // C2: orden de las cabeceras, en el servidor
 
   if (!caller) {
