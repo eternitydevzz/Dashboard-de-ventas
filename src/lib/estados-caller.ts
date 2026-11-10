@@ -1,6 +1,7 @@
 // C11 (plan Callers, 7 nov 2026; decisiones de Cristian): los estados del caller = las 12 columnas del pipeline
 // «Callers», en su orden. Sin «No contesta» ni «Link enviado» (los que había pasaron a «Seguimiento», migración
-// 20261107150200). Sin fechas: ni hora de «Llamar luego», ni aviso de vencidos, ni vuelta sola a la cola.
+// 20261107150200). «Llamar luego» guarda cuándo (opcional, solo se muestra; 10 nov), sin aviso de vencidos ni vuelta
+// sola a la cola.
 export const ESTADOS_CALLER = [
   { v: "nuevo", t: "Leads", color: "#64748b" },
   { v: "llamado", t: "Llamado", color: "#2b59d1" },

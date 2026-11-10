@@ -60,6 +60,18 @@ describe("C11 · botones de resultado", () => {
     await registrarLlamada("l1", "seguimiento", "quiere pensarlo", 4);
     expect(updateDe("leads")).toEqual({ estado_caller: "seguimiento", llamar_en: null, estrellas_caller: 4 });
   });
+  it("«Llamar luego» guarda cuándo (opcional, en la hora del proyecto); los demás estados no", async () => {
+    await registrarLlamada("l1", "llamar_luego", "", 3, "2026-11-12T17:00");
+    expect(updateDe("leads")).toEqual({ estado_caller: "llamar_luego", llamar_en: "2026-11-12T16:00:00.000Z", estrellas_caller: 3 }); // Madrid = UTC+1
+    expect(insertDe("actividades")?.nota).toMatch(/Llamar el 12 nov/);
+    consultas = [];
+    await registrarLlamada("l1", "llamar_luego", "", 3);
+    expect(updateDe("leads")).toEqual({ estado_caller: "llamar_luego", llamar_en: null, estrellas_caller: 3 });
+    consultas = [];
+    await registrarLlamada("l1", "seguimiento", "", 3, "2026-11-12T17:00");
+    expect(updateDe("leads")).toMatchObject({ llamar_en: null });
+    expect(await registrarLlamada("l1", "llamar_luego", "", 3, "mañana")).toMatchObject({ error: "Fecha no válida." });
+  });
   it("estados que no son un resultado, rechazados (p. ej. el viejo «no_contesta»)", async () => {
     expect(await registrarLlamada("l1", "no_contesta" as never, "")).toMatchObject({ error: "Resultado no válido." });
   });

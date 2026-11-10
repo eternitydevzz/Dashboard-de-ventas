@@ -49,7 +49,8 @@ const aIso = localAIso;
 export type ResultadoSimple = "nuevo" | "llamado" | "wsp_enviado" | "no_responde" | "no_interesa" | "seguimiento" | "llamar_luego" | "descartado" | "reagendado";
 const SIMPLES: ResultadoSimple[] = ["nuevo", "llamado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado"];
 
-export async function registrarLlamada(leadId: string, resultado: ResultadoSimple, nota: string, estrellas?: number) {
+// «Llamar luego» vuelve a guardar cuándo (Cristian, 10 nov 2026; opcional y solo se muestra): `llamarEn` = «AAAA-MM-DDTHH:MM»
+export async function registrarLlamada(leadId: string, resultado: ResultadoSimple, nota: string, estrellas?: number, llamarEn?: string) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
     if (!SIMPLES.includes(resultado)) throw new ErrorUsuario("Resultado no válido.");
@@ -57,10 +58,11 @@ export async function registrarLlamada(leadId: string, resultado: ResultadoSimpl
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
     if (lead.estado_caller === "vendido" && perfil.rol === "caller") throw new ErrorUsuario("Este lead ya compró: lo lleva el closer.");
     const n = CON_ESTRELLAS.has(resultado) ? estrellasEntre(estrellas, 2, 5) : null;
+    const llamar = resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, proyecto.zona_horaria) : null; // aIso valida el formato
     // F3 (plan Callers, 7 nov): si falla, error (antes salía «Guardado» aunque el estado no cambiara)
-    await escribir(db().from("leads").update({ estado_caller: resultado, llamar_en: null, ...(n ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");
+    await escribir(db().from("leads").update({ estado_caller: resultado, llamar_en: llamar, ...(n ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");
     const tipo = resultado === "llamado" ? "llamada" : resultado === "wsp_enviado" ? "whatsapp" : "cambio_etapa";
-    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo, resultado, nota: [`→ ${etiquetaEstado(resultado)}`, n ? `${n}★` : "", nota].filter(Boolean).join(" · ") });
+    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo, resultado, nota: [`→ ${etiquetaEstado(resultado)}`, n ? `${n}★` : "", llamar ? `Llamar el ${fechaHora(llamar, proyecto)}` : "", nota].filter(Boolean).join(" · ") });
     if (resultado === "no_interesa" || resultado === "descartado") await moverAColumna(lead, resultado, ["descartados", "descartado", "no interesa"]);
     if (resultado === "nuevo") await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
     refrescar();
