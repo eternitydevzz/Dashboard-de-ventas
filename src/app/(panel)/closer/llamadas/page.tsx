@@ -403,7 +403,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
               {jefe && <Insignia tono={porRecuperar(c) ? "mal" : "neutro"}>{porRecuperar(c) ? `Recuperar · ${quienLlevaba(c, nombrePersona)}` : quienLlevaba(c, nombrePersona)}</Insignia>}
               <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
             </div>
-            {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={proyecto.moneda} />}
+            {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={proyecto.moneda} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} />}
           </li>
         ))}
       </ul>
