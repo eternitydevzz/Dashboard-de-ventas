@@ -39,6 +39,9 @@ export function RepartirLeads({
   const [pipelineId, setPipelineId] = useState(pipelineInicial);
   const [etapaId, setEtapaId] = useState("");
   const [deCallers, setDeCallers] = useState<string[]>([]);
+  // Cristian (10 nov): en «Reasignar», dejarlos sin caller (vuelven a «Nuevo»): todos o un número
+  const [sinCaller, setSinCaller] = useState(false);
+  const [quitarTodos, setQuitarTodos] = useState(false);
   const [oferta, setOferta] = useState(ofertaInicial ?? "");
   const [paises, setPaises] = useState<string[]>(paisesIniciales ?? []);
   const [elegidos, setElegidos] = useState<string[]>(callers.map((c) => c.id));
@@ -51,6 +54,7 @@ export function RepartirLeads({
   const [pendiente, iniciar] = useTransition();
   const toast = useToast();
 
+  const quitar = !haySeleccion && origen === "reasignar" && sinCaller;
   const peticion = (): PeticionReparto => ({
     ...(haySeleccion ? { leadIds: seleccion } : fijo),
     ...(pipelines && !haySeleccion ? { pipelineId: pipelineId || null, etapaId: etapaId || null } : {}),
@@ -58,9 +62,9 @@ export function RepartirLeads({
     deCallers: !haySeleccion && origen === "reasignar" ? deCallers : undefined,
     oferta: oferta || null,
     paises,
-    callers: elegidos,
+    callers: quitar ? [] : elegidos,
     modo,
-    ...(modo === "fijo" ? { porPersona: Number(numero) } : modo === "tope" ? { tope: Number(numero) } : { n: Number(numero) }),
+    ...(quitar ? { desasignar: true, todos: quitarTodos, n: Number(numero) } : modo === "fijo" ? { porPersona: Number(numero) } : modo === "tope" ? { tope: Number(numero) } : { n: Number(numero) }),
   });
   const cambiar = <T,>(f: (v: T) => void) => (v: T) => {
     f(v);
@@ -68,7 +72,7 @@ export function RepartirLeads({
   };
   // Mejora de la pasada (Cristian, 11 oct): la vista previa sale sola al abrir y se recalcula con cada cambio
   // (sin botón «Ver reparto»). «Repartir» solo se enciende con la vista previa de lo que hay en pantalla.
-  const numeroOk = Number.isInteger(Number(numero)) && Number(numero) >= 1;
+  const numeroOk = (quitar && quitarTodos) || (Number.isInteger(Number(numero)) && Number(numero) >= 1);
   const clave = JSON.stringify(peticion());
   const ultima = useRef(0);
   const [calculando, setCalculando] = useState(false);
@@ -97,7 +101,7 @@ export function RepartirLeads({
     iniciar(async () => {
       try {
         const r = (await exigirOk(repartirLeads(peticion()))) as { repartidos: number };
-        toast(`${r.repartidos} leads repartidos`);
+        toast(quitar ? `${r.repartidos} leads sin caller` : `${r.repartidos} leads repartidos`);
         setAbierto(false);
         setVista(null);
       } catch (e) {
@@ -203,6 +207,19 @@ export function RepartirLeads({
                 <p className="text-xs text-texto-3">{ultimosPaises ? "No hay leads con estos filtros." : "Calculando…"}</p>
               )}
             </div>
+            {!haySeleccion && origen === "reasignar" && (
+              <label className="flex items-center gap-1.5 font-medium"><input type="checkbox" checked={sinCaller} onChange={() => cambiar(setSinCaller)(!sinCaller)} />Dejarlos sin caller (vuelven a «Nuevo»)</label>
+            )}
+            {quitar ? (
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="block">
+                  <span className="etiqueta-campo">¿A cuántos? (los más nuevos)</span>
+                  <input className="campo py-1.5 text-xs" type="number" min={1} value={numero} disabled={quitarTodos} onChange={(e) => cambiar(setNumero)(e.target.value)} />
+                </label>
+                <label className="flex items-center gap-1.5 pb-1.5"><input type="checkbox" checked={quitarTodos} onChange={() => cambiar(setQuitarTodos)(!quitarTodos)} />Todos los que cumplan</label>
+              </div>
+            ) : (
+            <>
             <div>
               <div className="etiqueta-campo">Entre estos callers</div>
               <div className="flex flex-wrap gap-1.5">
@@ -225,11 +242,13 @@ export function RepartirLeads({
               </label>
             </div>
             <p className="text-xs text-texto-3">{MODOS_REPARTO.find((m) => m.v === modo)?.d}. Se reparten primero los más nuevos.</p>
+            </>
+            )}
             {!numeroOk && <p className="rounded-lg bg-aviso-suave px-3 py-2 text-aviso">Pon un número de 1 o más.</p>}
             {numeroOk && !vista && !error && <p className="text-xs text-texto-3">Calculando el reparto…</p>}
             {vista && (
               <div className="rounded-lg border border-borde p-2.5">
-                <div className="mb-2 font-medium">Se repartirán {vista.total} de {vista.disponibles} disponibles</div>
+                <div className="mb-2 font-medium">{quitar ? `Se quitará el caller a ${vista.total} de ${vista.disponibles}` : `Se repartirán ${vista.total} de ${vista.disponibles} disponibles`}</div>
                 <ul className="space-y-1">
                   {vista.porCaller.map((c) => (
                     <li key={c.id} className="flex justify-between"><span>{c.nombre}{c.carga !== null ? <span className="text-xs text-texto-3"> · ya tiene {c.carga} sin trabajar</span> : null}</span><b className="tabular-nums">{c.n}</b></li>
@@ -241,7 +260,7 @@ export function RepartirLeads({
           </div>
           <div className="mt-3 border-t border-borde pt-3">
             <button className="btn-primario w-full" disabled={pendiente || calculando || !vista || !vista.total} onClick={repartir}>
-              {pendiente ? "Repartiendo…" : !elegidos.length ? "Elige al menos un caller" : vista && !vista.total ?"No hay leads que repartir con esos filtros" : `Repartir ${vista ? vista.total : ""}`}
+              {pendiente ? "Repartiendo…" : !quitar && !elegidos.length ? "Elige al menos un caller" : vista && !vista.total ? "No hay leads con esos filtros" : quitar ? `Quitar el caller a ${vista ? vista.total : ""}` : `Repartir ${vista ? vista.total : ""}`}
             </button>
           </div>
           </div>
