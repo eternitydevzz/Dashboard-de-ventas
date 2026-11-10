@@ -255,13 +255,15 @@ export async function cambiarUsuarioCitaGhl(o: { token: string; citaId: string; 
   await escribir(o.fetchImpl ?? fetch, o.token, "PUT", `/calendars/events/appointments/${encodeURIComponent(o.citaId)}`, { assignedUserId: o.usuarioId }, "calendars/events.write", "2021-04-15");
 }
 
-// Devuelve false si GHL ya no la tiene (404): no hay nada que borrar allí
+// Devuelve false si GHL ya no la tiene: no hay nada que borrar allí. Comprobado en producción (10 nov): GHL no da 404
+// sino «400: The event id is invalid or it has already been deleted.»
 export async function borrarCitaGhl(o: { token: string; citaId: string; fetchImpl?: Fetch }): Promise<boolean> {
   try {
     await escribir(o.fetchImpl ?? fetch, o.token, "DELETE", `/calendars/events/${encodeURIComponent(o.citaId)}`, {}, "calendars/events.write", "2021-04-15");
     return true;
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith("GHL respondió 404")) return false;
+    const m = e instanceof Error ? e.message : "";
+    if (m.startsWith("GHL respondió 404") || (m.startsWith("GHL respondió 400") && /already been deleted/i.test(m))) return false;
     throw e;
   }
 }

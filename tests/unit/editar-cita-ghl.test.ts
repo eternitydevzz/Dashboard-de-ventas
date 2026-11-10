@@ -39,6 +39,14 @@ describe("borrarCitaGhl", () => {
     const { f } = falso(404, { message: "not found" });
     expect(await borrarCitaGhl({ token: "tok", citaId: "c1", fetchImpl: f })).toBe(false);
   });
+  it("400 «already been deleted» (lo que GHL contesta de verdad) = ya no está: devuelve false", async () => {
+    const { f } = falso(400, { message: "The event id is invalid or it has already been deleted." });
+    expect(await borrarCitaGhl({ token: "tok", citaId: "c1", fetchImpl: f })).toBe(false);
+  });
+  it("otro 400 lanza", async () => {
+    const { f } = falso(400, { message: "algo distinto" });
+    await expect(borrarCitaGhl({ token: "tok", citaId: "c1", fetchImpl: f })).rejects.toThrow("GHL respondió 400");
+  });
   it("otro error lanza", async () => {
     const { f } = falso(401);
     await expect(borrarCitaGhl({ token: "tok", citaId: "c1", fetchImpl: f })).rejects.toThrow("calendars/events.write");
