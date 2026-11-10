@@ -33,6 +33,7 @@ import {
   ordenarPipelines,
   marcarColumnaCitasGhl,
   renombrarPipeline,
+  borrarPipeline,
   unirEstado,
   guardarPermisoPipeline,
 } from "./acciones";
@@ -363,6 +364,15 @@ export function TableroCrm({
           alRenombrar={(p) => {
             void pedirTexto("Nuevo nombre del pipeline", p.nombre).then((n) => {
               if (n) ejecutar(() => exigirOk(renombrarPipeline(p.id, n)), `Pipeline renombrado a «${n}»`);
+            });
+          }}
+          alBorrar={(p) => {
+            void confirmar(`¿Borrar el pipeline «${p.nombre}» y sus columnas? No se puede deshacer.`, { boton: "Borrar" }).then((si) => {
+              if (!si) return;
+              ejecutar(async () => {
+                await exigirOk(borrarPipeline(p.id));
+                if (p.id === pipeline?.id) router.push("/crm");
+              }, `Pipeline «${p.nombre}» borrado`);
             });
           }}
         />
