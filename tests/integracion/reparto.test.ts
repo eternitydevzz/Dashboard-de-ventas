@@ -88,6 +88,18 @@ describe("Repartir leads", () => {
     await ok(repartirLeads({ origen: "todos", oferta: "empresas", callers: [e.p.callerB.id], modo: "equitativo", n: 10 }));
     expect(await callerDe(ids)).toEqual(Array(3).fill(e.p.callerB.id));
   });
+  it("10 nov: desasignar en «Reasignar» deja sin caller y en «Nuevo» (un número o todos)", async () => {
+    const { data } = await db.from("leads").insert([0, 1, 2].map((i) => ({ proyecto_id: e.proyecto.id, nombre: `D${i}`, apellido: "", email: `${e.pref}-desas${i}@x.test`, oferta: "membresia", pipeline_id: e.pipeline.id, caller_id: e.p.callerA.id, estado_caller: "llamar_luego", llamar_en: new Date().toISOString() }))).select("id");
+    const ids = data!.map((x) => x.id);
+    como(e, e.p.director);
+    const base = { origen: "reasignar" as const, deCallers: [e.p.callerA.id], oferta: "membresia", callers: [], modo: "equitativo" as const, desasignar: true };
+    const v = await ok(previsualizarReparto({ ...base, n: 2 }));
+    expect([v.total, v.disponibles]).toEqual([2, 3]);
+    expect((await ok(repartirLeads({ ...base, n: 1 }))).repartidos).toBe(1);
+    expect((await ok(repartirLeads({ ...base, todos: true }))).repartidos).toBe(2);
+    const { data: despues } = await db.from("leads").select("caller_id, estado_caller, llamar_en").in("id", ids);
+    expect(despues!.every((l) => l.caller_id === null && l.estado_caller === "nuevo" && l.llamar_en === null)).toBe(true);
+  });
   it("10 nov: la vista previa cuenta los países aunque no haya callers elegidos (repartir sigue pidiéndolos)", async () => {
     como(e, e.p.director);
     const v = await ok(previsualizarReparto({ origen: "sin_asignar", pipelineId: e.pipeline.id, callers: [], modo: "equitativo", n: 10 }));

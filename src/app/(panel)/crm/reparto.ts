@@ -26,6 +26,8 @@ export type PeticionReparto = {
   n?: number;
   porPersona?: number;
   tope?: number;
+  desasignar?: boolean; // Cristian (10 nov): al reasignar, dejarlos sin caller y en «Nuevo» (sin callers de destino)
+  todos?: boolean; // al desasignar: todos los que cumplan (si no, los `n` más nuevos)
 };
 
 // `vista`: la vista previa cuenta los países aunque aún no haya callers elegidos (Cristian, 10 nov: se quedaba en «Calculando…»)
@@ -36,7 +38,8 @@ async function preparar(p: PeticionReparto, vista = false) {
   const gente = await equipo(proyecto.id);
   const callersOk = gente.filter((g) => g.rol === "caller").map((g) => g.id);
   const callers = [...new Set(p.callers)].filter((c) => callersOk.includes(c));
-  if (!callers.length && !vista) throw new ErrorUsuario("Elige al menos un caller.");
+  const quitar = !!p.desasignar && p.origen === "reasignar";
+  if (!callers.length && !vista && !quitar) throw new ErrorUsuario("Elige al menos un caller.");
   if (p.origen === "reasignar" && !p.deCallers?.length) throw new ErrorUsuario("Elige de quién se quitan los leads.");
   const seleccion = p.origen === "seleccion";
   if (seleccion && !p.leadIds?.length) throw new ErrorUsuario("Selecciona leads en el CRM.");
@@ -99,8 +102,10 @@ async function preparar(p: PeticionReparto, vista = false) {
       })
     );
   }
-  const plan = planReparto(leads, callers, { modo: p.modo, n: p.n, porPersona: p.porPersona, tope: p.tope }, carga);
-  return { perfil, proyecto, gente, callers, leads, plan, carga, porPais, conCaller };
+  const plan = quitar ? new Map<string, string>() : planReparto(leads, callers, { modo: p.modo, n: p.n, porPersona: p.porPersona, tope: p.tope }, carga);
+  // Al desasignar, los que se quedan sin caller: todos o los `n` más nuevos
+  const sinCaller = !quitar ? [] : p.todos ? leads : leads.slice(0, Math.max(0, Math.floor(Number(p.n) || 0)));
+  return { perfil, proyecto, gente, callers: quitar ? [] : callers, leads, plan, carga, porPais, conCaller, sinCaller };
 }
 
 // Los leads marcados, por trozos de 200 (el filtro `in` va en la dirección), de los más nuevos a los más antiguos
@@ -120,13 +125,13 @@ async function porIds(proyectoId: string, ids: string[], oferta: string | null) 
 // Vista previa: «Carla 20 · Diego 20…» sin cambiar nada
 export async function previsualizarReparto(p: PeticionReparto) {
   return seguro(async () => {
-    const { gente, callers, leads, plan, carga, porPais, conCaller } = await preparar(p, true);
+    const { gente, callers, leads, plan, carga, porPais, conCaller, sinCaller } = await preparar(p, true);
     const n = resumenPlan(plan, callers);
     return {
       porPais,
       conCaller,
       disponibles: leads.length,
-      total: plan.size,
+      total: plan.size || sinCaller.length,
       porCaller: callers.map((c) => ({ id: c, nombre: gente.find((g) => g.id === c)?.nombre ?? "—", n: n[c] ?? 0, carga: carga[c] ?? null })),
     };
   });
@@ -134,7 +139,19 @@ export async function previsualizarReparto(p: PeticionReparto) {
 
 export async function repartirLeads(p: PeticionReparto) {
   return seguro(async () => {
-    const { perfil, proyecto, gente, plan } = await preparar(p);
+    const { perfil, proyecto, gente, plan, sinCaller } = await preparar(p);
+    if (p.desasignar && p.origen === "reasignar") {
+      if (!sinCaller.length) throw new ErrorUsuario("No hay leads que desasignar con esos filtros.");
+      for (let i = 0; i < sinCaller.length; i += 200) {
+        const trozo = sinCaller.slice(i, i + 200);
+        // Como «volver a Nuevo» (leads/acciones.ts) y sin caller; la columna de su pipeline de origen no se toca
+        const { error } = await db().from("leads").update({ caller_id: null, estado_caller: "nuevo", llamar_en: null, etapa_callers_id: null }).in("id", trozo).eq("proyecto_id", proyecto.id);
+        if (error) throw new Error(`No se pudo desasignar: ${error.message}`);
+        await db().from("actividades").insert(trozo.map((id) => ({ proyecto_id: proyecto.id, lead_id: id, perfil_id: perfil.id, tipo: "asignacion", nota: "Caller: nadie · desasignado (vuelve a «Nuevo»)" })));
+      }
+      revalidatePath("/", "layout");
+      return { repartidos: sinCaller.length };
+    }
     if (!plan.size) throw new ErrorUsuario("No hay leads que repartir con esos filtros.");
     const porCaller = new Map<string, string[]>();
     for (const [lead, caller] of plan) porCaller.set(caller, [...(porCaller.get(caller) ?? []), lead]);
