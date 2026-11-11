@@ -1,17 +1,15 @@
 # Rediseño de 4 pestañas · Plan
 
-> Actualizado el 11 nov 2026. **Estado: hecho, en producción y probado.** Quedan 2 fallos pequeños, apuntados en «Lo que falta». La versión anterior del plan, con los pasos de cada tarea, está en el historial de git (commit `57561b6`).
+> Actualizado el 11 nov 2026. **Estado: terminado.** Hecho, en producción y probado; no queda nada pendiente. La versión anterior del plan, con los pasos de cada tarea, está en el historial de git (commit `57561b6`).
 
 **Objetivo:** que Entradas, Workflows, Etiquetas y UTMs (Administración) y UTMs (KPIs) se vean como KPIs → Leads, con números grandes, círculos, barras y gráficos, en vez de listas de texto.
 
 ## Lo que falta
 
-Los 2 fallos que encontraron las pruebas del 11 nov. Cristian: «Apúntalos para después».
-
-1. **KPIs → UTMs en el móvil tiene scroll lateral.** El contenido mide 487 px en una pantalla de 406: los nombres largos de las campañas en el círculo «Por campaña» empujan la tarjeta. Arreglo propuesto: `min-w-0` en las tarjetas de la rejilla de círculos (`src/app/(panel)/kpis/utms.tsx`; mirar también `admin/etiquetas-utms.tsx`, que tiene la misma rejilla). Cómo se comprueba: pestaña aparte a 375 px, sin scroll lateral.
-2. **Las etiquetas del pico se montan.** Los 2 días enormes (1408 y 807) son seguidos y sus etiquetas quedan una encima de la otra: se lee «1 807↑». Arreglo propuesto: si 2 etiquetas quedan a menos de su ancho, la segunda va más arriba (en `LineaDias`, `utms.tsx`). Cómo se comprueba: en Maestria «Todo» se leen «1408↑» y «807↑».
-
-Mejora vista (no es un fallo): al crear una Entrada, la ventana «Conectar una landing» se queda abierta con «Entrada creada…» y hay que cerrarla para ver la tarjeta. Se podría cerrar sola.
+**Nada.** Los 2 fallos y la mejora que salieron de las pruebas están arreglados en el PR [#139](https://github.com/eternitydevzz/Dashboard-de-ventas/pull/139) y comprobados en producción el 11 nov:
+- **Móvil:** KPIs → UTMs y Etiquetas y UTMs ya no tienen scroll lateral (406 = 406).
+- **Etiquetas del pico:** los 2 días seguidos comparten etiqueta, «1408↑ · 807↑» (`etiquetasPico` en `src/lib/utms.ts`, con test).
+- **«Conectar una landing»:** la ventana se cierra sola al crear y el «Entrada creada…» sale como aviso. Probado en Test; la Entrada de prueba se borró.
 
 ## Pruebas hechas el 11 nov (todo bien, salvo lo de arriba)
 
@@ -33,6 +31,7 @@ Mejora vista (no es un fallo): al crear una Entrada, la ventana «Conectar una l
 | [#127](https://github.com/eternitydevzz/Dashboard-de-ventas/pull/127) | Las 4 pestañas con la maqueta v1. Tests nuevos: `entradas-por-dia`, `borrar-workflow` y `utms-graficos` |
 | [#129](https://github.com/eternitydevzz/Dashboard-de-ventas/pull/129) | Arreglos vistos en producción: el pico de UTMs no se cortaba (eran 2 días, 1408 y 807); el círculo de etiquetas sumaba etiquetas como si fueran leads (14.959); «97.7 %» pasa a «97,7 %»; «Lo manda su workflow» salía repetido |
 | [#130](https://github.com/eternitydevzz/Dashboard-de-ventas/pull/130) | Las 2 últimas fechas del gráfico se montaban («09/1110/11») |
+| [#139](https://github.com/eternitydevzz/Dashboard-de-ventas/pull/139) | Scroll lateral en el móvil, etiquetas del pico montadas y la ventana de «Conectar una landing» se cierra sola |
 
 - **Entradas:**
   - 4 números arriba: envíos hoy, Entradas activas, envíos con error y workflows en prueba.
