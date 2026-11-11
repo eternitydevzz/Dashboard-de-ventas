@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Bell, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Modal } from "@/components/modal";
+import { PortadaMarca } from "@/components/portada-marca";
 import { FIN_BIENVENIDA } from "@/components/bienvenida";
 import { esError } from "@/lib/resultado";
 import { mensajesAlEntrar, reporteAlEntrar } from "@/app/(panel)/avisos-acciones";
@@ -13,12 +13,12 @@ import type { Rol } from "@/lib/tipos";
 
 // Ventana al entrar (Cristian, 11 nov 2026; maqueta docs/maqueta-bienvenida.html). Sale cuando se quita la bienvenida.
 // Callers y closers: sus mensajes (motivación, grabar, felicitaciones) y sus números. CEO: el reporte de ayer (antes
-// components/reporte-dia.tsx) y sus avisos. Director: nada. Fotos hechas con Codex y el símbolo de Maestria (public/mensajes).
+// components/reporte-dia.tsx) y sus avisos. Director: nada. Portada: la M de Maestria sobre azul (Cristian: sin fotos de IA).
 type Etiqueta = "MOTIVACIÓN" | "RECUERDA" | "¡FELICIDADES!" | "AYER";
-type Tarjeta = { foto: string; etiqueta: Etiqueta; titulo: string; texto: string };
+type Tarjeta = { etiqueta: Etiqueta; titulo: string; texto: string };
 
 // Textos de Cristian (11 nov), en «tú»; los de los hitos que no escribió él son de Claude (revisados en la maqueta)
-const TEXTOS: Record<ClaveMensaje, (n: string) => Omit<Tarjeta, "foto">> = {
+const TEXTOS: Record<ClaveMensaje, (n: string) => Tarjeta> = {
   motivacion: (n) => ({ etiqueta: "MOTIVACIÓN", titulo: `Buenos días, ${n}`, texto: "Hoy estás un paso más cerca de cumplir tus objetivos. Recuerda: si lo puedes soñar, lo puedes lograr. ¡Dios te bendiga hoy!" }),
   grabacion: () => ({ etiqueta: "RECUERDA", titulo: "Graba tus llamadas", texto: "Recuerda grabar tus llamadas para que podamos estudiarlas en equipo y seguir mejorando día a día." }),
   ll100: (n) => ({ etiqueta: "¡FELICIDADES!", titulo: "¡100 llamadas hoy!", texto: `Vas a un ritmo increíble, ${n}. Cada llamada te acerca a la siguiente agenda. ¡Sigue así!` }),
@@ -43,7 +43,7 @@ const COLOR_ETIQUETA: Record<Etiqueta, string> = {
 type Contenido = { tarjetas: Tarjeta[]; titulo: string; filas: { texto: string; detalle: string; rojo?: boolean }[] };
 
 function deMensajes(nombre: string, r: { rol: Rol; mensajes: ClaveMensaje[]; numeros: NumerosCaller | NumerosCloser }): Contenido {
-  const tarjetas = r.mensajes.map((k) => ({ foto: `/mensajes/${k}.jpg`, ...TEXTOS[k](nombre) }));
+  const tarjetas = r.mensajes.map((k) => TEXTOS[k](nombre));
   const n = r.numeros;
   const filas = "llamadasHoy" in n
     ? [{ texto: `${n.llamadasHoy} llamadas hoy`, detalle: n.llamadasHoy < 50 ? `Te faltan ${50 - n.llamadasHoy} para las 50` : "Objetivo de 50 cumplido" }, { texto: `${n.agendasSemana} agendas esta semana`, detalle: "Mis leads" }]
@@ -54,7 +54,7 @@ function deMensajes(nombre: string, r: { rol: Rol; mensajes: ClaveMensaje[]; num
 function delReporte(r: { dia: string; leads: number; agendas: number }, avisos: AvisoCeo[]): Contenido {
   const [a, m, d] = r.dia.split("-");
   return {
-    tarjetas: [{ foto: "/mensajes/ag5.jpg", etiqueta: "AYER", titulo: `Ayer, ${d}/${m}/${a}`, texto: `Entraron ${r.leads} leads y se agendaron ${r.agendas} citas.` }],
+    tarjetas: [{ etiqueta: "AYER", titulo: `Ayer, ${d}/${m}/${a}`, texto: `Entraron ${r.leads} leads y se agendaron ${r.agendas} citas.` }],
     titulo: "AVISOS",
     filas: avisos.length ? avisos.map((x) => ({ texto: x.texto, detalle: "Administración", rojo: true })) : [{ texto: "Sin avisos pendientes", detalle: "Todo en orden" }],
   };
@@ -91,7 +91,7 @@ export function VentanaEntrada({ rol, nombre, avisos = [] }: { rol: Rol; nombre:
     <Modal
       titulo={`Bienvenido ${nombre}`}
       onCerrar={cerrar}
-      claseVentana="flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden p-0 entra-seccion"
+      claseVentana="ventana-entrada flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col overflow-hidden p-0 entra-seccion"
       cabecera={
         <div className="flex items-start justify-between px-6 pb-2 pt-5">
           <div>
@@ -106,9 +106,7 @@ export function VentanaEntrada({ rol, nombre, avisos = [] }: { rol: Rol; nombre:
     >
       <div className="grid gap-5 overflow-y-auto px-6 py-3 md:grid-cols-[1.1fr_1fr]">
         <section className="flex flex-col overflow-hidden rounded-2xl border border-borde" aria-live="polite" aria-label="Mensajes para ti">
-          <div className="relative aspect-video bg-panel-2">
-            <Image key={t.foto} src={t.foto} alt="" fill sizes="(min-width: 768px) 480px, 100vw" className="entra-seccion object-cover" priority />
-          </div>
+          <PortadaMarca className="aspect-video" />
           <div className="p-4">
             <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wider ${COLOR_ETIQUETA[t.etiqueta]}`}>● {t.etiqueta}</span>
             <h3 className="mt-2 text-lg font-semibold">{t.titulo}</h3>

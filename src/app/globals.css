@@ -285,6 +285,13 @@ body,
 }
 .entra-seccion { animation: entra 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+/* Portada de los mensajes de entrada (components/portada-marca.tsx): azul Maestria, M blanca y destellos (sin brillo en la M: Cristian, 11 nov) */
+.portada-marca { background: radial-gradient(ellipse 55% 60% at 50% 50%, #5b8ff5 0%, #2a6ae8 38%, #155ee0 70%, #0d52cf 100%); }
+@keyframes titila { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.75); } }
+.portada-destello { transform-origin: center; animation: titila 2.4s ease-in-out infinite; filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.8)); }
+/* Ventana de entrada: sombra azul de marca en los bordes (Cristian, 11 nov) */
+.tarjeta.ventana-entrada { box-shadow: 0 0 0 1px rgb(43 89 209 / 0.35), 0 0 40px -6px rgb(43 89 209 / 0.55), 0 24px 60px -18px rgb(43 89 209 / 0.6); }
+
 /* ---------- Un solo estilo para elegir (Fase 3, 12 oct 2026) ----------
    Casilla: para marcar filas de una lista (CRM, enviar accesos, repartir, pasos). Redondeada, verde al marcar.
    .interruptor: para un sí/no suelto; el mismo aspecto que los de Permisos (verde encendido, gris apagado).

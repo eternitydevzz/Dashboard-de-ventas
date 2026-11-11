@@ -73,7 +73,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .capa.corta .pista{display:none}
 @keyframes capa-sale{0%,85%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
 @keyframes capa-sale-corta{0%,60%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
-.capa .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--primario),var(--primario-2));box-shadow:0 8px 30px var(--halo);animation:entra .6s cubic-bezier(.16,1,.3,1) both}
+.capa .logo{display:grid;place-items:center;width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--primario),var(--primario-2));box-shadow:0 8px 30px var(--halo);animation:entra .6s cubic-bezier(.16,1,.3,1) both}
+.capa .logo img{width:34px;height:auto}
 .capa h1{margin:0;font-size:clamp(26px,4.2vw,40px);letter-spacing:-.03em;animation:entra .76s cubic-bezier(.16,1,.3,1) .1s both}
 .capa h1 b{color:var(--primario)}
 .pista{width:min(280px,64vw);height:3px;border-radius:3px;overflow:hidden;background:var(--borde-fuerte)}
@@ -83,7 +84,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* ---------- Ventana de avisos al entrar ---------- */
 .fondo-modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;background:rgb(6 10 24 / .45);backdrop-filter:blur(6px)}
-.modal{width:min(980px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--solido);border:1px solid var(--borde-fuerte);border-radius:22px;box-shadow:var(--sombra);animation:entra .45s cubic-bezier(.16,1,.3,1) both}
+.modal{width:min(780px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--solido);border:1px solid var(--borde-fuerte);border-radius:22px;box-shadow:0 0 0 1px rgb(43 89 209 / .35),0 0 40px -6px rgb(43 89 209 / .55),0 24px 60px -18px rgb(43 89 209 / .6);animation:entra .45s cubic-bezier(.16,1,.3,1) both}
 .modal header{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 26px 8px}
 .modal h2{margin:0;font-size:24px;letter-spacing:-.02em}
 .modal h2 b{color:var(--primario)}
@@ -92,8 +93,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 .cuerpo{display:grid;grid-template-columns:1.1fr 1fr;gap:20px;padding:12px 26px;overflow:auto}
 .novedad{border:1px solid var(--borde);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
 .novedad .img{position:relative;aspect-ratio:16/9;background:var(--panel-2)}
-.novedad .img img{width:100%;height:100%;object-fit:cover;display:block;animation:entra .5s both}
-.novedad .img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgb(6 10 24 / .35))}
+.novedad .img.portada{display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse 55% 60% at 50% 50%,#5b8ff5 0%,#2a6ae8 38%,#155ee0 70%,#0d52cf 100%)}
+.portada-m{position:relative;width:24%}
+@keyframes titila{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
+.destello{position:absolute;height:auto;animation:titila 2.4s ease-in-out infinite;filter:drop-shadow(0 0 6px rgb(255 255 255 / .8))}
 .credito{position:absolute;right:8px;bottom:6px;z-index:1;font-size:10px;color:#fff;opacity:.8}
 .etq.fiesta{color:var(--primario);background:var(--primario-suave)}
 .etq.recuerda{color:var(--aviso-texto);background:var(--aviso-suave)}
@@ -170,8 +173,7 @@ const ROLES = {
               hoy: [],
               avisos: [["rojo","2 cita(s) sin closer","Administración"],["rojo","1 envío(s) en rojo que no llegaron a GHL","Administración"],["rojo","3 ejecución(es) de workflow con error","Administración"]] },
 };
-// Fotos hechas con Codex (11 nov 2026), con el símbolo de Maestria y bordes azules: public/mensajes/
-const FOTO = (k) => `../public/mensajes/${k}.jpg`; // las de la app (Codex + símbolo de Maestria)
+// Portada: la M de Maestria sobre azul con destellos, igual para todos (Cristian, 11 nov: sin fotos de IA)
 // Mensajes (textos de Cristian, 11 nov, pasados a «tú»; los marcados «propuesta» son de Claude, sin aprobar)
 const M = {
   motivacion: (n) => ["MOTIVACIÓN", "", 'motivacion', `Buenos días, ${n}`, "Hoy estás un paso más cerca de cumplir tus objetivos. Recuerda: si lo puedes soñar, lo puedes lograr. ¡Dios te bendiga hoy!"],
@@ -232,7 +234,7 @@ function bienvenida(corta) {
   const capa = document.createElement("div");
   capa.className = "capa" + (corta ? " corta" : "");
   capa.setAttribute("role", "status");
-  capa.innerHTML = `<div class="logo"></div><h1>Bienvenido <b>${esc(r.nombre)}</b></h1><div class="pista"><i></i></div>
+  capa.innerHTML = `<div class="logo"><img src="../public/marca/maestria-m.png" alt="Maestria"></div><h1>Bienvenido <b>${esc(r.nombre)}</b></h1><div class="pista"><i></i></div>
     ${corta ? "" : `<p>Preparando ${esc(r.precarga.slice(0, -1).join(", "))} y ${esc(r.precarga.at(-1))}…</p>`}`;
   document.body.append(capa);
   capa.addEventListener("animationend", (e) => { if (e.target === capa) { capa.remove(); if (!corta) ventana(); } });
@@ -249,7 +251,7 @@ function ventana() {
   f.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="tv">
     <header><div><h2 id="tv">Bienvenido <b>${esc(r.nombre)}</b></h2><div style="color:var(--texto-2);margin-top:4px">Tienes <span class="cuenta">${total}</span> ${total === 1 ? "mensaje nuevo" : "mensajes nuevos"}</div></div><button class="cerrar" aria-label="Cerrar">×</button></header>
     <div class="cuerpo">
-      <section class="novedad" aria-label="Mensajes para ti" aria-live="polite"><div class="img"><img id="novImg" alt=""></div><div class="txt"><span class="etq" id="novE"></span><h3 id="novT"></h3><p id="novP"></p></div>
+      <section class="novedad" aria-label="Mensajes para ti" aria-live="polite"><div class="img portada" aria-hidden="true"><img class="portada-m" src="../public/marca/maestria-m.png" alt=""><svg class="destello" style="left:28%;top:22%;width:26px" viewBox="0 0 24 24"><path d="M12 0C12.6 6.6 17.4 11.4 24 12 17.4 12.6 12.6 17.4 12 24 11.4 17.4 6.6 12.6 0 12 6.6 11.4 11.4 6.6 12 0Z" fill="white"/></svg><svg class="destello" style="left:70%;top:24%;width:24px;animation-delay:.6s" viewBox="0 0 24 24"><path d="M12 0C12.6 6.6 17.4 11.4 24 12 17.4 12.6 12.6 17.4 12 24 11.4 17.4 6.6 12.6 0 12 6.6 11.4 11.4 6.6 12 0Z" fill="white"/></svg><svg class="destello" style="left:27%;top:74%;width:16px;animation-delay:1.2s" viewBox="0 0 24 24"><path d="M12 0C12.6 6.6 17.4 11.4 24 12 17.4 12.6 12.6 17.4 12 24 11.4 17.4 6.6 12.6 0 12 6.6 11.4 11.4 6.6 12 0Z" fill="white"/></svg><svg class="destello" style="left:71%;top:72%;width:18px;animation-delay:.3s" viewBox="0 0 24 24"><path d="M12 0C12.6 6.6 17.4 11.4 24 12 17.4 12.6 12.6 17.4 12 24 11.4 17.4 6.6 12.6 0 12 6.6 11.4 11.4 6.6 12 0Z" fill="white"/></svg></div><div class="txt"><span class="etq" id="novE"></span><h3 id="novT"></h3><p id="novP"></p></div>
         <div class="carrusel"><button id="ant" aria-label="Anterior">‹</button><span id="novN"></span><button id="sig" aria-label="Siguiente">›</button></div></section>
       <section>${r.hoy.length ? `<div class="grupo">TUS NÚMEROS</div>${r.hoy.map(fila).join("")}` : ""}
         ${r.avisos.length ? `<div class="grupo">AVISOS · ${r.avisos.length}</div>${r.avisos.map(fila).join("")}` : ""}</section>
@@ -259,7 +261,6 @@ function ventana() {
   nov = 0;
   const pintaNov = () => {
     const [etq, clase, foto, t, p] = lista[nov];
-    const img = $("#novImg"); img.src = FOTO(foto); img.style.animation = "none"; void img.offsetWidth; img.style.animation = "";
     $("#novE").className = "etq " + clase; $("#novE").textContent = "● " + etq;
     $("#novT").textContent = t; $("#novP").textContent = p; $("#novN").textContent = `${nov + 1} / ${lista.length}`;
     $("#ant").disabled = $("#sig").disabled = lista.length < 2;

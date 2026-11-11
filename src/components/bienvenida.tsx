@@ -37,7 +37,7 @@ export function Bienvenida({ nombre, secciones }: { nombre: string; secciones: s
       }}
     >
       <div className="logo flex h-14 w-14 items-center justify-center rounded-2xl bg-primario shadow-[0_8px_30px_rgb(43_89_209/0.35)]">
-        <Image src="/marca/maestria-blanco.png" alt="Maestria" width={34} height={32} priority style={{ height: "auto" }} />
+        <Image src="/marca/maestria-m.png" alt="Maestria" width={34} height={25} priority style={{ height: "auto" }} />
       </div>
       <h1 className="px-6 text-center text-[clamp(26px,4.2vw,40px)] font-bold tracking-[-0.03em]">
         Bienvenido <b className="text-primario">{nombre}</b>
