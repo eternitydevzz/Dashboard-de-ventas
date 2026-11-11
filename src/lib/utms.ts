@@ -91,3 +91,19 @@ export function rankingCampanas(filas: FilaUtm[], max: number): Barra[] {
   const total = con.reduce((s, x) => s + x.n, 0);
   return con.slice(0, max).map((x) => ({ t: x.t, n: x.n, pct: total ? Math.round((x.n / total) * 1000) / 10 : 0 }));
 }
+
+// Las etiquetas de los días cortados: los que caen a menos de 60 px uno de otro comparten una («1408↑ · 807↑»), centrada
+// entre ellos. Antes se montaban (visto en producción el 11 nov: «1 807↑»).
+export function etiquetasPico(xs: number[], valores: number[], corte: number) {
+  const grupos: { xs: number[]; textos: string[] }[] = [];
+  valores.forEach((n, i) => {
+    if (n <= corte) return;
+    const ult = grupos[grupos.length - 1];
+    const texto = `${n.toLocaleString("es-ES")}↑`;
+    if (ult && xs[i] - ult.xs[ult.xs.length - 1] < 60) {
+      ult.xs.push(xs[i]);
+      ult.textos.push(texto);
+    } else grupos.push({ xs: [xs[i]], textos: [texto] });
+  });
+  return grupos.map((g) => ({ x: (g.xs[0] + g.xs[g.xs.length - 1]) / 2, texto: g.textos.join(" · ") }));
+}

@@ -12,7 +12,7 @@ import { AnilloPartes } from "@/components/anillo-partes";
 import { Barras } from "@/components/barras";
 import { EmbudoVidrio } from "@/components/embudo-vidrio";
 import { embudo } from "@/lib/leads-cifras";
-import { CAMPOS_UTM, SIN_DATO, corteGrafico, filtrarUtms, porDiaUtm, rankingCampanas, totalesPor, type Clave, type FilaUtm, type FiltroUtm } from "@/lib/utms";
+import { CAMPOS_UTM, SIN_DATO, corteGrafico, etiquetasPico, filtrarUtms, porDiaUtm, rankingCampanas, totalesPor, type Clave, type FilaUtm, type FiltroUtm } from "@/lib/utms";
 import { cargarUtmsPestana } from "./acciones";
 import { GeneradorEnlaces } from "./generador-enlaces";
 import type { TablaCanales } from "@/lib/canal";
@@ -45,12 +45,15 @@ function LineaDias({ puntos }: { puntos: { d: string; n: number }[] }) {
       {xy.map((q, i) => (
         <circle key={i} cx={q[0]} cy={q[1]} r={puntos.length > 60 ? 1.5 : 3} fill="var(--primario)"><title>{`${puntos[i].d}: ${puntos[i].n} leads`}</title></circle>
       ))}
-      {corte !== null && xy.map((q, i) => puntos[i].n > corte && (
-        <g key={`c${i}`}>
-          <rect x={q[0] - 26} y={q[1] - 22} width="52" height="16" rx="5" fill="var(--primario)" />
-          <text x={q[0]} y={q[1] - 10} fontSize="10" fontWeight="700" textAnchor="middle" fill="#fff">{puntos[i].n.toLocaleString("es-ES")}↑</text>
-        </g>
-      ))}
+      {corte !== null && etiquetasPico(xy.map((q) => q[0]), puntos.map((x) => x.n), corte).map((e) => {
+        const ancho = 12 + e.texto.length * 6;
+        return (
+          <g key={e.x}>
+            <rect x={e.x - ancho / 2} y={p - 14} width={ancho} height="16" rx="5" fill="var(--primario)" />
+            <text x={e.x} y={p - 2} fontSize="10" fontWeight="700" textAnchor="middle" fill="#fff">{e.texto}</text>
+          </g>
+        );
+      })}
       {/* La última fecha siempre; la anterior de la regla, solo si no se monta encima (visto en producción el 11 nov: «09/1110/11») */}
       {puntos.map((x, i) => ((i % cada === 0 && puntos.length - 1 - i >= cada) || i === puntos.length - 1 ? <text key={`t${i}`} x={p + i * sx} y={h - 8} fontSize="10" textAnchor="middle" fill="var(--texto-3)">{x.d}</text> : null))}
     </svg>
@@ -123,7 +126,7 @@ export function PestanaUtms({ barra, desde, hasta, canales, zona }: { barra: Rea
         <Kpi compacto titulo="Agendan" valor={de("Agendan").toLocaleString("es-ES")} icono={CalendarCheck} tono="oro" detalle={PCT(de("Agendan"), visibles.length)} />
         <Kpi compacto titulo="Compran" valor={de("Compran").toLocaleString("es-ES")} icono={Euro} tono="ok" detalle={PCT(de("Compran"), visibles.length)} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">{/* min-w-0: los nombres largos no empujan la tarjeta en el móvil (11 nov) */}
         {TOTALES.map(({ c, t }) => (
           <Seccion key={c}>
             <AnilloPartes titulo={c === "etiqueta" ? "Por etiqueta (un lead puede tener varias)" : t} partes={totalesPor(visibles, c).filter((x) => x.t !== SIN_DATO)} centro={c === "etiqueta" ? String(totalesPor(visibles, c).filter((x) => x.t !== SIN_DATO).length) : undefined} />
