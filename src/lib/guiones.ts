@@ -55,6 +55,20 @@ Si dice que lo consultaría: "Perfecto. ¿Y ella podría estar también en la re
       { id: "p8", titulo: "Blindar la cita", texto: `"¿Me puedes enviar una captura por WhatsApp cuando agendes la llamada, para asegurar que todo esté correcto en nuestro sistema?"
 Cuando envíe la captura: "Perfecto, pues un placer, {nombre}. Ya nuestro equipo confirmó tu llamada, nos vemos el [día]. Antes de la llamada te mando dos vídeos cortos para que veas cómo es por dentro nuestro sistema, ¿ok?"
 "Perfecto, {nombre}. ¡Buen día!"`, checklist: ["Me mandó la captura de la cita agendada", "Le avisé de los dos vídeos antes de la llamada"], pistas: [] },
+      // Cristian, 11 nov: cierre para quien no llega a 200 $ (paso 5 → Membresía) y para quien no llega ni a eso
+      { id: "p9", titulo: "Si no cualifica · Membresía", texto: `"Mira, {nombre}, ahora mismo lo más inteligente para ti es empezar por la Membresía, 47 dólares al mes. Aprendes a tu ritmo, consigues tu primer cliente y, cuando estés listo, das el salto al programa. ¿Cómo lo ves?"
+
+Si dice que es mucho: "Mira, esto no lo hago con todo el mundo, pero me has caído bien y te quiero ayudar. El equipo tiene un programa de 10 becas al mes para ayudar a personas que quieren pero que por x motivo no pueden, y te voy a dar 1 beca a ti…"
+(Silencio.)
+"Se te quedaría en $17 al mes. ¿Cómo lo ves?"
+
+(Vendemos como sea: no se nos puede escapar.)
+Si pregunta qué incluye: "Incluye toda nuestra formación, +100 módulos, 200 h de contenido para que puedas aprender de IA, construir tus primeros sistemas y así puedas acceder al programa completo cuando generes tus primeros ingresos. ¿Qué te parece?"
+
+• Sí → manda el link por WhatsApp sin colgar.
+• No → "Perfecto, {nombre}. Si cambias de idea, me escribes a este número. ¡Bendiciones!"`, checklist: [], pistas: [] },
+      { id: "p10", titulo: "Si no tiene ni para la Membresía", texto: `"Te entiendo, {nombre}. Bueno, no te preocupes, te mando ahora por WhatsApp un vídeo de Cristian que te va a venir bien. Míralo con calma, y cuando quieras dar el paso me escribes a este número, que es el mío."
+(Le envías alguna de nuestras clases.)`, checklist: [], pistas: [] },
     ],
     objeciones: [
       { id: "o1", objecion: "¿De dónde sacaste mi número?", respuesta: `"Lo dejaste tú en nuestro formulario, junto con tu email. Eres [nombre y apellidos], ¿cierto?"
