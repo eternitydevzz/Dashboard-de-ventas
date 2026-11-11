@@ -214,7 +214,7 @@ export function TarjetaEntrada({
           <div className="text-right text-[11px] text-texto-3">{dias.length} días · hoy {dias.at(-1) ?? 0}</div>
         </div>
       </div>
-      {estado.ghl && <p className={`mt-2 text-xs ${estado.ghl === "Todos llegaron a GHL" ? "font-medium text-ok-texto" : "text-texto-3"}`}>{estado.ghl === "Todos llegaron a GHL" ? "✓ " : ""}{estado.ghl}</p>}
+      {estado.ghl && workflow?.modo !== "real" && <p className={`mt-2 text-xs ${estado.ghl === "Todos llegaron a GHL" ? "font-medium text-ok-texto" : "text-texto-3"}`}>{estado.ghl === "Todos llegaron a GHL" ? "✓ " : ""}{estado.ghl}</p>}
       <EnviosEnRojo rojos={rojos} zona={zona} />
       <LineaWorkflow entradaId={entrada.id} workflow={workflow} puedeProbar={entrada.ghl.ghl_activo} />
       <div className="mt-3 flex flex-wrap items-center gap-2">

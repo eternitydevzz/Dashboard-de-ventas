@@ -76,12 +76,13 @@ export function porDiaUtm(filas: FilaUtm[], desde: number | null, hasta: number 
   return out;
 }
 
-// Un día con más del triple que el segundo aplasta el gráfico: se corta un 15 % por encima del segundo (y ese día lleva
-// su número en una etiqueta). Decisión de Cristian (11 nov 2026) por el pico del 26/10 (2182 leads en un día).
+// 1 a 3 días con más del triple que el siguiente aplastan el gráfico: se corta un 15 % por encima del primer día
+// «normal» (y los de encima llevan su número en una etiqueta). Decisión de Cristian (11 nov 2026) por la importación del
+// 26/10: en la hora de Nueva York quedó en 2 días (1408 y 807) contra unos 155 los demás.
 export function corteGrafico(valores: number[]) {
   const o = [...valores].sort((a, b) => b - a);
-  if (o.length < 2 || !o[1] || o[0] <= o[1] * 3) return null;
-  return Math.ceil(o[1] * 1.15);
+  for (let i = 1; i <= 3 && i < o.length; i++) if (o[i] > 0 && o[i - 1] > o[i] * 3) return Math.ceil(o[i] * 1.15);
+  return null;
 }
 
 // Campañas de más a menos, sin «Sin dato» (va aparte); el % es sobre los leads que tienen campaña

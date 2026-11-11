@@ -125,7 +125,7 @@ export function PestanaUtms({ barra, desde, hasta, canales, zona }: { barra: Rea
       <div className="grid gap-4 lg:grid-cols-3">
         {TOTALES.map(({ c, t }) => (
           <Seccion key={c}>
-            <AnilloPartes titulo={t} partes={totalesPor(visibles, c).filter((x) => x.t !== SIN_DATO)} />
+            <AnilloPartes titulo={c === "etiqueta" ? "Por etiqueta (un lead puede tener varias)" : t} partes={totalesPor(visibles, c).filter((x) => x.t !== SIN_DATO)} centro={c === "etiqueta" ? String(totalesPor(visibles, c).filter((x) => x.t !== SIN_DATO).length) : undefined} />
           </Seccion>
         ))}
       </div>
