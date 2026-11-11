@@ -90,7 +90,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
       <Dialogos />
       <AvisosEnVivo proyectoId={proyecto.id} />
       {/* 11 nov 2026: vuelve la bienvenida, solo visual (no espera a nada); la ventana sale cuando se quita */}
-      <Bienvenida nombre={nombre} secciones={precarga.map((it) => it.texto)} />
+      <Bienvenida nombre={nombre} secciones={precarga.map((it) => it.texto)} rutas={precarga.map((it) => it.href)} />
       <VentanaEntrada rol={perfil.rol} nombre={nombre} avisos={avisos} />
     </ProveedorToasts>
   );
