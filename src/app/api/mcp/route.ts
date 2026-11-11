@@ -7,7 +7,7 @@ import { conSesionMcp } from "@/lib/mcp/sesion-mcp";
 import { herramientaAsignar, herramientaKpis } from "@/lib/mcp/herramientas";
 import { ESTADOS, herramientaAgendar, herramientaBorrar, herramientaCrearLead, herramientaEstado, herramientaEtiquetas, herramientaMover, herramientaMoverCita, herramientaNota, herramientaVenta } from "@/lib/mcp/cambiar";
 import { herramientaEnlaceGrabacion, herramientaGrabacionesPendientes, herramientaSubirTranscripcion, herramientaTranscripciones } from "@/lib/mcp/grabaciones";
-import { herramientaAgenda, herramientaBuscarLeads, herramientaFichaLead, herramientaFinanzas, herramientaFunnel, herramientaRanking } from "@/lib/mcp/lectura";
+import { herramientaDuplicados, herramientaObjetivos, herramientaAgenda, herramientaBuscarLeads, herramientaFichaLead, herramientaFinanzas, herramientaFunnel, herramientaRanking } from "@/lib/mcp/lectura";
 import { esError, seguro } from "@/lib/resultado";
 
 // MCP del dashboard, Fase 2 (Cristian, 11 nov 2026; plan en VENTAS/API-DASHBOARD). Claude Code llama aquí con
@@ -210,6 +210,18 @@ function servidor(perfilId: string) {
     "transcripciones",
     { description: "Transcripciones para analizar: de los callers (grabaciones), de los closers (Fathom) o de GHL. Filtra por persona y por los últimos días; como mucho 50.", inputSchema: { proyecto: PROYECTO, fuente: z.enum(["callers", "fathom", "ghl"]), persona: z.string().optional(), dias: z.number().int().min(1).max(3650).optional(), limite: z.number().int().min(1).max(50).optional() } },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaTranscripciones(a))
+  );
+
+  // ---------- Fase 7: objetivos y duplicados (src/lib/mcp/lectura.ts) ----------
+  server.registerTool(
+    "objetivos",
+    { description: "Avance de los objetivos (KPIs → Objetivos): del equipo y de cada persona, por cifra y periodo (meta, hecho y %). Para ver los que van sin cumplir. Por defecto, hoy; `ver` = otra fecha pasada.", inputSchema: { proyecto: PROYECTO, ver: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("AAAA-MM-DD.") } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaObjetivos(a))
+  );
+  server.registerTool(
+    "duplicados",
+    { description: "Posibles leads duplicados (CRM → Duplicados): grupos con el mismo teléfono. Solo los enseña; para unirlos, el botón «Unir» de la app.", inputSchema: { proyecto: PROYECTO } },
+    async ({ proyecto }) => ejecutar(proyecto, () => herramientaDuplicados())
   );
   return server;
 }

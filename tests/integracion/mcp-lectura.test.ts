@@ -5,7 +5,7 @@ import { borrarEscenario, crearEscenario, db, type Escenario } from "../apoyo/es
 import { getSesion } from "@/lib/sesion";
 import { conSesionMcp, sesionMcp } from "@/lib/mcp/sesion-mcp";
 import { sesionMcpDe } from "@/lib/mcp/clave";
-import { herramientaAgenda, herramientaBuscarLeads, herramientaFichaLead, herramientaFinanzas, herramientaFunnel, herramientaRanking } from "@/lib/mcp/lectura";
+import { herramientaDuplicados, herramientaObjetivos, herramientaAgenda, herramientaBuscarLeads, herramientaFichaLead, herramientaFinanzas, herramientaFunnel, herramientaRanking } from "@/lib/mcp/lectura";
 import { cargarBase, calcularFunnel } from "@/lib/metricas";
 import { calcularKpis } from "@/lib/kpis";
 import { rangoNav } from "@/lib/periodos";
@@ -145,5 +145,24 @@ describe("MCP: agenda_citas", () => {
     expect(mes.contadores.pendientes).toBe(2);
     const anterior = await como(e.p.director, () => herramientaAgenda({ n: -1, periodo: "anio" }));
     expect(anterior.citas.map((c) => c.leadId)).not.toContain(e.leads.LeadA);
+  });
+});
+
+describe("MCP: objetivos y duplicados (Fase 7)", () => {
+  it("objetivos: la pantalla y la fecha; un caller no los ve", async () => {
+    const r = await como(e.p.director, () => herramientaObjetivos({}));
+    expect(r.pantalla).toBe("KPIs → Objetivos");
+    expect(r.fecha).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await expect(como(e.p.callerA, () => herramientaObjetivos({}))).rejects.toThrow(/CEO y los directores|No tienes acceso/);
+  });
+
+  it("duplicados: dos leads con el mismo teléfono salen en un grupo", async () => {
+    await db.from("leads").insert([
+      { proyecto_id: e.proyecto.id, nombre: "Dup1", email: `${e.pref}-d1@x.test`, telefono: "+34611222333" },
+      { proyecto_id: e.proyecto.id, nombre: "Dup2", email: `${e.pref}-d2@x.test`, telefono: "611222333" },
+    ]);
+    const r = await como(e.p.director, () => herramientaDuplicados());
+    const grupo = r.detalle.find((g) => g.some((l) => l.nombre === "Dup1"));
+    expect(grupo?.map((l) => l.nombre).sort()).toEqual(["Dup1", "Dup2"]);
   });
 });
