@@ -1,6 +1,6 @@
 // Rediseño de KPIs → UTMs (maqueta v1, Cristian 11 nov 2026): leads por día, el corte del pico y el ranking de campañas.
 import { describe, expect, it } from "vitest";
-import { corteGrafico, filaUtm, porDiaUtm, rankingCampanas, type FilaUtm } from "@/lib/utms";
+import { corteGrafico, etiquetasPico, filaUtm, porDiaUtm, rankingCampanas, type FilaUtm } from "@/lib/utms";
 
 const MAD = "Europe/Madrid";
 const fila = (alta: string, campaign = "", marcas = 0): FilaUtm =>
@@ -57,5 +57,17 @@ describe("filaUtm guarda las marcas del embudo (para el embudo por utm_source)",
   it("sin marcas, 0", () => {
     expect(fila("2026-11-01T10:00:00Z").marcas).toBe(0);
     expect(fila("2026-11-01T10:00:00Z", "A", 5).marcas).toBe(5);
+  });
+});
+
+describe("etiquetasPico: los días cortados seguidos comparten etiqueta (visto en producción el 11 nov: «1 807↑»)", () => {
+  it("2 días seguidos (14 px) → 1 etiqueta centrada", () => {
+    expect(etiquetasPico([100, 114, 128], [5, 1408, 807], 179)).toEqual([{ x: 121, texto: "1408↑ · 807↑" }]);
+  });
+  it("2 días lejos → 2 etiquetas", () => {
+    expect(etiquetasPico([100, 300], [1408, 807], 179)).toEqual([{ x: 100, texto: "1408↑" }, { x: 300, texto: "807↑" }]);
+  });
+  it("sin días cortados → ninguna", () => {
+    expect(etiquetasPico([100, 114], [5, 6], 179)).toEqual([]);
   });
 });

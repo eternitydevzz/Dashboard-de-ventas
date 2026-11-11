@@ -11,6 +11,7 @@ import { direccionCorta, estadoEntrada, jsonEjemplo, type DatosLanding, type Env
 import type { EnvioEntrada, ResumenEntrada } from "@/lib/entradas-datos";
 import { confirmar } from "@/components/dialogos";
 import { Modal } from "@/components/modal";
+import { useToast } from "@/components/toasts";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { EnviosEnRojo, UltimosEnvios } from "./entradas-envios";
 import { LineaWorkflow, type WorkflowVista } from "./entradas-workflow";
@@ -70,13 +71,20 @@ function ElegirDesde({ nombre, valor, onCambio }: { nombre: string; valor: strin
 }
 
 // ---------- Conectar una landing nueva (5 preguntas) ----------
-export function NuevaEntrada({ pipelines }: { pipelines: Pipe[] }) {
+export function NuevaEntrada({ pipelines, onCreada }: { pipelines: Pipe[]; onCreada?: (mensaje: string) => void }) {
   const [estado, accion, enviando] = useActionState(crearEntrada, null as Res);
   const [destino, setDestino] = useState<{ p: string | null; e: string | null }>({ p: pipelines[0]?.id ?? null, e: null });
   // 1.1 (11 oct 2026): al crearla, el formulario se vacía (antes se podía crear dos veces); si falla, se queda
   const form = useRef<HTMLFormElement>(null);
+  // Rediseño (11 nov 2026): dentro de la ventana, al crearla se cierra sola y el «creada» sale como aviso
+  const avisar = useRef(onCreada);
   useEffect(() => {
-    if (estado?.ok) form.current?.reset();
+    avisar.current = onCreada;
+  }, [onCreada]);
+  useEffect(() => {
+    if (!estado?.ok) return;
+    form.current?.reset();
+    avisar.current?.(estado.ok);
   }, [estado]);
   return (
     <form ref={form} onSubmit={sinVaciar(accion)} className="space-y-3">
@@ -150,6 +158,7 @@ function MiniBarras({ dias }: { dias: number[] }) {
 // «＋ Conectar una landing»: las 5 preguntas de siempre, ahora en una ventana (maqueta v1, Cristian 11 nov 2026)
 export function BotonNuevaEntrada({ pipelines }: { pipelines: Pipe[] }) {
   const [abierta, setAbierta] = useState(false);
+  const toast = useToast();
   return (
     <>
       <button type="button" className="btn-primario" onClick={() => setAbierta(true)}>
@@ -157,7 +166,7 @@ export function BotonNuevaEntrada({ pipelines }: { pipelines: Pipe[] }) {
       </button>
       {abierta && (
         <Modal titulo="Conectar una landing nueva" onCerrar={() => setAbierta(false)}>
-          <NuevaEntrada pipelines={pipelines} />
+          <NuevaEntrada pipelines={pipelines} onCreada={(m) => (setAbierta(false), toast(m))} />
         </Modal>
       )}
     </>

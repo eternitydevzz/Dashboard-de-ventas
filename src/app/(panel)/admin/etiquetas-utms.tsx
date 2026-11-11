@@ -68,7 +68,7 @@ export async function EtiquetasUtms({ sub, canales }: { sub: string; canales: Ta
           </div>
         </div>
       )}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">{/* min-w-0: los nombres largos no empujan la tarjeta en el móvil (11 nov) */}
         <Seccion><AnilloPartes titulo="Leads por canal" partes={porCanal.canales} /></Seccion>
         <Seccion><AnilloPartes titulo="Etiquetas (un lead puede tener varias)" partes={filas.map((f) => ({ t: f.nombre, n: f.leads }))} centro={String(filas.filter((f) => f.leads > 0).length)} /></Seccion>
         <Seccion>{ranking.length ? <Barras titulo="Ranking de canales" filas={ranking} numero /> : <p className="text-sm text-texto-3">Todavía no hay leads con canal.</p>}</Seccion>
