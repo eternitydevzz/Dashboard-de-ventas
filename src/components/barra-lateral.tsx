@@ -35,7 +35,6 @@ import { cerrarSesion } from "@/app/login/acciones";
 import { iniciales, ETIQUETA_ROL, type ProyectoMenu } from "@/lib/formato";
 import type { Perfil } from "@/lib/tipos";
 import { Desplegable } from "@/components/eleccion";
-import { usePantallaLista } from "@/lib/pantalla-lista";
 import { CampanaAvisos } from "@/components/campana-avisos";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
 
@@ -101,12 +100,12 @@ export function BarraLateral({
   // abrir la app (cada pestaña preparaba Funnel, KPIs, Ranking… cada 5 min). Solo la que se señala con el ratón,
   // el dedo o el teclado, justo antes de pulsar (como antes del 17 oct), y completa.
   // 11 nov 2026 (Cristian: «solo las 3 secciones más usadas por cada rol»): esas 3 sí se precargan al abrir la app,
-  // completas, cuando la pantalla en la que se entra ya tiene sus datos. Las demás, como antes, al señalarlas.
+  // completas, desde el primer pintado (prefetch={true} fijo). Medido en la app publicada (11 nov): con el enlace que empezaba
+  // con prefetch={false} y pasaba a true después, Next no precargó nada (0 peticiones en 10 s; causa probable, sin aislar). Las demás, al señalarlas.
   // Límite conocido: en el móvil el menú está escondido y Next solo precarga los enlaces que se ven.
-  const lista = usePantallaLista();
   const [precargadas, setPrecargadas] = useState<Set<string>>(() => new Set());
   const precargar = (href: string) => setPrecargadas((s) => (s.has(href) ? s : new Set(s).add(href)));
-  const conPrecarga = (href: string) => precargadas.has(href) || (lista && precarga.includes(href));
+  const conPrecarga = (href: string) => precarga.includes(href) || precargadas.has(href);
   const [yendo, setYendo] = useState<{ a: string; desde: string } | null>(null);
   const destino = yendo && yendo.desde === ruta ? yendo.a : null;
   const [abierto, setAbierto] = useState(false);
