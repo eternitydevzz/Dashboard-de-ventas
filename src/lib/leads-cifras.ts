@@ -44,7 +44,7 @@ export function filtrarLeads(leads: LeadVista[], f: FiltroLeads) {
 const pct = (parte: number, total: number) => (total ? Math.round((parte / total) * 1000) / 10 : null);
 
 // Embudo de la misma tanda: de estos leads, cuántos llegaron a cada paso (hasta hoy)
-export function embudo(leads: LeadVista[]) {
+export function embudo(leads: Pick<LeadVista, "marcas">[]) { // también lo usa KPIs → UTMs con sus filas (rediseño, 11 nov 2026)
   const n = (m: number) => leads.filter((l) => (l.marcas & m) === m).length;
   const total = leads.length;
   const pasos = [
