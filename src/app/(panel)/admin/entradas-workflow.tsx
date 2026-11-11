@@ -1,11 +1,11 @@
 "use client";
 
-import { FlaskConical, RefreshCw, Square, Undo2, Zap } from "lucide-react";
+import { FlaskConical, RefreshCw, Square, Undo2, X, Zap } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
 import { coincidenTexto } from "@/lib/workflows-vista";
-import { crearWorkflowDePrueba, devolverAHoy, pararWorkflow, pasarWorkflowAReal, reintentarEjecuciones } from "./acciones";
+import { borrarWorkflow, crearWorkflowDePrueba, devolverAHoy, pararWorkflow, pasarWorkflowAReal, reintentarEjecuciones } from "./acciones";
 
 // Workflows, 4a-1 (docs/plan-workflows.md, Cristian 7 nov 2026): en la tarjeta de cada Entrada, el botón
 // «Probar como workflow» y la línea «Workflow en prueba: 18 de 18 leads coinciden» (modo prueba: no llama a GHL).
@@ -107,5 +107,27 @@ export function LineaWorkflow({ entradaId, workflow, puedeProbar }: { entradaId:
         </details>
       )}
     </div>
+  );
+}
+
+// Rediseño de Workflows (Cristian, 11 nov 2026): la «×» de cada workflow. Pregunta 2 veces, con la ventana de la app
+// (nunca la del navegador); los leads que esperaban se cancelan. Si era el elegido, la página
+// enseña el primero de la lista (page.tsx: `?wf=` que ya no existe → el primero).
+export function BorrarWorkflow({ id, nombre, esperando }: { id: string; nombre: string; esperando: number }) {
+  const { pendiente, error, ejecutar } = useAccion();
+  const borrar = async () => {
+    if (!(await confirmar(`¿Eliminar «${nombre}»? Dejará de funcionar y se quitará de la lista.`, { boton: "Sí, eliminar" }))) return;
+    const espera = esperando ? ` y sus ${esperando} ${esperando === 1 ? "lead en espera no seguirá" : "leads en espera no seguirán"}` : "";
+    // La 2.ª también lleva «Eliminar» en la pregunta: así dialogos.tsx la pinta en rojo (peligroso)
+    if (!(await confirmar(`¿Eliminar para siempre? No se puede deshacer: «${nombre}» se borra${espera}.`, { boton: "Eliminar para siempre" }))) return;
+    ejecutar(() => borrarWorkflow(id), "Workflow eliminado");
+  };
+  return (
+    <span className="flex items-center gap-1">
+      <button type="button" className="btn-secundario px-1.5 py-1 text-texto-2 hover:text-mal" aria-label={`Eliminar ${nombre}`} title="Eliminar el workflow" disabled={pendiente} onClick={() => void borrar()}>
+        <X className="h-3.5 w-3.5" />
+      </button>
+      {error && <span className="text-xs text-mal">{error}</span>}
+    </span>
   );
 }

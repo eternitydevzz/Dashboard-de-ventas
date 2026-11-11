@@ -129,7 +129,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
                   <Filtros periodoPorDefecto="todo" ligero />
                 </div>
               </div>
-            } desde={rango.desde?.getTime() ?? null} hasta={rango.hasta?.getTime() ?? null} canales={await canalesDe(proyecto.id)} />
+            } desde={rango.desde?.getTime() ?? null} hasta={rango.hasta?.getTime() ?? null} canales={await canalesDe(proyecto.id)} zona={proyecto.zona_horaria} />
         </Contenido>
       </>
     );

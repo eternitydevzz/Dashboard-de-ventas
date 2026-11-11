@@ -79,3 +79,19 @@ export function estadoEntrada(x: { activa: boolean; ghl_activo: boolean; envios:
   const ghl = x.por_workflow ? "Lo manda su workflow" : !x.ghl_activo ? "No se manda a GHL" : x.rojos ? null : "Todos llegaron a GHL";
   return { tono: "ok" as const, texto: "Recibiendo leads", ghl };
 }
+
+// Rediseño de Entradas (Cristian, 11 nov 2026): envíos por día de cada Entrada en los últimos `dias` días (hasta
+// `hoy`, «YYYY-MM-DD»), contados en la hora del proyecto. Del más antiguo a hoy; las Entradas sin envíos no salen.
+export function porDia(envios: { entrada_id: string; recibido_en: string }[], dias: number, hoy: string, zona: string) {
+  const dia = new Intl.DateTimeFormat("en-CA", { timeZone: zona });
+  const base = Date.parse(`${hoy}T12:00:00Z`);
+  const m = new Map<string, number[]>();
+  for (const e of envios) {
+    const atras = Math.round((base - Date.parse(`${dia.format(new Date(e.recibido_en))}T12:00:00Z`)) / 86_400_000);
+    if (atras < 0 || atras >= dias) continue;
+    const fila = m.get(e.entrada_id) ?? Array<number>(dias).fill(0);
+    fila[dias - 1 - atras]++;
+    m.set(e.entrada_id, fila);
+  }
+  return m;
+}

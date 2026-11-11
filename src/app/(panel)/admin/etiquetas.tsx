@@ -20,6 +20,7 @@ export function EditorEtiquetas({ inicial, workflows = {} }: { inicial: Etiqueta
   // Unir en GHL va de 100 en 100 contactos: si faltan, se repite la misma acción (en la base ya no hace nada)
   const [seguir, setSeguir] = useState<{ de: string; a: string; faltan: number } | null>(null);
   const { pendiente, error, ejecutar } = useAccion();
+  const maxLeads = Math.max(1, ...filas.map((f) => f.leads));
   const movida = filas.some((f, i) => f.nombre !== inicial[i]?.nombre);
   const mover = (i: number, d: number) => {
     const l = [...filas];
@@ -68,7 +69,11 @@ export function EditorEtiquetas({ inicial, workflows = {} }: { inicial: Etiqueta
               <input type="checkbox" checked={f.usada_ghl} disabled={pendiente} onChange={(e) => ejecutar(() => marcarEtiquetaGhl(f.nombre, e.target.checked), e.target.checked ? "Marcada «usada por GHL»" : "Ya no está marcada")} />
               {f.usada_ghl ? <Insignia tono="oro">usada por GHL</Insignia> : "usada por GHL"}
             </label>
-            <span className="w-20 text-xs text-texto-3">{f.leads} lead{f.leads === 1 ? "" : "s"}</span>
+            {/* Rediseño (maqueta v1): barrita con sus leads */}
+            <span className="flex w-36 items-center gap-2 text-xs tabular-nums text-texto-3">
+              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel"><span className="block h-full rounded-full bg-primario" style={{ width: `${(f.leads / maxLeads) * 100}%` }} /></span>
+              {f.leads} lead{f.leads === 1 ? "" : "s"}
+            </span>
             <button type="button" className="btn-secundario px-2 py-1 text-xs" disabled={pendiente} onClick={() => void renombrar(f)}>Renombrar o unir</button>
             <button type="button" className="btn-secundario px-2 py-1 text-xs" disabled={pendiente} onClick={() => void borrar(f)}>Borrar</button>
           </div>

@@ -2,7 +2,9 @@
 // Solo lectura: la lista, el lienzo (cajas de arriba abajo, ramas una al lado de otra; en el móvil, una debajo de otra) y
 // el historial de los últimos 50 leads. Sin JavaScript en el navegador: se elige el workflow con un enlace (?wf=).
 import Link from "next/link";
-import { Check, Clock, FlaskConical, GitBranch, MoveRight, Pencil, Tag, Target, User, X, Zap } from "lucide-react";
+import { AlertTriangle, Check, Clock, FlaskConical, GitBranch, MoveRight, Pencil, RefreshCw, Tag, Target, User, Wrench, X, Zap } from "lucide-react";
+import { Kpi } from "@/components/ui";
+import { BorrarWorkflow } from "./entradas-workflow";
 import type { Paso, Disparador } from "@/lib/workflows";
 import { coincidenTexto, condicionTexto, describirPaso, disparadorTexto, estadoEjecucion, pasosDelRegistro, verboCoincide, type Icono, type Nombres, type Tono } from "@/lib/workflows-vista";
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
@@ -120,26 +122,56 @@ export function VistaWorkflows({
     );
   const r = elegido ? resumen.get(elegido.id) : undefined;
   const disp = elegido ? disparadorTexto(elegido.disparador, nombres) : null;
+  // Rediseño (maqueta v1, Cristian 11 nov 2026): el resumen de todos arriba
+  const suma = (c: keyof ResumenWorkflow) => workflows.reduce((s, w) => s + (resumen.get(w.id)?.[c] ?? 0), 0);
+  const parados = workflows.filter((w) => !w.encendido).length;
   return (
-    <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="space-y-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+      <Kpi compacto titulo="Workflows" valor={String(workflows.length)} icono={Zap} detalle={parados ? `${parados} ${parados === 1 ? "parado" : "parados"}` : "todos en marcha"} />
+      <Kpi compacto titulo="En real" valor={String(workflows.filter((w) => w.encendido && w.modo === "real").length)} icono={Check} tono="ok" detalle="mandan a GHL" />
+      <Kpi compacto titulo="En prueba" valor={String(workflows.filter((w) => w.encendido && w.modo === "prueba").length)} icono={FlaskConical} tono="aviso" detalle="sin tocar GHL" />
+      <Kpi compacto titulo="Leads procesados" valor={suma("total").toLocaleString("es-ES")} icono={RefreshCw} detalle={`${suma("esperando")} esperando`} />
+      <Kpi compacto titulo="Con error" valor={String(suma("errores"))} icono={AlertTriangle} tono="mal" detalle={suma("errores") ? "revisar" : "todo en orden"} />
+    </div>
+    <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
       <aside className="tarjeta min-w-0 p-4 sm:p-5">
         <div className="mb-3 text-xs font-semibold text-texto-3">Workflows · {workflows.length}</div>
         <nav className="space-y-1">
-          {workflows.map((w) => (
-            <Link
-              key={w.id}
-              href={`/admin?tab=workflows&wf=${w.id}`}
-              aria-current={elegido?.id === w.id ? "page" : undefined}
-              className={`flex gap-3 rounded-[18px] p-3 transition-colors ${elegido?.id === w.id ? "bg-panel shadow-[0_6px_20px_rgb(35_65_200/0.10)] ring-1 ring-borde" : "hover:bg-panel-2"} ${w.encendido ? "" : "opacity-60"}`}
-            >
-              <Cuadro icono="rayo" />
-              <div className="min-w-0">
-                <div className="break-words text-sm font-semibold">{w.nombre}</div>
-                <div className="break-words text-xs text-texto-3">{w.disparador.tipo === "entrada" ? `Llega un lead a «${nombres.entradas[w.disparador.entrada_id] ?? "Entrada borrada"}»` : disparadorTexto(w.disparador, nombres).titulo}</div>
-                <div className="mt-1.5"><ChipModo w={w} r={resumen.get(w.id)} /></div>
+          {workflows.map((w) => {
+            const rw = resumen.get(w.id);
+            return (
+              // Rediseño (maqueta v1): la tarjeta abre el workflow; la llave lo edita y la «×» lo elimina (pregunta 2 veces)
+              <div key={w.id} className={`relative rounded-[18px] p-3 transition-colors ${elegido?.id === w.id ? "bg-panel shadow-[0_6px_20px_rgb(35_65_200/0.10)] ring-1 ring-primario/40" : "hover:bg-panel-2"} ${w.encendido ? "" : "opacity-60"}`}>
+                <div className="flex items-start gap-2">
+                  <Link href={`/admin?tab=workflows&wf=${w.id}`} aria-current={elegido?.id === w.id ? "page" : undefined} className="min-w-0 flex-1 after:absolute after:inset-0 after:rounded-[18px]">
+                    <div className="break-words text-sm font-semibold">{w.nombre}</div>
+                    <div className="break-words text-xs text-texto-3">{w.disparador.tipo === "entrada" ? `Llega un lead a «${nombres.entradas[w.disparador.entrada_id] ?? "Entrada borrada"}»` : disparadorTexto(w.disparador, nombres).titulo}</div>
+                  </Link>
+                  <span className="relative z-10 flex shrink-0 items-center gap-1">
+                    <Link href={`/admin?tab=workflows&wf=${w.id}&editar=1`} className="btn-secundario px-1.5 py-1 text-texto-2 hover:text-primario" aria-label={`Editar ${w.nombre}`} title="Editar el workflow"><Wrench className="h-3.5 w-3.5" /></Link>
+                    <BorrarWorkflow id={w.id} nombre={w.nombre} esperando={rw?.esperando ?? 0} />
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  {w.pasos.map((p, i) => {
+                    const { C, color } = ICONOS[describirPaso(p, nombres).icono];
+                    return (
+                      <span key={p.id} className="flex items-center gap-1">
+                        {i > 0 && <span aria-hidden className="text-[10px] text-texto-3">›</span>}
+                        <span title={describirPaso(p, nombres).titulo} className={`grid h-6 w-6 place-items-center rounded-[7px] bg-gradient-to-b text-white ${color}`}><C className="h-3.5 w-3.5" strokeWidth={2.2} /></span>
+                      </span>
+                    );
+                  })}
+                  {!w.pasos.length && <span className="text-xs text-texto-3">Sin pasos</span>}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <ChipModo w={w} r={rw} />
+                  <span className="text-xs tabular-nums text-texto-3">{(rw?.total ?? 0).toLocaleString("es-ES")} leads · {rw?.errores ?? 0} con error · {rw?.esperando ?? 0} esperando</span>
+                </div>
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </nav>
         <div className="mt-4 border-t border-borde pt-3"><NuevoWorkflowCita /></div>
         <p className="mt-3 px-1 text-xs leading-relaxed text-texto-3">Los de una Entrada se crean con «Probar como workflow» en su tarjeta. Encender, parar y pasar a real: con «Editar».</p>
@@ -215,6 +247,7 @@ export function VistaWorkflows({
           </section>
         </div>
       )}
+    </div>
     </div>
   );
 }

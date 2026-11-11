@@ -1,5 +1,7 @@
 import "server-only";
-import { db } from "@/lib/datos";
+import { db, todas } from "@/lib/datos";
+import { hoyEnZona, inicioDia, sumarDias } from "@/lib/formato";
+import { porDia } from "@/lib/entradas-panel";
 
 // Panel de endpoints (plan GHL, punto 0, Cristian 7 nov 2026): lecturas de la pestaña Entradas.
 
@@ -43,4 +45,16 @@ export async function enviosDeEntrada(entradaId: string, desde: number, cuantos:
   const { data, error } = await db().from("webhook_eventos").select(COLUMNAS_ENVIO).eq("entrada_id", entradaId).order("recibido_en", { ascending: false }).range(desde, desde + cuantos - 1);
   if (error) throw new Error(`envíos de la Entrada: ${error.message}`);
   return (data ?? []) as EnvioEntrada[];
+}
+
+// Rediseño de Entradas (Cristian, 11 nov 2026): envíos por día de los últimos `dias` días, para el gráfico de cada tarjeta
+export const DIAS_GRAFICO = 14;
+export async function enviosPorDia(entradaIds: string[], zona: string, dias = DIAS_GRAFICO) {
+  if (!entradaIds.length) return new Map<string, number[]>();
+  const hoy = hoyEnZona(zona);
+  const desde = inicioDia(sumarDias(hoy, -(dias - 1)), zona).toISOString();
+  const filas = await todas<{ entrada_id: string; recibido_en: string }>((a, b) =>
+    db().from("webhook_eventos").select("entrada_id, recibido_en").in("entrada_id", entradaIds).gte("recibido_en", desde).order("id").range(a, b)
+  );
+  return porDia(filas, dias, hoy, zona);
 }

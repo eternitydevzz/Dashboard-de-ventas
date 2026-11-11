@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maqueta rediseño</title>
+<style>
+:root{--fondo:#eef2f9;--panel:rgb(255 255 255/.55);--panel-2:rgb(255 255 255/.45);--borde:rgb(15 26 51/.09);--borde-fuerte:rgb(15 26 51/.16);--brillo:rgb(255 255 255/.75);--texto:#0f1a33;--texto-2:#46546f;--texto-3:#66738f;--primario:#2b59d1;--primario-2:#3f6ee6;--primario-suave:#e6edfd;--oro:#c98a12;--oro-suave:#fdf3dc;--ok:#15924a;--ok-suave:#e3f6ea;--mal:#d0303f;--mal-suave:#fde8ea;--aviso:#c46a08;--aviso-suave:#fdf0e1;--morado:#7c4ddb;--ok-texto:#0f7a3d;--aviso-texto:#9a4f00;--oro-texto:#8a5a00;--primario-boton:#2b59d1;--sombra:0 1px 2px rgb(15 26 51/.04),0 8px 32px rgb(15 26 51/.08)}
+.dark{--fondo:#060a18;--panel:rgb(22 32 64/.48);--panel-2:rgb(40 54 100/.4);--borde:rgb(255 255 255/.09);--borde-fuerte:rgb(255 255 255/.16);--brillo:rgb(255 255 255/.08);--texto:#eef2fd;--texto-2:#b3c0de;--texto-3:#8392b8;--primario:#4f7cf0;--primario-2:#6a92f7;--primario-suave:#15275a;--oro:#e5ac35;--oro-suave:#2a2210;--ok:#3ccf7a;--ok-suave:#0f2a1d;--mal:#f2606c;--mal-suave:#2d1218;--aviso:#f0a24a;--aviso-suave:#2c1d0d;--morado:#a07cf5;--ok-texto:#3ccf7a;--aviso-texto:#f0a24a;--oro-texto:#e5ac35;--primario-boton:#3a64d8;--sombra:0 10px 40px rgb(0 0 0/.35)}
+*{box-sizing:border-box}
+body{margin:0;color:var(--texto);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;
+background:radial-gradient(800px 640px at 10% 0%,rgb(43 89 209/.3),transparent 62%),radial-gradient(760px 600px at 100% 15%,rgb(123 26 34/.22),transparent 62%),radial-gradient(900px 700px at 55% 105%,rgb(99 132 230/.26),transparent 60%),var(--fondo);background-attachment:fixed}
+.dark body{background:radial-gradient(800px 640px at 10% 0%,rgb(63 110 230/.34),transparent 62%),radial-gradient(760px 600px at 100% 15%,rgb(170 40 55/.32),transparent 62%),radial-gradient(900px 700px at 55% 105%,rgb(63 110 230/.24),transparent 60%),var(--fondo);background-attachment:fixed}
+.vidrio,.tarjeta{background:var(--panel);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);box-shadow:inset 0 1px 0 var(--brillo),var(--sombra)}
+.tarjeta{border:1px solid var(--borde);border-radius:22px}
+main{max-width:1180px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:30px;margin:0;letter-spacing:-.02em}
+.sub{color:var(--texto-2);margin:2px 0 18px}
+.titulo-seccion{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--texto-2)}
+.pestanas{display:flex;flex-wrap:wrap;gap:4px;padding:6px;margin-bottom:20px;align-items:center}
+.pestanas button,.sub-pest button{border:0;background:transparent;color:var(--texto-2);font:inherit;font-size:14px;padding:7px 12px;border-radius:10px;cursor:pointer}
+.pestanas button.on{background:var(--primario-boton);color:#fff}
+.pestanas .tema{margin-left:auto}
+.sub-pest{display:flex;gap:4px;margin:4px 0 14px}.sub-pest button.on{background:var(--panel);color:var(--texto);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{padding:12px 14px;min-width:0}.kpi .t{display:flex;gap:6px;align-items:center}.kpi .v{font-size:24px;font-weight:650;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}.kpi .d{font-size:12px;color:var(--texto-3)}
+.ico{width:20px;height:20px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.seccion{padding:16px 18px;margin-bottom:14px;min-width:0}
+.fila{display:flex;align-items:center;gap:8px;min-width:0}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600;white-space:nowrap}
+.c-ok{background:var(--ok-suave);color:var(--ok-texto)}.c-aviso{background:var(--aviso-suave);color:var(--aviso-texto)}.c-mal{background:var(--mal-suave);color:var(--mal)}.c-pri{background:var(--primario-suave);color:var(--primario)}.c-gris{background:var(--panel-2);color:var(--texto-3);border:1px solid var(--borde)}.c-oro{background:var(--oro-suave);color:var(--oro-texto)}
+.punto{width:7px;height:7px;border-radius:99px;background:currentColor}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:12px;padding:7px 13px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--borde);background:var(--panel);color:var(--texto)}
+.btn.pri{background:var(--primario-boton);color:#fff;border-color:transparent;box-shadow:0 6px 20px -6px rgb(43 89 209/.6)}
+.btn.peq{padding:4px 10px;font-size:12px}
+.tarjeta-e{padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.nombre{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mute{color:var(--texto-3);font-size:12px}
+.grande{font-size:28px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+details{border-top:1px solid var(--borde);padding-top:8px}details summary{cursor:pointer;color:var(--texto-2);font-size:13px;list-style:none}details summary::before{content:"▸ ";}details[open] summary::before{content:"▾ "}
+details p{margin:6px 0 0;color:var(--texto-3);font-size:12px}
+.pasos{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.paso{display:inline-flex;align-items:center;gap:4px;font-size:11px;border-radius:8px;padding:3px 7px;border:1px solid var(--borde);background:var(--panel-2)}
+.flecha{color:var(--texto-3);font-size:11px}
+.anillo{display:flex;align-items:center;gap:16px}.anillo ul{list-style:none;padding:0;margin:0;flex:1;min-width:0}.anillo li{display:flex;align-items:center;gap:8px;font-size:13px;padding:2px 0}.anillo li span.n{margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}.anillo li .tx{color:var(--texto-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.barra{margin:7px 0}.barra .fila{font-size:13px}.barra .fila .n{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--texto-2)}.barra .pista{height:7px;border-radius:99px;background:var(--panel-2);margin-top:4px;overflow:hidden}.barra .lleno{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primario),var(--primario-2))}
+.embudo .pso{margin:0 auto;border-radius:12px;padding:8px 12px;display:flex;justify-content:space-between;color:#fff;font-weight:600;font-size:13px;min-width:11rem}
+.embudo .entre{text-align:center;font-size:10px;color:var(--texto-3);padding:2px 0}
+.lista-ed .item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--borde);border-radius:14px;margin-bottom:8px;background:var(--panel-2);flex-wrap:wrap}
+.lista-ed .item .mini{flex:0 0 90px;height:6px;border-radius:99px;background:var(--panel);overflow:hidden}.lista-ed .item .mini i{display:block;height:100%;background:var(--primario)}
+.aviso-sin{display:flex;gap:12px;align-items:center;padding:12px 16px;margin-bottom:14px;border-color:color-mix(in srgb,var(--aviso) 35%,transparent)}
+.ib{width:28px;height:28px;border-radius:9px;border:1px solid var(--borde);background:var(--panel-2);color:var(--texto-2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0}.ib svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ib:hover{color:var(--primario);border-color:var(--primario)}.ib.mal:hover{color:var(--mal);border-color:var(--mal);background:var(--mal-suave)}
+.wf{cursor:pointer;transition:transform .15s}.wf:hover{transform:translateY(-2px)}.wf.sel{outline:2px solid var(--primario);outline-offset:-2px}.wf:hover{transform:none}
+.diagrama{display:flex;flex-direction:column;align-items:center;gap:0}.diagrama .nodo{width:min(340px,100%);padding:10px 14px;border-radius:14px;border:1px solid var(--borde);background:var(--panel-2);display:flex;gap:10px;align-items:center}.diagrama .linea{width:2px;height:14px;background:var(--borde-fuerte)}
+.modal-fondo{position:fixed;inset:0;background:rgb(0 0 0/.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}.modal-fondo.on{display:flex}
+.modal{width:min(440px,100%);padding:20px;--panel:rgb(255 255 255/.88)}.dark .modal{--panel:rgb(20 30 60/.85)}
+.campo{width:100%;border-radius:12px;border:1px solid var(--borde);background:var(--panel-2);color:var(--texto);padding:8px 11px;font:inherit;margin:4px 0 10px}
+.nota{font-size:12px;color:var(--texto-3);margin-top:6px}
+svg text{font-family:inherit}
+@media (max-width:640px){h1{font-size:24px}.grid2,.grid3,.dos{grid-template-columns:minmax(0,1fr)!important}.dos>.tarjeta{position:static!important}.anillo{flex-direction:column;align-items:stretch}.anillo svg{align-self:center}}
+</style>
+</head>
+<body>
+<main>
+  <div class="mute" style="margin-bottom:6px">MAQUETA · datos reales de Maestria del 11 nov 2026 (solo totales) · no es la app</div>
+  <h1 id="h1">Administración</h1>
+  <div class="sub" id="subt">Maestria · acceso total</div>
+  <nav class="pestanas tarjeta" id="pestanas"></nav>
+  <section id="vista"></section>
+</main>
+<div class="modal-fondo" id="modal"><div class="modal tarjeta">
+  <div class="fila" style="justify-content:space-between"><b>Conectar una landing nueva</b><button class="btn peq" onclick="cerrarModal()">Cerrar</button></div>
+  <p class="nota">Las mismas 5 preguntas de hoy, en una ventana en vez de una columna fija.</p>
+  <label class="mute">1 · ¿Cómo se llama?</label><input class="campo" placeholder="Ej. Web · Código Maestria agenda">
+  <label class="mute">2 · ¿Qué landing es?</label><input class="campo" placeholder="Ej. codigomaestria">
+  <label class="mute">3 · ¿Qué formulario?</label><input class="campo" placeholder="Ej. agenda">
+  <label class="mute">4 · ¿Desde dónde manda los datos?</label><select class="campo"><option>Desde la página</option><option>Desde un servidor</option><option>Desde un workflow de GHL</option><option>No lo sé</option></select>
+  <label class="mute">5 · ¿A qué pipeline van sus leads?</label><select class="campo"><option>0. Agendas General</option></select>
+  <button class="btn pri" style="width:100%;justify-content:center">Crear y ver su dirección</button>
+</div></div>
+<div class="modal-fondo" id="conf" role="dialog" aria-modal="true" aria-labelledby="conf-t"><div class="modal tarjeta">
+  <div class="mute" style="font-weight:600;margin-bottom:12px">Confirma antes de seguir</div>
+  <div class="fila" style="align-items:flex-start;gap:12px"><span style="width:40px;height:40px;border-radius:12px;background:var(--mal-suave);color:var(--mal);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg></span>
+  <div style="min-width:0"><p class="c-tit" id="conf-t" style="margin:0;font-weight:600"></p><p class="c-det" style="margin:4px 0 0;font-size:13px;color:var(--texto-2)"></p></div></div>
+  <div class="fila" style="justify-content:flex-end;margin-top:20px"><button class="btn c-no">Cancelar</button><button class="btn c-si" style="background:var(--mal-suave);color:var(--mal);border-color:color-mix(in srgb,var(--mal) 30%,transparent)"></button></div>
+</div></div>
+<div id="aviso" role="status"></div>
+<style>#aviso{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;transition:.25s;background:var(--panel);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);border:1px solid var(--borde);border-radius:14px;padding:10px 16px;font-size:13px;box-shadow:var(--sombra);z-index:10;max-width:calc(100% - 32px)}#aviso.on{opacity:1;transform:translate(-50%,0)}</style>
+<script>
+const D ={"campaign": [{"n": 4589, "t": "Sin dato"}, {"n": 5, "t": "carrusel_2026-11-05_repos"}, {"n": 5, "t": "carrusel_2026-11-06_shorts"}, {"n": 3, "t": "carrusel_2026-11-08_repos"}, {"n": 3, "t": "4. DEMO APPS - LEADS NOV26"}, {"n": 2, "t": "carrusel_2026-11-09_tokens"}, {"n": 2, "t": "carrusel_2026-11-10_clon"}, {"n": 2, "t": "11. MASTERCLASS 24NOV - LEADS 20$"}, {"n": 1, "t": "carrusel_2026-10-27_links"}, {"n": 1, "t": "carrusel_2026-11-07_empresa"}, {"n": 1, "t": "7. MASTERCLASS 24NOV - REGISTROS"}, {"n": 1, "t": "carrusel_2026-11-04_video"}], "canales": [{"agendan": 20, "compran": 0, "n": 4512, "t": "Sin canal"}, {"agendan": 51, "compran": 0, "n": 51, "t": "Callers"}, {"agendan": 41, "compran": 3, "n": 41, "t": "Directo"}, {"agendan": 5, "compran": 0, "n": 6, "t": "Biblioteca"}, {"agendan": 3, "compran": 0, "n": 3, "t": "YouTube"}, {"agendan": 2, "compran": 0, "n": 2, "t": "Email"}], "content": [{"n": 4575, "t": "Sin dato"}, {"n": 20, "t": "boton_presiona_aqui"}, {"n": 13, "t": "link_in_bio"}, {"n": 1, "t": "I-EXCEL"}, {"n": 1, "t": "LEADS - N1 - AD3"}, {"n": 1, "t": "LEADS - N1 - F-ESCAPARATE-72H"}, {"n": 1, "t": "V-AD3"}, {"n": 1, "t": "N1 - F-VENDE-AGENTES - 3 TEXTOS"}, {"n": 1, "t": "PRUEBA-CLAUDE"}, {"n": 1, "t": "I-MIRA-ANTES"}], "dias30": [{"d": "13/10", "n": 165}, {"d": "14/10", "n": 87}, {"d": "15/10", "n": 37}, {"d": "16/10", "n": 17}, {"d": "17/10", "n": 106}, {"d": "18/10", "n": 108}, {"d": "19/10", "n": 64}, {"d": "20/10", "n": 109}, {"d": "21/10", "n": 106}, {"d": "22/10", "n": 75}, {"d": "23/10", "n": 57}, {"d": "24/10", "n": 39}, {"d": "25/10", "n": 26}, {"d": "26/10", "n": 2182}, {"d": "27/10", "n": 95}, {"d": "28/10", "n": 31}, {"d": "29/10", "n": 1}, {"d": "30/10", "n": 4}, {"d": "31/10", "n": 0}, {"d": "01/11", "n": 1}, {"d": "02/11", "n": 0}, {"d": "03/11", "n": 4}, {"d": "04/11", "n": 0}, {"d": "05/11", "n": 3}, {"d": "06/11", "n": 19}, {"d": "07/11", "n": 16}, {"d": "08/11", "n": 15}, {"d": "09/11", "n": 11}, {"d": "10/11", "n": 12}, {"d": "11/11", "n": 2}], "entradas": [{"activa": false, "desde": null, "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "errores": 0, "ghl": false, "leads": 474, "nombre": "GHL · Biblioteca", "ultimo": "2026-10-16T21:10:12.064618+00:00", "wf": null}, {"activa": true, "desde": "servidor", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 22, 47, 33, 25, 23, 2], "errores": 0, "ghl": false, "leads": 63, "nombre": "Web · Biblioteca registro", "ultimo": "2026-11-11T00:07:50.127636+00:00", "wf": {"encendido": true, "modo": "real"}}, {"activa": true, "desde": "servidor", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 1, 6, 0, 0], "errores": 0, "ghl": false, "leads": 3, "nombre": "Web · software-demo demo", "ultimo": "2026-11-09T09:53:03.661826+00:00", "wf": {"encendido": true, "modo": "real"}}, {"activa": true, "desde": "navegador", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 4, 6, 0, 0, 2, 0], "errores": 0, "ghl": false, "leads": 1, "nombre": "Web · Biblioteca agenda", "ultimo": "2026-11-10T02:02:43.801599+00:00", "wf": {"encendido": true, "modo": "real"}}, {"activa": true, "desde": "navegador", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0], "errores": 0, "ghl": false, "leads": 0, "nombre": "Web · codigomaestria agenda", "ultimo": "2026-11-08T17:19:16.535798+00:00", "wf": {"encendido": true, "modo": "prueba"}}, {"activa": true, "desde": "navegador", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "errores": 0, "ghl": false, "leads": 0, "nombre": "Web · codigomaestria agenda-fc", "ultimo": "2026-11-08T17:19:17.245928+00:00", "wf": {"encendido": true, "modo": "prueba"}}, {"activa": true, "desde": "servidor", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5, 1], "errores": 0, "ghl": false, "leads": 3, "nombre": "Web · maestria registro", "ultimo": "2026-11-11T00:07:08.520266+00:00", "wf": {"encendido": true, "modo": "real"}}], "etiquetas": [{"ghl": true, "n": 112, "t": "agenda llamada"}, {"ghl": true, "n": 30, "t": "rellena form llamada"}, {"ghl": true, "n": 24, "t": "form llamada callers"}, {"ghl": true, "n": 4, "t": "agenda biblioteca"}, {"ghl": true, "n": 2, "t": "form llamada youtube"}, {"ghl": true, "n": 1, "t": "agenda facu"}, {"ghl": true, "n": 1, "t": "form llamada instagram"}, {"ghl": true, "n": 0, "t": "agenda dfy"}, {"ghl": true, "n": 0, "t": "webinar agenda"}, {"ghl": true, "n": 0, "t": "agenda email"}, {"ghl": true, "n": 0, "t": "agenda callers"}, {"ghl": true, "n": 0, "t": "form llamada p1"}], "source": [{"agendan": 120, "compran": 3, "n": 4549, "t": "Sin dato"}, {"agendan": 0, "compran": 0, "n": 35, "t": "instagram"}, {"agendan": 1, "compran": 0, "n": 22, "t": "ig"}, {"agendan": 0, "compran": 0, "n": 3, "t": "facebook"}, {"agendan": 0, "compran": 0, "n": 3, "t": "meta"}, {"agendan": 1, "compran": 0, "n": 1, "t": "agenda-codigo-maestria"}, {"agendan": 0, "compran": 0, "n": 1, "t": "agenda-biblioteca"}, {"agendan": 0, "compran": 0, "n": 1, "t": "prueba"}], "total": {"agendan": 122, "compran": 3, "leads": 4615}, "workflows": [{"coinciden": 2, "disparador": "entrada", "ejec": 69, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · Biblioteca registro", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 1, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · Biblioteca agenda", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "oportunidad_ghl", "oportunidad_ghl", "oportunidad_ghl", "mover_dashboard"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 2, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · software-demo demo", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "oportunidad_ghl"]}, {"coinciden": 0, "disparador": "cita", "ejec": 6, "encendido": true, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Cita agendada", "pasos": ["rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 0, "encendido": true, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Web · codigomaestria agenda", "pasos": ["esperar", "contacto_ghl", "rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 0, "encendido": true, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Web · codigomaestria agenda-fc", "pasos": ["esperar", "contacto_ghl", "oportunidad_ghl", "oportunidad_ghl", "etiquetas_ghl"]}, {"coinciden": 0, "disparador": "cita", "ejec": 0, "encendido": false, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Cita agendada", "pasos": ["rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 3, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · maestria registro", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "oportunidad_ghl"]}]};
+const HOY = new Date("2026-11-11T12:00:00");
+const COL = ["var(--primario)","var(--oro)","var(--ok)","var(--morado)","var(--aviso)","var(--mal)","var(--texto-3)"];
+const fmt = n => n.toLocaleString("es-ES");
+const pct = (a,b) => b ? (Math.round(a/b*1000)/10).toLocaleString("es-ES")+" %" : "—";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const SIN = ["Sin dato","Sin canal"];
+
+function kpi(t, v, d, ico, tono){ return `<div class="kpi tarjeta"><div class="t"><span class="ico c-${tono||'pri'}">${ico}</span><span class="titulo-seccion" style="font-size:10px">${t}</span></div><div class="v">${v}</div>${d?`<div class="d">${d}</div>`:""}</div>`; }
+
+function anillo(titulo, partes, max=6){
+  let o = partes.filter(p=>p.n>0).sort((a,b)=>b.n-a.n);
+  if (o.length>max) o = [...o.slice(0,max-1), {t:"Otros", n:o.slice(max-1).reduce((s,p)=>s+p.n,0)}];
+  const tot = o.reduce((s,p)=>s+p.n,0), r=30, c=2*Math.PI*r; let ini=0;
+  if(!tot) return `<div><div class="titulo-seccion">${titulo}</div><p class="mute">Todavía no hay datos.</p></div>`;
+  const arcos = o.map((p,i)=>{ const l=p.n/tot*c; const s=`<circle cx="38" cy="38" r="${r}" fill="none" stroke="${COL[i%7]}" stroke-width="9" stroke-dasharray="${l} ${c-l}" stroke-dashoffset="${-ini}" transform="rotate(-90 38 38)"><title>${esc(p.t)}: ${fmt(p.n)}</title></circle>`; ini+=l; return s; }).join("");
+  return `<div><div class="titulo-seccion" style="margin-bottom:10px">${titulo}</div><div class="anillo"><svg width="120" height="120" viewBox="0 0 76 76"><circle cx="38" cy="38" r="${r}" fill="none" stroke="var(--borde)" stroke-width="9"/>${arcos}<text x="38" y="41" text-anchor="middle" font-size="12" font-weight="650" fill="var(--texto)">${fmt(tot)}</text></svg><ul>${o.map((p,i)=>`<li><i class="punto" style="color:${COL[i%7]}"></i><span class="tx" title="${esc(p.t)}">${esc(p.t)}</span><span class="n">${fmt(p.n)} · ${Math.round(p.n/tot*100)} %</span></li>`).join("")}</ul></div></div>`;
+}
+
+function barras(titulo, filas, max=8){
+  const o = filas.filter(p=>p.n>0).slice(0,max), top = o[0]?.n||1, tot = filas.reduce((s,p)=>s+p.n,0);
+  return `<div><div class="titulo-seccion" style="margin-bottom:6px">${titulo}</div>${o.length?o.map((p,i)=>`<div class="barra"><div class="fila"><b style="color:var(--texto-3);width:18px">${i+1}</b><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.t)}</span><span class="n">${fmt(p.n)} · ${pct(p.n,tot)}</span></div><div class="pista"><div class="lleno" style="width:${p.n/top*100}%"></div></div></div>`).join(""):'<p class="mute">Todavía no hay datos.</p>'}</div>`;
+}
+
+function mini(dias, w=140, h=36){
+  const m = Math.max(1,...dias), bw = w/dias.length;
+  return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Leads por día, últimos 14 días">${dias.map((n,i)=>`<rect x="${i*bw+1}" y="${h-(n/m)*(h-4)-2}" width="${bw-2}" height="${(n/m)*(h-4)+2}" rx="1.5" fill="${i===dias.length-1?'var(--primario)':'color-mix(in srgb,var(--primario) 45%,transparent)'}"><title>${n} leads</title></rect>`).join("")}</svg>`;
+}
+
+function linea(puntos){
+  const w=700,h=180,p=24, m=Math.max(1,...puntos.map(x=>x.n)), sx=(w-2*p)/(puntos.length-1);
+  const xy = puntos.map((x,i)=>[p+i*sx, h-p-(x.n/m)*(h-2*p)]);
+  const d = xy.map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)).join(" ");
+  return `<svg width="100%" viewBox="0 0 ${w} ${h}" role="img" aria-label="Leads por día"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--primario)" stop-opacity=".35"/><stop offset="1" stop-color="var(--primario)" stop-opacity="0"/></linearGradient></defs>
+  <path d="${d} L${xy.at(-1)[0]} ${h-p} L${p} ${h-p} Z" fill="url(#g)"/><path d="${d}" fill="none" stroke="var(--primario)" stroke-width="2.5" stroke-linejoin="round"/>
+  ${xy.map((q,i)=>`<circle cx="${q[0]}" cy="${q[1]}" r="3" fill="var(--primario)"><title>${puntos[i].d}: ${puntos[i].n} leads</title></circle>`).join("")}
+  ${puntos.map((x,i)=> i%5===0||i===puntos.length-1?`<text x="${p+i*sx}" y="${h-4}" font-size="10" text-anchor="middle" fill="var(--texto-3)">${x.d}</text>`:"").join("")}
+  <text x="${p}" y="12" font-size="10" fill="var(--texto-3)">máx. ${m}</text></svg>`;
+}
+
+function embudo(pasos){
+  const tot=pasos[0].n, tonos=["var(--primario)","var(--oro)","var(--ok)"];
+  return `<div class="embudo">${pasos.map((s,i)=>`${i?`<div class="entre">↓ ${pct(s.n,pasos[i-1].n)} pasa · se pierden ${fmt(pasos[i-1].n-s.n)}</div>`:""}<div class="pso" style="width:${30+70*Math.sqrt(tot?s.n/tot:0)}%;background:${tonos[i]}"><span>${s.t}</span><span>${fmt(s.n)} · ${pct(s.n,tot)}</span></div>`).join("")}</div>`;
+}
+
+function hace(iso){ if(!iso) return "nunca"; const m=(HOY-new Date(iso))/6e4; return m<60?`hace ${Math.round(m)} min`:m<1440?`hace ${Math.round(m/60)} h`:`hace ${Math.round(m/1440)} días`; }
+
+function estadoEntrada(e){
+  if(!e.activa) return `<span class="chip c-gris">Apagada</span>`;
+  if(e.wf?.modo==="prueba") return `<span class="chip c-aviso">⚗ Workflow en prueba</span>`;
+  if(e.wf?.modo==="real") return `<span class="chip c-ok"><i class="punto"></i>Lo manda su workflow</span>`;
+  return `<span class="chip c-ok"><i class="punto"></i>Recibiendo</span>`;
+}
+
+const V = {};
+V.entradas = () => {
+  const E=D.entradas, hoy=E.reduce((s,e)=>s+e.dias.at(-1),0), sem=E.reduce((s,e)=>s+e.dias.slice(-7).reduce((a,b)=>a+b,0),0);
+  return `<div class="fila" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap"><div><div class="titulo-seccion">Entradas (landings)</div><div class="mute">Cada landing manda sus leads a su propia dirección.</div></div><button class="btn pri" onclick="abrirModal()">＋ Conectar una landing</button></div>
+  <div class="kpis">${kpi("Leads hoy",fmt(hoy),`${fmt(sem)} en 7 días`,"↓","pri")}${kpi("Entradas activas",`${E.filter(e=>e.activa).length}<span class="mute" style="font-size:14px"> / ${E.length}</span>`,"recibiendo leads","●","ok")}${kpi("Envíos con error",fmt(E.reduce((s,e)=>s+e.errores,0)),"todo en orden","!","mal")}${kpi("Workflows en prueba",E.filter(e=>e.wf?.modo==="prueba").length,"esperan «Pasar a real»","⚗","aviso")}</div>
+  <div class="grid2">${E.map(e=>`<article class="tarjeta tarjeta-e">
+    <div class="fila" style="justify-content:space-between"><span class="nombre" title="${esc(e.nombre)}">${esc(e.nombre)}</span>${estadoEntrada(e)}</div>
+    <div class="fila" style="align-items:flex-end;gap:14px"><div><div class="grande">${fmt(e.leads)}</div><div class="mute">leads · último ${hace(e.ultimo)}</div></div><div style="flex:1;min-width:0">${mini(e.dias)}<div class="mute" style="text-align:right">14 días · hoy ${e.dias.at(-1)}</div></div></div>
+    ${e.wf?.modo==="prueba"?`<div class="fila" style="background:var(--aviso-suave);border-radius:12px;padding:7px 10px;flex-wrap:wrap"><span style="font-size:12px;color:var(--aviso-texto)">Comparando con «Qué hacer en GHL»</span><span style="margin-left:auto" class="fila"><button class="btn peq">Pasar a real</button><button class="btn peq">Parar la prueba</button></span></div>`:""}
+    <div class="fila"><code class="mute" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">…/api/webhooks/entrada/••••••</code><button class="btn pri peq">Copiar dirección</button></div>
+    <details><summary>Ver los últimos leads</summary><p>La misma lista de hoy (en la maqueta no se enseñan leads: el repo es público).</p></details>
+    <details><summary>Cambiar ajustes y «Qué hacer en GHL»</summary><p>Los mismos campos de hoy.</p></details>
+    <details><summary>Para el programador</summary><p>El JSON y el código de ejemplo de hoy.</p></details>
+  </article>`).join("")}</div>`;
+};
+
+const PASO = {esperar:["⏱","Esperar","c-gris"],contacto_ghl:["👤","Contacto","c-aviso"],etiquetas_ghl:["🏷","Etiquetas","c-mal"],rama:["⑂","Rama","c-pri"],oportunidad_ghl:["💼","Oportunidad","c-oro"],mover_dashboard:["➜","Mover","c-ok"]};
+let wfSel = 0;
+V.workflows = () => {
+  const W=D.workflows, real=W.filter(w=>w.modo==="real"&&w.encendido).length, prueba=W.filter(w=>w.modo==="prueba"&&w.encendido).length, off=W.filter(w=>!w.encendido).length, w=W[wfSel];
+  const cn = (w.coinciden+w.no_coinciden);
+  return `<div class="kpis">${kpi("Workflows",W.length,`${off} apagado`,"⚡","pri")}${kpi("En real",real,"mandan a GHL","✓","ok")}${kpi("En prueba",prueba,"comparando, sin mandar","⚗","aviso")}${kpi("Leads procesados",fmt(W.reduce((s,x)=>s+x.ejec,0)),"desde que existen","↻","pri")}${kpi("Con error",W.reduce((s,x)=>s+x.error,0),"todo en orden","!","mal")}</div>
+  <div class="grid3 dos" style="grid-template-columns:minmax(280px,1fr) minmax(300px,1.3fr);align-items:start">
+   <div style="display:flex;flex-direction:column;gap:10px">${W.map((x,i)=>`<article class="tarjeta tarjeta-e wf ${i===wfSel?"sel":""}" onclick="wfSel=${i};pintar()">
+     <div class="fila" style="justify-content:space-between"><span class="nombre">${esc(x.nombre)}</span><span class="fila" style="gap:6px;flex-shrink:0">${!x.encendido?'<span class="chip c-gris">Apagado</span>':x.modo==="real"?'<span class="chip c-ok"><i class="punto"></i>Real</span>':'<span class="chip c-aviso">⚗ En prueba</span>'}<button class="ib" title="Editar el workflow" aria-label="Editar ${esc(x.nombre)}" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></button><button class="ib mal" title="Eliminar el workflow (pide confirmación)" aria-label="Eliminar ${esc(x.nombre)}" onclick="event.stopPropagation();eliminarWf(${i})"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span></div>
+     <div class="pasos">${(x.pasos||[]).map((p,j)=>`${j?'<span class="flecha">›</span>':""}<span class="paso" title="${PASO[p]?.[1]||p}">${PASO[p]?.[0]||"•"}</span>`).join("")}</div>
+     <div class="fila mute"><b style="color:var(--texto)">${fmt(x.ejec)}</b> leads · ${x.error} con error · ${x.esperando} esperando</div></article>`).join("")}</div>
+   <div class="tarjeta seccion" style="position:sticky;top:12px">
+     <div class="fila" style="justify-content:space-between;flex-wrap:wrap"><div><div class="nombre">${esc(w.nombre)}</div><div class="mute">${w.modo==="real"?"Real: manda a GHL en lugar de «Qué hacer en GHL»":"En prueba: hace lo mismo sin mandar nada y lo compara"}</div></div>
+     ${w.modo==="prueba"?`<div class="fila">${anilloMini(w.coinciden,w.no_coinciden)}<div class="mute">${cn?`${w.coinciden} de ${cn} coinciden`:"Aún sin leads para comparar"}</div></div>`:""}</div>
+     <div class="diagrama" style="margin-top:14px"><div class="nodo"><span class="ico c-pri">⚡</span><div><div class="mute">Cuando</div><b>${w.disparador==="cita"?"Se agenda una cita":"Llega un lead a la Entrada"}</b></div></div>${(w.pasos||[]).map(p=>`<div class="linea"></div><div class="nodo"><span class="ico ${PASO[p]?.[2]||"c-gris"}">${PASO[p]?.[0]||"•"}</span><b>${PASO[p]?.[1]||p}</b></div>`).join("")}</div>
+     <p class="nota" style="text-align:center">Al abrirlo se ve el diagrama completo de hoy, con los detalles de cada paso.</p>
+   </div></div>`;
+};
+function anilloMini(a,b){ const t=a+b, r=14, c=2*Math.PI*r, l=t?a/t*c:0; return `<svg width="40" height="40" viewBox="0 0 36 36"><circle cx="18" cy="18" r="${r}" fill="none" stroke="${t?'var(--mal)':'var(--borde)'}" stroke-width="5"/><circle cx="18" cy="18" r="${r}" fill="none" stroke="var(--ok)" stroke-width="5" stroke-dasharray="${l} ${c-l}" transform="rotate(-90 18 18)"/></svg>`; }
+
+let subEt = "canales";
+V.etiquetas = () => {
+  const C=D.canales, tot=C.reduce((s,c)=>s+c.n,0), sin=C.find(c=>c.t==="Sin canal")?.n||0, con=C.filter(c=>!SIN.includes(c.t)), E=D.etiquetas, maxE=Math.max(1,...E.map(e=>e.n));
+  return `<div class="tarjeta aviso-sin"><span class="ico c-aviso" style="width:32px;height:32px;font-size:15px">!</span><div><b>${fmt(sin)} de ${fmt(tot)} leads (${pct(sin,tot)}) no tienen canal.</b><div class="mute">El canal sale de la cita (de su página o su utm_source), así que solo lo tienen los que agendaron. Se cuentan aparte para que los círculos se lean.</div></div></div>
+  <div class="grid3">
+   <div class="tarjeta seccion">${anillo("Leads por canal",con)}</div>
+   <div class="tarjeta seccion">${anillo("Leads por etiqueta",E)}</div>
+   <div class="tarjeta seccion">${barras("Ranking de canales",con,8)}</div>
+  </div>
+  <div class="sub-pest"><button class="${subEt==="canales"?"on":""}" onclick="subEt='canales';pintar()">Canales</button><button class="${subEt==="etiquetas"?"on":""}" onclick="subEt='etiquetas';pintar()">Etiquetas</button></div>
+  <div class="tarjeta seccion lista-ed">${subEt==="canales"
+   ? `<div class="mute" style="margin-bottom:10px">Se editan igual que hoy (nombre, alias y páginas); cada fila enseña además sus leads.</div>${C.filter(c=>c.t!=="Sin canal").map(c=>`<div class="item"><span class="flecha">⇅</span><b style="min-width:110px">${esc(c.t)}</b><span class="mini"><i style="width:${c.n/Math.max(...con.map(x=>x.n))*100}%"></i></span><span class="mute">${fmt(c.n)} leads</span><span style="margin-left:auto" class="fila"><button class="btn peq">Editar</button></span></div>`).join("")}`
+   : `<div class="fila" style="margin-bottom:10px"><input class="campo" style="margin:0;max-width:260px" placeholder="nueva etiqueta"><button class="btn peq">Crear</button></div>${E.map(e=>`<div class="item"><span class="flecha">⇅</span><b style="min-width:170px">${esc(e.t)}</b>${e.ghl?'<span class="chip c-oro">usada por GHL</span>':'<span class="chip c-gris">solo aquí</span>'}<span class="mini"><i style="width:${e.n/maxE*100}%"></i></span><span class="mute">${fmt(e.n)} leads</span><span style="margin-left:auto" class="fila"><button class="btn peq">Ver en UTMs</button><button class="btn peq">Renombrar o unir</button><button class="btn peq">Borrar</button></span></div>`).join("")}`}</div>`;
+};
+
+let canalEmb = "Todos";
+V.utms = () => {
+  const T=D.total, sinU=D.source.find(s=>s.t==="Sin dato")?.n||0, conU=T.leads-sinU, sinD=a=>a.filter(x=>!SIN.includes(x.t));
+  const con = sinD(D.source), c = canalEmb==="Todos"?{n:T.leads,agendan:T.agendan,compran:T.compran}:D.source.find(x=>x.t===canalEmb);
+  return `<div class="kpis">${kpi("Leads",fmt(T.leads),"todo el histórico","👥","pri")}${kpi("Con UTM",fmt(conU),pct(conU,T.leads)+" del total","🔗","ok")}${kpi("Sin UTM",fmt(sinU),"se cuentan aparte","∅","aviso")}${kpi("Agendan",fmt(T.agendan),pct(T.agendan,T.leads),"📅","oro")}${kpi("Compran",fmt(T.compran),pct(T.compran,T.leads),"€","ok")}</div>
+  <div class="grid3">
+   <div class="tarjeta seccion">${anillo("Por utm_source",sinD(D.source))}</div>
+   <div class="tarjeta seccion">${anillo("Por campaña",sinD(D.campaign))}</div>
+   <div class="tarjeta seccion">${anillo("Por etiqueta",D.etiquetas)}</div>
+  </div>
+  <div class="tarjeta seccion"><div class="fila" style="justify-content:space-between"><div class="titulo-seccion">Leads por día · últimos 30 días</div><span class="mute">${fmt(D.dias30.reduce((s,x)=>s+x.n,0))} en total</span></div>${linea(D.dias30)}<p class="nota">El pico de ${fmt(Math.max(...D.dias30.map(x=>x.n)))} leads en un solo día aplasta el resto. Cómo enseñarlo está pendiente de decidir con Cristian.</p></div>
+  <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+   <div class="tarjeta seccion"><div class="fila" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:10px"><div class="titulo-seccion">Embudo por utm_source</div><select class="campo" style="width:auto;margin:0" onchange="canalEmb=this.value;pintar()">${["Todos",...con.map(x=>x.t)].map(t=>`<option ${t===canalEmb?"selected":""}>${esc(t)}</option>`).join("")}</select></div>
+     ${embudo([{t:"Leads",n:c.n},{t:"Agendan",n:c.agendan},{t:"Compran",n:c.compran}])}
+     <p class="nota">En la app irán los 6 pasos de KPIs → Leads (Contactados, Contestan y Asisten también). En la maqueta solo están los 3 que pude contar directo en la base. Hoy casi nadie con UTM ha agendado: por eso, al elegir una fuente, el embudo sale casi vacío (es el dato real).</p></div>
+   <div class="tarjeta seccion">${barras("Ranking de campañas (con UTM)",sinD(D.campaign),8)}</div>
+  </div>
+  <div class="tarjeta seccion"><div class="titulo-seccion">Generador de enlaces · filtros · tabla de leads</div><p class="mute">Siguen igual que hoy, debajo de los gráficos. (En la maqueta no se enseña la tabla: el repo es público).</p></div>`;
+};
+
+const PEST = [["entradas","Entradas (landings)","Administración"],["workflows","Workflows","Administración"],["etiquetas","Etiquetas y UTMs","Administración"],["utms","UTMs (KPIs)","KPIs"]];
+let pest = "entradas";
+function pintar(){
+  document.getElementById("pestanas").innerHTML = PEST.map(([v,t])=>`<button class="${v===pest?"on":""}" onclick="pest='${v}';pintar()">${t}</button>`).join("")+`<button class="tema" onclick="document.documentElement.classList.toggle('dark')">◐ Claro / oscuro</button>`;
+  const p = PEST.find(x=>x[0]===pest);
+  document.getElementById("h1").textContent = p[2];
+  document.getElementById("subt").textContent = p[2]==="KPIs" ? "Maestria · UTMs · Todo el histórico" : "Maestria · acceso total";
+  document.getElementById("vista").innerHTML = V[pest]();
+}
+// Como confirmar() de components/dialogos.tsx: ventana propia de la app, nunca la del navegador
+function confirmarMaq(titulo, detalle, boton){
+  return new Promise(res=>{
+    const f=document.getElementById("conf");
+    f.querySelector(".c-tit").textContent=titulo; f.querySelector(".c-det").textContent=detalle; f.querySelector(".c-si").textContent=boton;
+    const cerrar=ok=>{ f.classList.remove("on"); f.onclick=null; document.onkeydown=null; res(ok); };
+    f.querySelector(".c-no").onclick=()=>cerrar(false); f.querySelector(".c-si").onclick=()=>cerrar(true);
+    f.onclick=e=>{ if(e.target===f) cerrar(false); }; document.onkeydown=e=>{ if(e.key==="Escape") cerrar(false); };
+    f.classList.add("on"); f.querySelector(".c-no").focus();
+  });
+}
+async function eliminarWf(i){
+  const w=D.workflows[i];
+  if(!await confirmarMaq(`¿Eliminar «${w.nombre}»?`, "Dejará de funcionar y se quitará de la lista.", "Sí, eliminar")) return;
+  if(!await confirmarMaq("¿Seguro? No se puede deshacer.", `«${w.nombre}» se borra para siempre${w.esperando?` y sus ${w.esperando} leads en espera no seguirán`:""}.`, "Eliminar para siempre")) return;
+  aviso(`«${w.nombre}» eliminado (en la maqueta no se borra nada).`);
+}
+function aviso(t){ const a=document.getElementById("aviso"); a.textContent=t; a.classList.add("on"); clearTimeout(aviso.t); aviso.t=setTimeout(()=>a.classList.remove("on"),2600); }
+function abrirModal(){document.getElementById("modal").classList.add("on")}
+function cerrarModal(){document.getElementById("modal").classList.remove("on")}
+pintar();
+</script>
+</body>
+</html>

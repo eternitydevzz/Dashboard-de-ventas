@@ -126,13 +126,18 @@ export async function cargarUtmsPestana() {
     await exigirSeccion("kpis");
     const { proyecto } = await exigir(esJefe);
     const { filaUtm } = await import("@/lib/utms");
+    const { cargarLeadsKpis } = await import("@/lib/leads-kpis");
+    const { descompactarLeads } = await import("@/lib/leads-vista");
     const pid = proyecto.id;
-    const [leads, { data: entradas, error }] = await Promise.all([
+    // Rediseño (11 nov 2026): las marcas del embudo de cada lead, de la misma carga que KPIs → Leads (1 min en memoria)
+    const [leads, { data: entradas, error }, kpis] = await Promise.all([
       todas<{ id: string; nombre: string | null; apellido: string | null; creado_en: string; etiquetas: string[] | null; seguimiento: Record<string, string> | null }>((a, b) =>
         db().from("leads").select("id, nombre, apellido, creado_en, etiquetas, seguimiento").eq("proyecto_id", pid).order("id").range(a, b)
       ),
       db().from("entradas").select("id, nombre").eq("proyecto_id", pid),
+      cargarLeadsKpis(proyecto),
     ]);
+    const marcasDe = new Map(descompactarLeads(kpis).leads.map((l) => [l.id, l.marcas]));
     if (error) throw new Error(error.message);
     const nombreEntrada = new Map((entradas ?? []).map((e) => [e.id as string, e.nombre as string]));
     // Del envío más reciente al más antiguo: el primero que sale de cada lead es su Entrada
@@ -143,6 +148,6 @@ export async function cargarUtmsPestana() {
       );
       for (const e of envios) if (!entradaDe.has(e.lead_id)) entradaDe.set(e.lead_id, nombreEntrada.get(e.entrada_id) ?? "");
     }
-    return leads.map((l) => filaUtm(l, entradaDe.get(l.id)));
+    return leads.map((l) => filaUtm(l, entradaDe.get(l.id), marcasDe.get(l.id) ?? 0));
   });
 }

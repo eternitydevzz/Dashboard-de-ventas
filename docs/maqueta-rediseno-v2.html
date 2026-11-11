@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maqueta rediseño 2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:14px/1.45 Inter,-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;transition:background .3s,color .3s}
+button,select,input{font:inherit}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+/* ---------- barra de la maqueta (igual en las dos) ---------- */
+.barra-maq{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;background:rgb(10 10 14/.92);color:#e9ecf5;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid rgb(255 255 255/.08);font-size:13px}
+.barra-maq .seg{display:flex;max-width:100%;overflow-x:auto;background:rgb(255 255 255/.06);border-radius:10px;padding:3px}
+.barra-maq .seg button{border:0;background:none;color:#9aa3b8;padding:6px 11px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.barra-maq .seg button.on{background:#fff;color:#0b0d12;font-weight:600}
+.barra-maq .aviso{color:#7d869c;margin-left:auto;font-size:12px}
+main{max-width:1240px;margin:0 auto;padding:24px 16px 80px}
+
+/* ================= PROPUESTA A · CENTRO DE CONTROL ================= */
+body.A{--bg:#05060a;--card:#0c0f16;--card2:#11151f;--line:#1c2230;--line2:#283044;--tx:#e8ecf6;--tx2:#9aa4ba;--tx3:#5f6a83;--lima:#b8ff3c;--cian:#38e1ff;--rojo:#ff4d63;--ambar:#ffb02e;--violeta:#9b7bff;background:var(--bg);color:var(--tx);
+ background-image:radial-gradient(700px 400px at 85% -10%,rgb(56 225 255/.10),transparent 70%),radial-gradient(600px 400px at 0% 0%,rgb(184 255 60/.06),transparent 70%),linear-gradient(rgb(255 255 255/.025) 1px,transparent 1px),linear-gradient(90deg,rgb(255 255 255/.025) 1px,transparent 1px);background-size:auto,auto,32px 32px,32px 32px;background-attachment:fixed}
+.A .cab{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+.A h1{margin:0;font-size:26px;font-weight:700;letter-spacing:-.03em}
+.A .ruta{color:var(--tx3);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.A .vivo{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--lima);border:1px solid rgb(184 255 60/.25);background:rgb(184 255 60/.06);padding:5px 10px;border-radius:99px}
+.A .led{width:8px;height:8px;border-radius:99px;background:var(--lima);box-shadow:0 0 10px var(--lima);flex-shrink:0}
+.A .led.pulso{animation:pulso 1.6s ease-in-out infinite}
+.A .led.ambar{background:var(--ambar);box-shadow:0 0 10px var(--ambar)}.A .led.rojo{background:var(--rojo);box-shadow:0 0 10px var(--rojo)}.A .led.gris{background:var(--tx3);box-shadow:none}
+@keyframes pulso{50%{opacity:.35}}
+.A .pest{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
+.A .pest button{border:0;background:none;color:var(--tx2);padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.A .pest button.on{color:var(--tx);border-color:var(--lima)}
+.A .panel{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0;position:relative}
+.A .eti{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);font-weight:600}
+.A .tira{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;background:var(--card)}
+.A .tira>div{padding:14px 16px;border-right:1px solid var(--line);min-width:0}
+.A .tira>div:last-child{border-right:0}
+.A .num{font-family:"JetBrains Mono",monospace;font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1.1;margin-top:6px}
+.A .det{font-size:12px;color:var(--tx3);margin-top:2px}
+.A .sube{color:var(--lima)}.A .baja{color:var(--rojo)}
+.A .rejilla{display:grid;gap:14px;grid-template-columns:repeat(12,minmax(0,1fr));margin-bottom:14px}
+.A .c4{grid-column:span 4}.A .c5{grid-column:span 5}.A .c6{grid-column:span 6}.A .c7{grid-column:span 7}.A .c8{grid-column:span 8}.A .c12{grid-column:span 12}
+.A .chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;border:1px solid var(--line2);color:var(--tx2);white-space:nowrap}
+.A .chip.lima{color:var(--lima);border-color:rgb(184 255 60/.3);background:rgb(184 255 60/.06)}.A .chip.ambar{color:var(--ambar);border-color:rgb(255 176 46/.3);background:rgb(255 176 46/.06)}
+.A .btn{border:1px solid var(--line2);background:var(--card2);color:var(--tx);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;white-space:nowrap}
+.A .btn.pri{background:var(--lima);color:#0a0d05;border-color:transparent;font-weight:600}
+.A .btn:hover{border-color:var(--tx3)}
+.A .hm{width:100%;border-collapse:separate;border-spacing:3px}
+.A .hm td{height:26px;border-radius:4px;min-width:14px}
+.A .hm .n{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--tx2);text-align:right;padding-left:8px;white-space:nowrap}
+.A .hm .nom{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;padding-right:10px;font-size:13px}
+.A .hm tr.fila-e{cursor:pointer}.A .hm tr.fila-e:hover .nom{color:var(--lima)}
+.A .hm th{font-weight:400;font-size:10px;color:var(--tx3);font-family:"JetBrains Mono",monospace}
+.A .detalle{border-top:1px dashed var(--line2);margin-top:12px;padding-top:12px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.A .caja{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:rgb(255 255 255/.015)}
+.A .dir{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--tx2);background:#07090e;border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;gap:8px;align-items:center;justify-content:space-between}
+.A .run{display:grid;grid-template-columns:auto minmax(0,1.3fr) minmax(0,2fr) auto;gap:14px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.A .run:hover,.A .run.sel{background:rgb(255 255 255/.025)}
+.A .run.sel{box-shadow:inset 2px 0 0 var(--lima)}
+.A .cadena{display:flex;align-items:center;gap:0;min-width:0;overflow:hidden}
+.A .nodo{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1px solid;flex-shrink:0}
+.A .enlace{height:2px;width:14px;background:var(--line2);flex-shrink:0}
+.A .term{font-family:"JetBrains Mono",monospace;font-size:12px;background:#06080c;border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--tx2);line-height:1.7}
+.A .term .ok{color:var(--lima)}.A .term .k{color:var(--cian)}.A .term .w{color:var(--ambar)}
+.A .lista .item{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.A .lista .item:last-child{border-bottom:0}
+.A .barrita{flex:1 1 120px;height:6px;background:var(--line);border-radius:99px;overflow:hidden;min-width:60px}.A .barrita i{display:block;height:100%;background:linear-gradient(90deg,var(--cian),var(--lima));border-radius:99px}
+.A .apilada{display:flex;height:34px;border-radius:8px;overflow:hidden;gap:2px}
+.A .apilada div{display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:600;color:#06080c;white-space:nowrap;overflow:hidden}
+.A .nota{font-size:12px;color:var(--tx3);margin:8px 0 0}
+.A .aviso-a{border:1px solid rgb(255 176 46/.25);background:rgb(255 176 46/.05);color:var(--ambar);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.A svg text{font-family:Inter,system-ui,sans-serif}
+
+/* ================= PROPUESTA B · ANALYTICS PREMIUM ================= */
+body.B{--bg:#f6f7fb;--card:#fff;--line:#e8eaf2;--tx:#0b0d12;--tx2:#4a5168;--tx3:#8a91a8;--ind:#5b5bf6;--rosa:#f0568c;--verde:#12b886;--ambar:#f59f00;--cielo:#3b9cff;background:var(--bg);color:var(--tx)}
+.B .hero{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:22px}
+.B h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.04em}
+.B .ruta{color:var(--tx3);font-size:13px;font-weight:500}
+.B .pest{display:inline-flex;background:#eceef6;border-radius:12px;padding:4px;gap:2px;margin-bottom:22px;flex-wrap:wrap}
+.B .pest button{border:0;background:none;color:var(--tx2);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:500}
+.B .pest button.on{background:#fff;color:var(--tx);box-shadow:0 1px 2px rgb(16 24 40/.08),0 2px 8px rgb(16 24 40/.06)}
+.B .insight{background:linear-gradient(120deg,#1b1b3a,#3a2a6b 55%,#6b2f5f);color:#fff;border-radius:20px;padding:22px 24px;margin-bottom:18px;position:relative;overflow:hidden}
+.B .insight::after{content:"";position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgb(240 86 140/.45),transparent 70%)}
+.B .insight .t{font-size:12px;letter-spacing:.1em;text-transform:uppercase;opacity:.7;font-weight:600}
+.B .insight .frase{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:6px;max-width:760px;position:relative;z-index:1}
+.B .insight .frase b{background:linear-gradient(90deg,#ffd27a,#ff9ac0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.B .insight .mas{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px;opacity:.85;position:relative;z-index:1}
+.B .tarj{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;box-shadow:0 1px 2px rgb(16 24 40/.04);min-width:0}
+.B .rej{display:grid;gap:16px;grid-template-columns:repeat(12,minmax(0,1fr));margin-bottom:16px}
+.B .c3{grid-column:span 3}.B .c4{grid-column:span 4}.B .c5{grid-column:span 5}.B .c6{grid-column:span 6}.B .c7{grid-column:span 7}.B .c8{grid-column:span 8}.B .c12{grid-column:span 12}
+.B .lbl{font-size:13px;color:var(--tx2);font-weight:500}
+.B .big{font-size:34px;font-weight:800;letter-spacing:-.04em;margin-top:4px;line-height:1.05}
+.B .delta{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;margin-left:8px;vertical-align:middle}
+.B .delta.up{background:#e6f8f1;color:#0a8a63}.B .delta.down{background:#fdecef;color:#c8314f}.B .delta.eq{background:#eef0f6;color:var(--tx2)}
+.B .sub{font-size:12px;color:var(--tx3);margin-top:4px}
+.B .tit{font-size:15px;font-weight:700;letter-spacing:-.01em;margin:0 0 2px}
+.B table{width:100%;border-collapse:collapse}
+.B th{text-align:left;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--line)}
+.B td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.B tr:last-child td{border-bottom:0}
+.B tr.click{cursor:pointer}.B tr.click:hover td{background:#fafbff}
+.B .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.B .pill.ok{background:#e6f8f1;color:#0a8a63}.B .pill.amb{background:#fff4dc;color:#a86800}.B .pill.gris{background:#eef0f6;color:var(--tx2)}
+.B .pill i{width:6px;height:6px;border-radius:99px;background:currentColor}
+.B .cuota{height:8px;border-radius:99px;background:#eef0f6;overflow:hidden;min-width:80px}.B .cuota i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--ind),var(--rosa))}
+.B .btn{border:1px solid var(--line);background:#fff;color:var(--tx);border-radius:10px;padding:7px 13px;cursor:pointer;font-weight:500;font-size:13px;white-space:nowrap}
+.B .btn.pri{background:var(--tx);color:#fff;border-color:var(--tx)}
+.B .nota{font-size:12px;color:var(--tx3);margin-top:8px}
+.B .ley{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--tx2);margin-top:10px}.B .ley span{display:inline-flex;align-items:center;gap:6px}.B .ley i{width:9px;height:9px;border-radius:3px}
+.B .paso-t{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.B .paso-t span{font-size:11px;font-weight:600;padding:4px 9px;border-radius:8px;background:#f1f2f8;color:var(--tx2)}
+.B .paso-t em{color:var(--tx3);font-style:normal}
+.B .exp td{background:#fafbff}
+.B svg text{font-family:Inter,system-ui,sans-serif}
+.oculto{display:none!important}
+@media (max-width:860px){
+ .A .c4,.A .c5,.A .c6,.A .c7,.A .c8,.B .c3,.B .c4,.B .c5,.B .c6,.B .c7,.B .c8{grid-column:span 12}
+ .A .run{grid-template-columns:auto minmax(0,1fr) auto}.A .run .cadena{grid-column:1/-1;order:9}
+ .B h1{font-size:28px}.B .insight .frase{font-size:18px}
+ .B .solo-ancho{display:none}
+ .barra-maq .aviso{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body class="A">
+<div class="barra-maq">
+  <b style="margin-right:6px">Maqueta 2.0</b>
+  <div class="seg" id="seg-prop"></div>
+  <div class="seg" id="seg-pest"></div>
+  <span class="aviso">Datos reales de Maestria del 11 nov 2026 · solo totales · los botones no hacen nada</span>
+</div>
+<main id="raiz"></main>
+<script>
+const D = {"campaign": [{"n": 4589, "t": "Sin dato"}, {"n": 5, "t": "carrusel_2026-11-05_repos"}, {"n": 5, "t": "carrusel_2026-11-06_shorts"}, {"n": 3, "t": "carrusel_2026-11-08_repos"}, {"n": 3, "t": "4. DEMO APPS - LEADS NOV26"}, {"n": 2, "t": "carrusel_2026-11-09_tokens"}, {"n": 2, "t": "carrusel_2026-11-10_clon"}, {"n": 2, "t": "11. MASTERCLASS 24NOV - LEADS 20$"}, {"n": 1, "t": "carrusel_2026-10-27_links"}, {"n": 1, "t": "carrusel_2026-11-07_empresa"}, {"n": 1, "t": "7. MASTERCLASS 24NOV - REGISTROS"}, {"n": 1, "t": "carrusel_2026-11-04_video"}], "canales": [{"agendan": 20, "compran": 0, "n": 4512, "t": "Sin canal"}, {"agendan": 51, "compran": 0, "n": 51, "t": "Callers"}, {"agendan": 41, "compran": 3, "n": 41, "t": "Directo"}, {"agendan": 5, "compran": 0, "n": 6, "t": "Biblioteca"}, {"agendan": 3, "compran": 0, "n": 3, "t": "YouTube"}, {"agendan": 2, "compran": 0, "n": 2, "t": "Email"}], "content": [{"n": 4575, "t": "Sin dato"}, {"n": 20, "t": "boton_presiona_aqui"}, {"n": 13, "t": "link_in_bio"}, {"n": 1, "t": "I-EXCEL"}, {"n": 1, "t": "LEADS - N1 - AD3"}, {"n": 1, "t": "LEADS - N1 - F-ESCAPARATE-72H"}, {"n": 1, "t": "V-AD3"}, {"n": 1, "t": "N1 - F-VENDE-AGENTES - 3 TEXTOS"}, {"n": 1, "t": "PRUEBA-CLAUDE"}, {"n": 1, "t": "I-MIRA-ANTES"}], "dias30": [{"d": "13/10", "n": 165}, {"d": "14/10", "n": 87}, {"d": "15/10", "n": 37}, {"d": "16/10", "n": 17}, {"d": "17/10", "n": 106}, {"d": "18/10", "n": 108}, {"d": "19/10", "n": 64}, {"d": "20/10", "n": 109}, {"d": "21/10", "n": 106}, {"d": "22/10", "n": 75}, {"d": "23/10", "n": 57}, {"d": "24/10", "n": 39}, {"d": "25/10", "n": 26}, {"d": "26/10", "n": 2182}, {"d": "27/10", "n": 95}, {"d": "28/10", "n": 31}, {"d": "29/10", "n": 1}, {"d": "30/10", "n": 4}, {"d": "31/10", "n": 0}, {"d": "01/11", "n": 1}, {"d": "02/11", "n": 0}, {"d": "03/11", "n": 4}, {"d": "04/11", "n": 0}, {"d": "05/11", "n": 3}, {"d": "06/11", "n": 19}, {"d": "07/11", "n": 16}, {"d": "08/11", "n": 15}, {"d": "09/11", "n": 11}, {"d": "10/11", "n": 12}, {"d": "11/11", "n": 2}], "entradas": [{"activa": false, "desde": null, "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "errores": 0, "ghl": false, "leads": 474, "nombre": "GHL · Biblioteca", "ultimo": "2026-10-16T21:10:12.064618+00:00", "wf": null}, {"activa": true, "desde": "servidor", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 22, 47, 33, 25, 23, 2], "errores": 0, "ghl": false, "leads": 63, "nombre": "Web · Biblioteca registro", "ultimo": "2026-11-11T00:07:50.127636+00:00", "wf": {"encendido": true, "modo": "real"}}, {"activa": true, "desde": "servidor", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 1, 6, 0, 0], "errores": 0, "ghl": false, "leads": 3, "nombre": "Web · software-demo demo", "ultimo": "2026-11-09T09:53:03.661826+00:00", "wf": {"encendido": true, "modo": "real"}}, {"activa": true, "desde": "navegador", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 4, 6, 0, 0, 2, 0], "errores": 0, "ghl": false, "leads": 1, "nombre": "Web · Biblioteca agenda", "ultimo": "2026-11-10T02:02:43.801599+00:00", "wf": {"encendido": true, "modo": "real"}}, {"activa": true, "desde": "navegador", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0], "errores": 0, "ghl": false, "leads": 0, "nombre": "Web · codigomaestria agenda", "ultimo": "2026-11-08T17:19:16.535798+00:00", "wf": {"encendido": true, "modo": "prueba"}}, {"activa": true, "desde": "navegador", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "errores": 0, "ghl": false, "leads": 0, "nombre": "Web · codigomaestria agenda-fc", "ultimo": "2026-11-08T17:19:17.245928+00:00", "wf": {"encendido": true, "modo": "prueba"}}, {"activa": true, "desde": "servidor", "dias": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5, 1], "errores": 0, "ghl": false, "leads": 3, "nombre": "Web · maestria registro", "ultimo": "2026-11-11T00:07:08.520266+00:00", "wf": {"encendido": true, "modo": "real"}}], "etiquetas": [{"ghl": true, "n": 112, "t": "agenda llamada"}, {"ghl": true, "n": 30, "t": "rellena form llamada"}, {"ghl": true, "n": 24, "t": "form llamada callers"}, {"ghl": true, "n": 4, "t": "agenda biblioteca"}, {"ghl": true, "n": 2, "t": "form llamada youtube"}, {"ghl": true, "n": 1, "t": "agenda facu"}, {"ghl": true, "n": 1, "t": "form llamada instagram"}, {"ghl": true, "n": 0, "t": "agenda dfy"}, {"ghl": true, "n": 0, "t": "webinar agenda"}, {"ghl": true, "n": 0, "t": "agenda email"}, {"ghl": true, "n": 0, "t": "agenda callers"}, {"ghl": true, "n": 0, "t": "form llamada p1"}], "source": [{"agendan": 120, "compran": 3, "n": 4549, "t": "Sin dato"}, {"agendan": 0, "compran": 0, "n": 35, "t": "instagram"}, {"agendan": 1, "compran": 0, "n": 22, "t": "ig"}, {"agendan": 0, "compran": 0, "n": 3, "t": "facebook"}, {"agendan": 0, "compran": 0, "n": 3, "t": "meta"}, {"agendan": 1, "compran": 0, "n": 1, "t": "agenda-codigo-maestria"}, {"agendan": 0, "compran": 0, "n": 1, "t": "agenda-biblioteca"}, {"agendan": 0, "compran": 0, "n": 1, "t": "prueba"}], "total": {"agendan": 122, "compran": 3, "leads": 4615}, "workflows": [{"coinciden": 2, "disparador": "entrada", "ejec": 69, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · Biblioteca registro", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 1, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · Biblioteca agenda", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "oportunidad_ghl", "oportunidad_ghl", "oportunidad_ghl", "mover_dashboard"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 2, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · software-demo demo", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "oportunidad_ghl"]}, {"coinciden": 0, "disparador": "cita", "ejec": 6, "encendido": true, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Cita agendada", "pasos": ["rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 0, "encendido": true, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Web · codigomaestria agenda", "pasos": ["esperar", "contacto_ghl", "rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 0, "encendido": true, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Web · codigomaestria agenda-fc", "pasos": ["esperar", "contacto_ghl", "oportunidad_ghl", "oportunidad_ghl", "etiquetas_ghl"]}, {"coinciden": 0, "disparador": "cita", "ejec": 0, "encendido": false, "error": 0, "esperando": 0, "modo": "prueba", "no_coinciden": 0, "nombre": "Cita agendada", "pasos": ["rama"]}, {"coinciden": 0, "disparador": "entrada", "ejec": 3, "encendido": true, "error": 0, "esperando": 0, "modo": "real", "no_coinciden": 0, "nombre": "Web · maestria registro", "pasos": ["esperar", "contacto_ghl", "etiquetas_ghl", "oportunidad_ghl"]}], "horas": [117, 78, 61, 65, 1389, 798, 45, 27, 33, 39, 18, 23, 42, 50, 69, 59, 60, 53, 77, 62, 81, 102, 107, 77], "medium": [{"n": 27, "t": "Sin medium"}, {"n": 20, "t": "dm"}, {"n": 13, "t": "social"}, {"n": 6, "t": "paid"}], "pares": [{"a": 0, "c": "carrusel_2026-10-27_links", "n": 1, "s": "instagram"}, {"a": 0, "c": "11. MASTERCLASS 24NOV - LEADS 20$", "n": 2, "s": "meta"}, {"a": 0, "c": "7. MASTERCLASS 24NOV - REGISTROS", "n": 1, "s": "meta"}, {"a": 0, "c": "Sin campaña", "n": 1, "s": "agenda-biblioteca"}, {"a": 0, "c": "carrusel_2026-11-06_shorts", "n": 5, "s": "instagram"}, {"a": 0, "c": "carrusel_2026-11-08_repos", "n": 3, "s": "instagram"}, {"a": 0, "c": "carrusel_2026-11-07_empresa", "n": 1, "s": "instagram"}, {"a": 0, "c": "Sin campaña", "n": 15, "s": "instagram"}, {"a": 0, "c": "4. DEMO APPS - LEADS NOV26", "n": 3, "s": "facebook"}, {"a": 1, "c": "Sin campaña", "n": 22, "s": "ig"}, {"a": 0, "c": "carrusel_2026-11-09_tokens", "n": 2, "s": "instagram"}, {"a": 0, "c": "carrusel_2026-11-10_clon", "n": 2, "s": "instagram"}, {"a": 0, "c": "carrusel_2026-11-04_video", "n": 1, "s": "instagram"}, {"a": 0, "c": "carrusel_2026-11-05_repos", "n": 5, "s": "instagram"}, {"a": 1, "c": "Sin campaña", "n": 1, "s": "agenda-codigo-maestria"}, {"a": 0, "c": "Sin campaña", "n": 1, "s": "prueba"}], "utm_dias": [{"d": "13/10", "n": 0}, {"d": "14/10", "n": 1}, {"d": "15/10", "n": 1}, {"d": "16/10", "n": 0}, {"d": "17/10", "n": 0}, {"d": "18/10", "n": 0}, {"d": "19/10", "n": 0}, {"d": "20/10", "n": 0}, {"d": "21/10", "n": 0}, {"d": "22/10", "n": 0}, {"d": "23/10", "n": 1}, {"d": "24/10", "n": 0}, {"d": "25/10", "n": 0}, {"d": "26/10", "n": 0}, {"d": "27/10", "n": 0}, {"d": "28/10", "n": 1}, {"d": "29/10", "n": 0}, {"d": "30/10", "n": 0}, {"d": "31/10", "n": 0}, {"d": "01/11", "n": 0}, {"d": "02/11", "n": 0}, {"d": "03/11", "n": 0}, {"d": "04/11", "n": 0}, {"d": "05/11", "n": 0}, {"d": "06/11", "n": 4}, {"d": "07/11", "n": 13}, {"d": "08/11", "n": 12}, {"d": "09/11", "n": 8}, {"d": "10/11", "n": 10}, {"d": "11/11", "n": 2}]};
+const HOY = new Date("2026-11-11T12:00:00");
+const MOV = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+const fmt = n => Math.round(n).toLocaleString("es-ES");
+const pct = (a,b,dec=1) => b ? (Math.round(a/b*100*10**dec)/10**dec).toLocaleString("es-ES")+" %" : "—";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const suma = a => a.reduce((s,x)=>s+x,0);
+const SIN = ["Sin dato","Sin canal","Sin campaña","Sin medium"];
+const conDato = a => a.filter(x=>!SIN.includes(x.t));
+const fecha = i => { const d=new Date(HOY); d.setDate(d.getDate()-i); return d; };
+const dm = d => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+const hace = iso => { if(!iso) return "nunca"; const m=(HOY-new Date(iso))/6e4; return m<60?`${Math.round(m)} min`:m<1440?`${Math.round(m/60)} h`:`${Math.round(m/1440)} d`; };
+const n7 = suma(D.dias30.slice(-7).map(x=>x.n)), p7 = suma(D.dias30.slice(-14,-7).map(x=>x.n));
+const cambio = (a,b) => b ? Math.round((a-b)/b*100) : null;
+const estadoE = e => !e.activa ? "apagada" : e.wf?.modo==="prueba" ? "prueba" : "ok";
+
+// Números que cuentan al aparecer
+function contar(){ document.querySelectorAll("[data-n]").forEach(el=>{ const fin=+el.dataset.n, suf=el.dataset.suf||""; if(!MOV){el.textContent=fmt(fin)+suf;return;} const t0=performance.now(); const paso=t=>{const k=Math.min(1,(t-t0)/900), e=1-Math.pow(1-k,3); el.textContent=fmt(fin*e)+suf; if(k<1) requestAnimationFrame(paso);}; requestAnimationFrame(paso); }); }
+const N = (n,suf="") => `<span data-n="${n}" data-suf="${suf}">0${suf}</span>`;
+
+/* ---------- gráficos compartidos ---------- */
+function area(puntos, {w=760,h=220,color="#38e1ff",color2,rejilla="#1c2230",texto="#5f6a83",id="a",corte}={}){
+  const p=28, m=Math.max(1,...puntos.map(x=>x.n)), tope=corte?Math.min(m,corte):m, sx=(w-2*p)/(puntos.length-1);
+  const y=v=>h-p-(Math.min(v,tope)/tope)*(h-2*p-6);
+  const xy=puntos.map((x,i)=>[p+i*sx,y(x.n)]);
+  const d=xy.map((q,i)=>{ if(!i) return `M${q[0]} ${q[1]}`; const a=xy[i-1], cx=(a[0]+q[0])/2; return `C${cx} ${a[1]} ${cx} ${q[1]} ${q[0]} ${q[1]}`; }).join(" ");
+  const lineas=[.25,.5,.75,1].map(f=>`<line x1="${p}" x2="${w-p}" y1="${h-p-f*(h-2*p-6)}" y2="${h-p-f*(h-2*p-6)}" stroke="${rejilla}" stroke-dasharray="3 4"/><text x="${p-6}" y="${h-p-f*(h-2*p-6)+3}" font-size="9" text-anchor="end" fill="${texto}">${fmt(tope*f)}</text>`).join("");
+  const cortados=corte?xy.map((q,i)=>puntos[i].n>corte?`<g><rect x="${q[0]-26}" y="${q[1]-24}" width="52" height="17" rx="5" fill="${color}"/><text x="${q[0]}" y="${q[1]-12}" font-size="10" font-weight="700" text-anchor="middle" fill="#05060a">${fmt(puntos[i].n)}↑</text></g>`:"").join(""):"";
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Leads por día"><defs><linearGradient id="g${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color2||color}" stop-opacity=".45"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient><linearGradient id="l${id}" x1="0" x2="1"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="${color2||color}"/></linearGradient></defs>${lineas}
+  <path d="${d} L${xy.at(-1)[0]} ${h-p} L${p} ${h-p} Z" fill="url(#g${id})"/><path d="${d}" fill="none" stroke="url(#l${id})" stroke-width="2.5"/>
+  ${xy.map((q,i)=>`<circle cx="${q[0]}" cy="${q[1]}" r="9" fill="transparent"><title>${puntos[i].d}: ${fmt(puntos[i].n)} leads</title></circle>`).join("")}
+  <circle cx="${xy.at(-1)[0]}" cy="${xy.at(-1)[1]}" r="4" fill="${color2||color}"/>${cortados}
+  ${puntos.map((x,i)=>i%6===0||i===puntos.length-1?`<text x="${p+i*sx}" y="${h-8}" font-size="10" text-anchor="middle" fill="${texto}">${x.d}</text>`:"").join("")}</svg>`;
+}
+function dona(partes, colores, {r=54,g=16,centro="",sub="",fondo="#eef0f6",txt="#0b0d12"}={}){
+  const tot=suma(partes.map(p=>p.n)), c=2*Math.PI*r; let ini=0; const s=(r+g)*2+4, m=s/2;
+  return `<svg viewBox="0 0 ${s} ${s}" width="${s}" height="${s}" style="max-width:100%"><circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="${fondo}" stroke-width="${g}"/>${partes.map((p,i)=>{const l=tot?p.n/tot*c:0, el=`<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="${colores[i%colores.length]}" stroke-width="${g}" stroke-dasharray="${Math.max(0,l-2)} ${c-Math.max(0,l-2)}" stroke-dashoffset="${-ini}" transform="rotate(-90 ${m} ${m})"><title>${esc(p.t)}: ${fmt(p.n)}</title></circle>`; ini+=l; return el;}).join("")}<text x="${m}" y="${m+2}" text-anchor="middle" font-size="22" font-weight="800" fill="${txt}">${centro}</text><text x="${m}" y="${m+18}" text-anchor="middle" font-size="10" fill="#8a91a8">${sub}</text></svg>`;
+}
+function topN(arr, k){ const o=[...arr].sort((a,b)=>b.n-a.n); return o.length>k?[...o.slice(0,k-1),{t:"Otros",n:suma(o.slice(k-1).map(x=>x.n))}]:o; }
+// Treemap: parte en dos por la mitad de la suma, por el lado más largo
+function treemap(items,x,y,w,h,out=[]){ if(!items.length) return out; if(items.length===1){out.push({...items[0],x,y,w,h});return out;} const tot=suma(items.map(i=>i.n)); let acc=0,k=0; while(k<items.length-1&&acc+items[k].n<=tot/2){acc+=items[k].n;k++;} if(!k){acc=items[0].n;k=1;} const a=items.slice(0,k),b=items.slice(k),f=acc/tot; if(w>=h){treemap(a,x,y,w*f,h,out);treemap(b,x+w*f,y,w*(1-f),h,out);}else{treemap(a,x,y,w,h*f,out);treemap(b,x,y+h*f,w,h*(1-f),out);} return out; }
+// Sankey de 3 columnas: utm_source → campaña → resultado
+function sankey({w=900,h=320,colores,txt="#e8ecf6",txt2="#9aa4ba"}){
+  const P=D.pares, fuentes=topN(Object.entries(P.reduce((m,p)=>(m[p.s]=(m[p.s]||0)+p.n,m),{})).map(([t,n])=>({t,n})),5).map(x=>x.t);
+  const camps=topN(Object.entries(P.reduce((m,p)=>(m[p.c]=(m[p.c]||0)+p.n,m),{})).map(([t,n])=>({t,n})),6).map(x=>x.t);
+  const fs=s=>fuentes.includes(s)?s:"Otros", fc=c=>camps.includes(c)?c:"Otras";
+  const L1={},L2={}; P.forEach(p=>{const k=fs(p.s)+"|"+fc(p.c); L1[k]=(L1[k]||0)+p.n; const a=fc(p.c); L2[a+"|Agendan"]=(L2[a+"|Agendan"]||0)+p.a; L2[a+"|No agendan"]=(L2[a+"|No agendan"]||0)+p.n-p.a;});
+  const cols=[[...new Set(Object.keys(L1).map(k=>k.split("|")[0]))],[...new Set(Object.keys(L1).map(k=>k.split("|")[1]))],["Agendan","No agendan"]];
+  const tot=suma(P.map(p=>p.n)), gap=10, k=Math.min(...cols.map(c=>(h-gap*(c.length-1))/tot)), xs=[150,w/2,w-170], nw=10;
+  const val=(ci,t)=>ci===0?suma(Object.entries(L1).filter(([q])=>q.split("|")[0]===t).map(x=>x[1])):ci===1?suma(Object.entries(L1).filter(([q])=>q.split("|")[1]===t).map(x=>x[1])):suma(Object.entries(L2).filter(([q])=>q.split("|")[1]===t).map(x=>x[1]));
+  const pos={}; cols.forEach((c,ci)=>{ c.sort((a,b)=>val(ci,b)-val(ci,a)); const alto=suma(c.map(t=>val(ci,t)*k))+gap*(c.length-1); let y=(h-alto)/2; c.forEach(t=>{const hh=Math.max(2,val(ci,t)*k); pos[ci+t]={y,h:hh,out:0,in:0}; y+=hh+gap;}); });
+  const color=t=>colores[fuentes.indexOf(t)>=0?fuentes.indexOf(t):5];
+  const banda=(c0,a,c1,b,v,col)=>{ const A=pos[c0+a],B=pos[c1+b],wd=v*k, y0=A.y+A.out+wd/2, y1=B.y+B.in+wd/2; A.out+=wd; B.in+=wd; const x0=xs[c0]+nw,x1=xs[c1],cx=(x0+x1)/2; return `<path d="M${x0} ${y0} C${cx} ${y0} ${cx} ${y1} ${x1} ${y1}" stroke="${col}" stroke-opacity=".38" stroke-width="${Math.max(1,wd)}" fill="none"><title>${esc(a)} → ${esc(b)}: ${v}</title></path>`; };
+  let s=""; Object.entries(L1).sort((a,b)=>b[1]-a[1]).forEach(([q,v])=>{const[a,b]=q.split("|"); s+=banda(0,a,1,b,v,color(a));});
+  Object.entries(L2).filter(x=>x[1]>0).forEach(([q,v])=>{const[a,b]=q.split("|"); s+=banda(1,a,2,b,v,b==="Agendan"?"#b8ff3c":"#5f6a83");});
+  cols.forEach((c,ci)=>c.forEach(t=>{const p=pos[ci+t], fill=ci===0?color(t):ci===2?(t==="Agendan"?"#b8ff3c":"#5f6a83"):"#9aa4ba", lx=ci===0?xs[0]-8:xs[ci]+nw+8, an=ci===0?"end":"start", nombre=t.length>26?t.slice(0,25)+"…":t;
+    s+=`<rect x="${xs[ci]}" y="${p.y}" width="${nw}" height="${p.h}" rx="3" fill="${fill}"/><text x="${lx}" y="${p.y+p.h/2+4}" font-size="11" text-anchor="${an}" fill="${txt}">${esc(nombre)} <tspan fill="${txt2}">${val(ci,t)}</tspan></text>`;}));
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="De la fuente a la cita">${s}</svg>`;
+}
+
+/* ================= A · CENTRO DE CONTROL ================= */
+const A = {};
+const COLA = ["#38e1ff","#b8ff3c","#9b7bff","#ffb02e","#ff4d63","#5f6a83"];
+const ledE = e => `<span class="led ${estadoE(e)==="apagada"?"gris":estadoE(e)==="prueba"?"ambar":"pulso"}"></span>`;
+let selE = 1, selW = 0;
+function flujoA(){
+  const E=D.entradas, W=D.workflows, act=E.filter(e=>e.activa).length, real=W.filter(w=>w.modo==="real"&&w.encendido).length, prueba=W.filter(w=>w.modo==="prueba"&&w.encendido).length, hoy=suma(E.map(e=>e.dias.at(-1)));
+  const nodos=[["LANDINGS",`${E.length}`,"conectadas"],["ENTRADAS",`${act}/${E.length}`,"recibiendo"],["WORKFLOWS",`${real}+${prueba}`,"real + prueba"],["GHL","OK","0 errores"]];
+  const w=980,h=150,x=i=>40+i*((w-80-180)/3);
+  const caminos=nodos.slice(1).map((_,i)=>`M${x(i)+180} 75 L${x(i+1)} 75`);
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Flujo de los leads">
+   ${caminos.map((d,i)=>`<path id="cam${i}" d="${d}" stroke="#283044" stroke-width="2" stroke-dasharray="4 5"/>${MOV?[0,1,2].map(j=>`<circle r="3.5" fill="${i===2?"#b8ff3c":"#38e1ff"}"><animateMotion dur="${2.2+i*.3}s" begin="-${j*.75}s" repeatCount="indefinite"><mpath href="#cam${i}"/></animateMotion></circle>`).join(""):""}`).join("")}
+   ${nodos.map((n,i)=>`<g transform="translate(${x(i)} 30)"><rect width="180" height="90" rx="12" fill="#0c0f16" stroke="${i===3?"rgb(184 255 60/.4)":"#283044"}"/><text x="16" y="24" font-size="10" letter-spacing="1.5" fill="#5f6a83">${n[0]}</text><text x="16" y="58" font-size="28" font-weight="700" fill="#e8ecf6" font-family="JetBrains Mono,monospace">${n[1]}</text><text x="16" y="77" font-size="11" fill="#9aa4ba">${n[2]}</text><circle cx="162" cy="20" r="4" fill="${i===2&&prueba?"#ffb02e":"#b8ff3c"}"/></g>`).join("")}
+   <text x="${w-14}" y="${h-6}" font-size="11" text-anchor="end" fill="#5f6a83">${hoy} envíos hoy</text></svg>`;
+}
+A.entradas = () => {
+  const E=D.entradas, hoy=suma(E.map(e=>e.dias.at(-1))), sem=suma(E.map(e=>suma(e.dias.slice(-7)))), sem0=suma(E.map(e=>suma(e.dias.slice(0,7)))), max=Math.max(1,...E.flatMap(e=>e.dias)), e=E[selE];
+  const cel=v=>v?`background:rgb(56 225 255/${.15+.85*v/max});box-shadow:0 0 ${8*v/max}px rgb(56 225 255/.5)`:"background:#0f131c";
+  return `<div class="tira">
+    <div><div class="eti">Envíos hoy</div><div class="num">${N(hoy)}</div><div class="det">${fmt(sem)} en 7 días ${sem0<5?`<span class="sube">· la semana anterior casi no hubo (${sem0})</span>`:`<span class="${sem>=sem0?"sube":"baja"}">${sem>=sem0?"▲":"▼"} ${pct(Math.abs(sem-sem0),sem0,0)}</span>`}</div></div>
+    <div><div class="eti">Entradas vivas</div><div class="num">${N(E.filter(e=>e.activa).length)}<span style="color:var(--tx3);font-size:18px">/${E.length}</span></div><div class="det">${E.filter(e=>!e.activa).length} apagada</div></div>
+    <div><div class="eti">Errores</div><div class="num" style="color:var(--lima)">${N(suma(E.map(e=>e.errores)))}</div><div class="det">sin fallos hacia GHL</div></div>
+    <div><div class="eti">En prueba</div><div class="num" style="color:var(--ambar)">${N(E.filter(e=>e.wf?.modo==="prueba").length)}</div><div class="det">esperan «Pasar a real»</div></div>
+  </div>
+  <div class="panel" style="margin-bottom:14px"><div class="eti" style="margin-bottom:6px">Cómo viaja un lead ahora mismo</div>${flujoA()}</div>
+  <div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px"><div><div class="eti">Actividad · envíos por día (14 días)</div><div class="nota" style="margin:2px 0 0">Pulsa una fila para ver su dirección y sus ajustes.</div></div><button class="btn pri">＋ Conectar landing</button></div>
+   <div style="overflow-x:auto"><table class="hm"><thead><tr><th></th>${Array.from({length:14},(_,i)=>`<th>${i%2?"":dm(fecha(13-i)).slice(0,2)}</th>`).join("")}<th style="text-align:right">total</th></tr></thead><tbody>
+   ${E.map((x,i)=>`<tr class="fila-e" onclick="selE=${i};pintar()"><td class="nom"><span style="display:inline-flex;gap:8px;align-items:center">${ledE(x)}<span style="${i===selE?"color:var(--lima)":""}">${esc(x.nombre)}</span></span></td>${x.dias.map((v,j)=>`<td style="${cel(v)}" title="${dm(fecha(13-j))}: ${v} envíos"></td>`).join("")}<td class="n">${fmt(x.leads)}</td></tr>`).join("")}
+   </tbody></table></div>
+   <div class="detalle"><div class="caja"><div class="eti">${esc(e.nombre)}</div><div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap">${estadoE(e)==="ok"?'<span class="chip lima">● recibiendo</span>':estadoE(e)==="prueba"?'<span class="chip ambar">⚗ workflow en prueba</span>':'<span class="chip">apagada</span>'}${e.wf?`<span class="chip">workflow ${e.wf.modo}</span>`:""}<span class="chip">último hace ${hace(e.ultimo)}</span></div><div class="dir"><span>…/entrada/••••••••</span><button class="btn">Copiar</button></div></div>
+    <div class="caja"><div class="eti">Acciones</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${e.wf?.modo==="prueba"?'<button class="btn pri">Pasar a real</button><button class="btn">Parar la prueba</button>':""}<button class="btn">Últimos leads</button><button class="btn">Ajustes</button><button class="btn">Qué hacer en GHL</button><button class="btn">Para el programador</button></div></div></div>
+  </div>`;
+};
+const PA = {esperar:["⏱","#5f6a83"],contacto_ghl:["C","#38e1ff"],etiquetas_ghl:["#","#9b7bff"],rama:["⑂","#ffb02e"],oportunidad_ghl:["$","#b8ff3c"],mover_dashboard:["→","#ff4d63"]};
+const NOMP = {esperar:"Esperar",contacto_ghl:"Contacto en GHL",etiquetas_ghl:"Etiquetas en GHL",rama:"Rama (si… entonces)",oportunidad_ghl:"Oportunidad en GHL",mover_dashboard:"Mover en el dashboard"};
+A.workflows = () => {
+  const W=D.workflows, w=W[selW], cn=w.coinciden+w.no_coinciden;
+  return `<div class="tira">
+    <div><div class="eti">Workflows</div><div class="num">${N(W.length)}</div><div class="det">${W.filter(x=>!x.encendido).length} apagado</div></div>
+    <div><div class="eti">En real</div><div class="num" style="color:var(--lima)">${N(W.filter(x=>x.modo==="real"&&x.encendido).length)}</div><div class="det">mandan a GHL</div></div>
+    <div><div class="eti">En prueba</div><div class="num" style="color:var(--ambar)">${N(W.filter(x=>x.modo==="prueba"&&x.encendido).length)}</div><div class="det">comparan sin mandar</div></div>
+    <div><div class="eti">Ejecuciones</div><div class="num">${N(suma(W.map(x=>x.ejec)))}</div><div class="det">${suma(W.map(x=>x.error))} con error · ${suma(W.map(x=>x.esperando))} esperando</div></div>
+  </div>
+  <div class="rejilla"><div class="panel c7" style="padding:0;overflow:hidden">
+    ${W.map((x,i)=>`<div class="run ${i===selW?"sel":""}" onclick="selW=${i};pintar()"><span class="led ${!x.encendido?"gris":x.modo==="prueba"?"ambar":"pulso"}"></span><div style="min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600">${esc(x.nombre)}</div><div class="det">${!x.encendido?"apagado":x.modo} · ${x.disparador==="cita"?"al agendar":"al llegar un lead"}</div></div>
+     <div class="cadena">${(x.pasos||[]).map((p,j)=>`${j?'<span class="enlace"></span>':""}<span class="nodo" title="${NOMP[p]||p}" style="color:${PA[p]?.[1]};border-color:${PA[p]?.[1]}55;background:${PA[p]?.[1]}14">${PA[p]?.[0]||"•"}</span>`).join("")}</div>
+     <div class="mono" style="text-align:right;font-size:13px">${fmt(x.ejec)}<div class="det">runs</div></div></div>`).join("")}
+  </div>
+  <div class="c5" style="display:flex;flex-direction:column;gap:14px">
+   <div class="panel"><div class="eti">Seleccionado</div><div style="font-size:17px;font-weight:700;margin:6px 0 10px">${esc(w.nombre)}</div>
+    <div class="term"><div><span class="k">cuando</span> ${w.disparador==="cita"?"se agenda una cita":"llega un lead a la Entrada"}</div>${(w.pasos||[]).map((p,i)=>`<div><span style="color:#5f6a83">${String(i+1).padStart(2,"0")}</span> ${NOMP[p]||p}</div>`).join("")}<div style="margin-top:6px">${w.modo==="real"?`<span class="ok">✓ en real</span> · manda a GHL`:`<span class="w">⚗ en prueba</span> · ${cn?`${w.coinciden}/${cn} coinciden`:"sin leads aún para comparar"}`}</div><div>${w.error?`<span style="color:var(--rojo)">${w.error} con error</span>`:`<span class="ok">0 errores</span>`} · ${w.esperando} esperando</div></div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><button class="btn">Abrir diagrama</button>${w.modo==="prueba"?'<button class="btn pri">Pasar a real</button>':""}</div></div>
+   <div class="panel"><div class="eti" style="margin-bottom:8px">Pasos más usados</div>${Object.entries(W.flatMap(x=>x.pasos||[]).reduce((m,p)=>(m[p]=(m[p]||0)+1,m),{})).sort((a,b)=>b[1]-a[1]).map(([p,n])=>`<div class="lista"><div class="item"><span class="nodo" style="color:${PA[p]?.[1]};border-color:${PA[p]?.[1]}55">${PA[p]?.[0]}</span><span style="flex:0 0 150px">${NOMP[p]}</span><span class="barrita"><i style="width:${n/W.length*100}%"></i></span><span class="mono">${n}</span></div></div>`).join("")}</div>
+  </div></div>`;
+};
+let subA = "etiquetas";
+A.etiquetas = () => {
+  const C=conDato(D.canales), sin=D.canales.find(c=>c.t==="Sin canal")?.n||0, tot=suma(D.canales.map(c=>c.n)), tc=suma(C.map(c=>c.n)), E=D.etiquetas.filter(e=>e.n>0);
+  const tm=treemap([...E].sort((a,b)=>b.n-a.n),0,0,100,100);
+  return `<div class="aviso-a"><span class="led ambar"></span><span><b>${fmt(sin)} de ${fmt(tot)} leads (${pct(sin,tot)})</b> sin canal: el canal sale de la cita, así que solo lo tienen los que agendaron. Se cuentan aparte.</span></div>
+  <div class="rejilla">
+   <div class="panel c12"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><div class="eti">Reparto por canal · ${fmt(tc)} leads con canal</div><span class="det">pasa el ratón para ver el número</span></div>
+    <div class="apilada" style="margin-top:12px">${C.map((c,i)=>`<div style="flex:${c.n};background:${COLA[i%6]}" title="${esc(c.t)}: ${c.n}">${c.n/tc>.08?esc(c.t)+" "+pct(c.n,tc,0):""}</div>`).join("")}</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px">${C.map((c,i)=>`<span class="det" style="display:inline-flex;gap:6px;align-items:center"><span class="led" style="background:${COLA[i%6]};box-shadow:none"></span>${esc(c.t)} <b class="mono" style="color:var(--tx)">${c.n}</b></span>`).join("")}</div></div>
+   <div class="panel c7"><div class="eti" style="margin-bottom:10px">Mapa de etiquetas · tamaño = leads</div>
+    <div style="position:relative;height:300px">${tm.map((t,i)=>`<div title="${esc(t.t)}: ${t.n} leads" style="position:absolute;left:${t.x}%;top:${t.y}%;width:${t.w}%;height:${t.h}%;padding:2px"><div style="height:100%;border-radius:8px;background:${COLA[i%6]}${i?"26":"33"};border:1px solid ${COLA[i%6]}66;padding:8px;overflow:hidden"><div style="font-size:${t.w*t.h>600?14:11}px;font-weight:600;color:var(--tx);line-height:1.2">${t.w*t.h>60?esc(t.t):""}</div><div class="mono" style="color:${COLA[i%6]};font-size:${t.w*t.h>600?22:12}px;font-weight:600">${t.w*t.h>60?t.n:""}</div></div></div>`).join("")}</div></div>
+   <div class="panel c5"><div class="eti" style="margin-bottom:10px">Usadas por GHL</div><div style="display:flex;align-items:center;gap:16px">${dona([{t:"Usadas por GHL",n:D.etiquetas.filter(e=>e.ghl).length},{t:"Solo aquí",n:D.etiquetas.filter(e=>!e.ghl).length}],["#b8ff3c","#283044"],{r:46,g:12,centro:D.etiquetas.filter(e=>e.ghl).length+"/"+D.etiquetas.length,sub:"etiquetas",fondo:"#1c2230",txt:"#e8ecf6"})}<p class="nota" style="margin:0">Cambiar una etiqueta usada por GHL avisa antes del riesgo (como hoy).</p></div>
+    <div class="eti" style="margin:16px 0 4px">Sin uso</div><div class="det">${D.etiquetas.filter(e=>!e.n).map(e=>esc(e.t)).join(" · ")||"todas tienen leads"}</div></div>
+  </div>
+  <div class="pest" style="margin-bottom:0"><button class="${subA==="etiquetas"?"on":""}" onclick="subA='etiquetas';pintar()">Editar etiquetas</button><button class="${subA==="canales"?"on":""}" onclick="subA='canales';pintar()">Editar canales</button></div>
+  <div class="panel lista" style="border-top-left-radius:0;border-top-right-radius:0">${subA==="etiquetas"
+   ? `<div style="display:flex;gap:8px;margin-bottom:6px"><input class="dir" style="flex:0 1 260px" placeholder="nueva etiqueta"><button class="btn">Crear</button></div>`+D.etiquetas.map(e=>`<div class="item"><span class="mono" style="color:var(--tx3)">⋮⋮</span><b style="flex:0 0 190px;font-weight:500">${esc(e.t)}</b>${e.ghl?'<span class="chip lima">GHL</span>':'<span class="chip">local</span>'}<span class="barrita"><i style="width:${e.n/Math.max(...D.etiquetas.map(x=>x.n))*100}%"></i></span><span class="mono" style="width:44px;text-align:right">${e.n}</span><button class="btn">Renombrar / unir</button><button class="btn">Borrar</button></div>`).join("")
+   : D.canales.filter(c=>c.t!=="Sin canal").map(c=>`<div class="item"><span class="mono" style="color:var(--tx3)">⋮⋮</span><b style="flex:0 0 140px;font-weight:500">${esc(c.t)}</b><span class="barrita"><i style="width:${c.n/Math.max(...C.map(x=>x.n))*100}%"></i></span><span class="mono" style="width:44px;text-align:right">${c.n}</span><button class="btn">Nombre, alias y páginas</button></div>`).join("")}</div>`;
+};
+A.utms = () => {
+  const T=D.total, sinU=D.source.find(s=>s.t==="Sin dato")?.n||0, conU=T.leads-sinU, u7=suma(D.utm_dias.slice(-7).map(x=>x.n));
+  const desde=D.utm_dias.findIndex(x=>x.n>0), serie=D.utm_dias.slice(Math.max(0,desde-2));
+  return `<div class="tira">
+    <div><div class="eti">Leads con UTM</div><div class="num">${N(conU)}</div><div class="det">${pct(conU,T.leads)} del total · ${fmt(sinU)} sin UTM</div></div>
+    <div><div class="eti">Con UTM · 7 días</div><div class="num" style="color:var(--cian)">${N(u7)}</div><div class="det">primer lead con UTM: ${D.utm_dias[desde]?.d||"—"}</div></div>
+    <div><div class="eti">Agendan (con UTM)</div><div class="num" style="color:var(--lima)">${N(suma(D.pares.map(p=>p.a)))}</div><div class="det">${pct(suma(D.pares.map(p=>p.a)),conU)} de los que traen UTM</div></div>
+    <div><div class="eti">Fuentes · campañas</div><div class="num">${N(conDato(D.source).length)}<span style="color:var(--tx3)"> · </span>${N(conDato(D.campaign).length)}</div><div class="det">distintas</div></div>
+  </div>
+  <div class="panel" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><div class="eti">De la fuente a la cita · ${conU} leads con UTM</div><span class="det">grosor = leads · pasa el ratón</span></div>${sankey({colores:COLA})}<p class="nota">Lectura: casi todo entra por Instagram (ig + instagram); de los ${conU}, solo ${suma(D.pares.map(p=>p.a))} han agendado.</p></div>
+  <div class="rejilla">
+   <div class="panel c7"><div class="eti">Leads con UTM por día</div>${area(serie,{color:"#38e1ff",color2:"#b8ff3c",id:"u"})}</div>
+   <div class="panel c5"><div class="eti" style="margin-bottom:8px">utm_medium</div>${conDato(D.medium).concat(D.medium.filter(m=>m.t==="Sin medium")).map((m,i)=>`<div class="lista"><div class="item"><span style="flex:0 0 100px">${esc(m.t)}</span><span class="barrita"><i style="width:${m.n/conU*100}%"></i></span><span class="mono">${m.n}</span></div></div>`).join("")}
+    <div class="eti" style="margin:14px 0 8px">Top campañas</div>${conDato(D.campaign).slice(0,5).map((c,i)=>`<div class="lista"><div class="item"><span class="mono" style="color:var(--tx3)">${i+1}</span><span style="flex:1 1 160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.t)}</span><span class="mono">${c.n}</span></div></div>`).join("")}</div>
+  </div>
+  <div class="panel"><div class="eti">Todos los leads por día · 30 días</div>${(()=>{const o=D.dias30.map(x=>x.n).sort((a,b)=>b-a), c=Math.ceil(o[1]*1.15); return area(D.dias30,{color:"#9b7bff",color2:"#38e1ff",id:"t",corte:c})+`<p class="nota">El ${D.dias30.find(x=>x.n===o[0]).d} entraron ${fmt(o[0])} de golpe: se marca con una etiqueta y el gráfico se corta a ${c} para que se lea el resto.</p>`})()}</div>
+  <div class="panel" style="margin-top:14px"><div class="eti">Generador de enlaces · filtros · tabla de leads</div><p class="nota">Siguen debajo, igual que hoy (la tabla no sale en la maqueta: el repo es público).</p></div>`;
+};
+
+/* ================= B · ANALYTICS PREMIUM ================= */
+const B = {};
+const COLB = ["#5b5bf6","#f0568c","#12b886","#f59f00","#3b9cff","#b7bdd0"];
+const delta = (a,b) => { if(b<5) return `<span class="delta eq">nuevo</span>`; const c=cambio(a,b); return c===null?"":`<span class="delta ${c>0?"up":c<0?"down":"eq"}">${c>0?"↑":c<0?"↓":"="} ${Math.abs(c)} %</span>`; };
+function spark(dias,col="#5b5bf6"){ const w=120,h=32,m=Math.max(1,...dias),sx=w/(dias.length-1); const d=dias.map((v,i)=>`${i?"L":"M"}${(i*sx).toFixed(1)} ${(h-3-(v/m)*(h-6)).toFixed(1)}`).join(" "); return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${d} L${w} ${h} L0 ${h}Z" fill="${col}" opacity=".1"/><path d="${d}" fill="none" stroke="${col}" stroke-width="1.8"/></svg>`; }
+let expB = -1;
+B.entradas = () => {
+  const E=D.entradas, tot=suma(E.map(e=>e.leads)), s7=suma(E.map(e=>suma(e.dias.slice(-7)))), s0=suma(E.map(e=>suma(e.dias.slice(0,7)))), lider=[...E].sort((a,b)=>suma(b.dias.slice(-7))-suma(a.dias.slice(-7)))[0];
+  return `<div class="insight"><div class="t">Lo importante esta semana</div><div class="frase"><b>${esc(lider.nombre)}</b> trae ${pct(suma(lider.dias.slice(-7)),s7,0)} de los envíos de los últimos 7 días${suma(E.map(e=>e.errores))?"":", y no hay ni un error hacia GHL"}.</div><div class="mas"><span>${fmt(s7)} envíos en 7 días</span><span>${s0<5?`la semana anterior casi no hubo envíos (${s0})`:`${s7>=s0?"↑":"↓"} ${pct(Math.abs(s7-s0),s0,0)} frente a la semana anterior`}</span><span>${E.filter(e=>e.wf?.modo==="prueba").length} workflows esperan «Pasar a real»</span></div></div>
+  <div class="rej">
+   <div class="tarj c3"><div class="lbl">Envíos (7 días)</div><div class="big">${N(s7)}${delta(s7,s0)}</div><div class="sub">vs ${fmt(s0)} la semana anterior</div></div>
+   <div class="tarj c3"><div class="lbl">Entradas activas</div><div class="big">${N(E.filter(e=>e.activa).length)}<span style="color:var(--tx3);font-size:20px"> de ${E.length}</span></div><div class="sub">${E.filter(e=>!e.activa).map(e=>esc(e.nombre)).join(", ")||"ninguna apagada"} · apagada</div></div>
+   <div class="tarj c3"><div class="lbl">Errores hacia GHL</div><div class="big" style="color:var(--verde)">${N(suma(E.map(e=>e.errores)))}</div><div class="sub">todo llega bien</div></div>
+   <div class="tarj c3"><div class="lbl">Leads totales</div><div class="big">${N(tot)}</div><div class="sub">desde que existen</div></div>
+  </div>
+  <div class="tarj"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px"><div><p class="tit">Tus Entradas</p><div class="sub">Ordenadas por envíos de los últimos 7 días · pulsa una para abrirla</div></div><button class="btn pri">＋ Conectar landing</button></div>
+   <div style="overflow-x:auto"><table><thead><tr><th>Entrada</th><th>Estado</th><th class="solo-ancho">Últimos 14 días</th><th style="text-align:right">Envíos 7 días</th><th class="solo-ancho">Cuota</th><th style="text-align:right">Leads total</th></tr></thead><tbody>
+   ${[...E].map((e,i)=>({e,i})).sort((a,b)=>suma(b.e.dias.slice(-7))-suma(a.e.dias.slice(-7))).map(({e,i})=>{const s=suma(e.dias.slice(-7)), ant=suma(e.dias.slice(0,7)); return `<tr class="click" onclick="expB=expB===${i}?-1:${i};pintar()"><td><div style="font-weight:600">${esc(e.nombre)}</div><div class="sub">último hace ${hace(e.ultimo)}</div></td>
+    <td>${estadoE(e)==="ok"?'<span class="pill ok"><i></i>Recibiendo</span>':estadoE(e)==="prueba"?'<span class="pill amb"><i></i>En prueba</span>':'<span class="pill gris"><i></i>Apagada</span>'}</td>
+    <td class="solo-ancho">${spark(e.dias,estadoE(e)==="prueba"?"#f59f00":"#5b5bf6")}</td><td style="text-align:right;font-weight:700">${s}${delta(s,ant)}</td>
+    <td class="solo-ancho" style="width:140px"><div class="cuota"><i style="width:${s7?s/s7*100:0}%"></i></div><div class="sub">${pct(s,s7||1,0)}</div></td><td style="text-align:right;color:var(--tx2)">${fmt(e.leads)}</td></tr>
+    ${expB===i?`<tr class="exp"><td colspan="6"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><code style="background:#eef0f6;border-radius:8px;padding:7px 10px;font-size:12px">…/api/webhooks/entrada/••••••</code><button class="btn pri">Copiar dirección</button>${e.wf?.modo==="prueba"?'<button class="btn">Pasar a real</button><button class="btn">Parar la prueba</button>':""}<button class="btn">Últimos leads</button><button class="btn">Ajustes y Qué hacer en GHL</button><button class="btn">Para el programador</button></div></td></tr>`:""}`;}).join("")}
+   </tbody></table></div></div>`;
+};
+B.workflows = () => {
+  const W=D.workflows, real=W.filter(w=>w.modo==="real"&&w.encendido), prueba=W.filter(w=>w.modo==="prueba"&&w.encendido);
+  const gauge=(a,b)=>{const t=a+b,v=t?a/t:0,r=40,c=Math.PI*r; return `<svg width="110" height="66" viewBox="0 0 110 66"><path d="M15 58 A40 40 0 0 1 95 58" fill="none" stroke="#eef0f6" stroke-width="10" stroke-linecap="round"/><path d="M15 58 A40 40 0 0 1 95 58" fill="none" stroke="${t?"#12b886":"#e8eaf2"}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${v*c} ${c}"/><text x="55" y="54" text-anchor="middle" font-size="16" font-weight="800" fill="#0b0d12">${t?Math.round(v*100)+"%":"—"}</text></svg>`;};
+  return `<div class="insight"><div class="t">Resumen</div><div class="frase"><b>${real.length} workflows en real</b> ya mandan a GHL sin un solo error, y ${prueba.length} están en prueba comparando antes de dar el salto.</div><div class="mas"><span>${fmt(suma(W.map(w=>w.ejec)))} ejecuciones</span><span>${suma(W.map(w=>w.esperando))} esperando</span><span>${W.filter(w=>!w.encendido).length} apagado</span></div></div>
+  <div class="rej">${W.map(w=>`<div class="tarj c4" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0"><p class="tit" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(w.nombre)}</p><div class="sub">${w.disparador==="cita"?"Cuando se agenda una cita":"Cuando llega un lead"}</div></div>${!w.encendido?'<span class="pill gris"><i></i>Apagado</span>':w.modo==="real"?'<span class="pill ok"><i></i>Real</span>':'<span class="pill amb"><i></i>Prueba</span>'}</div>
+    <div class="paso-t">${(w.pasos||[]).map((p,i)=>`${i?"<em>→</em>":""}<span>${NOMP[p]?.split(" ")[0]||p}</span>`).join("")}</div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:auto">${w.modo==="prueba"?`<div>${gauge(w.coinciden,w.no_coinciden)}<div class="sub" style="text-align:center">coinciden</div></div>`:`<div><div class="big" style="font-size:28px">${fmt(w.ejec)}</div><div class="sub">leads procesados</div></div>`}
+    <div style="text-align:right"><div class="sub">${w.error} errores · ${w.esperando} esperando</div><button class="btn" style="margin-top:6px">${w.modo==="prueba"&&w.encendido?"Pasar a real":"Abrir"}</button></div></div></div>`).join("")}</div>`;
+};
+B.etiquetas = () => {
+  const C=conDato(D.canales), tc=suma(C.map(c=>c.n)), sin=D.canales.find(c=>c.t==="Sin canal")?.n||0, tot=suma(D.canales.map(c=>c.n)), E=[...D.etiquetas].sort((a,b)=>b.n-a.n), maxE=Math.max(1,...E.map(e=>e.n)), te=suma(E.map(e=>e.n));
+  return `<div class="insight"><div class="t">Lo que dicen tus etiquetas</div><div class="frase">«<b>${esc(E[0].t)}</b>» está en ${fmt(E[0].n)} leads${E[0].n>te-E[0].n?": más que todas las demás juntas":""}. <b>${esc([...C].sort((a,b)=>b.agendan-a.agendan)[0].t)}</b> es el canal que más agenda.</div><div class="mas"><span>${D.etiquetas.length} etiquetas · ${D.etiquetas.filter(e=>e.ghl).length} usadas por GHL</span><span>${fmt(sin)} leads (${pct(sin,tot,0)}) sin canal: el canal sale de la cita</span></div></div>
+  <div class="rej">
+   <div class="tarj c5"><p class="tit">Canales</p><div class="sub">De los ${fmt(tc)} leads con canal</div><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:12px">${dona(C,COLB,{r:58,g:18,centro:fmt(tc),sub:"con canal"})}<div style="flex:1;min-width:150px">${C.map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0"><i style="width:10px;height:10px;border-radius:3px;background:${COLB[i%6]}"></i><span style="color:var(--tx2)">${esc(c.t)}</span><b style="margin-left:auto">${pct(c.n,tc,0)}</b></div>`).join("")}</div></div></div>
+   <div class="tarj c7"><p class="tit">Etiquetas por leads</p><div class="sub">Pulsa una para ver sus leads en KPIs → UTMs</div><div style="margin-top:10px">${E.map(e=>`<div style="display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 70px;gap:10px;align-items:center;padding:6px 0;cursor:pointer"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.t)}${e.ghl?' <span title="usada por GHL" style="color:#f59f00">●</span>':""}</span><div class="cuota"><i style="width:${e.n/maxE*100}%"></i></div><span style="text-align:right;font-weight:700">${e.n} <span class="sub">${pct(e.n,te,0)}</span></span></div>`).join("")}</div><div class="ley"><span><i style="background:#f59f00;border-radius:99px"></i>usada por GHL</span></div></div>
+  </div>
+  <div class="tarj"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center"><p class="tit">Gestionar</p><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn">Nueva etiqueta</button><button class="btn">Renombrar o unir</button><button class="btn">Editar canales</button></div></div><p class="nota">Las listas para editar (orden, renombrar, unir, borrar, alias y páginas de los canales) se abren desde aquí, en una ventana. Hacen lo mismo que hoy.</p></div>`;
+};
+B.utms = () => {
+  const T=D.total, sinU=D.source.find(s=>s.t==="Sin dato")?.n||0, conU=T.leads-sinU, S=conDato(D.source), u7=suma(D.utm_dias.slice(-7).map(x=>x.n)), u0=suma(D.utm_dias.slice(-14,-7).map(x=>x.n));
+  const ig=suma(S.filter(s=>/^(ig|instagram)$/i.test(s.t)).map(s=>s.n)), ag=suma(D.pares.map(p=>p.a)), desde=D.utm_dias.findIndex(x=>x.n>0);
+  return `<div class="insight"><div class="t">El dato de la semana</div><div class="frase"><b>Instagram trae el ${pct(ig,conU,0)}</b> de los leads con UTM (sumando «ig» e «instagram»). Pero de ${conU} leads con UTM, solo <b>${ag} han agendado</b>.</div><div class="mas"><span>${fmt(sinU)} leads sin UTM (${pct(sinU,T.leads,0)}) · primer lead con UTM: ${D.utm_dias[desde]?.d}</span><span>Consejo: unir «ig» e «instagram» en una sola fuente</span></div></div>
+  <div class="rej">
+   <div class="tarj c3"><div class="lbl">Leads con UTM (7 días)</div><div class="big">${N(u7)}${delta(u7,u0)}</div><div class="sub">vs ${u0} la semana anterior</div></div>
+   <div class="tarj c3"><div class="lbl">Con UTM (total)</div><div class="big">${N(conU)}</div><div class="sub">${pct(conU,T.leads)} de ${fmt(T.leads)}</div></div>
+   <div class="tarj c3"><div class="lbl">Agendan</div><div class="big">${N(ag)}</div><div class="sub">${pct(ag,conU)} de los que traen UTM</div></div>
+   <div class="tarj c3"><div class="lbl">Campañas activas</div><div class="big">${N(conDato(D.campaign).length)}</div><div class="sub">${conDato(D.source).length} fuentes · ${conDato(D.medium).length} medios</div></div>
+  </div>
+  <div class="rej">
+   <div class="tarj c8"><p class="tit">Leads con UTM por día</p><div class="sub">Desde el primer lead con UTM</div>${area(D.utm_dias.slice(Math.max(0,desde-2)),{color:"#5b5bf6",color2:"#f0568c",rejilla:"#eef0f6",texto:"#8a91a8",id:"b"})}</div>
+   <div class="tarj c4"><p class="tit">Fuentes</p><div class="sub">utm_source</div><div style="display:flex;justify-content:center;margin:10px 0">${dona(topN(S,5),COLB,{r:56,g:18,centro:conU,sub:"con UTM"})}</div>${topN(S,5).map((s,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px"><i style="width:10px;height:10px;border-radius:3px;background:${COLB[i]}"></i><span style="color:var(--tx2)">${esc(s.t)}</span><b style="margin-left:auto">${s.n}</b></div>`).join("")}</div>
+  </div>
+  <div class="tarj"><p class="tit">Campañas</p><div class="sub">Qué trae cada campaña y cuántos agendan</div><div style="overflow-x:auto;margin-top:8px"><table><thead><tr><th>Campaña</th><th>Fuente</th><th style="text-align:right">Leads</th><th class="solo-ancho">Cuota</th><th style="text-align:right">Agendan</th></tr></thead><tbody>
+   ${[...D.pares].sort((a,b)=>b.n-a.n).map(p=>`<tr><td style="font-weight:600">${esc(p.c)}</td><td><span class="pill gris">${esc(p.s)}</span></td><td style="text-align:right;font-weight:700">${p.n}</td><td class="solo-ancho" style="width:160px"><div class="cuota"><i style="width:${p.n/conU*100}%"></i></div></td><td style="text-align:right">${p.a?`<span class="pill ok">${p.a}</span>`:'<span class="sub">0</span>'}</td></tr>`).join("")}
+  </tbody></table></div></div>
+  <div class="tarj" style="margin-top:16px"><p class="tit">Generador de enlaces · filtros · tabla de leads</p><p class="nota">Siguen debajo, igual que hoy (la tabla no sale en la maqueta: el repo es público).</p></div>`;
+};
+
+/* ---------- pintar ---------- */
+const PEST=[["entradas","Entradas"],["workflows","Workflows"],["etiquetas","Etiquetas y UTMs"],["utms","UTMs (KPIs)"]];
+let prop="A", pest="entradas";
+function pintar(){
+  document.body.className=prop;
+  document.getElementById("seg-prop").innerHTML=[["A","A · Centro de control"],["B","B · Analytics"]].map(([v,t])=>`<button class="${v===prop?"on":""}" onclick="prop='${v}';pintar()">${t}</button>`).join("");
+  document.getElementById("seg-pest").innerHTML=PEST.map(([v,t])=>`<button class="${v===pest?"on":""}" onclick="pest='${v}';pintar()">${t}</button>`).join("");
+  const kpis=pest==="utms", titulo=kpis?"KPIs":"Administración";
+  document.getElementById("raiz").innerHTML = prop==="A"
+   ? `<div class="cab"><div><div class="ruta">Maestria / ${titulo} / ${PEST.find(p=>p[0]===pest)[1]}</div><h1>${PEST.find(p=>p[0]===pest)[1]}</h1></div><span class="vivo"><span class="led pulso"></span>En vivo · 11 nov 12:00</span></div><div class="pest">${PEST.map(([v,t])=>`<button class="${v===pest?"on":""}" onclick="pest='${v}';pintar()">${t}</button>`).join("")}</div>${A[pest]()}`
+   : `<div class="hero"><div><div class="ruta">Maestria · ${titulo}</div><h1>${PEST.find(p=>p[0]===pest)[1]}</h1></div><div class="pest" style="margin:0">${PEST.map(([v,t])=>`<button class="${v===pest?"on":""}" onclick="pest='${v}';pintar()">${t}</button>`).join("")}</div></div>${B[pest]()}`;
+  contar();
+}
+pintar();
+</script>
+</body>
+</html>

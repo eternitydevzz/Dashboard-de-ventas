@@ -10,7 +10,8 @@ import { guardarCanales } from "./acciones";
 // Alias y páginas van separados por comas. Al guardar, el servidor los limpia y comprueba (canal.ts, tablaValida).
 const lista = (t: string) => t.split(",").map((x) => x.trim()).filter(Boolean);
 
-export function EditorCanales({ inicial }: { inicial: TablaCanales }) {
+export function EditorCanales({ inicial, leads = {} }: { inicial: TablaCanales; leads?: Record<string, number> }) {
+  const maxLeads = Math.max(1, ...Object.values(leads));
   const [filas, setFilas] = useState(inicial.map((c) => ({ clave: c.clave, nombre: c.nombre, alias: c.alias.join(", "), paginas: c.paginas.join(", ") })));
   const { pendiente, error, ejecutar } = useAccion();
   const poner = (i: number, cambio: Partial<(typeof filas)[number]>) => setFilas(filas.map((f, j) => (j === i ? { ...f, ...cambio } : f)));
@@ -31,6 +32,11 @@ export function EditorCanales({ inicial }: { inicial: TablaCanales }) {
             <code className="w-20 text-xs text-texto-3" title="Clave fija: la guardan las citas">{f.clave}</code>
             <input className="campo w-36 py-1" value={f.nombre} maxLength={40} onChange={(e) => poner(i, { nombre: e.target.value })} aria-label={`Nombre del canal ${f.clave}`} />
             <input className="campo min-w-40 flex-1 py-1 text-xs" value={f.alias} onChange={(e) => poner(i, { alias: e.target.value })} placeholder="utm_source (yt, youtube)" aria-label={`Alias de ${f.clave}`} />
+            {/* Rediseño (maqueta v1): cuántos leads tiene cada canal, con su barrita */}
+            <span className="flex w-28 items-center gap-2 text-xs tabular-nums text-texto-3" title="Leads con la etiqueta de este canal">
+              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel"><span className="block h-full rounded-full bg-primario" style={{ width: `${((leads[f.clave] ?? 0) / maxLeads) * 100}%` }} /></span>
+              {(leads[f.clave] ?? 0).toLocaleString("es-ES")}
+            </span>
             <input className="campo min-w-48 flex-1 py-1 text-xs" value={f.paginas} onChange={(e) => poner(i, { paginas: e.target.value })} placeholder="páginas (agenda-yt, dominio.com/ruta)" aria-label={`Páginas de ${f.clave}`} />
           </div>
         ))}
