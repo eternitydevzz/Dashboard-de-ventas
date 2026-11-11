@@ -559,6 +559,20 @@ export async function pararWorkflow(workflowId: string) {
   });
 }
 
+// Rediseño de Workflows (Cristian, 11 nov 2026): la «×» de cada workflow (pregunta 2 veces en pantalla). Sus ejecuciones
+// caen con él (on delete cascade): las que esperaban se cancelan, decidido por Cristian. Uno en real con Entrada no:
+// es el que manda sus leads a GHL («Qué hacer en GHL» está apagado) y la Entrada se quedaría sin mandar.
+export async function borrarWorkflow(workflowId: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const w = await workflowConEntrada(workflowId, proyecto.id);
+    if (w.entrada_id && w.modo === "real") throw new ErrorUsuario("Este workflow manda los leads de su Entrada a GHL. Pulsa primero «Volver a lo de hoy» y después bórralo.");
+    await escribir(db().from("workflows").delete().eq("id", w.id).eq("proyecto_id", proyecto.id), "workflows");
+    refrescar();
+    return { ok: true as const };
+  });
+}
+
 // ---------- Workflows, 4c: guardar desde el editor y encender (Cristian, 7 nov 2026) ----------
 // Guardar: valida los pasos (pasosValidos) y, si cambian, sube la versión. Las ejecuciones en curso terminan con los
 // pasos que guardaron al empezar (columna `pasos` de workflow_ejecuciones).
