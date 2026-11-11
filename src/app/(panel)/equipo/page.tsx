@@ -86,7 +86,10 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
   const linea = <div className="mx-auto h-6 w-px bg-borde-fuerte" aria-hidden />;
   const organigrama = (
     <div className="space-y-0">
-      <div className="flex flex-wrap justify-center gap-3">{delRol("ceo").map(nodo)}</div>
+      {/* Con varios CEO (Cristian y José, 11 nov 2026) van en una caja centrada, como los directores: la línea sale del centro de la caja y no de debajo de uno */}
+      <div className={delRol("ceo").length > 1 ? "mx-auto w-fit rounded-2xl border border-dashed border-borde p-3" : undefined}>
+        <div className="flex flex-wrap justify-center gap-3">{delRol("ceo").map(nodo)}</div>
+      </div>
       {delRol("director").length > 0 && (
         <>
           {linea}
