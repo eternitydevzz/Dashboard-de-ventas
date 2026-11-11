@@ -122,6 +122,15 @@ describe("MCP: ficha_lead", () => {
     expect(r.citas.length).toBe(1);
   });
 
+  it("los textos son los de la ficha: el país con su nombre y «Sistema» en lo automático", async () => {
+    // Como guarda la app el país (lib/pais.ts): código y el teléfono del que salió (si no, el trigger lo borra)
+    await db.from("leads").update({ telefono: "+34600000000", pais: "ES", pais_de: "+34600000000" }).eq("id", e.leads.LeadB);
+    await db.from("actividades").insert({ proyecto_id: e.proyecto.id, lead_id: e.leads.LeadB, perfil_id: null, tipo: "nota", nota: "automática" });
+    const r = await como(e.p.director, () => herramientaFichaLead({ leadId: e.leads.LeadB }));
+    expect(r.pais).toBe("España");
+    expect(r.historial.find((h) => h.nota === "automática")?.quien).toBe("Sistema");
+  });
+
   it("un lead inventado no da datos", async () => {
     await expect(como(e.p.director, () => herramientaFichaLead({ leadId: "00000000-0000-0000-0000-000000000000" }))).rejects.toThrow(/No puedes ver este lead/);
   });

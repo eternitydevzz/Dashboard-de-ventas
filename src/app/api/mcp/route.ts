@@ -5,6 +5,8 @@ import { anotar, bloqueado, dentroDelLimite } from "@/lib/limite";
 import { perfilDeClave, sesionMcpDe } from "@/lib/mcp/clave";
 import { conSesionMcp } from "@/lib/mcp/sesion-mcp";
 import { herramientaAsignar, herramientaKpis } from "@/lib/mcp/herramientas";
+import { ESTADOS, herramientaAgendar, herramientaBorrar, herramientaCrearLead, herramientaEstado, herramientaEtiquetas, herramientaMover, herramientaMoverCita, herramientaNota, herramientaVenta } from "@/lib/mcp/cambiar";
+import { herramientaEnlaceGrabacion, herramientaGrabacionesPendientes, herramientaSubirTranscripcion, herramientaTranscripciones } from "@/lib/mcp/grabaciones";
 import { herramientaAgenda, herramientaBuscarLeads, herramientaFichaLead, herramientaFinanzas, herramientaFunnel, herramientaRanking } from "@/lib/mcp/lectura";
 import { esError, seguro } from "@/lib/resultado";
 
@@ -12,6 +14,7 @@ import { esError, seguro } from "@/lib/resultado";
 // «Authorization: Bearer <clave personal>». Sin estado: un servidor MCP por petición (como pide Vercel).
 // Cada herramienta se ejecuta «como» la persona de la clave, con sus permisos de la app.
 
+const CONFIRMAR = z.boolean().optional().describe("Sin poner: solo enseña qué haría (vista previa). true: lo hace. Úsalo solo después de que la persona apruebe la vista previa.");
 const PROYECTO = z.string().optional().describe("Nombre o id del proyecto (p. ej. «Maestria»). Obligatorio si la persona tiene varios.");
 
 function servidor(perfilId: string) {
@@ -43,12 +46,13 @@ function servidor(perfilId: string) {
     "asignar_leads",
     {
       description:
-        "Asigna, reasigna o desasigna el caller y/o el closer de uno o varios leads, como en el CRM del dashboard (CEO y directores). Se acepta el nombre o el id de la persona; null la quita. Si hay dos personas con el mismo nombre, no asigna y pregunta.",
+        "Asigna, reasigna o desasigna el caller y/o el closer de uno o varios leads, como en el CRM del dashboard (CEO y directores). Se acepta el nombre o el id de la persona; null la quita. Si hay dos personas con el mismo nombre, no asigna y pregunta. Con más de un lead, primero devuelve una vista previa y solo lo hace con confirmar: true.",
       inputSchema: {
         proyecto: PROYECTO,
         leadIds: z.array(z.string().uuid()).min(1).max(2000).describe("Ids de los leads."),
         caller: z.string().nullable().optional().describe("Nombre o id del caller; null para quitarlo; sin poner, no se cambia."),
         closer: z.string().nullable().optional().describe("Nombre o id del closer; null para quitarlo; sin poner, no se cambia."),
+        confirmar: CONFIRMAR,
       },
     },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaAsignar(a))
@@ -131,6 +135,81 @@ function servidor(perfilId: string) {
       },
     },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaAgenda(a))
+  );
+  // ---------- Fase 4: herramientas para cambiar (src/lib/mcp/cambiar.ts). Varios leads, borrar, agendar y vender: vista previa y confirmar ----------
+  const LEADS = z.array(z.string().uuid()).min(1).max(2000).describe("Ids de los leads (salen en buscar_leads).");
+  server.registerTool(
+    "mover_leads",
+    { description: "Mueve uno o varios leads a una columna de un pipeline, como el CRM. Con más de un lead, vista previa y confirmar.", inputSchema: { proyecto: PROYECTO, leadIds: LEADS, pipeline: z.string().describe("Nombre o id del pipeline."), columna: z.string().describe("Nombre o id de la columna."), confirmar: CONFIRMAR } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaMover(a))
+  );
+  server.registerTool(
+    "etiquetas_leads",
+    { description: "Añade y/o quita etiquetas a uno o varios leads (CEO y directores). Con más de un lead, vista previa y confirmar.", inputSchema: { proyecto: PROYECTO, leadIds: LEADS, anadir: z.array(z.string().max(60)).max(20).optional(), quitar: z.array(z.string().max(60)).max(20).optional(), confirmar: CONFIRMAR } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaEtiquetas(a))
+  );
+  server.registerTool(
+    "crear_lead",
+    { description: "Crea un lead a mano, como «Nuevo lead» del CRM (CEO y directores). Necesita nombre y email o teléfono.", inputSchema: { proyecto: PROYECTO, nombre: z.string().min(1).max(200), email: z.string().email().optional(), telefono: z.string().max(40).optional().describe("Con prefijo, p. ej. +34600000000."), pipeline: z.string().optional().describe("Nombre o id del pipeline; entra en su primera columna.") } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaCrearLead(a))
+  );
+  server.registerTool(
+    "borrar_leads",
+    { description: "Borra leads (solo el CEO, como el CRM). Siempre vista previa primero: avisa de los que se saltan (con citas o ventas) y de los que pueden volver desde GHL. No se puede deshacer.", inputSchema: { proyecto: PROYECTO, leadIds: LEADS, confirmar: CONFIRMAR } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaBorrar(a))
+  );
+  server.registerTool(
+    "mover_cita",
+    { description: "Mueve una cita a una columna libre del pipeline «Closers» (o null: de vuelta a la de su estado).", inputSchema: { proyecto: PROYECTO, citaId: z.string().uuid().describe("Id de la cita (sale en agenda_citas)."), columna: z.string().nullable() } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaMoverCita(a))
+  );
+  server.registerTool(
+    "cambiar_estado",
+    {
+      description: "Cambia el estado de un lead con los mismos botones de la ficha: nuevo, link_enviado, wsp_enviado, no_responde, no_interesa, seguimiento, llamar_luego, descartado, reagendado o confirma_agenda. Para «Agendado» usa agendar_cita.",
+      inputSchema: { proyecto: PROYECTO, leadId: z.string().uuid(), estado: z.enum(ESTADOS as [string, ...string[]]), nota: z.string().max(4000).optional(), estrellas: z.number().int().min(2).max(5).optional().describe("Para no_interesa, seguimiento y llamar_luego."), llamarEn: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).optional().describe("Para llamar_luego: AAAA-MM-DDTHH:MM, hora del proyecto.") },
+    },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaEstado(a as Parameters<typeof herramientaEstado>[0]))
+  );
+  server.registerTool(
+    "anadir_nota",
+    { description: "Añade una nota al historial de un lead.", inputSchema: { proyecto: PROYECTO, leadId: z.string().uuid(), nota: z.string().min(1).max(4000) } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaNota(a))
+  );
+  server.registerTool(
+    "agendar_cita",
+    { description: "Agenda una cita de un lead con un closer (la crea también en el calendario de GHL). Siempre vista previa primero y confirmar.", inputSchema: { proyecto: PROYECTO, leadId: z.string().uuid(), closer: z.string().describe("Nombre o id del closer."), fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).describe("AAAA-MM-DDTHH:MM en la hora del proyecto."), nota: z.string().max(4000).optional(), estrellas: z.number().int().min(2).max(5).optional(), confirmar: CONFIRMAR } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaAgendar(a))
+  );
+  server.registerTool(
+    "registrar_venta",
+    {
+      description: "Registra una venta de un lead, como «Registrar venta» de la ficha (no los callers). Cierra su cita abierta y deja lo pendiente en Finanzas. Siempre vista previa primero y confirmar.",
+      inputSchema: { proyecto: PROYECTO, leadId: z.string().uuid(), producto: z.string().describe("Nombre o id del producto."), facturacion: z.number().positive(), cash: z.number().min(0).describe("Cobrado ahora (entre 0 y la facturación)."), tipoPago: z.enum(["completo", "reserva", "cuotas", "mensual"]), numCuotas: z.number().int().min(2).max(60).optional(), metodo: z.enum(["stripe", "transferencia", "otro"]), fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("AAAA-MM-DD; sin poner, hoy."), vendedor: z.string().optional().describe("Nombre o id; sin poner, el closer de su cita."), nota: z.string().max(4000).optional(), confirmar: CONFIRMAR },
+    },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaVenta(a))
+  );
+
+  // ---------- Fase 5: grabaciones de los callers y transcripciones (src/lib/mcp/grabaciones.ts) ----------
+  server.registerTool(
+    "grabaciones_pendientes",
+    { description: "Grabaciones de los callers que aún no tienen transcripción (CEO y directores), de la más antigua a la más nueva, con sus minutos.", inputSchema: { proyecto: PROYECTO, limite: z.number().int().min(1).max(500).optional() } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaGrabacionesPendientes(a))
+  );
+  server.registerTool(
+    "enlace_grabacion",
+    { description: "Enlace firmado (1 hora) para descargar el audio de una grabación de un caller y transcribirlo en local con Whisper.", inputSchema: { proyecto: PROYECTO, grabacionId: z.string().uuid() } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaEnlaceGrabacion(a))
+  );
+  server.registerTool(
+    "subir_transcripcion",
+    { description: "Guarda la transcripción de una grabación de un caller (como «Guardar texto» de la pantalla Grabaciones; CEO y directores).", inputSchema: { proyecto: PROYECTO, grabacionId: z.string().uuid(), texto: z.string().min(1).max(200000) } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaSubirTranscripcion(a))
+  );
+  server.registerTool(
+    "transcripciones",
+    { description: "Transcripciones para analizar: de los callers (grabaciones), de los closers (Fathom) o de GHL. Filtra por persona y por los últimos días; como mucho 50.", inputSchema: { proyecto: PROYECTO, fuente: z.enum(["callers", "fathom", "ghl"]), persona: z.string().optional(), dias: z.number().int().min(1).max(3650).optional(), limite: z.number().int().min(1).max(50).optional() } },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaTranscripciones(a))
   );
   return server;
 }

@@ -30,7 +30,7 @@ export async function herramientaKpis(a: ArgsKpis) {
   };
 }
 
-export type ArgsAsignar = { leadIds: string[]; caller?: string | null; closer?: string | null };
+export type ArgsAsignar = { leadIds: string[]; caller?: string | null; closer?: string | null; confirmar?: boolean };
 
 // Una persona del proyecto por su id o su nombre (sin distinguir mayúsculas). Con dos del mismo nombre, no elige.
 async function personaDe(proyectoId: string, rol: "caller" | "closer", quien: string | null | undefined) {
@@ -56,6 +56,11 @@ export async function herramientaAsignar(a: ArgsAsignar) {
   const { count, error } = await db().from("leads").select("id", { count: "exact", head: true }).in("id", ids).eq("proyecto_id", proyecto.id);
   if (error) throw new Error(`No se pudieron leer los leads: ${error.message}`);
   if ((count ?? 0) !== ids.length) throw new ErrorUsuario(`${ids.length - (count ?? 0)} de esos leads no son de ${proyecto.nombre}. No se ha cambiado nada.`);
+  // Fase 4 (Cristian, 11 nov): un cambio de varios leads enseña antes qué haría y solo se hace con confirmar
+  if (ids.length > 1 && !a.confirmar) {
+    const que = [a.caller !== undefined && `caller: ${a.caller ?? "ninguno"}`, a.closer !== undefined && `closer: ${a.closer ?? "ninguno"}`].filter(Boolean).join(" · ");
+    return { vistaPrevia: true as const, haria: `Asignar ${ids.length} leads (${que}).`, paraHacerlo: "No se ha cambiado nada. Si está bien, vuelve a llamar igual con confirmar: true." };
+  }
   const r = await asignarLeads(ids, callerId, closerId);
   if (r && "error" in r) throw new ErrorUsuario(r.error);
   return { asignados: ids.length };
