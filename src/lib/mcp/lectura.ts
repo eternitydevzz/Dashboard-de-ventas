@@ -1,6 +1,8 @@
 import "server-only";
 import { getSesion, esJefe } from "@/lib/auth";
-import { exigirSeccion } from "@/lib/permisos";
+import { exigirSeccion, soloLoSuyo } from "@/lib/permisos";
+import { cargarObjetivos, calcularAvances, avancesDelEquipo, type Avance } from "@/lib/objetivos";
+import { agruparDuplicados } from "@/lib/duplicados";
 import { cargarBase, calcularFunnel } from "@/lib/metricas";
 import { calcularKpis } from "@/lib/kpis";
 import { rangoNav, type PeriodoNav } from "@/lib/periodos";
@@ -280,5 +282,44 @@ export async function herramientaAgenda(a: ArgsAgenda) {
       estado: ETIQUETA_ESTADO_CITA[c.estado] ?? c.estado,
       canal: c.canal ?? null,
     })),
+  };
+}
+
+// ---------- objetivos (KPIs → Objetivos; src/app/(panel)/kpis/page.tsx, vista «objetivos») ----------
+// Fase 7 (Cristian, 11 nov): para el reporte del lunes (alerta: objetivos sin cumplir). `ver` = el avance en esa fecha.
+export async function herramientaObjetivos(a: { ver?: string }) {
+  const { perfil, proyecto } = await exigirSeccion("kpis");
+  if (soloLoSuyo(perfil, "kpis")) throw new ErrorUsuario("Los objetivos del equipo son para el CEO y los directores.");
+  const zona = proyecto.zona_horaria;
+  const hoy = hoyEnZona(zona);
+  const ver = a.ver && /^\d{4}-\d{2}-\d{2}$/.test(a.ver) && a.ver <= hoy ? a.ver : hoy;
+  const [base, datos] = await Promise.all([cargarBase(proyecto), cargarObjetivos(proyecto.id)]);
+  const personas = base.gente.filter((g) => !("baja" in g && g.baja) && (g.rol === "caller" || g.rol === "closer" || g.rol === "director"));
+  const avances = calcularAvances(base, datos, personas, zona, ver);
+  const fila = (x: Avance) => ({ cifra: x.cifra, periodo: x.periodo, etiqueta: x.etiqueta, meta: x.meta, hecho: x.hecho, pct: x.pct, dePersona: x.dePersona });
+  return {
+    pantalla: "KPIs → Objetivos",
+    proyecto: proyecto.nombre,
+    fecha: ver,
+    equipo: avancesDelEquipo(base, datos, zona).map(fila),
+    personas: personas.map((p) => ({ nombre: p.nombre, rol: p.rol, avances: (avances.get(p.id) ?? []).map(fila) })).filter((p) => p.avances.length),
+  };
+}
+
+// ---------- duplicados (CRM → Duplicados; src/app/(panel)/crm/duplicados/page.tsx) ----------
+// Para unirlos, la app tiene el botón «Unir» (función unir_leads); el MCP solo los enseña.
+export async function herramientaDuplicados() {
+  const { perfil, proyecto } = await exigirSeccion("crm");
+  if (!esJefe(perfil)) throw new ErrorUsuario("Los duplicados son para el CEO y los directores.");
+  const leads = await todas<{ id: string; nombre: string; apellido: string; email: string | null; telefono: string | null; ghl_contact_id: string | null; creado_en: string }>((x, y) =>
+    db().from("leads").select("id, nombre, apellido, email, telefono, ghl_contact_id, creado_en").eq("proyecto_id", proyecto.id).not("telefono", "is", null).order("id").range(x, y)
+  );
+  const grupos = agruparDuplicados(leads);
+  return {
+    pantalla: "CRM → Duplicados",
+    proyecto: proyecto.nombre,
+    criterio: "mismo teléfono (últimas 9 cifras)",
+    grupos: grupos.length,
+    detalle: grupos.map((g) => g.leads.map((l) => ({ id: l.id, nombre: `${l.nombre} ${l.apellido ?? ""}`.trim(), email: l.email, telefono: l.telefono, enGhl: !!l.ghl_contact_id, creado: fechaHora(l.creado_en, proyecto) }))),
   };
 }
