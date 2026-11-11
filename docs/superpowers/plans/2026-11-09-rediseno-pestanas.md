@@ -1,20 +1,30 @@
 # Rediseño de 4 pestañas · Plan
 
-> Actualizado el 11 nov 2026. **Estado: hecho y en producción.** Queda lo de «Lo que falta», abajo. La versión anterior del plan, con los pasos de cada tarea, está en el historial de git (commit `57561b6`).
+> Actualizado el 11 nov 2026. **Estado: hecho, en producción y probado.** Quedan 2 fallos pequeños, apuntados en «Lo que falta». La versión anterior del plan, con los pasos de cada tarea, está en el historial de git (commit `57561b6`).
 
 **Objetivo:** que Entradas, Workflows, Etiquetas y UTMs (Administración) y UTMs (KPIs) se vean como KPIs → Leads, con números grandes, círculos, barras y gráficos, en vez de listas de texto.
 
 ## Lo que falta
 
-Nada de esto lo pidió Cristian como obligatorio. Son pruebas que no se hicieron en la app real y una medición.
+Los 2 fallos que encontraron las pruebas del 11 nov. Cristian: «Apúntalos para después».
 
-1. **Probar «Eliminar» un workflow en la app.** Los 4 tests de `borrarWorkflow` pasan, pero no se pulsó en producción para no borrar nada de Maestria. Cómo: en el proyecto **Test**, crear un workflow de cita, pulsar la × y comprobar:
-   - salen las 2 ventanas de la app, en rojo;
-   - Cancelar en cualquiera de las dos no borra nada;
-   - aceptando las dos, desaparece de la lista.
-2. **Probar «Conectar una landing»** (ahora en una ventana) en **Test**: se crea, aparece su tarjeta y la ventana se puede cerrar. Después borrar esa Entrada de prueba.
-3. **Mirar el móvil (375 px, en una pestaña aparte) y el modo oscuro** de las 4 pestañas en la app. La maqueta sí se comprobó así; el código no.
-4. **Medir cuánto tarda KPIs → UTMs en Maestria «Todo».** Ahora también lee las marcas del embudo de `cargarLeadsKpis` (1 minuto en memoria). El plan decía medir antes y después y no se hizo; el «antes» ya no se puede medir. Si tarda mucho, avisar a Cristian.
+1. **KPIs → UTMs en el móvil tiene scroll lateral.** El contenido mide 487 px en una pantalla de 406: los nombres largos de las campañas en el círculo «Por campaña» empujan la tarjeta. Arreglo propuesto: `min-w-0` en las tarjetas de la rejilla de círculos (`src/app/(panel)/kpis/utms.tsx`; mirar también `admin/etiquetas-utms.tsx`, que tiene la misma rejilla). Cómo se comprueba: pestaña aparte a 375 px, sin scroll lateral.
+2. **Las etiquetas del pico se montan.** Los 2 días enormes (1408 y 807) son seguidos y sus etiquetas quedan una encima de la otra: se lee «1 807↑». Arreglo propuesto: si 2 etiquetas quedan a menos de su ancho, la segunda va más arriba (en `LineaDias`, `utms.tsx`). Cómo se comprueba: en Maestria «Todo» se leen «1408↑» y «807↑».
+
+Mejora vista (no es un fallo): al crear una Entrada, la ventana «Conectar una landing» se queda abierta con «Entrada creada…» y hay que cerrarla para ver la tarjeta. Se podría cerrar sola.
+
+## Pruebas hechas el 11 nov (todo bien, salvo lo de arriba)
+
+- **Eliminar un workflow:** probado en el proyecto **Test**, en el navegador de Claude con la cuenta de CEO.
+  - Salen las 2 ventanas de la app, las 2 en rojo («¿Eliminar «Cita agendada»?» y «¿Eliminar para siempre?»).
+  - Cancelar en la segunda no borra nada.
+  - Aceptando las dos sale «Workflow eliminado» y Test vuelve a «Todavía no hay workflows».
+- **«Conectar una landing»:** también en **Test**.
+  - La ventana se abre con las 5 preguntas y crea la Entrada; aparece su tarjeta y el resumen pasa a 1 / 1.
+  - Después se borró con su × (ventana de la app) y Test volvió a 0 / 0.
+- **Proyecto casi vacío (Test):** las 4 pestañas lo dicen bien: «Todavía no hay ninguna landing», «Sin datos.», «Ningún lead de estas fechas tiene campaña».
+- **Modo oscuro:** las 4 pestañas se ven bien. **Móvil:** bien, salvo el fallo 1.
+- **Velocidad de KPIs → UTMs en Maestria «Todo»:** 3,4 s, 2,5 s y 2,7 s. La pestaña Leads tarda 2,7 s y 2,5 s: lo mismo.
 
 ## Lo que se hizo (comprobado en dashboard.eternity.llc con Playwright)
 
