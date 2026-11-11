@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { M_MAESTRIA } from "@/lib/marca-m";
+import { hayDatosPendientes } from "@/lib/pantalla-lista";
 
 // Bienvenida (Cristian, 11 nov 2026; maqueta docs/maqueta-bienvenida.html, idea de beterangles.com).
 // Tapa la app mientras se precargan las 3 secciones de su rol (los enlaces del menú, barra-lateral.tsx) y se quita
-// cuando están las 3, como mínimo a los 0,8 s y como máximo a los 2 s, también al recargar.
+// cuando están las 3 y la pantalla de entrada tiene sus datos, como mínimo a los 0,8 s y como máximo a los 4 s, también al recargar.
 // Cristian (11 nov): «no tiene sentido que esté si no carga al menos 1 pantalla». En octubre esperaba a 16 secciones y
 // saturó la base (25 oct); ahora son 3. Al quitarse avisa con «bienvenida-fin» (la ventana de mensajes espera).
 export const FIN_BIENVENIDA = "bienvenida-fin";
@@ -27,7 +28,9 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
 
   useEffect(() => {
     // Siempre la completa, también al recargar (Cristian, 11 nov: «si recargo no hace la pantalla de carga completa»)
-    const [minimo, maximo] = [800, 2000];
+    // Máximo 4 s (Cristian, 11 nov): también espera a los datos de la pantalla de entrada (KPIs → Leads y UTMs los piden
+    // después de pintarse y enseñaban «Cargando todos los leads…»: «no quiero que se vea así»)
+    const [minimo, maximo] = [800, 4000];
     const t0 = performance.now();
     const faltan = new Set(claveRutas.split("|").filter((r) => r && r !== location.pathname)); // la de entrada ya está cargada
     let hecho = false;
@@ -42,13 +45,18 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
         if (!e.name.includes("_rsc=")) continue;
         faltan.delete(new URL(e.name).pathname);
       }
-      if (!faltan.size) salir();
     });
     observador.observe({ type: "resource", buffered: true });
-    if (!faltan.size) salir();
+    // Lista = las 3 precargas han llegado y la pantalla no tiene datos por llegar (lib/pantalla-lista.ts: el contador de
+    // cargandoDatos() y la marca data-datos-pendientes). Se mira cada 100 ms: el aviso de «ya llegaron» puede llegar
+    // antes de que la marca se quite del HTML.
+    const mirar = setInterval(() => {
+      if (!faltan.size && !hayDatosPendientes()) salir();
+    }, 100);
     const tope = setTimeout(salir, maximo);
     return () => {
       observador.disconnect();
+      clearInterval(mirar);
       clearTimeout(tope);
     };
   }, [claveRutas]);

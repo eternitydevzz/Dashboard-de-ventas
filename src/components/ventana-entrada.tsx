@@ -69,7 +69,7 @@ export function VentanaEntrada({ rol, nombre, avisos = [] }: { rol: Rol; nombre:
   useEffect(() => {
     const fin = () => setLista(true);
     window.addEventListener(FIN_BIENVENIDA, fin);
-    const tope = setTimeout(fin, 2500); // por si la bienvenida no avisa (pestaña en segundo plano)
+    const tope = setTimeout(fin, 5000); // por si la bienvenida no avisa (como mucho dura 4 s)
     if (!pedido.current && rol !== "director") {
       pedido.current = true;
       if (rol === "ceo") reporteAlEntrar().then((r) => r && !esError(r) && setContenido(delReporte(r, avisos)));
