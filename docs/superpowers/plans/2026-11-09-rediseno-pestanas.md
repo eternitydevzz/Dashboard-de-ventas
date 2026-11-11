@@ -95,7 +95,7 @@
 
 **Decisión de Cristian (11 nov):** la maqueta elegida es la **v1** (`docs/maqueta-rediseno-v1.html`), con dos botones en cada tarjeta de workflow: una **llave** para editar y una **×** para eliminar.
 - Editar: abre el editor que ya existe (`workflows-editor.tsx`, acción `guardarWorkflow`).
-- Eliminar: **hoy no existe** (en `admin/acciones.ts` no hay ninguna acción de borrar un workflow). Hay que crearla, solo para jefes. **Pregunta 2 veces** (Cristian, 11 nov: «Preguntar 2 veces»), con la ventana propia de la app (`confirmar` de `src/components/dialogos.tsx`), nunca la del navegador: la segunda vez avisa de que el borrado es para siempre y de cuántos leads hay en espera. Falta confirmar con Cristian que esos leads en espera se cancelan.
+- Eliminar: **hoy no existe** (en `admin/acciones.ts` no hay ninguna acción de borrar un workflow). Hay que crearla, solo para jefes. **Pregunta 2 veces** (Cristian, 11 nov: «Preguntar 2 veces»), con la ventana propia de la app (`confirmar` de `src/components/dialogos.tsx`), nunca la del navegador: la segunda vez avisa de que el borrado es para siempre y de cuántos leads hay en espera. Los leads en espera **se cancelan** (Cristian, 11 nov: «Sí, se cancelan»).
 
 **Archivos:** modificar `src/app/(panel)/admin/workflows.tsx`. `workflows-editor.tsx` y el diagrama no se tocan.
 
