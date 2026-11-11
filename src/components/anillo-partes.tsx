@@ -2,7 +2,8 @@
 // colores de la app (cambian solos en modo oscuro). El de components/ui.tsx («Anillo») enseña un solo %.
 const COLORES = ["var(--primario)", "var(--oro)", "var(--ok)", "var(--morado)", "var(--aviso)", "var(--mal)", "var(--texto-3)"];
 
-export function AnilloPartes({ titulo, partes, max = 6 }: { titulo: string; partes: { t: string; n: number }[]; max?: number }) {
+// `centro`: lo que va en el centro si no es la suma (p. ej. etiquetas: un lead tiene varias, la suma no son leads)
+export function AnilloPartes({ titulo, partes, max = 6, centro }: { titulo: string; partes: { t: string; n: number }[]; max?: number; centro?: string }) {
   const ordenadas = [...partes].filter((p) => p.n > 0).sort((a, b) => b.n - a.n);
   // Las pequeñas se juntan en «Otros» para que se lea
   const visibles = ordenadas.length > max ? [...ordenadas.slice(0, max - 1), { t: "Otros", n: ordenadas.slice(max - 1).reduce((s, p) => s + p.n, 0) }] : ordenadas;
@@ -26,7 +27,7 @@ export function AnilloPartes({ titulo, partes, max = 6 }: { titulo: string; part
                 <title>{`${p.t}: ${p.n.toLocaleString("es-ES")} (${Math.round((p.n / total) * 100)} %)`}</title>
               </circle>
             ))}
-            <text x="38" y="42" textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--texto)">{total.toLocaleString("es-ES")}</text>
+            <text x="38" y="42" textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--texto)">{centro ?? total.toLocaleString("es-ES")}</text>
           </svg>
           <ul className="min-w-0 flex-1 space-y-1 text-sm">
             {visibles.map((p, i) => (

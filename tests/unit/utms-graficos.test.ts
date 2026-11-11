@@ -29,6 +29,9 @@ describe("corteGrafico: dónde cortar un pico que aplasta el resto (decisión de
   it("un día con más del triple que el segundo se corta un 15 % por encima del segundo", () => {
     expect(corteGrafico([10, 12, 2182, 9])).toBe(14);
   });
+  it("con 2 días enormes (Maestria en producción, 11 nov: 1408 y 807 contra unos 155), se cortan los dos", () => {
+    expect(corteGrafico([1408, 807, 155, 155, 138, 137, 124])).toBe(179);
+  });
   it("sin pico, no se corta", () => {
     expect(corteGrafico([10, 12, 13])).toBeNull();
     expect(corteGrafico([5])).toBeNull();

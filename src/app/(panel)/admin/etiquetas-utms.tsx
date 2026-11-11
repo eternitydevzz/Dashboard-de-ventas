@@ -63,14 +63,14 @@ export async function EtiquetasUtms({ sub, canales }: { sub: string; canales: Ta
         <div className="tarjeta flex items-center gap-3 border-aviso/35 px-4 py-3 text-sm">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-aviso-suave text-aviso"><AlertTriangle className="h-4 w-4" /></span>
           <div>
-            <b>{sinCanal.toLocaleString("es-ES")} de {porCanal.total.toLocaleString("es-ES")} leads ({Math.round((sinCanal / porCanal.total) * 1000) / 10} %) no tienen canal.</b>
+            <b>{sinCanal.toLocaleString("es-ES")} de {porCanal.total.toLocaleString("es-ES")} leads ({(Math.round((sinCanal / porCanal.total) * 1000) / 10).toLocaleString("es-ES")} %) no tienen canal.</b>
             <div className="text-xs text-texto-3">El canal sale de la cita (de su página o su utm_source), así que solo lo tienen los que agendaron. Se cuentan aparte para que los círculos se lean.</div>
           </div>
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-3">
         <Seccion><AnilloPartes titulo="Leads por canal" partes={porCanal.canales} /></Seccion>
-        <Seccion><AnilloPartes titulo="Leads por etiqueta" partes={filas.map((f) => ({ t: f.nombre, n: f.leads }))} /></Seccion>
+        <Seccion><AnilloPartes titulo="Etiquetas (un lead puede tener varias)" partes={filas.map((f) => ({ t: f.nombre, n: f.leads }))} centro={String(filas.filter((f) => f.leads > 0).length)} /></Seccion>
         <Seccion>{ranking.length ? <Barras titulo="Ranking de canales" filas={ranking} numero /> : <p className="text-sm text-texto-3">Todavía no hay leads con canal.</p>}</Seccion>
       </div>
       <div className="flex flex-wrap gap-1">
