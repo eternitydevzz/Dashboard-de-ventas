@@ -68,8 +68,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* ---------- Capa de bienvenida ---------- */
 .capa{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
   background:radial-gradient(1100px 640px at 82% -10%,var(--halo),transparent 58%),linear-gradient(180deg,var(--capa-1),var(--capa-2));
-  animation:capa-sale 3.4s cubic-bezier(.4,0,.2,1) forwards}
-.capa.corta{animation:capa-sale-corta 1.1s ease-out forwards}
+  animation:capa-sale 2s cubic-bezier(.4,0,.2,1) forwards}
+.capa.corta{animation:capa-sale-corta .8s ease-out forwards}
 .capa.corta .pista{display:none}
 @keyframes capa-sale{0%,85%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
 @keyframes capa-sale-corta{0%,60%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
@@ -78,9 +78,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .capa h1{margin:0;font-size:clamp(26px,4.2vw,40px);letter-spacing:-.03em;animation:entra .76s cubic-bezier(.16,1,.3,1) .1s both}
 .capa h1 b{color:var(--primario)}
 .pista{width:min(280px,64vw);height:3px;border-radius:3px;overflow:hidden;background:var(--borde-fuerte)}
-.pista i{display:block;height:100%;transform-origin:left;background:linear-gradient(90deg,transparent,var(--primario));animation:llena 2.9s cubic-bezier(.3,0,.1,1) both}
+.pista i{display:block;height:100%;transform-origin:left;background:linear-gradient(90deg,transparent,var(--primario));animation:llena 1.7s cubic-bezier(.3,0,.1,1) both}
 @keyframes llena{0%{transform:scaleX(0)}70%{transform:scaleX(.82)}100%{transform:scaleX(1)}}
-.capa p{margin:0;color:var(--texto-3);font-size:13px;animation:entra .6s .5s both}
+.capa p{margin:0;color:var(--texto-3);font-size:13px;animation:entra .6s .3s both}
 
 /* ---------- Ventana de avisos al entrar ---------- */
 .fondo-modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;background:rgb(6 10 24 / .45);backdrop-filter:blur(6px)}

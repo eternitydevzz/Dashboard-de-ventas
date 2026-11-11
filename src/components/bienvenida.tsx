@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 // Bienvenida (Cristian, 11 nov 2026; maqueta docs/maqueta-bienvenida.html, idea de beterangles.com): capa solo visual.
 // No espera a ninguna petición (la de octubre esperaba a la precarga de las 16 secciones y saturó la base el 25 oct).
-// Al abrir la pestaña dura 3,4 s; al recargar en la misma pestaña, la versión corta de 1,1 s (sin barra).
+// Al abrir la pestaña dura 2 s; al recargar en la misma pestaña, la versión corta de 0,8 s (sin barra). Antes 3,4 s: «tarda mucho» (Cristian, 11 nov).
 // Al terminar avisa con el evento «bienvenida-fin» (la ventana de mensajes espera a que se quite).
 const CLAVE = "eternity_bienvenida_vista";
 export const FIN_BIENVENIDA = "bienvenida-fin";

@@ -251,7 +251,7 @@ body,
 }
 .barra-carga { animation: carga-avanza 1.1s ease-in-out infinite; }
 
-/* Bienvenida (Cristian, 11 nov 2026, idea de beterangles.com): capa solo visual de 3,4 s (1,1 s al recargar en la misma
+/* Bienvenida (Cristian, 11 nov 2026, idea de beterangles.com): capa solo visual de 2 s (0,8 s al recargar; Cristian, 11 nov: «tarda mucho», antes 3,4 s en la misma
    pestaña). No espera a nada: la precarga de 3 secciones va por detrás (barra-lateral.tsx). */
 @keyframes capa-sale { 0%, 85% { opacity: 1; visibility: visible; } 100% { opacity: 0; visibility: hidden; } }
 @keyframes capa-sale-corta { 0%, 60% { opacity: 1; visibility: visible; } 100% { opacity: 0; visibility: hidden; } }
@@ -260,15 +260,15 @@ body,
 .capa-bienvenida {
   position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
   background: radial-gradient(1100px 640px at 82% -10%, rgb(43 89 209 / 0.16), transparent 58%), linear-gradient(180deg, #f4f7fd, #e4eaf5);
-  animation: capa-sale 3.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: capa-sale 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 .dark .capa-bienvenida { background: radial-gradient(1100px 640px at 82% -10%, rgb(79 124 240 / 0.22), transparent 58%), linear-gradient(180deg, #0b1328, #060a18); }
-.capa-bienvenida.corta { animation: capa-sale-corta 1.1s ease-out forwards; }
+.capa-bienvenida.corta { animation: capa-sale-corta 0.8s ease-out forwards; }
 .capa-bienvenida .logo { animation: entra 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .capa-bienvenida h1 { animation: entra 0.76s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
-.capa-bienvenida p { animation: entra 0.6s 0.5s both; }
+.capa-bienvenida p { animation: entra 0.6s 0.3s both; }
 .capa-pista { width: min(280px, 64vw); height: 3px; border-radius: 3px; overflow: hidden; background: var(--borde-fuerte); }
-.capa-pista i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, transparent, var(--primario)); animation: capa-llena 2.9s cubic-bezier(0.3, 0, 0.1, 1) both; }
+.capa-pista i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, transparent, var(--primario)); animation: capa-llena 1.7s cubic-bezier(0.3, 0, 0.1, 1) both; }
 .capa-bienvenida.corta .capa-pista, .capa-bienvenida.corta p { display: none; }
 
 /* Cambio de sección: barra fina arriba mientras llega la sección, esqueleto con brillo y entrada suave del contenido */
