@@ -4,13 +4,14 @@ import { redirect } from "next/navigation";
 import { getSesion, puedeAdmin, puedeCrearProyectos } from "@/lib/auth";
 import { db } from "@/lib/datos";
 import { dinero, fechaHora, ETIQUETA_ROL } from "@/lib/formato";
-import { Cabecera, Contenido, Seccion, Insignia, Avatar } from "@/components/ui";
+import { Cabecera, Contenido, Seccion, Insignia, Avatar, Kpi } from "@/components/ui";
 import { Plantilla, AnadirExistente, FormUsuario, FormProyecto, FormNuevoProyecto, LinkAgenda, Secreto } from "./cliente";
 import { esCloser, type Perfil, type Producto, type Rol } from "@/lib/tipos";
 import { PLANTILLAS_GHL, CABECERA_SECRETO } from "@/lib/plantillas-ghl";
-import { NuevaEntrada, TarjetaEntrada, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
+import { AlertTriangle, FlaskConical, Inbox, Power } from "lucide-react";
+import { BotonNuevaEntrada, TarjetaEntrada, type OpcionesGhl, type GhlDeEntrada } from "./entradas";
 import { haceCuanto, type DatosLanding } from "@/lib/entradas-panel";
-import { enviosDeEntrada, enviosEnRojo, resumenEntradas, ULTIMOS, type EnvioEntrada, type ResumenEntrada } from "@/lib/entradas-datos";
+import { DIAS_GRAFICO, enviosDeEntrada, enviosEnRojo, enviosPorDia, resumenEntradas, ULTIMOS, type EnvioEntrada, type ResumenEntrada } from "@/lib/entradas-datos";
 import { resumenWorkflows } from "@/lib/workflows-motor";
 import type { WorkflowVista } from "./entradas-workflow";
 import { VistaWorkflows, type EjecucionFila, type WorkflowFila } from "./workflows";
@@ -203,6 +204,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   let rojos: EventoEntrada[] = [];
   const ultimosDe = new Map<string, EventoEntrada[]>();
   let workflowDe = new Map<string, WorkflowVista>(); // Workflows 4a-1: el workflow en marcha de cada Entrada
+  let diasDe = new Map<string, number[]>(); // Rediseño (11 nov 2026): envíos por día de cada Entrada
   const canales = tab === "etiquetas-utms" ? await canalesDe(proyecto.id) : null; // B2b
   const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined, sp.editar === "1") : null;
   if (tab === "entradas") {
@@ -215,8 +217,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
     pipes = ((pl ?? []) as { id: string; nombre: string; etapas: { id: string; nombre: string; orden: number }[] }[]).map((p) => ({ ...p, etapas: [...p.etapas].sort((a, b) => a.orden - b.orden) }));
     if (entradas.length) {
       const ids = entradas.map((x) => x.id);
-      const [r, ro, ...ult] = await Promise.all([resumenEntradas(proyecto.id), enviosEnRojo(ids), ...ids.map((id) => enviosDeEntrada(id, 0, ULTIMOS))]);
+      const [r, ro, dd, ...ult] = await Promise.all([resumenEntradas(proyecto.id), enviosEnRojo(ids), enviosPorDia(ids, proyecto.zona_horaria), ...ids.map((id) => enviosDeEntrada(id, 0, ULTIMOS))]);
       resumen = r;
+      diasDe = dd;
       rojos = ro;
       ids.forEach((id, i) => ultimosDe.set(id, ult[i]));
       workflowDe = await cargarWorkflows(proyecto.id);
@@ -376,17 +379,23 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         )}
 
         {tab === "entradas" && (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="min-w-0 space-y-4">
-              {/* Panel de endpoints (plan GHL, punto 0; boceto v2 aprobado por Cristian el 7 nov 2026) */}
-              <div className="rounded-2xl bg-primario-suave p-4 text-sm">
-                <p><b>Cada landing manda sus leads a su propia dirección.</b> Para conectar una landing nueva:</p>
-                <ol className="mt-2 list-decimal space-y-0.5 pl-5">
-                  <li>Créala en «Conectar una landing nueva».</li>
-                  <li>Pulsa «Copiar dirección» y pásasela al programador de la landing.</li>
-                  <li>Cuando llegue el primer lead, lo verás aquí.</li>
-                </ol>
+          <div className="space-y-4">
+            {/* Rediseño con la maqueta v1 (Cristian, 11 nov 2026): resumen arriba, tarjetas y «Conectar» en una ventana */}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="titulo-seccion">Entradas (landings)</div>
+                <p className="mt-0.5 text-sm text-texto-2">Cada landing manda sus leads a su propia dirección: créala, pulsa «Copiar dirección» y pásasela al programador.</p>
               </div>
+              <BotonNuevaEntrada pipelines={pipes} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Kpi compacto titulo="Envíos hoy" valor={[...diasDe.values()].reduce((s, d) => s + (d.at(-1) ?? 0), 0).toLocaleString("es-ES")} icono={Inbox} detalle={`${[...diasDe.values()].reduce((s, d) => s + d.slice(-7).reduce((a, b) => a + b, 0), 0).toLocaleString("es-ES")} en 7 días`} />
+              <Kpi compacto titulo="Entradas activas" valor={`${entradas.filter((e) => e.activa).length} / ${entradas.length}`} icono={Power} tono="ok" detalle="reciben leads" />
+              <Kpi compacto titulo="Envíos con error" valor={rojos.length.toLocaleString("es-ES")} icono={AlertTriangle} tono="mal" detalle={rojos.length ? "no llegaron a GHL" : "todo en orden"} />
+              <Kpi compacto titulo="Workflows en prueba" valor={String([...workflowDe.values()].filter((w) => w.modo === "prueba").length)} icono={FlaskConical} tono="aviso" detalle="esperan «Pasar a real»" />
+            </div>
+            {!entradas.length && <p className="tarjeta p-5 text-sm text-texto-3">Todavía no hay ninguna landing conectada. Pulsa «Conectar una landing» para crear la primera.</p>}
+            <div className="grid gap-4 xl:grid-cols-2">
               {entradas.map((en) => {
                 const ultimos = ultimosDe.get(en.id) ?? [];
                 const suyosRojos = rojos.filter((x) => x.entrada_id === en.id);
@@ -427,10 +436,12 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                     pipelines={pipes}
                     opciones={opcionesGhl}
                     workflow={workflowDe.get(en.id) ?? null}
+                    dias={diasDe.get(en.id) ?? Array<number>(DIAS_GRAFICO).fill(0)}
                   />
                 );
               })}
-              <details className="tarjeta p-4 sm:p-5">
+            </div>
+            <details className="tarjeta p-4 sm:p-5">
                 <summary className="cursor-pointer text-sm font-semibold text-texto-2">Para el programador: qué responde el dashboard</summary>
                 <ul className="mt-3 divide-y divide-borde text-sm">
                   {RESPUESTAS.map(([c, t]) => (
@@ -438,10 +449,6 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                   ))}
                 </ul>
               </details>
-            </div>
-            <Seccion titulo="Conectar una landing nueva">
-              <NuevaEntrada pipelines={pipes} />
-            </Seccion>
           </div>
         )}
 

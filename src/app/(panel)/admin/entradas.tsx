@@ -7,9 +7,10 @@ import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { Copiar } from "./cliente";
 import { borrarEntrada, cambiarActivaEntrada, crearEntrada, guardarEntradaCompleta, moverEntrada, nuevaDireccionEntrada } from "./acciones";
 import { OPERADORES, type Regla } from "@/lib/entrada";
-import { direccionCorta, estadoEntrada, jsonEjemplo, leadsRecibidos, type DatosLanding, type EnviaDesde } from "@/lib/entradas-panel";
+import { direccionCorta, estadoEntrada, jsonEjemplo, type DatosLanding, type EnviaDesde } from "@/lib/entradas-panel";
 import type { EnvioEntrada, ResumenEntrada } from "@/lib/entradas-datos";
 import { confirmar } from "@/components/dialogos";
+import { Modal } from "@/components/modal";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { EnviosEnRojo, UltimosEnvios } from "./entradas-envios";
 import { LineaWorkflow, type WorkflowVista } from "./entradas-workflow";
@@ -126,7 +127,44 @@ export type EntradaVista = DatosLanding & {
   ghl: GhlDeEntrada;
 };
 
-// ---------- Tarjeta de cada Entrada (boceto v2 aprobado por Cristian, 7 nov 2026) ----------
+// Barras de envíos por día (la de hoy, en color lleno). SVG puro con los colores de la app
+function MiniBarras({ dias }: { dias: number[] }) {
+  const max = Math.max(1, ...dias);
+  const w = 140;
+  const h = 36;
+  const bw = w / Math.max(1, dias.length);
+  return (
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={`Envíos por día, últimos ${dias.length} días`}>
+      {dias.map((n, i) => {
+        const alto = (n / max) * (h - 4) + 2;
+        return (
+          <rect key={i} x={i * bw + 1} y={h - alto} width={Math.max(1, bw - 2)} height={alto} rx={1.5} fill={i === dias.length - 1 ? "var(--primario)" : "color-mix(in srgb, var(--primario) 45%, transparent)"}>
+            <title>{`${n} ${n === 1 ? "envío" : "envíos"}`}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
+// «＋ Conectar una landing»: las 5 preguntas de siempre, ahora en una ventana (maqueta v1, Cristian 11 nov 2026)
+export function BotonNuevaEntrada({ pipelines }: { pipelines: Pipe[] }) {
+  const [abierta, setAbierta] = useState(false);
+  return (
+    <>
+      <button type="button" className="btn-primario" onClick={() => setAbierta(true)}>
+        <Plus className="h-4 w-4" /> Conectar una landing
+      </button>
+      {abierta && (
+        <Modal titulo="Conectar una landing nueva" onCerrar={() => setAbierta(false)}>
+          <NuevaEntrada pipelines={pipelines} />
+        </Modal>
+      )}
+    </>
+  );
+}
+
+// ---------- Tarjeta de cada Entrada (boceto v2 del 7 nov; rediseño con la maqueta v1, Cristian 11 nov 2026) ----------
 export function TarjetaEntrada({
   entrada,
   resumen,
@@ -137,9 +175,11 @@ export function TarjetaEntrada({
   pipelines,
   opciones,
   workflow,
+  dias,
 }: {
   entrada: EntradaVista;
   workflow: WorkflowVista | null;
+  dias: number[]; // envíos por día, del más antiguo a hoy
   resumen: ResumenEntrada;
   ultimo: string | null; // «hace 18 min» (calculado en el servidor)
   rojos: EnvioEntrada[];
@@ -150,23 +190,31 @@ export function TarjetaEntrada({
 }) {
   const estado = estadoEntrada({ activa: entrada.activa, ghl_activo: entrada.ghl.ghl_activo, envios: resumen.envios, rojos: resumen.rojos, por_workflow: workflow?.modo === "real" });
   const viene = entrada.landing || entrada.formulario;
+  const enPrueba = workflow?.modo === "prueba";
   return (
-    <section className="tarjeta p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="min-w-0 break-words text-base font-semibold">{entrada.nombre}</h2>
+    <section className="tarjeta flex min-w-0 flex-col p-4 sm:p-5">
+      <div className="flex items-center gap-2">
+        <h2 className="min-w-0 flex-1 truncate text-base font-semibold" title={entrada.nombre}>{entrada.nombre}</h2>
+        <span className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${enPrueba ? "bg-aviso-suave text-aviso-texto" : estado.tono === "ok" ? "bg-ok-suave text-ok-texto" : "bg-panel-2 text-texto-3 ring-1 ring-borde"}`}>
+          {enPrueba ? "Workflow en prueba" : `${estado.tono === "ok" ? "● " : ""}${estado.texto}`}
+        </span>
         <BotonesCabecera id={entrada.id} />
-        <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${estado.tono === "ok" ? "bg-ok-suave text-ok" : "bg-panel-2 text-texto-3 ring-1 ring-borde"}`}>{estado.tono === "ok" ? "● " : ""}{estado.texto}</span>
       </div>
-      {viene ? (
-        <p className="mt-1 text-sm text-texto-2">Viene de la landing <b>{entrada.landing ?? "—"}</b>, formulario de <b>{entrada.formulario ?? "—"}</b>.</p>
-      ) : (
-        <p className="mt-1 text-sm text-texto-3">Sin landing apuntada (se pone en «Cambiar ajustes»).</p>
-      )}
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-        <span><b>{leadsRecibidos(resumen.leads).cifra}</b> {leadsRecibidos(resumen.leads).texto}</span>
-        {ultimo && <span>Último: <b>{ultimo}</b></span>}
-        {estado.ghl && <span className={estado.ghl === "Todos llegaron a GHL" ? "font-medium text-ok" : "text-texto-3"}>{estado.ghl === "Todos llegaron a GHL" ? "✓ " : ""}{estado.ghl}</span>}
+      <p className={`mt-0.5 truncate text-xs ${viene ? "text-texto-2" : "text-texto-3"}`}>
+        {viene ? <>Landing <b>{entrada.landing ?? "—"}</b> · formulario <b>{entrada.formulario ?? "—"}</b></> : "Sin landing apuntada (se pone en «Cambiar ajustes»)"}
+      </p>
+      {/* Rediseño (maqueta v1, Cristian 11 nov 2026): el número grande y el gráfico de envíos por día */}
+      <div className="mt-3 flex items-end gap-4">
+        <div className="shrink-0">
+          <div className="text-3xl font-semibold leading-none tracking-tight tabular-nums">{resumen.leads.toLocaleString("es-ES")}</div>
+          <div className="mt-1 text-xs text-texto-3">{resumen.leads === 1 ? "lead" : "leads"}{ultimo ? ` · último ${ultimo}` : ""}</div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <MiniBarras dias={dias} />
+          <div className="text-right text-[11px] text-texto-3">{dias.length} días · hoy {dias.at(-1) ?? 0}</div>
+        </div>
       </div>
+      {estado.ghl && <p className={`mt-2 text-xs ${estado.ghl === "Todos llegaron a GHL" ? "font-medium text-ok-texto" : "text-texto-3"}`}>{estado.ghl === "Todos llegaron a GHL" ? "✓ " : ""}{estado.ghl}</p>}
       <EnviosEnRojo rojos={rojos} zona={zona} />
       <LineaWorkflow entradaId={entrada.id} workflow={workflow} puedeProbar={entrada.ghl.ghl_activo} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
