@@ -17,6 +17,14 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
   // Texto fijo en vez del array: si el servidor vuelve a pintar el layout (router.refresh) llega otro array con lo mismo,
   // y el efecto no debe repetirse (la capa volvería a salir)
   const claveRutas = rutas.join("|");
+  // Quita la capa y avisa a la ventana de mensajes, una sola vez (lo llaman el fin del fundido y el seguro)
+  const avisado = useRef(false);
+  const quitar = () => {
+    setFase("fuera");
+    if (avisado.current) return;
+    avisado.current = true;
+    window.dispatchEvent(new Event(FIN_BIENVENIDA));
+  };
 
   useEffect(() => {
     let corta = false;
@@ -51,6 +59,14 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
     };
   }, [claveRutas]);
 
+  // Seguro (11 nov 2026, medido en la app publicada): en una pestaña oculta Chrome congela las animaciones y el fundido no
+  // terminaba nunca; la capa seguía puesta hasta mirar la pestaña. Si a los 0,5 s de empezar a salir sigue ahí, se quita.
+  useEffect(() => {
+    if (fase !== "saliendo") return;
+    const t = setTimeout(quitar, 500);
+    return () => clearTimeout(t);
+  }, [fase]);
+
   if (fase === "fuera") return null;
   const lista = secciones.length > 1 ? `${secciones.slice(0, -1).join(", ")} y ${secciones.at(-1)}` : secciones[0];
   return (
@@ -61,8 +77,7 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
       aria-live="polite"
       onAnimationEnd={(e) => {
         if (e.target !== e.currentTarget || fase !== "saliendo") return; // solo el fundido de salida de la capa
-        setFase("fuera");
-        window.dispatchEvent(new Event(FIN_BIENVENIDA));
+        quitar();
       }}
     >
       <div className="logo flex h-14 w-14 items-center justify-center rounded-2xl bg-primario shadow-[0_8px_30px_rgb(43_89_209/0.35)]">
