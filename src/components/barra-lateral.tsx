@@ -35,6 +35,7 @@ import { cerrarSesion } from "@/app/login/acciones";
 import { iniciales, ETIQUETA_ROL, type ProyectoMenu } from "@/lib/formato";
 import type { Perfil } from "@/lib/tipos";
 import { Desplegable } from "@/components/eleccion";
+import { usePantallaLista } from "@/lib/pantalla-lista";
 import { CampanaAvisos } from "@/components/campana-avisos";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
 
@@ -78,12 +79,14 @@ export function BarraLateral({
   proyecto,
   menu,
   avisos,
+  precarga = [],
 }: {
   perfil: Perfil;
   proyectos: ProyectoMenu[];
   proyecto: ProyectoMenu;
   menu: { grupo: string; items: ItemMenu[] }[];
   avisos?: AvisoCeo[]; // solo el CEO los recibe (F1b); sin ellos no hay campana
+  precarga?: string[]; // las 3 secciones de su rol que se precargan al abrir la app (lib/mensajes-entrada.ts)
 }) {
   const ruta = usePathname();
   // Fase 2 (Cristian, 12 oct 2026): el menú ya no precarga todas las pantallas al aparecer (medido: 24 peticiones
@@ -97,8 +100,13 @@ export function BarraLateral({
   // 25 oct 2026 (Cristian, la base se saturó con el equipo trabajando): ya NO se precargan todas las secciones al
   // abrir la app (cada pestaña preparaba Funnel, KPIs, Ranking… cada 5 min). Solo la que se señala con el ratón,
   // el dedo o el teclado, justo antes de pulsar (como antes del 17 oct), y completa.
+  // 11 nov 2026 (Cristian: «solo las 3 secciones más usadas por cada rol»): esas 3 sí se precargan al abrir la app,
+  // completas, cuando la pantalla en la que se entra ya tiene sus datos. Las demás, como antes, al señalarlas.
+  // Límite conocido: en el móvil el menú está escondido y Next solo precarga los enlaces que se ven.
+  const lista = usePantallaLista();
   const [precargadas, setPrecargadas] = useState<Set<string>>(() => new Set());
   const precargar = (href: string) => setPrecargadas((s) => (s.has(href) ? s : new Set(s).add(href)));
+  const conPrecarga = (href: string) => precargadas.has(href) || (lista && precarga.includes(href));
   const [yendo, setYendo] = useState<{ a: string; desde: string } | null>(null);
   const destino = yendo && yendo.desde === ruta ? yendo.a : null;
   const [abierto, setAbierto] = useState(false);
@@ -158,7 +166,7 @@ export function BarraLateral({
                   <li key={it.href}>
                     <Link
                       href={it.href}
-                      prefetch={precargadas.has(it.href)}
+                      prefetch={conPrecarga(it.href)}
                       onMouseEnter={() => precargar(it.href)}
                       onFocus={() => precargar(it.href)}
                       onTouchStart={() => precargar(it.href)}
@@ -222,6 +230,8 @@ export function BarraLateral({
 
   return (
     <>
+      {/* 11 nov 2026: barra fina arriba mientras llega la sección pulsada (se quita sola al cambiar la ruta) */}
+      {destino && <div key={destino} className="barra-navegando" aria-hidden="true" />}
       <button
         onClick={() => setAbierto(true)}
         className="vidrio fixed left-3 top-3 z-30 rounded-xl border border-borde p-2 lg:hidden"

@@ -5,8 +5,10 @@ import { ProveedorToasts } from "@/components/toasts";
 import { ProveedorGrabadora } from "@/components/grabadora";
 import { Dialogos } from "@/components/dialogos";
 import { AvisosEnVivo } from "@/components/avisos-en-vivo";
-import { ReporteDia } from "@/components/reporte-dia";
+import { Bienvenida } from "@/components/bienvenida";
+import { VentanaEntrada } from "@/components/ventana-entrada";
 import { avisosCeo } from "@/lib/avisos-ceo";
+import { PRECARGA_ROL } from "@/lib/mensajes-entrada";
 import { proyectoParaMenu } from "@/lib/formato";
 import { seccionesPermitidas, SECCIONES, type Seccion } from "@/lib/permisos";
 import { esCloser } from "@/lib/tipos";
@@ -71,19 +73,25 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
   const esCeo = perfil.rol === "ceo";
   const avisos = esCeo ? await avisosCeo(proyecto.id).catch((e) => (console.error("[avisos del CEO]", e), undefined)) : undefined;
 
+  // Bienvenida (11 nov 2026): las 3 secciones de su rol que tiene en el menú se precargan al abrir la app
+  const items = menu.flatMap((g) => g.items);
+  const precarga = PRECARGA_ROL[perfil.rol].map((href) => items.find((it) => it.href === href)).filter((it) => it !== undefined);
+  const nombre = perfil.nombre.split(" ")[0];
+
   return (
     <ProveedorToasts>
       {/* C10: la grabadora vive aquí, fuera de las páginas: cambiar de sección no corta una grabación */}
       <ProveedorGrabadora>
       <div className="flex min-h-screen">
-        <BarraLateral perfil={perfil} proyectos={proyectos.map(proyectoParaMenu)} proyecto={proyectoParaMenu(proyecto)} menu={menu} avisos={avisos} />
+        <BarraLateral perfil={perfil} proyectos={proyectos.map(proyectoParaMenu)} proyecto={proyectoParaMenu(proyecto)} menu={menu} avisos={avisos} precarga={precarga.map((it) => it.href)} />
         <div className="min-w-0 flex-1">{children}</div>
       </div>
       </ProveedorGrabadora>
       <Dialogos />
       <AvisosEnVivo proyectoId={proyecto.id} />
-      {esCeo && <ReporteDia />}
-      {/* 25 oct 2026: bienvenida apagada (solo esperaba a la precarga de todas las secciones, también apagada) */}
+      {/* 11 nov 2026: vuelve la bienvenida, solo visual (no espera a nada); la ventana sale cuando se quita */}
+      <Bienvenida nombre={nombre} secciones={precarga.map((it) => it.texto)} />
+      <VentanaEntrada rol={perfil.rol} nombre={nombre} avisos={avisos} />
     </ProveedorToasts>
   );
 }
