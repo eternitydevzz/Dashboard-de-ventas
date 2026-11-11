@@ -47,7 +47,7 @@ describe("MCP: ruta /api/mcp", () => {
 
   it("con clave, lista las herramientas", async () => {
     const r = await (await llamar(DIRECTOR, { method: "tools/list" })).json();
-    expect(r.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["asignar_leads", "kpis"]);
+    expect(r.result.tools.map((t: { name: string }) => t.name).sort()).toEqual(["agenda_citas", "asignar_leads", "buscar_leads", "ficha_lead", "finanzas", "funnel", "kpis", "ranking"]);
   });
 
   it("asignar_leads con la clave de un director cambia el lead", async () => {
