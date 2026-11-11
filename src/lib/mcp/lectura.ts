@@ -216,14 +216,16 @@ export async function herramientaFichaLead(a: { leadId: string }) {
     db().from("grabaciones_caller").select("creado_en, duracion_seg, transcrita_en, perfil_id").eq("lead_id", id).order("creado_en", { ascending: false }),
     equipo(proyecto.id),
   ]);
-  const quien = (pid: string | null) => (pid ? gente.find((g) => g.id === pid)?.nombre ?? "(ya no está)" : null);
+  // Como la ficha (leads/[id]/page.tsx): quien ya no está sale «—»; una actividad sin persona, «Sistema»
+  const quien = (pid: string | null) => (pid ? gente.find((g) => g.id === pid)?.nombre ?? "—" : null);
   const cuando = (iso: string | null) => (iso ? fechaHora(iso, proyecto) : null);
   type Analisis = { resumen?: string; objeciones?: unknown; siguiente_paso?: string } | null;
   return {
     pantalla: "Ficha del lead",
     proyecto: proyecto.nombre,
     ...r,
-    historial: (acts.data ?? []).map((x) => ({ cuando: cuando(x.creado_en), quien: quien(x.perfil_id), tipo: x.tipo, resultado: x.resultado, nota: x.nota })),
+    pais: nombrePais(r.pais), // la ficha enseña el nombre («Argentina»), no el código
+    historial: (acts.data ?? []).map((x) => ({ cuando: cuando(x.creado_en), quien: x.perfil_id ? quien(x.perfil_id) : "Sistema", tipo: x.tipo, resultado: x.resultado, nota: x.nota })),
     citas: (citas.data ?? []).map((x) => ({ fecha: cuando(x.fecha), estado: ETIQUETA_ESTADO_CITA[x.estado] ?? x.estado, closer: quien(x.closer_id), canal: x.canal })),
     ventas: (ventas.data ?? []).map((x) => ({ fecha: cuando(x.fecha), producto: (x.productos as unknown as { nombre: string } | null)?.nombre ?? null, facturacion: Number(x.facturacion), cobradoAlVender: Number(x.cash_collected), devuelto: x.devuelto === null ? null : Number(x.devuelto) })),
     llamadasGhl: (ghl.data ?? []).map((x) => {
@@ -274,7 +276,7 @@ export async function herramientaAgenda(a: ArgsAgenda) {
       fecha: fechaHora(c.fecha, proyecto),
       lead: c.leads ? `${c.leads.nombre} ${c.leads.apellido ?? ""}`.trim() : "(sin lead)",
       leadId: c.lead_id,
-      closer: c.closer_id ? gente.find((g) => g.id === c.closer_id)?.nombre ?? "(ya no está)" : "Sin closer",
+      closer: c.closer_id ? gente.find((g) => g.id === c.closer_id)?.nombre ?? "—" : "Sin closer", // como Agendas: quien ya no está, «—»
       estado: ETIQUETA_ESTADO_CITA[c.estado] ?? c.estado,
       canal: c.canal ?? null,
     })),
