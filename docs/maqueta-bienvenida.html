@@ -291,7 +291,7 @@ $("#situaciones").addEventListener("click", (e) => {
   document.querySelector(".fondo-modal")?.remove(); ventana();
 });
 $("#abrir").onclick = () => bienvenida(false);
-$("#recargar").onclick = () => bienvenida(true);
+$("#recargar").onclick = () => bienvenida(false); // 11 nov: al recargar, también la completa
 $("#tema").onclick = () => {
   const osc = document.documentElement.dataset.theme !== "dark";
   document.documentElement.dataset.theme = osc ? "dark" : "light";

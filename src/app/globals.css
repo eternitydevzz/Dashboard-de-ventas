@@ -252,7 +252,7 @@ body,
 .barra-carga { animation: carga-avanza 1.1s ease-in-out infinite; }
 
 /* Bienvenida (Cristian, 11 nov 2026, idea de beterangles.com): tapa la app mientras se precargan las 3 secciones de su rol
-   y se quita cuando están (0,8-2 s; al recargar en la misma pestaña, 0,3-0,8 s). La salida la decide bienvenida.tsx (.saliendo). */
+   y se quita cuando están (0,8-2 s, también al recargar). La salida la decide bienvenida.tsx (.saliendo). */
 @keyframes capa-fuera { to { opacity: 0; visibility: hidden; } }
 @keyframes capa-llena { 0% { transform: scaleX(0); } 100% { transform: scaleX(0.9); } }
 @keyframes entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -268,7 +268,6 @@ body,
 .capa-pista { width: min(280px, 64vw); height: 3px; border-radius: 3px; overflow: hidden; background: var(--borde-fuerte); }
 .capa-pista i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, transparent, var(--primario)); animation: capa-llena 2s cubic-bezier(0.3, 0, 0.1, 1) both; }
 .capa-bienvenida.saliendo .capa-pista i { animation: none; transform: scaleX(1); transition: transform 0.2s; }
-.capa-bienvenida.corta .capa-pista, .capa-bienvenida.corta p { display: none; }
 
 /* Cambio de sección: barra fina arriba mientras llega la sección, esqueleto con brillo y entrada suave del contenido */
 @keyframes top-avanza { from { transform: scaleX(0); } to { transform: scaleX(0.85); } }
