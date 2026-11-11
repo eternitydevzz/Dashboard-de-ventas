@@ -25,6 +25,7 @@ export default async function GrabacionesPage({ searchParams }: PageProps<"/grab
       id: g.id,
       leadId: g.lead_id,
       lead: l ? `${l.nombre} ${l.apellido ?? ""}`.trim() : "Lead borrado",
+      callerId: g.perfil_id,
       caller: (g.perfiles as unknown as { nombre: string } | null)?.nombre ?? "—",
       duracion: g.duracion_seg,
       transcripcion: g.transcripcion,
@@ -33,7 +34,7 @@ export default async function GrabacionesPage({ searchParams }: PageProps<"/grab
   });
   return (
     <>
-      <Cabecera titulo="Grabaciones" subtitulo={jefe ? "Las llamadas grabadas desde el guion por todo el equipo" : "Tus llamadas grabadas desde el guion"} />
+      <Cabecera titulo="Grabaciones" subtitulo={jefe ? "Elige un perfil para ver sus llamadas. Dale al play y escucha sin salir de la lista." : "Tus llamadas grabadas desde el guion"} />
       <Contenido>
         {filas.length === 0 ? (
           <div className="tarjeta"><Vacio icono={Mic} texto="Todavía no hay grabaciones. Se graban desde el guion de un lead, con «Grabar»." /></div>
