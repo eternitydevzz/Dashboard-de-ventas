@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createSessionClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
+import { sesionMcp } from "@/lib/mcp/sesion-mcp";
 import type { Perfil, Proyecto } from "@/lib/tipos";
 
 // Sesión del usuario: separada de los permisos para poder simularla en los tests.
@@ -17,7 +18,11 @@ export type Sesion = {
 };
 
 // Lee el usuario, su perfil y sus proyectos. Una sola vez por petición.
-export const getSesion = cache(async (): Promise<Sesion> => {
+// MCP, Fase 2 (11 nov 2026): dentro de una petición del MCP, la sesión es la de la clave (lib/mcp/sesion-mcp.ts).
+// Va fuera de cache() para que nunca se mezcle con la del navegador.
+export const getSesion = async (): Promise<Sesion> => sesionMcp() ?? getSesionNavegador();
+
+const getSesionNavegador = cache(async (): Promise<Sesion> => {
   const supabase = await createSessionClient();
   // Velocidad (17 oct 2026): verificación local de la sesión (ver src/proxy.ts), sin preguntar a Supabase
   const { data } = await supabase.auth.getClaims();
