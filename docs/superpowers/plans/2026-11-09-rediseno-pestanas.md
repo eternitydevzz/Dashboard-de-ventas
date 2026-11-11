@@ -93,6 +93,10 @@
 
 ### Tarea 4: Workflows en el código
 
+**Decisión de Cristian (11 nov):** la maqueta elegida es la **v1** (`docs/maqueta-rediseno-v1.html`), con dos botones en cada tarjeta de workflow: una **llave** para editar y una **×** para eliminar.
+- Editar: abre el editor que ya existe (`workflows-editor.tsx`, acción `guardarWorkflow`).
+- Eliminar: **hoy no existe** (en `admin/acciones.ts` no hay ninguna acción de borrar un workflow). Hay que crearla: pide confirmación, solo la pueden usar los jefes, y antes hay que decidir qué pasa con las ejecuciones que esperan. Pendiente de decidir con Cristian antes de esta tarea.
+
 **Archivos:** modificar `src/app/(panel)/admin/workflows.tsx`. `workflows-editor.tsx` y el diagrama no se tocan.
 
 - [ ] Rehacer la lista como en la maqueta: números grandes arriba con `Kpi` y tarjetas. Los números salen de lo que la pestaña ya carga hoy (leads, con error, esperando, coincidencias en prueba), sin consultas nuevas.
