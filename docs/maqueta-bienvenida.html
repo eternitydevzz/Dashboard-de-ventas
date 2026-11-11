@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maqueta Bienvenida</title>
+<style>
+/* Maqueta (11 nov 2026): bienvenida animada, ventana de avisos al entrar y cambio de sección.
+   Solo dibujo con DATOS DE EJEMPLO. Colores copiados de src/app/globals.css (azul Maestria, claro y oscuro).
+   Idea sacada de beterangles.com (medido el 11 nov): capa de 3,8 s solo visual, sin precargar nada. */
+:root{
+  --fondo:#eef2f9;--panel:rgb(255 255 255 / .62);--panel-2:rgb(255 255 255 / .45);--solido:#fff;
+  --borde:rgb(15 26 51 / .09);--borde-fuerte:rgb(15 26 51 / .16);
+  --texto:#0f1a33;--texto-2:#46546f;--texto-3:#66738f;
+  --primario:#2b59d1;--primario-2:#3f6ee6;--primario-suave:#e6edfd;
+  --ok:#15924a;--ok-suave:#e3f6ea;--mal:#d0303f;--mal-suave:#fde8ea;--aviso-texto:#9a4f00;--aviso-suave:#fdf0e1;
+  --capa-1:#f4f7fd;--capa-2:#e4eaf5;--halo:rgb(43 89 209 / .16);
+  --sombra:0 1px 2px rgb(15 26 51 / .04),0 8px 32px rgb(15 26 51 / .08);
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --fondo:#060a18;--panel:rgb(22 32 64 / .55);--panel-2:rgb(40 54 100 / .4);--solido:#121c3a;
+  --borde:rgb(255 255 255 / .09);--borde-fuerte:rgb(255 255 255 / .16);
+  --texto:#eef2fd;--texto-2:#b3c0de;--texto-3:#8392b8;
+  --primario:#4f7cf0;--primario-2:#6a92f7;--primario-suave:#15275a;
+  --ok:#3ccf7a;--ok-suave:#0f2a1d;--mal:#f2606c;--mal-suave:#2d1218;--aviso-texto:#f0a24a;--aviso-suave:#2c1d0d;
+  --capa-1:#0b1328;--capa-2:#060a18;--halo:rgb(79 124 240 / .22);
+  --sombra:0 10px 40px rgb(0 0 0 / .35);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--texto);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+
+/* ---------- Mandos de la maqueta (no son parte del diseño) ---------- */
+.mandos{position:sticky;top:0;z-index:60;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;background:var(--solido);border-bottom:1px solid var(--borde)}
+.mandos b{font-size:12px;color:var(--texto-3);text-transform:uppercase;letter-spacing:.06em;margin-right:4px}
+.chip{border:1px solid var(--borde-fuerte);background:transparent;border-radius:999px;padding:5px 12px}
+.chip[aria-pressed="true"]{background:var(--primario);border-color:var(--primario);color:#fff}
+.sep{width:1px;height:22px;background:var(--borde-fuerte);margin:0 4px}
+
+/* ---------- App de ejemplo ---------- */
+.app{display:flex;min-height:calc(100vh - 52px)}
+.menu{width:220px;flex:none;padding:16px 12px;border-right:1px solid var(--borde)}
+.menu h2{font-size:15px;margin:4px 8px 16px}
+.menu a{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:10px;color:var(--texto-2);text-decoration:none;margin-bottom:2px}
+.menu a:hover{background:var(--panel-2)}
+.menu a[aria-current="page"]{background:var(--primario-suave);color:var(--primario);font-weight:600}
+.precarga{font-size:10px;color:var(--ok);border:1px solid var(--ok);border-radius:999px;padding:0 6px}
+.zona{position:relative;flex:1;min-width:0;padding:28px 32px}
+.tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:18px}
+.tarjeta{background:var(--panel);border:1px solid var(--borde);border-radius:16px;padding:16px;box-shadow:var(--sombra);min-height:96px}
+.tarjeta small{color:var(--texto-3);text-transform:uppercase;font-size:11px;letter-spacing:.06em}
+.tarjeta strong{display:block;font-size:24px;margin-top:6px}
+.nota{color:var(--texto-3);font-size:12px;margin-top:22px}
+
+/* Cambio de sección: barra fina arriba + esqueleto con brillo + entrada suave del contenido */
+.barra-top{position:fixed;left:0;top:0;height:3px;width:100%;z-index:20;transform-origin:left;transform:scaleX(0);background:linear-gradient(90deg,var(--primario),var(--primario-2));opacity:0}
+.barra-top.va{opacity:1;animation:top-avanza 1.2s cubic-bezier(.3,0,.1,1) forwards}
+.barra-top.fin{opacity:0;transform:scaleX(1);transition:opacity .25s .1s,transform .15s}
+@keyframes top-avanza{0%{transform:scaleX(0)}100%{transform:scaleX(.85)}}
+.esq{position:relative;overflow:hidden;border-radius:10px;background:var(--panel-2)}
+.esq::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgb(255 255 255 / .18),transparent);animation:brillo 1.4s ease-in-out infinite;transform:translateX(-100%)}
+@keyframes brillo{to{transform:translateX(100%)}}
+.entra{animation:entra .35s cubic-bezier(.16,1,.3,1) both}
+@keyframes entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- Capa de bienvenida ---------- */
+.capa{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  background:radial-gradient(1100px 640px at 82% -10%,var(--halo),transparent 58%),linear-gradient(180deg,var(--capa-1),var(--capa-2));
+  animation:capa-sale 3.4s cubic-bezier(.4,0,.2,1) forwards}
+.capa.corta{animation:capa-sale-corta 1.1s ease-out forwards}
+.capa.corta .pista{display:none}
+@keyframes capa-sale{0%,85%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
+@keyframes capa-sale-corta{0%,60%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
+.capa .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--primario),var(--primario-2));box-shadow:0 8px 30px var(--halo);animation:entra .6s cubic-bezier(.16,1,.3,1) both}
+.capa h1{margin:0;font-size:clamp(26px,4.2vw,40px);letter-spacing:-.03em;animation:entra .76s cubic-bezier(.16,1,.3,1) .1s both}
+.capa h1 b{color:var(--primario)}
+.pista{width:min(280px,64vw);height:3px;border-radius:3px;overflow:hidden;background:var(--borde-fuerte)}
+.pista i{display:block;height:100%;transform-origin:left;background:linear-gradient(90deg,transparent,var(--primario));animation:llena 2.9s cubic-bezier(.3,0,.1,1) both}
+@keyframes llena{0%{transform:scaleX(0)}70%{transform:scaleX(.82)}100%{transform:scaleX(1)}}
+.capa p{margin:0;color:var(--texto-3);font-size:13px;animation:entra .6s .5s both}
+
+/* ---------- Ventana de avisos al entrar ---------- */
+.fondo-modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;background:rgb(6 10 24 / .45);backdrop-filter:blur(6px)}
+.modal{width:min(980px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--solido);border:1px solid var(--borde-fuerte);border-radius:22px;box-shadow:var(--sombra);animation:entra .45s cubic-bezier(.16,1,.3,1) both}
+.modal header{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 26px 8px}
+.modal h2{margin:0;font-size:24px;letter-spacing:-.02em}
+.modal h2 b{color:var(--primario)}
+.cuenta{display:inline-block;min-width:24px;text-align:center;background:var(--primario);color:#fff;border-radius:999px;padding:0 7px;font-weight:700;font-size:12px}
+.cerrar{border:0;background:transparent;font-size:22px;line-height:1;color:var(--texto-3)}
+.cuerpo{display:grid;grid-template-columns:1.1fr 1fr;gap:20px;padding:12px 26px;overflow:auto}
+.novedad{border:1px solid var(--borde);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.novedad .img{position:relative;aspect-ratio:16/9;background:var(--panel-2)}
+.novedad .img img{width:100%;height:100%;object-fit:cover;display:block;animation:entra .5s both}
+.novedad .img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgb(6 10 24 / .35))}
+.credito{position:absolute;right:8px;bottom:6px;z-index:1;font-size:10px;color:#fff;opacity:.8}
+.etq.fiesta{color:var(--primario);background:var(--primario-suave)}
+.etq.recuerda{color:var(--aviso-texto);background:var(--aviso-suave)}
+.etq.propuesta{color:var(--texto-2);background:var(--panel-2);border:1px dashed var(--borde-fuerte)}
+.situaciones{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 16px;background:var(--solido);border-bottom:1px solid var(--borde);position:sticky;top:51px;z-index:60}
+.fondo-modal{padding-top:110px!important} /* solo maqueta: deja a la vista los mandos de arriba */
+.situaciones b{font-size:12px;color:var(--texto-3);text-transform:uppercase;letter-spacing:.06em;margin-right:4px}
+.situaciones .chip{font-size:12px;padding:3px 10px}
+.novedad .txt{padding:16px}
+.etq{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ok);background:var(--ok-suave);border-radius:999px;padding:2px 10px}
+.novedad h3{margin:10px 0 4px;font-size:18px}
+.novedad p{margin:0;color:var(--texto-2)}
+.carrusel{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:0 16px 14px;color:var(--texto-3)}
+.carrusel button{border:1px solid var(--borde-fuerte);background:transparent;border-radius:8px;width:30px;height:30px}
+.grupo{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--texto-3);margin:6px 0 8px}
+.aviso{display:flex;gap:12px;align-items:center;border:1px solid var(--borde);border-radius:14px;padding:12px;margin-bottom:8px}
+.aviso .ic{position:relative;width:36px;height:36px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--primario-suave)}
+.aviso .ic::after{content:"";position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--primario)}
+.aviso.rojo .ic{background:var(--mal-suave)} .aviso.rojo .ic::after{background:var(--mal)}
+.aviso.ambar .ic{background:var(--aviso-suave)} .aviso.ambar .ic::after{background:var(--aviso-texto)}
+.aviso div{flex:1;min-width:0} .aviso strong{display:block} .aviso span{color:var(--texto-3);font-size:13px}
+.ver{border:1px solid var(--borde-fuerte);background:transparent;border-radius:10px;padding:6px 14px}
+.modal footer{display:flex;justify-content:space-between;align-items:center;padding:14px 26px;border-top:1px solid var(--borde)}
+.entrar{border:0;background:var(--primario);color:#fff;font-weight:700;border-radius:12px;padding:10px 22px}
+
+@media (max-width:760px){
+  .menu{display:none}.zona{padding:20px 16px}.cuerpo{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div class="mandos" role="toolbar" aria-label="Mandos de la maqueta">
+  <b>Rol</b>
+  <button class="chip" data-rol="caller">Caller</button>
+  <button class="chip" data-rol="closer">Closer</button>
+  <button class="chip" data-rol="director">Director</button>
+  <button class="chip" data-rol="ceo">CEO</button>
+  <span class="sep"></span>
+  <button class="chip" id="abrir">▶ Abrir la app</button>
+  <button class="chip" id="recargar">↻ Recargar</button>
+  <span class="sep"></span>
+  <button class="chip" id="tema">Tema oscuro</button>
+</div>
+<div class="situaciones" role="toolbar" aria-label="Situación de ejemplo"><b>Situación</b><span id="situaciones"></span></div>
+
+<div class="barra-top" id="barraTop"></div>
+<div class="app">
+  <nav class="menu" aria-label="Menú">
+    <h2>Dashboard de ventas</h2>
+    <div id="menu"></div>
+  </nav>
+  <main class="zona" id="zona"></main>
+</div>
+
+<script>
+// Datos de ejemplo. Las 3 secciones que se precargan por rol (decisión de Cristian, 11 nov: fijas por rol).
+const ROLES = {
+  caller:   { nombre: "Lucas",     menu: ["Mis leads","Mi CRM","Mi Funnel","Links y recursos","Manuales","Reportes"],
+              precarga: ["Mis leads","Mi CRM","Mi Funnel"],
+              hoy: [["azul","12 llamadas hoy","Te faltan 38 para las 50"],["azul","2 agendas esta semana","Mis leads"]],
+              avisos: [] },
+  closer:   { nombre: "Facu",      menu: ["Mis agendas","Mi CRM","Mi Funnel","Onboarding","Mis ventas","Manuales"],
+              precarga: ["Mis agendas","Mi CRM","Mi Funnel"],
+              hoy: [["azul","6 llamadas esta semana","Mis agendas"],["azul","1 ventas este mes","Mis ventas"]],
+              avisos: [] },
+  director: { nombre: "Thiago",    menu: ["KPIs","CRM","Callers","Agendas","Ventas","Ranking del equipo","Guiones"],
+              precarga: ["KPIs","Callers","Agendas"],
+              hoy: [["rojo","111 llamadas sin resultado del equipo","Callers"],["ambar","2 citas sin closer","Agendas"]],
+              avisos: [["azul","Agenda nueva","Fernando Sánchez · mañana 18:00"],["ambar","Lucas no envió su reporte","Reportes"]] },
+  ceo:      { nombre: "Cristian",  menu: ["KPIs","CRM","Callers","Agendas","Ventas","Finanzas","Clientes","Administración"],
+              precarga: ["KPIs","CRM","Agendas"],
+              hoy: [],
+              avisos: [["rojo","2 cita(s) sin closer","Administración"],["rojo","1 envío(s) en rojo que no llegaron a GHL","Administración"],["rojo","3 ejecución(es) de workflow con error","Administración"]] },
+};
+// Fotos hechas con Codex (11 nov 2026), con el símbolo de Maestria y bordes azules: public/mensajes/
+const FOTO = (k) => `../public/mensajes/${k}.jpg`; // las de la app (Codex + símbolo de Maestria)
+// Mensajes (textos de Cristian, 11 nov, pasados a «tú»; los marcados «propuesta» son de Claude, sin aprobar)
+const M = {
+  motivacion: (n) => ["MOTIVACIÓN", "", 'motivacion', `Buenos días, ${n}`, "Hoy estás un paso más cerca de cumplir tus objetivos. Recuerda: si lo puedes soñar, lo puedes lograr. ¡Dios te bendiga hoy!"],
+  grabacion: () => ["RECUERDA", "recuerda", 'grabacion', "Graba tus llamadas", "Recuerda grabar tus llamadas para que podamos estudiarlas en equipo y seguir mejorando día a día."],
+  ll100: (n) => ["¡FELICIDADES!", "fiesta", 'll100', "¡100 llamadas hoy!", `Vas a un ritmo increíble, ${n}. Cada llamada te acerca a la siguiente agenda. ¡Sigue así!`],
+  ll150: (n) => ["¡FELICIDADES!", "fiesta", 'll150', "¡150 llamadas hoy!", `Eres un ejemplo para todo el equipo, ${n}. Gracias por tu esfuerzo de hoy.`],
+  ag1: () => ["¡FELICIDADES!", "fiesta", 'ag1', "¡Tu primera agenda de la semana!", "Así se empieza. Vamos a por la siguiente."],
+  ag3: (n) => ["¡FELICIDADES!", "fiesta", 'ag3', "¡3 agendas esta semana!", `Vas por muy buen camino, ${n}. El equipo lo nota.`],
+  ag5: () => ["¡FELICIDADES!", "fiesta", 'ag5', "¡5 agendas esta semana!", "Felicidades por tus 5 agendas de la semana. El equipo está muy contento con tu trabajo."],
+  ventaAgenda: () => ["¡FELICIDADES!", "fiesta", 'venta_agenda', "¡Venta cerrada!", "Se acaba de cerrar una venta que agendaste tú. El equipo está muy contento con tu trabajo."],
+  racha: (n) => ["PROPUESTA", "propuesta", 'll100', "¡3 días seguidos con 50 llamadas!", `Constancia es lo que marca la diferencia, ${n}. ¡Mantén la racha!`],
+  cag3: (n) => ["¡FELICIDADES!", "fiesta", 'cag3', "¡3 agendas esta semana!", `Prepárate bien, ${n}: cada llamada es una oportunidad de cerrar.`],
+  cag10: (n) => ["¡FELICIDADES!", "fiesta", 'cag10', "¡10 agendas esta semana!", `Tu agenda está llena, ${n}. El equipo confía en ti.`],
+  v1: () => ["¡FELICIDADES!", "fiesta", 'v1', "¡Nueva venta!", "¡Felicidades por tu nueva venta! El equipo está muy contento con tu trabajo."],
+  v3: (n) => ["¡FELICIDADES!", "fiesta", 'v3', "¡3 ventas este mes!", `Estás imparable, ${n}. ¡Enhorabuena!`],
+  v5: (n) => ["¡FELICIDADES!", "fiesta", 'v5', "¡5 ventas este mes!", `Eres de los mejores del equipo, ${n}. ¡Enhorabuena!`],
+  ayer: () => ["AYER", "fiesta", 'ag5', "Ayer, 10/11/2026", "Entraron 25 leads y se agendaron 4 citas."],
+};
+// Situaciones de ejemplo por rol: qué mensajes salen (felicitaciones primero; la motivación solo con menos de 50 llamadas hoy)
+const SITUACIONES = {
+  caller: [["Empieza el día (0 llamadas)", ["motivacion","grabacion"]], ["100 llamadas hoy", ["ll100","grabacion"]], ["150 llamadas hoy", ["ll150","grabacion"]],
+           ["1 agenda en la semana", ["ag1","motivacion","grabacion"]], ["3 agendas", ["ag3","motivacion","grabacion"]], ["5 agendas", ["ag5","motivacion","grabacion"]],
+           ["Venta de su agenda", ["ventaAgenda","motivacion","grabacion"]], ["Propuesta: racha", ["racha","motivacion","grabacion"]]],
+  closer: [["Sin novedades", ["grabacion"]], ["3 agendas en la semana", ["cag3","grabacion"]], ["10 agendas", ["cag10","grabacion"]],
+           ["1 venta en el mes", ["v1","grabacion"]], ["3 ventas", ["v3","grabacion"]], ["5 ventas", ["v5","grabacion"]]],
+  director: [["Sin ventana (solo la bienvenida)", []]],
+  ceo: [["Reporte de ayer + avisos", ["ayer"]]],
+};
+
+let rol = "ceo", seccion = null, nov = 0, situ = 0;
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+function pintarMenu() {
+  const r = ROLES[rol];
+  $("#menu").innerHTML = r.menu.map((s) =>
+    `<a href="#" data-s="${esc(s)}" ${s === seccion ? 'aria-current="page"' : ""}>${esc(s)}${r.precarga.includes(s) ? '<span class="precarga" title="Precargada al entrar">lista</span>' : ""}</a>`).join("");
+}
+function contenido(s) {
+  const r = ROLES[rol];
+  return `<div class="entra"><h1 style="margin:0;font-size:26px">${esc(s)}</h1>
+    <div class="tarjetas">${["Hoy","Semana","Mes","Pendientes"].map((t, i) => `<div class="tarjeta"><small>${t}</small><strong>${[12,48,193,3][i]}</strong></div>`).join("")}</div>
+    <p class="nota">${r.precarga.includes(s) ? "Precargada: aparece al instante, sin esqueleto." : "No precargada: barra arriba + esqueleto ~0,5 s (lo que tarde el servidor)."}</p></div>`;
+}
+const esqueleto = `<div class="esq" style="height:30px;width:220px"></div><div class="tarjetas">${"<div class='esq' style='height:96px'></div>".repeat(4)}</div><div class="esq" style="height:220px;margin-top:18px"></div>`;
+
+function ir(s) {
+  seccion = s; pintarMenu();
+  const precargada = ROLES[rol].precarga.includes(s);
+  if (precargada) { $("#zona").innerHTML = contenido(s); return; }
+  const b = $("#barraTop"); b.className = "barra-top"; void b.offsetWidth; b.className = "barra-top va";
+  $("#zona").innerHTML = esqueleto;
+  setTimeout(() => { $("#zona").innerHTML = contenido(s); b.className = "barra-top fin"; }, 600); // ~ servidor medido: 0,3–0,6 s
+}
+
+function bienvenida(corta) {
+  const r = ROLES[rol];
+  const capa = document.createElement("div");
+  capa.className = "capa" + (corta ? " corta" : "");
+  capa.setAttribute("role", "status");
+  capa.innerHTML = `<div class="logo"></div><h1>Bienvenido <b>${esc(r.nombre)}</b></h1><div class="pista"><i></i></div>
+    ${corta ? "" : `<p>Preparando ${esc(r.precarga.slice(0, -1).join(", "))} y ${esc(r.precarga.at(-1))}…</p>`}`;
+  document.body.append(capa);
+  capa.addEventListener("animationend", (e) => { if (e.target === capa) { capa.remove(); if (!corta) ventana(); } });
+}
+
+function ventana() {
+  const r = ROLES[rol];
+  const lista = SITUACIONES[rol][situ][1].map((k) => M[k](r.nombre));
+  if (!lista.length) return; // director: sin ventana, como en la app
+  const total = lista.length + r.avisos.length;
+  const fila = ([c, t, d]) => `<div class="aviso ${c === "rojo" ? "rojo" : c === "ambar" ? "ambar" : ""}"><span class="ic" aria-hidden="true">🔔</span><div><strong>${esc(t)}</strong><span>${esc(d)}</span></div></div>`;
+  const f = document.createElement("div");
+  f.className = "fondo-modal";
+  f.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="tv">
+    <header><div><h2 id="tv">Bienvenido <b>${esc(r.nombre)}</b></h2><div style="color:var(--texto-2);margin-top:4px">Tienes <span class="cuenta">${total}</span> ${total === 1 ? "mensaje nuevo" : "mensajes nuevos"}</div></div><button class="cerrar" aria-label="Cerrar">×</button></header>
+    <div class="cuerpo">
+      <section class="novedad" aria-label="Mensajes para ti" aria-live="polite"><div class="img"><img id="novImg" alt=""></div><div class="txt"><span class="etq" id="novE"></span><h3 id="novT"></h3><p id="novP"></p></div>
+        <div class="carrusel"><button id="ant" aria-label="Anterior">‹</button><span id="novN"></span><button id="sig" aria-label="Siguiente">›</button></div></section>
+      <section>${r.hoy.length ? `<div class="grupo">TUS NÚMEROS</div>${r.hoy.map(fila).join("")}` : ""}
+        ${r.avisos.length ? `<div class="grupo">AVISOS · ${r.avisos.length}</div>${r.avisos.map(fila).join("")}` : ""}</section>
+    </div>
+    <footer style="justify-content:flex-end"><button class="entrar">Entrar →</button></footer></div>`;
+  document.body.append(f);
+  nov = 0;
+  const pintaNov = () => {
+    const [etq, clase, foto, t, p] = lista[nov];
+    const img = $("#novImg"); img.src = FOTO(foto); img.style.animation = "none"; void img.offsetWidth; img.style.animation = "";
+    $("#novE").className = "etq " + clase; $("#novE").textContent = "● " + etq;
+    $("#novT").textContent = t; $("#novP").textContent = p; $("#novN").textContent = `${nov + 1} / ${lista.length}`;
+    $("#ant").disabled = $("#sig").disabled = lista.length < 2;
+  };
+  pintaNov();
+  $("#ant").onclick = () => { nov = (nov + lista.length - 1) % lista.length; pintaNov(); };
+  $("#sig").onclick = () => { nov = (nov + 1) % lista.length; pintaNov(); };
+  const cerrar = () => f.remove();
+  f.querySelector(".cerrar").onclick = cerrar; f.querySelector(".entrar").onclick = cerrar;
+  f.addEventListener("click", (e) => { if (e.target === f) cerrar(); });
+  document.addEventListener("keydown", function esc_(e) { if (e.key === "Escape") { cerrar(); document.removeEventListener("keydown", esc_); } });
+  f.querySelector(".entrar").focus();
+}
+
+function elegirRol(nuevo) {
+  rol = nuevo; seccion = ROLES[rol].precarga[0]; situ = 0;
+  document.querySelectorAll("[data-rol]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.rol === rol));
+  $("#situaciones").innerHTML = SITUACIONES[rol].map(([t], i) => `<button class="chip" data-situ="${i}" aria-pressed="${i === 0}">${esc(t)}</button>`).join(" ");
+  pintarMenu(); $("#zona").innerHTML = contenido(seccion);
+}
+
+document.querySelectorAll("[data-rol]").forEach((b) => (b.onclick = () => elegirRol(b.dataset.rol)));
+$("#menu").addEventListener("click", (e) => { const a = e.target.closest("a"); if (a) { e.preventDefault(); ir(a.dataset.s); } });
+$("#situaciones").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-situ]"); if (!b) return;
+  situ = +b.dataset.situ;
+  document.querySelectorAll("[data-situ]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  document.querySelector(".fondo-modal")?.remove(); ventana();
+});
+$("#abrir").onclick = () => bienvenida(false);
+$("#recargar").onclick = () => bienvenida(true);
+$("#tema").onclick = () => {
+  const osc = document.documentElement.dataset.theme !== "dark";
+  document.documentElement.dataset.theme = osc ? "dark" : "light";
+  $("#tema").setAttribute("aria-pressed", osc);
+};
+elegirRol("ceo");
+bienvenida(false);
+</script>
+</body>
+</html>

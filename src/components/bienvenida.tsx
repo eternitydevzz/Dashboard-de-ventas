@@ -1,87 +1,49 @@
 "use client";
 
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { alCambiarPendientes, hayDatosPendientes } from "@/lib/pantalla-lista";
+import { useEffect, useRef, useState } from "react";
 
-// Velocidad (17 oct 2026, Cristian: «todos deberían tener esa pantalla de carga; cargará en segundo plano la app»).
-// Al abrir la app en una pestaña (o tras iniciar sesión), una capa con la marca tapa la app mientras se precargan
-// TODAS las secciones del menú (copia invisible en barra-lateral.tsx). La barra avanza con cada petición que llega y
-// se llena entera antes de entrar; se quita cuando están todas, como mínimo a los 0,8 s y como máximo a los 3 s
-// (más ~0,3 s para que se vea la barra llena: Cristian, 17 oct, «la barrita debería cargar entera antes de iniciar»). Sale en cada carga completa (pestaña nueva o recarga:
-// Cristian, 17 oct), porque al recargar se pierde todo lo precargado; al moverse dentro de la app no vuelve a salir.
-const MINIMO_MS = 800;
-const MAXIMO_MS = 3000; // 17 oct (Cristian): 5 s era demasiado y no llegaba a tenerlo todo; se queda en 3 s
-const LLENAR_MS = 300; // lo que tarda la barra en llenarse (su transición) antes de quitar la capa
+// Bienvenida (Cristian, 11 nov 2026; maqueta docs/maqueta-bienvenida.html, idea de beterangles.com): capa solo visual.
+// No espera a ninguna petición (la de octubre esperaba a la precarga de las 16 secciones y saturó la base el 25 oct).
+// Al abrir la pestaña dura 3,4 s; al recargar en la misma pestaña, la versión corta de 1,1 s (sin barra).
+// Al terminar avisa con el evento «bienvenida-fin» (la ventana de mensajes espera a que se quite).
+const CLAVE = "eternity_bienvenida_vista";
+export const FIN_BIENVENIDA = "bienvenida-fin";
 
-export function Bienvenida({ nombre, rutas }: { nombre: string; rutas: string[] }) {
-  const ruta = usePathname();
-  // La sección en la que se entra ya está cargada: no hace falta esperarla
-  const [pendientes] = useState(() => [...new Set(rutas)].filter((r) => r !== ruta));
-  // Peticiones llegadas: cada sección son 2 (su esquema y sus datos)
-  const [llegadas, setLlegadas] = useState(0);
-  const [llena, setLlena] = useState(false);
+export function Bienvenida({ nombre, secciones }: { nombre: string; secciones: string[] }) {
   const [visible, setVisible] = useState(true);
+  const capa = useRef<HTMLDivElement>(null);
 
+  // La versión corta se pone en la propia capa (no en el estado): el servidor no sabe si es una recarga
   useEffect(() => {
-    const t0 = performance.now();
-    const faltan = new Set(pendientes);
-    let acabada = false;
-    const acabar = () => {
-      if (acabada) return;
-      acabada = true;
-      // Primero la barra llena (y se ve), después entra a la app
-      setTimeout(() => {
-        setLlena(true);
-        setTimeout(() => setVisible(false), LLENAR_MS);
-      }, Math.max(0, MINIMO_MS - LLENAR_MS - (performance.now() - t0)));
-    };
-    // Cada sección precarga 2 peticiones «?_rsc=»: primero su esquema y después sus datos (medido el 17 oct; contar
-    // solo la primera quitaba la bienvenida antes de tener los datos). Está lista cuando han llegado las dos.
-    const vistas = new Map<string, number>();
-    const mirar = (entradas: PerformanceEntryList) => {
-      for (const e of entradas) {
-        if (!e.name.includes("_rsc=")) continue;
-        const r = new URL(e.name).pathname;
-        if (!faltan.has(r)) continue;
-        const n = (vistas.get(r) ?? 0) + 1;
-        vistas.set(r, n);
-        setLlegadas((x) => x + 1);
-        if (n >= 2) faltan.delete(r);
-      }
-      siTodoListo();
-    };
-    // «Todo» = la precarga del menú y los datos de la pantalla en la que se entra (18 oct 2026)
-    const siTodoListo = () => {
-      if (faltan.size === 0 && !hayDatosPendientes()) acabar();
-    };
-    const quitarOyente = alCambiarPendientes(siTodoListo);
-    const observador = new PerformanceObserver((l) => mirar(l.getEntries()));
-    observador.observe({ type: "resource", buffered: true });
-    siTodoListo();
-    const tope = setTimeout(() => acabar(), MAXIMO_MS);
-    return () => {
-      quitarOyente();
-      observador.disconnect();
-      clearTimeout(tope);
-    };
-  }, [pendientes]);
+    try {
+      if (sessionStorage.getItem(CLAVE)) capa.current?.classList.add("corta");
+      else sessionStorage.setItem(CLAVE, "1");
+    } catch {} // sin sessionStorage (modo privado estricto): sale siempre la larga
+  }, []);
 
   if (!visible) return null;
-  const avance = llena || !pendientes.length ? 100 : Math.min(95, Math.round((llegadas / (pendientes.length * 2)) * 100));
+  const lista = secciones.length > 1 ? `${secciones.slice(0, -1).join(", ")} y ${secciones.at(-1)}` : secciones[0];
   return (
-    <div id="entrada" className="fondo-app fixed inset-0 z-[100] flex items-center justify-center p-4" role="status" aria-live="polite">
-      <div className="tarjeta w-full max-w-sm p-8 text-center">
-        <div className="entrada-logo mx-auto mb-6 w-fit rounded-2xl">
-          <Image src="/marca/eternity.png" alt="Eternity" width={72} height={72} className="rounded-2xl" priority />
-        </div>
-        <h1 className="entrada-texto text-2xl font-semibold tracking-tight">Hola, {nombre}</h1>
-        <p key={avance < 50 ? 0 : 1} className="entrada-texto mt-2 text-sm text-texto-2">{avance < 50 ? "Comprobando tu acceso…" : "Cargando tu panel…"}</p>
-        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-panel-2">
-          <div className="h-full rounded-full bg-primario transition-[width] duration-300 ease-out" style={{ width: `${Math.max(avance, 8)}%` }} />
-        </div>
+    <div
+      ref={capa}
+      className="capa-bienvenida"
+      role="status"
+      aria-live="polite"
+      onAnimationEnd={(e) => {
+        if (e.target !== e.currentTarget) return; // solo la animación de la capa, no la del texto o la barra
+        setVisible(false);
+        window.dispatchEvent(new Event(FIN_BIENVENIDA));
+      }}
+    >
+      <div className="logo flex h-14 w-14 items-center justify-center rounded-2xl bg-primario shadow-[0_8px_30px_rgb(43_89_209/0.35)]">
+        <Image src="/marca/maestria-blanco.png" alt="Maestria" width={34} height={32} priority style={{ height: "auto" }} />
       </div>
+      <h1 className="px-6 text-center text-[clamp(26px,4.2vw,40px)] font-bold tracking-[-0.03em]">
+        Bienvenido <b className="text-primario">{nombre}</b>
+      </h1>
+      <div className="capa-pista"><i /></div>
+      {lista && <p className="text-sm text-texto-3">Preparando {lista}…</p>}
     </div>
   );
 }
