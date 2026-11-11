@@ -144,8 +144,8 @@
 ## Pendiente de decidir (Cristian)
 
 1. ~~«Otra cosa» en tracking~~: Cristian, 11 nov: «Nada más, sigue».
-3. Decidido por Claude en la maqueta (11 nov), para que Cristian lo confirme:
+3. Decidido en la maqueta y **confirmado por Cristian (11 nov: «Sí, las dos»; pico: «Cortar y marcarlo»; maqueta v1 aprobada: «Sí, empieza»)**:
    - «Sin dato» y «Sin canal» van aparte, no dentro de los círculos: el 98,6 % de los leads no tiene UTM y el 97,8 % no tiene canal.
    - El embudo de UTMs se hace por `utm_source` y no por canal, porque el canal sale de la cita: solo lo tienen los que agendaron, así que su embudo daría siempre 100 %.
-   - El pico de 2182 leads del 26/10 aplasta el gráfico de leads por día. Falta decidir cómo enseñarlo.
+   - El pico de 2182 leads del 26/10: el gráfico se corta un poco por encima del segundo día más alto y el pico lleva una etiqueta «2182↑» (como la 2.0).
 2. Los tests de integración necesitan Supabase local con Docker, que no se usa en el Mac. Corren en GitHub al abrir el PR; aquí solo se corren los unitarios.
