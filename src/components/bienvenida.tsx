@@ -5,10 +5,9 @@ import { M_MAESTRIA } from "@/lib/marca-m";
 
 // Bienvenida (Cristian, 11 nov 2026; maqueta docs/maqueta-bienvenida.html, idea de beterangles.com).
 // Tapa la app mientras se precargan las 3 secciones de su rol (los enlaces del menú, barra-lateral.tsx) y se quita
-// cuando están las 3, como mínimo a los 0,8 s y como máximo a los 2 s (al recargar en la misma pestaña: 0,3-0,8 s).
+// cuando están las 3, como mínimo a los 0,8 s y como máximo a los 2 s, también al recargar.
 // Cristian (11 nov): «no tiene sentido que esté si no carga al menos 1 pantalla». En octubre esperaba a 16 secciones y
 // saturó la base (25 oct); ahora son 3. Al quitarse avisa con «bienvenida-fin» (la ventana de mensajes espera).
-const CLAVE = "eternity_bienvenida_vista";
 export const FIN_BIENVENIDA = "bienvenida-fin";
 
 export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secciones: string[]; rutas: string[] }) {
@@ -27,13 +26,8 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
   };
 
   useEffect(() => {
-    let corta = false;
-    try {
-      corta = !!sessionStorage.getItem(CLAVE);
-      if (corta) capa.current?.classList.add("corta"); // en la propia capa: el servidor no sabe si es una recarga
-      else sessionStorage.setItem(CLAVE, "1");
-    } catch {} // sin sessionStorage (modo privado estricto): sale siempre la larga
-    const [minimo, maximo] = corta ? [300, 800] : [800, 2000];
+    // Siempre la completa, también al recargar (Cristian, 11 nov: «si recargo no hace la pantalla de carga completa»)
+    const [minimo, maximo] = [800, 2000];
     const t0 = performance.now();
     const faltan = new Set(claveRutas.split("|").filter((r) => r && r !== location.pathname)); // la de entrada ya está cargada
     let hecho = false;
