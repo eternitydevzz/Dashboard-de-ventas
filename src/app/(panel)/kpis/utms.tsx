@@ -51,7 +51,8 @@ function LineaDias({ puntos }: { puntos: { d: string; n: number }[] }) {
           <text x={q[0]} y={q[1] - 10} fontSize="10" fontWeight="700" textAnchor="middle" fill="#fff">{puntos[i].n.toLocaleString("es-ES")}↑</text>
         </g>
       ))}
-      {puntos.map((x, i) => (i % cada === 0 || i === puntos.length - 1 ? <text key={`t${i}`} x={p + i * sx} y={h - 8} fontSize="10" textAnchor="middle" fill="var(--texto-3)">{x.d}</text> : null))}
+      {/* La última fecha siempre; la anterior de la regla, solo si no se monta encima (visto en producción el 11 nov: «09/1110/11») */}
+      {puntos.map((x, i) => ((i % cada === 0 && puntos.length - 1 - i >= cada) || i === puntos.length - 1 ? <text key={`t${i}`} x={p + i * sx} y={h - 8} fontSize="10" textAnchor="middle" fill="var(--texto-3)">{x.d}</text> : null))}
     </svg>
   );
 }
