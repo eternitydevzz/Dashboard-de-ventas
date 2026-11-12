@@ -3,11 +3,14 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, RotateCcw } from "lucide-react";
+import { anotarErrorNavegador } from "@/app/acciones-errores";
 
 // Pantalla si algo falla al cargar una sección del panel.
 export default function ErrorPanel({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
+    // 12 nov 2026: se guarda para los avisos del CEO (si no se puede guardar, la pantalla sigue igual)
+    anotarErrorNavegador(location.pathname, `${error.name}: ${error.message}${error.digest ? ` (código ${error.digest})` : ""}`).catch(() => {});
   }, [error]);
   return (
     <main className="flex min-h-[70vh] items-center justify-center p-6">
