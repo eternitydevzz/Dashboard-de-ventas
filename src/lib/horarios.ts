@@ -118,7 +118,17 @@ export function resumenHorario(h: Horario) {
 
 // Pasa una hora «HH:MM» de la zona del proyecto a la zona de quien mira, en una fecha de referencia
 // (para enseñar «10:00 Nueva York · 16:00 tu hora»). Devuelve null si las dos zonas dan la misma hora.
+// 12 nov 2026: null también si la hora está a medio escribir (el campo queda vacío al borrar) o el navegador da una zona
+// que no reconoce («Etc/Unknown»): antes lanzaba un error y se caía la pantalla entera (el onboarding de un caller).
 export function horaEnOtraZona(hm: string, ymd: string, zonaProyecto: string, zonaLocal: string) {
+  try {
+    return calcularHoraEnOtraZona(hm, ymd, zonaProyecto, zonaLocal);
+  } catch {
+    return null;
+  }
+}
+
+function calcularHoraEnOtraZona(hm: string, ymd: string, zonaProyecto: string, zonaLocal: string) {
   const [h, m] = hm.split(":").map(Number);
   const desfase = (zona: string, base: number) => {
     const p = enZona(new Date(base), zona);

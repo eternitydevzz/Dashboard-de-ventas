@@ -49,6 +49,11 @@ describe("Horario con varios tramos y días sueltos", () => {
     expect(horaEnOtraZona("20:00", "2026-10-12", NY, "Europe/Madrid")).toBe("02:00 (+1 día)");
     expect(horaEnOtraZona("10:00", "2026-10-12", NY, NY)).toBeNull(); // misma zona: no se repite
   });
+  // 12 nov 2026: al borrar una hora con la tecla de borrar el campo queda vacío y el onboarding entero se rompía
+  it("con la hora a medio escribir o una zona que el navegador no reconoce, no hay «tu hora» (y no se rompe)", () => {
+    expect(horaEnOtraZona("", "2026-10-12", NY, "Europe/Madrid")).toBeNull();
+    expect(horaEnOtraZona("10:00", "2026-10-12", NY, "Etc/Unknown")).toBeNull();
+  });
 });
 
 describe("¿Libre a una hora? (como un calendario de GHL)", () => {
