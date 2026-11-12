@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ETIQUETA_ROL } from "@/lib/formato";
 import { horarioValido } from "@/lib/horarios";
 import { EditorHorario } from "@/components/editor-horario";
+import { FormularioSinVaciar } from "@/components/formulario-sin-vaciar";
 
 const QUE_VERAS: Record<string, string[]> = {
   caller: ["Tus leads asignados con las respuestas de su formulario", "Botones para marcar el resultado de cada llamada", "Tus números y el ranking del equipo", "Links de pago, guiones y recursos", "Tu reporte de fin de día"],
@@ -65,7 +66,8 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const { data: miembro } = conHorario(perfil.rol) ? await createAdminClient().from("miembros_proyecto").select("horario").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).maybeSingle() : { data: null };
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      <form action={completar} className="grid w-full max-w-3xl gap-6 md:grid-cols-2">
+      {/* 12 nov 2026: si falta algo, lo escrito se queda (antes se vaciaban las contraseñas, el teléfono y el WhatsApp) */}
+      <FormularioSinVaciar accion={completar} className="grid w-full max-w-3xl gap-6 md:grid-cols-2">
         <div className="tarjeta p-6">
           <Image src="/marca/eternity.png" alt="Eternity" width={48} height={48} className="mb-4 rounded-xl" />
           <h1 className="text-2xl font-semibold">Bienvenido a Eternity</h1>
@@ -124,7 +126,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
             <button className="btn-primario w-full">Empezar</button>
           </div>
         )}
-      </form>
+      </FormularioSinVaciar>
     </main>
   );
 }
