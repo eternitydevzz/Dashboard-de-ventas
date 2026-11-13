@@ -6,6 +6,7 @@ import { exigirPagina } from "@/lib/permisos";
 import { panelObjetivos } from "@/lib/objetivos";
 import { PanelObjetivos } from "@/components/barras-objetivos";
 import { db, todas, equipo } from "@/lib/datos";
+import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { rangoDe, porcentaje, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
 import { kpisHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
@@ -22,6 +23,16 @@ import { BarraDeslizable } from "@/components/barra-deslizable";
 const FILTROS = ESTADOS_CALLER.map((e) => ({ v: e.v, t: e.t }));
 
 const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, llamar_en, creado_en, etiquetas, respuestas, pipeline_id"; // C5: + pipeline (su nombre sale en la cabecera del lead)
+// Velocidad (13 nov 2026): productos, scoring y pipelines casi no cambian y se pedían en cada carga y cada guardado de
+// cada persona. Se comparten 1 minuto (lib/memoria.ts; se borran al guardarlos). Si falla no se guarda y sale vacío, como antes.
+function deMemoria<T>(clave: string, leer: () => PromiseLike<{ data: T | null; error: { message: string } | null }>) {
+  return enMemoria(clave, UN_MINUTO, async () => {
+    const { data, error } = await leer();
+    if (error) throw new Error(error.message);
+    return data;
+  }).catch((e) => (console.error(`[callers] ${clave}`, e instanceof Error ? e.message : e), null));
+}
+
 type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id">;
 
 export default async function CallerPage({ searchParams }: PageProps<"/caller">) {
@@ -55,13 +66,13 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const [leads, kpis, productos, scoring, panel, pipelines] = await Promise.all([
     todas<LeadCola>((a, b) => db().from("leads").select(CAMPOS_COLA).eq("proyecto_id", proyecto.id).eq(comoCloser ? "closer_id" : "caller_id", caller.id).order("id").range(a, b)),
     kpisHoyCola(proyecto.id, caller.id, hoy.desde!.toISOString()), // F4: solo de este proyecto
-    db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
-    db().from("scoring_ia").select("pesos").eq("proyecto_id", proyecto.id).maybeSingle(),
+    deMemoria(`productos-activos:${proyecto.id}`, () => db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")),
+    deMemoria(`scoring:${proyecto.id}`, () => db().from("scoring_ia").select("pesos").eq("proyecto_id", proyecto.id).maybeSingle()),
     panelObjetivos(proyecto, caller), // objetivos del caller que se está viendo, su racha y el del equipo (H3-H4)
-    db().from("pipelines").select("id, nombre").eq("proyecto_id", proyecto.id), // C5: nombre del pipeline de origen
+    deMemoria(`pipelines-nombres:${proyecto.id}`, () => db().from("pipelines").select("id, nombre").eq("proyecto_id", proyecto.id)), // C5: nombre del pipeline de origen
   ]);
-  const nombresPipeline = Object.fromEntries((pipelines.data ?? []).map((x) => [x.id, x.nombre.replace(/^\d+\.\s*/, "")]));
-  const pesos = (scoring.data?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
+  const nombresPipeline = Object.fromEntries((pipelines ?? []).map((x) => [x.id, x.nombre.replace(/^\d+\.\s*/, "")]));
+  const pesos = (scoring?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
   // KPIs de hoy (7c.1): Llamadas («Link de agenda» y «Wsp enviado», 10 nov) · Contactos (los que avanzan, punto 16) · Agendas (% de los
   // contactos) · WhatsApps (botón «Wsp enviado») · Confirmadas («Confirma Agenda»). Fuera «No contestan» y «Ventas» (F6).
   const { acts, citas: agendasHoy } = kpis;
@@ -90,7 +101,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
             {jefe && (
               <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
                 {callers.map((c) => (
-                  <Link key={c.id} href={`/caller?caller=${c.id}`} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
+                  <Link prefetch={false} key={c.id} href={`/caller?caller=${c.id}`} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
                     <Avatar nombre={c.nombre} tamano="h-6 w-6 text-[9px]" />{cortos.get(c.id)}
                   </Link>
                 ))}
@@ -132,7 +143,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           zona={proyecto.zona_horaria}
           conIA={!!pesos}
           closers={closers}
-          productos={(productos.data ?? []) as Producto[]}
+          productos={(productos ?? []) as Producto[]}
           rol={perfil.rol}
           linkAgenda={proyecto.link_agenda}
           moneda={proyecto.moneda}

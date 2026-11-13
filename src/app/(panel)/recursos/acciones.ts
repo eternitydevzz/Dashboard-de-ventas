@@ -132,6 +132,7 @@ export async function guardarLinkPago(productoId: string, url: string, campo: "l
     // Como en Programas (arreglo 35): los links de los productos, solo https
     if (limpio && !(urlValida(limpio) && limpio.toLowerCase().startsWith("https://"))) throw new ErrorUsuario("Pon un enlace válido que empiece por https://");
     await escribir(db().from("productos").update({ [campo]: limpio || null }).eq("id", productoId).eq("proyecto_id", proyecto.id), "productos");
+    olvidarTodo(); // Callers guarda los productos 1 minuto (lib/memoria.ts)
     revalidatePath("/recursos");
   });
 }

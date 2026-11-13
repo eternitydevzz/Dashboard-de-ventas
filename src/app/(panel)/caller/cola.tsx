@@ -158,7 +158,7 @@ export function ColaCaller({
                   const Flecha = on ? (orden.dir === 1 ? ArrowUp : ArrowDown) : ArrowUpDown;
                   return (
                     <th key={c.campo} className={`sticky top-0 z-[1] border-b border-borde bg-[var(--fondo)] px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.02em] text-texto-3 ${c.ancho}`} aria-sort={on ? (orden.dir === 1 ? "ascending" : "descending") : "none"}>
-                      <Link href={enlaceOrden(c.campo)} title={`Ordenar por ${c.t.toLowerCase()}: ${c.ayuda}${on ? " (clic: al revés)" : ""}`} className="inline-flex items-center gap-1 hover:text-primario">
+                      <Link prefetch={false} href={enlaceOrden(c.campo)} title={`Ordenar por ${c.t.toLowerCase()}: ${c.ayuda}${on ? " (clic: al revés)" : ""}`} className="inline-flex items-center gap-1 hover:text-primario">
                         {c.t} <Flecha className={`h-3 w-3 ${on ? "text-primario" : ""}`} />
                       </Link>
                     </th>

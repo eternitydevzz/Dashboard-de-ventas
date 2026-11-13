@@ -3,6 +3,7 @@
 import { exigirSeccion } from "@/lib/permisos";
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
+import { olvidarTodo } from "@/lib/memoria";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { db, escribir } from "@/lib/datos";
 import { getSesion, esJefe } from "@/lib/auth";
@@ -170,6 +171,7 @@ export async function calcularScoringIa(llamar?: LlamarClaude) {
       (pesos[p.pregunta] ??= {})[p.respuesta] = Math.max(-10, Math.min(10, Math.round(Number(p.puntos) || 0)));
     }
     await escribir(db().from("scoring_ia").upsert({ proyecto_id: proyecto.id, pesos, explicacion: (o.explicacion ?? "").slice(0, 6000), modelo, creado_en: new Date().toISOString() }), "scoring_ia");
+    olvidarTodo(); // Callers guarda el scoring 1 minuto (lib/memoria.ts)
     refrescar();
     return { respuestas: Object.values(pesos).reduce((s, x) => s + Object.keys(x).length, 0) };
   });

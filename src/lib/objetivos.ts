@@ -232,7 +232,13 @@ async function baseDePersona(proyectoId: string, p: Perfil, desde: Date): Promis
 }
 
 // Datos de todo el equipo, pero solo desde `desde` (para el objetivo del equipo en «Mis leads» / «Mis agendas»)
-async function baseDelEquipo(proyectoId: string, desde: Date): Promise<Base> {
+// Velocidad (13 nov 2026): la barra del equipo es igual para todos y leía todo lo del equipo desde el lunes o el día 1
+// en cada carga de Callers, Mis agendas, KPIs y Mi Funnel (7+ consultas). Se comparte 1 minuto (lib/memoria.ts), como cargarBase.
+function baseDelEquipo(proyectoId: string, desde: Date): Promise<Base> {
+  return enMemoria(`base-equipo:${proyectoId}:${desde.toISOString()}`, UN_MINUTO, () => baseDelEquipoDeLaBase(proyectoId, desde));
+}
+
+async function baseDelEquipoDeLaBase(proyectoId: string, desde: Date): Promise<Base> {
   const d = desde.toISOString();
   const [actividades, citas, pagos, gente] = await Promise.all([
     todas<Base["actividades"][number]>((a, b) => db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", proyectoId).in("tipo", ["llamada", "whatsapp"]).gte("creado_en", d).order("id").range(a, b)),
