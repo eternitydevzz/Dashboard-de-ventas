@@ -16,6 +16,10 @@ export function FormularioLogin() {
         <label className="etiqueta-campo" htmlFor="password">Contraseña</label>
         <input id="password" name="password" type="password" required autoComplete="current-password" className="campo" />
       </div>
+      <label className="flex items-center gap-2 text-sm text-texto-2">
+        <input name="recordar" type="checkbox" defaultChecked />
+        Mantener la sesión iniciada
+      </label>
       {estado.error && <p className="text-sm text-mal">{estado.error}</p>}
       <button className="btn-primario w-full" disabled={enviando}>
         {enviando ? "Entrando…" : "Entrar"}
