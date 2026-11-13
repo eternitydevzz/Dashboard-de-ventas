@@ -7,6 +7,7 @@ import { db, escribir } from "@/lib/datos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { horarioValido } from "@/lib/horarios";
 import { mercadoValido } from "@/lib/mercado";
+import { MAX_FOTO, conZona, esJpeg, zonaValida } from "./foto-zona";
 
 // 25 oct 2026: también borra la memoria compartida (lib/memoria.ts), para que lo guardado se vea al momento
 const refrescar = () => {
@@ -62,6 +63,44 @@ export async function guardarMiMercado(mercado: string) {
     const { data, error } = await db().from("miembros_proyecto").update({ mercado: m }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).select("perfil_id");
     if (error) throw new ErrorUsuario(/mercado/.test(error.message) ? "Falta aplicar la migración de la base (España)." : error.message);
     if (!data?.length) throw new ErrorUsuario("No estás en este proyecto.");
+    refrescar();
+  });
+}
+
+// N3 (Cristian, 13 nov): la foto de cada persona (al entrar y en «Mi perfil»). Llega ya recortada y reducida.
+export async function guardarMiFoto(datos: FormData) {
+  return seguro(async () => {
+    const { perfil } = await getSesion();
+    const archivo = datos.get("foto");
+    if (!(archivo instanceof File) || !archivo.size) throw new ErrorUsuario("Elige una foto.");
+    if (archivo.size > MAX_FOTO) throw new ErrorUsuario("La foto pesa demasiado.");
+    const bytes = new Uint8Array(await archivo.arrayBuffer());
+    if (!esJpeg(bytes)) throw new ErrorUsuario("Ese archivo no es una imagen válida.");
+    const ruta = `${perfil.id}/${crypto.randomUUID()}.jpg`;
+    const fotos = db().storage.from("fotos");
+    const { error } = await fotos.upload(ruta, bytes, { contentType: "image/jpeg" });
+    if (error) throw new ErrorUsuario(/bucket/i.test(error.message) ? "Falta aplicar la migración de la base (fotos)." : "No se pudo subir la foto. Inténtalo de nuevo.");
+    const { error: errGuardar } = await db().from("perfiles").update({ foto: ruta }).eq("id", perfil.id);
+    if (errGuardar) {
+      await fotos.remove([ruta]); // que no quede un archivo suelto
+      throw new ErrorUsuario(/foto/.test(errGuardar.message) ? "Falta aplicar la migración de la base (fotos)." : errGuardar.message);
+    }
+    // La anterior ya no la usa nadie; si no se borra, solo ocupa sitio
+    const anterior = (perfil as { foto?: string | null }).foto;
+    if (anterior) await fotos.remove([anterior]).catch((e) => console.error("[foto] no se pudo borrar la anterior:", e));
+    refrescar();
+  });
+}
+
+// N2 (Cristian, 13 nov): la zona en que ve las horas cada caller y closer (al entrar y en «Mi perfil»)
+export async function guardarMiZona(zona: string) {
+  return seguro(async () => {
+    const { perfil } = await getSesion();
+    if (!conZona(perfil.rol)) throw new ErrorUsuario("La zona horaria es para callers y closers.");
+    const z = zonaValida(zona);
+    if (!z) throw new ErrorUsuario("Elige una de las zonas de la lista.");
+    const { error } = await db().from("perfiles").update({ zona_horaria: z }).eq("id", perfil.id);
+    if (error) throw new ErrorUsuario(/zona_horaria/.test(error.message) ? "Falta aplicar la migración de la base (zona horaria)." : error.message);
     refrescar();
   });
 }

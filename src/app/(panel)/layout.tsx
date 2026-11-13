@@ -13,6 +13,7 @@ import { proyectoParaMenu } from "@/lib/formato";
 import { seccionesPermitidas, SECCIONES, type Seccion } from "@/lib/permisos";
 import { esCloser } from "@/lib/tipos";
 import { leerMercado } from "@/lib/mercado-datos";
+import { pasoPendiente } from "./perfil/foto-zona";
 
 // Cristian (13 oct 2026): «Llamadas de GHL» oculto en el menú para todos; se retomará más adelante (ver plan).
 // La página sigue existiendo (/caller/grabadas); para volver a enseñarla, poner true.
@@ -30,6 +31,9 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
   // 13 nov (Cristian): cada uno elige si es del equipo de Latam o del de España (null = sin elegir; se le pregunta)
   const [secciones, mercado] = await Promise.all([seccionesPermitidas(perfil, proyecto.id), leerMercado(proyecto.id, perfil.id)]);
   if (mercado === null) redirect("/onboarding/mercado");
+  // N3 y N2 (Cristian, 13 nov): sin foto no se entra (todos); callers y closers, además, eligen su zona horaria
+  const paso = pasoPendiente(perfil);
+  if (paso) redirect(paso);
   const tiene = (x: Seccion) => secciones.has(x);
   const empresa: ItemMenu[] = SECCIONES.filter((s) => secciones.has(s.v)).map((s) => ({ href: `/${s.v}`, texto: s.t, icono: s.v }));
   const menu: { grupo: string; items: ItemMenu[] }[] = [
