@@ -68,7 +68,7 @@ export default async function RankingPage({ searchParams }: PageProps<"/ranking"
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-1.5 font-medium">{c.perfil.nombre}{c.perfil.id === perfil.id && <span className="text-primario"> (tú)</span>}<EtiquetaMercado m={mercados[c.perfil.id]} /></span>
-                        <span className="font-semibold tabular-nums text-oro">{dinero(c.facturacion, proyecto)}</span>
+                        <span className="font-semibold tabular-nums text-oro-texto">{dinero(c.facturacion, proyecto)}</span>
                       </div>
                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fondo-2"><div className="h-full rounded-full bg-oro" style={{ width: `${pct((c.facturacion / maxFac) * 100)}` }} /></div>
                       <div className="mt-1 text-xs text-texto-3">{c.cerradas} cerradas · {pct(c.cierreSobreAsistencia)} cierre/asist. · {c.asistidas} asistidas · {c.noShow} no show</div>
