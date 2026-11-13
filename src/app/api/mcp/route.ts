@@ -5,6 +5,7 @@ import { anotar, bloqueado, dentroDelLimite } from "@/lib/limite";
 import { perfilDeClave, sesionMcpDe } from "@/lib/mcp/clave";
 import { conSesionMcp } from "@/lib/mcp/sesion-mcp";
 import { herramientaAsignar, herramientaKpis } from "@/lib/mcp/herramientas";
+import { herramientaBorrarMiembro, herramientaCrearMiembro, herramientaDarDeBaja } from "@/lib/mcp/equipo";
 import { ESTADOS, herramientaAgendar, herramientaBorrar, herramientaCrearLead, herramientaEstado, herramientaEtiquetas, herramientaMover, herramientaMoverCita, herramientaNota, herramientaVenta } from "@/lib/mcp/cambiar";
 import { herramientaEnlaceGrabacion, herramientaGrabacionesPendientes, herramientaSubirTranscripcion, herramientaTranscripciones } from "@/lib/mcp/grabaciones";
 import { herramientaDuplicados, herramientaObjetivos, herramientaAgenda, herramientaBuscarLeads, herramientaFichaLead, herramientaFinanzas, herramientaFunnel, herramientaRanking } from "@/lib/mcp/lectura";
@@ -56,6 +57,51 @@ function servidor(perfilId: string) {
       },
     },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaAsignar(a))
+  );
+
+  // ---------- Equipo (Cristian, 13 nov): crear, dar de baja y borrar personas (src/lib/mcp/equipo.ts) ----------
+  server.registerTool(
+    "crear_miembro",
+    {
+      description:
+        "Da de alta a una persona del equipo con cuenta, como «Dar de alta un miembro» en Equipo. Nadie ve contraseñas: le llega un email con un enlace (24 h) para entrar y crear la suya. Área por defecto «Ventas»; el puesto, el de su rol. Primero devuelve una vista previa y solo la crea con confirmar: true.",
+      inputSchema: {
+        proyecto: PROYECTO,
+        nombre: z.string().min(1).max(120),
+        email: z.string().email(),
+        telefono: z.string().min(7).max(25).describe("Con prefijo, p. ej. +34 600 000 000."),
+        rol: z.enum(["caller", "closer", "director", "ceo"]),
+        mercado: z.enum(["es", "latam"]).describe("País del equipo: «es» = España, «latam» = Latam."),
+        area: z.string().optional().describe("Nombre del área. Sin poner: «Ventas»."),
+        confirmar: CONFIRMAR,
+      },
+    },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaCrearMiembro(a))
+  );
+
+  const SALIDA = {
+    proyecto: PROYECTO,
+    persona: z.string().describe("Nombre o id de la persona."),
+    leadsA: z.string().optional().describe("Si tiene leads: nombre o id de quien se los queda, o «nadie» para dejarlos sin asignar. Obligatorio si tiene leads."),
+    confirmar: CONFIRMAR,
+  };
+  server.registerTool(
+    "dar_de_baja_miembro",
+    {
+      description:
+        "Da de baja a una persona (solo CEO): no puede entrar, sale del equipo y pasa a «Ver inactivos»; se conserva su historial y se puede deshacer. Si tiene leads, pide a quién pasarlos (leadsA). Primero vista previa; solo lo hace con confirmar: true.",
+      inputSchema: SALIDA,
+    },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaDarDeBaja(a))
+  );
+  server.registerTool(
+    "borrar_miembro",
+    {
+      description:
+        "Borra para siempre a una persona (solo CEO): su cuenta y su sitio en el equipo; sus llamadas, citas y ventas se quedan sin quién las hizo. NO se puede deshacer: si basta con que no entre, usa dar_de_baja_miembro. Si tiene leads, pide a quién pasarlos (leadsA). Primero vista previa; solo lo hace con confirmar: true.",
+      inputSchema: SALIDA,
+    },
+    async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaBorrarMiembro(a))
   );
 
   // ---------- Fase 3: herramientas para leer (src/lib/mcp/lectura.ts) ----------
