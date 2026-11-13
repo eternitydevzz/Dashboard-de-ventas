@@ -56,6 +56,7 @@ export function TarjetaCrm({
       role="button"
       aria-label={`Ver datos de ${nombre || "este lead"}`}
       draggable={arrastrable}
+      data-id={leadId}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
         onArrastrar?.(e);
