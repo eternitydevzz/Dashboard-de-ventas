@@ -90,8 +90,10 @@ export function BarraLateral({
   precarga?: string[]; // las 3 secciones de su rol que se precargan al abrir la app (lib/mensajes-entrada.ts)
 }) {
   const ruta = usePathname();
-  // Lo precargado se guarda 5 min (staleTimes en next.config.ts); los cambios lo borran al instante
-  // (revalidatePath y avisos-en-vivo.tsx), así que no enseña datos viejos.
+  // Lo precargado se guarda 5 min (staleTimes en next.config.ts): un cambio de otro puede tardar eso en verse;
+  // allí está qué lo borra antes.
+  // En Next 16 cada precarga son 2 peticiones «?_rsc=» a la misma ruta: primero el árbol de la ruta (el servidor no
+  // pinta nada) y luego los datos (scheduler.js de segment-cache). No es una precarga repetida.
   // Al pulsar, el botón se marca al momento (sin esperar al servidor); vale mientras no cambie la ruta
   // 25 oct 2026 (Cristian, la base se saturó con el equipo trabajando): ya NO se precargan todas las secciones al
   // abrir la app (cada pestaña preparaba Funnel, KPIs, Ranking… cada 5 min). Solo la que se señala con el ratón,

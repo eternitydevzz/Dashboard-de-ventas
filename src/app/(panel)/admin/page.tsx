@@ -233,7 +233,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       <Contenido>
         <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
           {PESTANAS.map((p) => (
-            <Link prefetch={true} key={p.v} href={`/admin?tab=${p.v}`} className={`rounded-lg px-3 py-1.5 text-sm ${tab === p.v ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>{p.t}</Link>
+            <Link key={p.v} href={`/admin?tab=${p.v}`} className={`rounded-lg px-3 py-1.5 text-sm ${tab === p.v ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>{p.t}</Link>
           ))}
         </div>
 
@@ -372,7 +372,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             <Link href="/programas" className="btn-primario mt-3 inline-flex">Ir a Programas</Link>
             <ul className="mt-4 space-y-1 text-sm">
               {((productos ?? []) as Producto[]).map((p) => (
-                <li key={p.id} className="flex justify-between rounded-lg bg-panel-2 px-3 py-1.5"><span>{p.nombre}{!p.activo && <span className="text-texto-3"> · inactivo</span>}</span><span className="tabular-nums text-oro">{p.precio !== null ? dinero(Number(p.precio), proyecto) : "Personalizado"}</span></li>
+                <li key={p.id} className="flex justify-between rounded-lg bg-panel-2 px-3 py-1.5"><span>{p.nombre}{!p.activo && <span className="text-texto-3"> · inactivo</span>}</span><span className="tabular-nums text-oro-texto">{p.precio !== null ? dinero(Number(p.precio), proyecto) : "Personalizado"}</span></li>
               ))}
             </ul>
           </Seccion>

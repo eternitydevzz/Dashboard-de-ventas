@@ -54,7 +54,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
           <div className="flex flex-wrap items-center gap-2">
             {VISTAS.map((x) => {
               const I = x.icono;
-              return <Link prefetch={true} key={x.v} href={url({ ver: ver === x.v ? null : x.v })} className={ver === x.v ? "btn-primario" : "btn-secundario"}><I className="h-4 w-4" /> {x.t}</Link>;
+              return <Link key={x.v} href={url({ ver: ver === x.v ? null : x.v })} className={ver === x.v ? "btn-primario" : "btn-secundario"}><I className="h-4 w-4" /> {x.t}</Link>;
             })}
             {!suyos && <NuevoCliente productos={(prods.data ?? []) as Producto[]} vendedores={gente.filter((g) => g.rol !== "ceo").map((g) => ({ id: g.id, nombre: g.nombre }))} moneda={proyecto.moneda} />}
           </div>
@@ -79,12 +79,12 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
           <>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex rounded-lg border border-borde bg-panel p-0.5">
-                {[...ESTADOS_CLIENTE.map((x) => [x.v, `${x.t}s`]), ["todos", "Todos"]].map(([v, t]) => <Link prefetch={true} key={v} href={url({ estado: v === "activo" ? null : v })} className={`rounded-md px-3 py-1.5 text-sm ${estado === v ? "bg-primario text-white" : "text-texto-2"}`}>{t} <span className="text-xs opacity-70">{v === "todos" ? d.filas.length : d.filas.filter((f) => f.ficha.estado === v).length}</span></Link>)}
+                {[...ESTADOS_CLIENTE.map((x) => [x.v, `${x.t}s`]), ["todos", "Todos"]].map(([v, t]) => <Link key={v} href={url({ estado: v === "activo" ? null : v })} className={`rounded-md px-3 py-1.5 text-sm ${estado === v ? "bg-primario text-white" : "text-texto-2"}`}>{t} <span className="text-xs opacity-70">{v === "todos" ? d.filas.length : d.filas.filter((f) => f.ficha.estado === v).length}</span></Link>)}
               </div>
               <BuscadorUrl placeholder="Buscar por nombre, email o teléfono…" />
               <div className="ml-auto flex rounded-lg border border-borde bg-panel p-0.5">
-                <Link prefetch={true} href={url({ vista: null })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") !== "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
-                <Link prefetch={true} href={url({ vista: "cards" })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") === "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tarjetas</Link>
+                <Link href={url({ vista: null })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") !== "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
+                <Link href={url({ vista: "cards" })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") === "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tarjetas</Link>
               </div>
             </div>
             {lista.length === 0 ? (
@@ -144,7 +144,7 @@ function Seguimiento({ d, hoy }: { d: DatosClientes; hoy: string }) {
   const activos = d.filas.filter((f) => f.ficha.estado !== "abandonado");
   const grupos = [
     { v: "vencido", t: "Vencidos", tono: "text-mal" },
-    { v: "hoy", t: "Hoy", tono: "text-oro" },
+    { v: "hoy", t: "Hoy", tono: "text-oro-texto" },
     { v: "proximo", t: "Próximos", tono: "text-texto" },
     { v: "sin_fecha", t: "Sin fecha", tono: "text-texto-3" },
   ] as const;
