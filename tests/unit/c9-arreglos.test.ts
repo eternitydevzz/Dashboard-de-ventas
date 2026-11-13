@@ -7,6 +7,8 @@ type Consulta = { tabla: string; ops: [string, unknown[]][] };
 let consultas: Consulta[];
 let base: Record<string, Resp>;
 let contestar: (c: Consulta) => Resp | undefined;
+let rpcs: { nombre: string; args: unknown }[];
+let rpcRespuesta: Resp;
 const borrarUsuario = vi.fn(async () => ({ error: null }));
 const tipo = (c: Consulta) => ["delete", "upsert", "update", "insert"].find((o) => c.ops.some(([x]) => x === o)) ?? "select";
 const arg = (c: Consulta, op: string) => c.ops.find(([x]) => x === op)?.[1];
@@ -14,7 +16,8 @@ const arg = (c: Consulta, op: string) => c.ops.find(([x]) => x === op)?.[1];
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     auth: { admin: { createUser: async () => ({ data: { user: { id: "nuevo" } }, error: null }), deleteUser: borrarUsuario } },
-    rpc: async (fn: string) => base[`rpc:${fn}`] ?? { data: null, error: null },
+    // 6V responde por nombre (base["rpc:..."]); 6B guarda las llamadas y responde rpcRespuesta
+    rpc: async (nombre: string, args: unknown) => (rpcs.push({ nombre, args }), base[`rpc:${nombre}`] ?? rpcRespuesta),
     from: (tabla: string) => {
       const c: Consulta = { tabla, ops: [] };
       consultas.push(c);
@@ -59,6 +62,8 @@ beforeEach(() => {
   consultas = [];
   base = {};
   contestar = () => undefined;
+  rpcs = [];
+  rpcRespuesta = { data: 0, error: null };
   borrarUsuario.mockClear();
   vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "ceo", rol: "ceo" }, proyecto: { id: "p1", nombre: "Eternity", zona_horaria: "Europe/Madrid" } } as never);
 });
@@ -72,28 +77,25 @@ describe("1 · Borrar en masa (crítico)", () => {
     if (c.tabla === "leads" && tipo(c) === "select") return leadsPedidos(c);
   };
 
-  it("con más de 1.000 citas, el lead con cita en la 2.ª página y el lead con venta no se borran", async () => {
-    contestar = responder;
-    expect(await crm.borrarLeads(["x", "y", "z", "otro"])).toEqual({ borrados: 1, saltados: 3 });
-    expect(de("leads", "delete").map((c) => arg(c, "in")?.[1])).toEqual([["z"]]);
+  // Ola 6 · C6: un solo paso en la base (borrar_leads, todo o nada); la app ya no lee ni borra por trozos
+  it("borra con una sola llamada a borrar_leads y cuenta los saltados", async () => {
+    rpcRespuesta = { data: 1, error: null };
+    expect(await crm.borrarLeads(["x", "y", "z", "x", ""])).toEqual({ borrados: 1, saltados: 2 });
+    expect(rpcs).toEqual([{ nombre: "borrar_leads", args: { p_proyecto: "p1", p_ids: ["x", "y", "z"] } }]);
+    expect(consultas.filter((c) => c.tabla === "leads" || c.tabla === "citas" || c.tabla === "ventas")).toHaveLength(0);
   });
 
-  it("si falla leer las citas o las ventas, no se borra nada y avisa", async () => {
-    for (const tabla of ["citas", "ventas"]) {
-      consultas = [];
-      contestar = (c) => (c.tabla === tabla ? fallo : responder(c));
-      expect(await crm.borrarLeads(["x", "z"])).toMatchObject({ error: expect.any(String) });
-      expect(de("leads", "delete")).toHaveLength(0);
-    }
+  it("si la base falla, avisa con error (y no dice cuántos borró)", async () => {
+    rpcRespuesta = fallo;
+    expect(await crm.borrarLeads(["x", "z"])).toMatchObject({ error: expect.any(String) });
   });
 
-  it("450 leads: las lecturas y el borrado van en trozos de 200", async () => {
-    contestar = responder;
+  it("450 leads: una sola llamada con los 450", async () => {
+    rpcRespuesta = { data: 450, error: null };
     const ids = Array.from({ length: 450 }, (_, i) => `n${i}`);
     expect(await crm.borrarLeads(ids)).toEqual({ borrados: 450, saltados: 0 });
-    const tamanos = (cs: Consulta[]) => cs.map((c) => (arg(c, "in")?.[1] as string[]).length);
-    expect(tamanos(de("leads", "delete"))).toEqual([200, 200, 50]);
-    expect(tamanos(de("citas", "select"))).toEqual([200, 200, 50]);
+    expect(rpcs).toHaveLength(1);
+    expect((rpcs[0].args as { p_ids: string[] }).p_ids).toHaveLength(450);
   });
 
   it("MCP: la vista previa cuenta la cita de la 2.ª página; si falla la lectura, error (no dice «borrar todos»)", async () => {
