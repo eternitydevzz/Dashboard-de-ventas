@@ -9,7 +9,7 @@ import { crearMiembro } from "./acciones";
 import type { ComisionPersona } from "@/lib/comisiones";
 import type { Rol } from "@/lib/tipos";
 import { leerNumero } from "@/lib/numero";
-import { pct } from "@/lib/formato";
+import { pct, primeraLetra } from "@/lib/formato";
 import { Desplegable } from "@/components/eleccion";
 
 type Area = { id: string; nombre: string; color: string };
@@ -287,7 +287,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
           <div className="mb-3 flex items-center justify-between"><div className="titulo-seccion">Vista previa</div><button type="button" onClick={onCerrar} className="rounded-md p-1 text-texto-3 hover:bg-panel-2" aria-label="Cerrar"><X className="h-4 w-4" /></button></div>
           <div className="rounded-xl border border-borde p-4">
             <div className="flex items-center gap-3 border-b border-borde pb-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-semibold text-white" style={{ background: areaObj?.color ?? "var(--texto-3)" }}>{(nombres[0] ?? "·").charAt(0).toUpperCase()}</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-semibold text-white" style={{ background: areaObj?.color ?? "var(--texto-3)" }}>{primeraLetra(nombres[0] ?? "·").toUpperCase()}</span>
               <div><div className="font-semibold">{nombres.length > 1 ? `${nombres.length} personas` : nombres[0] || "Nuevo miembro"}</div><div className="text-sm text-texto-2">{areaObj?.nombre ?? "Sin área"}{puestoTxt !== "—" ? ` · ${puestoTxt}` : ""}</div></div>
             </div>
             <dl className="mt-3 space-y-3 text-sm">

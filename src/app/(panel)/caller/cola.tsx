@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Inbox, Search } from "lucide-react";
-import { ETIQUETA_ESTADO_CALLER, fechaHora, nombrePais } from "@/lib/formato";
+import { ETIQUETA_ESTADO_CALLER, fechaHora, iniciales as inicialesDe, nombrePais } from "@/lib/formato";
 import { nivel } from "@/lib/prioridad";
 import { Insignia, Vacio } from "@/components/ui";
 import { AccionesLead } from "@/components/acciones-lead";
@@ -15,7 +15,7 @@ import { colorEstado } from "@/lib/estados-caller";
 
 export type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id"> & { puntos: number };
 
-const iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]?.toUpperCase()).join("") || "?";
+const iniciales = (n: string) => inicialesDe(n) || "?";
 const nombreDe = (l: Pick<LeadCola, "nombre" | "apellido">) => `${l.nombre} ${l.apellido}`.trim() || "Sin nombre";
 const letra = (puntos: number) => nivel(puntos).texto.slice(-1); // «Prioridad A» → «A»
 
