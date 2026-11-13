@@ -9,5 +9,8 @@ export async function kpisHoyCola(proyectoId: string, personaId: string, desdeIs
     db().from("actividades").select("tipo, resultado, lead_id").eq("proyecto_id", proyectoId).eq("perfil_id", personaId).gte("creado_en", desdeIso),
     db().from("citas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyectoId).eq("agendada_por", personaId).gte("creado_en", desdeIso),
   ]);
+  // 13 nov: si falla, error (pantalla «Esta sección no ha cargado», como los leads) en vez de enseñar 0 sin avisar
+  const error = acts.error ?? citas.error;
+  if (error) throw new Error(`KPIs de hoy: ${error.message}`);
   return { acts: (acts.data ?? []) as { tipo: string; resultado: string | null; lead_id: string }[], citas: citas.count ?? 0 };
 }
