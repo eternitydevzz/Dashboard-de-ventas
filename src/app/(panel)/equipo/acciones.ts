@@ -6,10 +6,10 @@ import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { db, escribir } from "@/lib/datos";
 import { exigirSeccion } from "@/lib/permisos";
 import type { ComisionPersona } from "@/lib/comisiones";
-import type { Rol } from "@/lib/tipos";
 import { leerNumero } from "@/lib/numero";
 import { mercadoValido, type Mercado } from "@/lib/mercado";
-import { exigirCambiarComisionPersona, exigirCambiarComisionRol, exigirPuedeDarRol } from "@/lib/auth";
+import { exigirCambiarComisionPersona, exigirCambiarComisionRol, exigirPuedeDarRol, puedeAdmin } from "@/lib/auth";
+import type { Perfil, Rol } from "@/lib/tipos";
 
 // 25 oct 2026: también borra la memoria compartida (lib/memoria.ts), para que lo guardado se vea al momento
 const refrescar = () => {
@@ -17,6 +17,10 @@ const refrescar = () => {
   revalidatePath("/", "layout");
 };
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
+// B2 (13 nov): una cuenta con acceso pide lo mismo que crearUsuario en Administración, no solo la sección «Equipo»
+function exigirCrearCuentas(perfil: Perfil) {
+  if (!puedeAdmin(perfil)) throw new ErrorUsuario("Crear cuentas con acceso necesita Administración (CEO o director con Administración).");
+}
 
 function pct(v: unknown, campo: string) {
   if (v === null || v === undefined || v === "") return null;
@@ -77,6 +81,7 @@ function paisYTelefono(mercadoTxt: unknown, telefonoTxt: string) {
 export async function crearMiembro(a: AltaMiembro) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigirSeccion("equipo");
+    if (a.acceso.modo === "crear") exigirCrearCuentas(perfil); // antes de crear nada (p. ej. un puesto nuevo)
     const nombres = a.nombres.map((n) => n.trim()).filter(Boolean);
     if (!nombres.length) throw new ErrorUsuario("Pon el nombre de la persona.");
     if (nombres.length > 50) throw new ErrorUsuario("Como mucho 50 personas a la vez.");
@@ -162,6 +167,7 @@ export async function cambiarModoComision(id: string, modo: "tramos" | "propio")
 export async function darAccesoMiembro(id: string, emailTxt: string, password: string, rol: Rol, mercadoTxt: string, telefonoTxt: string) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigirSeccion("equipo");
+    exigirCrearCuentas(perfil);
     const { data: m } = await db().from("miembros_equipo").select("*").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!m) throw new ErrorUsuario("Persona no encontrada.");
     if (m.perfil_id) throw new ErrorUsuario("Esta persona ya tiene acceso.");

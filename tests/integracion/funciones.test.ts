@@ -188,6 +188,8 @@ describe("Administración", () => {
     expect((await auth.auth.signInWithPassword({ email: e.p.callerC.email, password: PASSWORD })).error).not.toBeNull();
     expect((await auth.auth.signInWithPassword({ email: e.p.callerC.email, password: "Nueva-clave-2026" })).error).toBeNull();
     await falla(cambiarPassword(e.p.callerC.id, "corta"), /8/);
+    como(e, e.p.directorAdmin); // B1 (13 nov): la de otra persona, solo el CEO
+    await falla(cambiarPassword(e.p.callerC.id, "Otra-clave-2026"), /Solo el CEO/);
   });
   it("crear un proyecto en EUR/Madrid, añadir a alguien que ya existe y quitarlo", async () => {
     como(e, e.p.ceo);
