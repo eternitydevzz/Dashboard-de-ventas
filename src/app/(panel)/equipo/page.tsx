@@ -9,7 +9,7 @@ import { Cabecera, Contenido, Seccion, Insignia } from "@/components/ui";
 import { AltaMiembro } from "./alta";
 import { ComisionRolForm, EditorAreas } from "./cliente";
 import { FichaPersona } from "./ficha";
-import type { Rol } from "@/lib/tipos";
+import { esCloser, type Rol } from "@/lib/tipos";
 import { pct } from "@/lib/formato";
 import { MERCADOS, entraEnMercado, mercadoDe, mercadoValido } from "@/lib/mercado";
 import { mercadosDelProyecto } from "@/lib/mercado-datos";
@@ -116,7 +116,8 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
             <div className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-texto-3">{titulo}</div>
             <div className="grid gap-4 md:grid-cols-2">
               {([["closer", "Closers"], ["caller", "Callers"]] as const).map(([r, t]) => {
-                const de = delRol(r).filter((m) => mercadoDeM(m) === mk);
+                // «También closer» (p. ej. Facu) sale también entre los closers de su equipo
+                const de = (r === "closer" ? miembros.filter((m) => m.rol && esCloser({ ...m, rol: m.rol })).sort((x, y) => x.nombre.localeCompare(y.nombre)) : delRol(r)).filter((m) => mercadoDeM(m) === mk);
                 return (
                   <div key={r} className="rounded-2xl border border-borde bg-panel-2/50 p-3">
                     <div className="mb-2 flex items-center justify-between text-sm font-semibold">
