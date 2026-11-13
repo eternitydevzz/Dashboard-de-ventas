@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { agendarCita, registrarLlamada, registrarVenta } from "@/app/(panel)/leads/acciones";
 import { FormVenta } from "@/components/acciones-lead";
 import { Modal } from "@/components/modal";
@@ -36,7 +37,12 @@ export function VentanaEstado({
   onCerrar: () => void;
   onGuardar: (accion: () => Promise<unknown>, mensaje: string) => void;
 }) {
+  // La ventana no se cierra hasta que responde el servidor (React junta su cierre con la acción en curso): un segundo
+  // «Guardar» repetía el cambio (historial «Llamar luego» 2 veces, 10 nov). Una ventana = un envío.
+  const enviado = useRef(false);
   const guardar = (accion: () => Promise<unknown>, mensaje: string) => {
+    if (enviado.current) return;
+    enviado.current = true;
     onGuardar(accion, mensaje);
     onCerrar();
   };

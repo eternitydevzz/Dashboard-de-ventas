@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
 import { anadirNota, confirmarAgenda, registrarLlamada, registrarVenta, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
 import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado, type BotonResultado } from "@/lib/estados-caller";
@@ -129,6 +129,14 @@ export function AccionesLead({
       aviso(`No se pudo copiar. El link es: ${linkAgenda}`, "error");
     }
   }
+  // Doble clic = dos guardados (historial y KPIs repetidos; dos ventas): los botones del guion no se desactivan y la
+  // ventana de venta no se cierra hasta que responde el servidor. Mientras una va, la segunda igual no sale.
+  const enCurso = useRef(new Set<string>());
+  function unaVez(clave: string, fn: () => Promise<unknown>, mensaje: string) {
+    if (enCurso.current.has(clave)) return;
+    enCurso.current.add(clave);
+    ejecutar(() => fn().finally(() => enCurso.current.delete(clave)), mensaje);
+  }
   const [modal, setModal] = useState<null | "guion" | "nota" | "venta">(null);
   const [ventana, setVentana] = useState<DestinoConVentana | null>(null);
   const [nota, setNota] = useState("");
@@ -145,10 +153,10 @@ export function AccionesLead({
     if (clave === "link_enviado" && !desdeMoverA) {
       if (!linkAgenda) return aviso("Este proyecto no tiene link de agenda: ponlo en Administración.", "error");
       void copiarLinkAgenda();
-      return ejecutar(() => registrarLlamada(leadId, "link_enviado", ""), "Link de agenda copiado y apuntado");
+      return unaVez("resultado", () => registrarLlamada(leadId, "link_enviado", ""), "Link de agenda copiado y apuntado");
     }
-    if (clave === "confirma_agenda") return ejecutar(() => confirmarAgenda(leadId), "Guardado: Confirma Agenda (cita confirmada)");
-    ejecutar(() => registrarLlamada(leadId, clave as ResultadoSimple, ""), `Guardado: ${etiquetaEstado(clave)}`);
+    if (clave === "confirma_agenda") return unaVez("resultado", () => confirmarAgenda(leadId), "Guardado: Confirma Agenda (cita confirmada)");
+    unaVez("resultado", () => registrarLlamada(leadId, clave as ResultadoSimple, ""), `Guardado: ${etiquetaEstado(clave)}`);
   }
 
   const ventanas = (
@@ -193,7 +201,7 @@ export function AccionesLead({
             miId={miId}
             moneda={moneda}
             onEnviar={(fd) => {
-              ejecutar(() => registrarVenta(leadId, fd), "Venta registrada");
+              unaVez("venta", () => registrarVenta(leadId, fd), "Venta registrada");
               setModal(null);
             }}
           />
