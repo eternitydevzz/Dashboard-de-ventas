@@ -69,7 +69,7 @@ describe("precarga por rol", () => {
 });
 
 describe("mensajesAlEntrar (acción)", () => {
-  const como = (rol: string) => vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "u1", rol }, proyecto: { id: "p1", zona_horaria: "Europe/Madrid" } } as never);
+  const como = (rol: string) => vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "u1", rol, nombre: "Ana Test" }, proyecto: { id: "p1", zona_horaria: "Europe/Madrid" } } as never);
   beforeEach(() => {
     puestas.length = 0;
     cookie = undefined;
@@ -86,13 +86,13 @@ describe("mensajesAlEntrar (acción)", () => {
   });
   it("un caller: sus mensajes y la cookie del día", async () => {
     como("caller");
-    expect(await mensajesAlEntrar()).toMatchObject({ rol: "caller", mensajes: ["motivacion", "grabacion"] });
+    expect(await mensajesAlEntrar()).toMatchObject({ rol: "caller", mensajes: ["motivacion", "grabacion"], textos: [{ titulo: "Buenos días, Ana" }, {}] });
     expect(puestas[0][0]).toBe("eternity_mensajes_u1_p1");
   });
   it("un closer con una venta hoy; la segunda vez del día ya no sale", async () => {
     como("closer");
     const r = await mensajesAlEntrar();
-    expect(r).toMatchObject({ rol: "closer", mensajes: ["v1", "grabacion"] });
+    expect(r).toMatchObject({ rol: "closer", mensajes: ["v1", "grabacion"], textos: [{ titulo: "¡Nueva venta!" }, { titulo: "Graba tus llamadas" }] });
     cookie = String(puestas[0][1]);
     expect(await mensajesAlEntrar()).toBeNull();
   });

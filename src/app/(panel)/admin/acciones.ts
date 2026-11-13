@@ -27,6 +27,9 @@ import { tablaValida } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
 import { PIPELINE_ETIQUETA } from "@/lib/ghl-leads";
 import { borrarEtiquetaGhl, renombrarEtiquetaGhl } from "@/lib/ghl";
+import { popupValido } from "@/lib/popups";
+import { TEXTOS_ENTRADA, textosCambiados, type ClaveTexto } from "@/lib/mensajes-entrada";
+import { refrescarPantalla } from "@/lib/refrescar";
 
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
 type Res = { ok?: string; error?: string } | null;
@@ -1020,5 +1023,99 @@ export async function ordenarEtiquetas(nombres: unknown) {
     await escribir(db().from("etiquetas").upsert(lista.map((nombre, orden) => ({ proyecto_id: proyecto.id, nombre, orden })), { onConflict: "proyecto_id,nombre" }), "etiquetas");
     refrescar();
     return { ok: true as const };
+  });
+}
+
+// ---------- Popups (Fase 3, Cristian 13 nov 2026) ----------
+// CEO y director con Administración. olvidarTodo: el proyecto (textos e interruptores) se guarda 1 min en memoria.
+const refrescarPopups = () => {
+  olvidarTodo();
+  refrescarPantalla();
+};
+// Un popup de este proyecto; si ya no está (lo borró otro), se dice
+async function comprobar(peticion: PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>) {
+  const { data } = await escribir(peticion, "popups");
+  if (!data?.length) throw new ErrorUsuario("Ese popup ya no existe. Recarga la página.");
+}
+
+export async function guardarPopup(id: string | null, datos: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    const d = popupValido(datos);
+    // Solo personas de este proyecto
+    let personas = d.personas;
+    if (personas.length) {
+      const { data, error } = await db().from("miembros_proyecto").select("perfil_id").eq("proyecto_id", proyecto.id).in("perfil_id", personas).order("perfil_id");
+      if (error) throw new Error(`popups (personas): ${error.message}`);
+      const del = new Set(data.map((m) => m.perfil_id as string));
+      personas = personas.filter((p) => del.has(p));
+      if (!personas.length && !d.roles.length) throw new ErrorUsuario("Elige a quién va: un rol o una persona.");
+    }
+    const fila = { ...d, personas };
+    if (!id) {
+      // «Lanzar ahora» sale desde que se crea; los demás no usan lanzado_en
+      await escribir(db().from("popups").insert({ ...fila, proyecto_id: proyecto.id, lanzado_en: d.frecuencia === "ahora" ? new Date().toISOString() : null }), "popups");
+    } else {
+      // Cambiar el texto no lo vuelve a lanzar (para eso, «Lanzar otra vez»); pasar a «ahora» sí lo lanza
+      await comprobar(db().from("popups").update(fila).eq("id", id).eq("proyecto_id", proyecto.id).select("id"));
+      if (d.frecuencia === "ahora") await escribir(db().from("popups").update({ lanzado_en: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyecto.id).is("lanzado_en", null), "popups");
+    }
+    refrescarPopups();
+  });
+}
+
+export async function cambiarActivoPopup(id: string, activo: boolean) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await comprobar(db().from("popups").update({ activo: !!activo }).eq("id", id).eq("proyecto_id", proyecto.id).select("id"));
+    refrescarPopups();
+  });
+}
+
+// «Lanzar otra vez»: le vuelve a salir una vez a cada uno, también a quien ya lo cerró
+export async function lanzarPopup(id: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await comprobar(db().from("popups").update({ lanzado_en: new Date().toISOString(), activo: true }).eq("id", id).eq("proyecto_id", proyecto.id).eq("frecuencia", "ahora").select("id"));
+    refrescarPopups();
+  });
+}
+
+export async function borrarPopup(id: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await comprobar(db().from("popups").delete().eq("id", id).eq("proyecto_id", proyecto.id).select("id"));
+    refrescarPopups();
+  });
+}
+
+// Textos de la bienvenida y del reporte del CEO. null = volver al texto de siempre.
+export async function guardarTextoEntrada(clave: string, valor: { titulo: string; texto: string } | null) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    if (!(clave in TEXTOS_ENTRADA)) throw new ErrorUsuario("Ese mensaje no existe.");
+    const k = clave as ClaveTexto;
+    let nuevo: { titulo: string; texto: string } | null = null;
+    if (valor) {
+      const titulo = String(valor.titulo ?? "").trim(), texto = String(valor.texto ?? "").trim();
+      if (!titulo || !texto) throw new ErrorUsuario("Pon el título y el texto.");
+      if (titulo.length > 120 || texto.length > 1000) throw new ErrorUsuario("El título va hasta 120 caracteres y el texto hasta 1.000.");
+      nuevo = { titulo, texto };
+    }
+    // Lo guardado al momento (no lo de la memoria): no pisar otro texto cambiado hace poco
+    const { data, error } = await db().from("proyectos").select("textos_entrada").eq("id", proyecto.id).single();
+    if (error) throw new Error(`textos de entrada: ${error.message}`);
+    const resto = Object.fromEntries(Object.entries(textosCambiados(data.textos_entrada)).filter(([c]) => c !== k));
+    await escribir(db().from("proyectos").update({ textos_entrada: nuevo ? { ...resto, [k]: nuevo } : resto }).eq("id", proyecto.id), "proyectos");
+    refrescarPopups();
+  });
+}
+
+// Los 2 interruptores del ranking (los lee ranking/page.tsx). Apagados por defecto.
+export async function guardarAjustesRanking(r: { mostrarBajas: boolean; closersParaCallers: boolean }) {
+  return seguro(async () => {
+    const { proyecto } = await exigir(puedeAdmin);
+    await escribir(db().from("proyectos").update({ ranking_mostrar_bajas: r.mostrarBajas === true, ranking_closers_para_callers: r.closersParaCallers === true }).eq("id", proyecto.id), "proyectos");
+    refrescarPopups();
   });
 }

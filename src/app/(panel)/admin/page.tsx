@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSesion, puedeAdmin, puedeCrearProyectos } from "@/lib/auth";
-import { db } from "@/lib/datos";
+import { db, todas } from "@/lib/datos";
 import { dinero, fechaHora, ETIQUETA_ROL } from "@/lib/formato";
 import { Cabecera, Contenido, Seccion, Insignia, Avatar, Kpi } from "@/components/ui";
 import { Plantilla, AnadirExistente, FormUsuario, FormProyecto, FormNuevoProyecto, LinkAgenda, Secreto } from "./cliente";
@@ -37,6 +37,8 @@ import { tramosDe } from "@/lib/comisiones";
 import { horarioValido } from "@/lib/horarios";
 import { ajustesValidos } from "@/lib/disponibilidad";
 import { EnviarAccesos } from "./enviar-accesos";
+import { Popups } from "./popups";
+import type { Popup } from "@/lib/popups";
 
 const PESTANAS = [
   { v: "equipo", t: "Equipo" },
@@ -49,6 +51,7 @@ const PESTANAS = [
   { v: "etiquetas-utms", t: "Etiquetas y UTMs" }, // Plan GHL B2b
   { v: "integraciones", t: "Integraciones GHL" },
   { v: "permisos", t: "Permisos" }, // H5: también el director con Administración
+  { v: "popups", t: "Popups" }, // Fase 3 (13 nov 2026): popups al equipo, textos de la bienvenida y ranking
 ];
 
 type EventoEntrada = EnvioEntrada;
@@ -206,6 +209,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   let workflowDe = new Map<string, WorkflowVista>(); // Workflows 4a-1: el workflow en marcha de cada Entrada
   let diasDe = new Map<string, number[]>(); // Rediseño (11 nov 2026): envíos por día de cada Entrada
   const canales = tab === "etiquetas-utms" ? await canalesDe(proyecto.id) : null; // B2b
+  const popups = tab === "popups" ? await todas<Popup>((desde, hasta) => db().from("popups").select("*").eq("proyecto_id", proyecto.id).order("id").range(desde, hasta)) : null;
   const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined, sp.editar === "1") : null;
   if (tab === "entradas") {
     const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
@@ -468,6 +472,15 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                 />
               ) : undefined
             }
+          />
+        )}
+
+        {tab === "popups" && popups && (
+          <Popups
+            popups={[...popups].sort((a, b) => b.creado_en.localeCompare(a.creado_en))}
+            personas={gente.filter((g) => g.activo).map((g) => ({ id: g.id, nombre: g.es_prueba ? `${g.nombre} (prueba)` : g.nombre, rol: g.rol }))}
+            textos={proyecto.textos_entrada}
+            ranking={{ mostrarBajas: !!proyecto.ranking_mostrar_bajas, closersParaCallers: !!proyecto.ranking_closers_para_callers }}
           />
         )}
 
