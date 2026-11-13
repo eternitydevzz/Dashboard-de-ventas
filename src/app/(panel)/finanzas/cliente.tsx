@@ -94,7 +94,7 @@ export function Categorias({ tipo, categorias }: { tipo: "ingreso" | "egreso"; c
             ))}
             <form className="flex items-center gap-2 border-t border-borde pt-2" action={(fd) => ejecutar(() => guardarCategoria(null, tipo, String(fd.get("nombre")), true), "Categoría creada")}>
               <input name="nombre" required placeholder="Nueva categoría" className="campo py-1.5" />
-              <button className="btn-secundario px-2 py-1.5" disabled={pendiente}><Plus className="h-4 w-4" /></button>
+              <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir categoría"><Plus className="h-4 w-4" /></button>
             </form>
             {error && <p className="text-mal">{error}</p>}
           </div>
@@ -306,7 +306,7 @@ export function GuiaFinanciera() {
   const [abierto, setAbierto] = useState(false);
   return (
     <>
-      <button className="btn-secundario border-oro/40 text-oro" onClick={() => setAbierto(true)}><BookOpen className="h-4 w-4" /> Guía financiera</button>
+      <button className="btn-secundario border-oro/40 text-oro-texto" onClick={() => setAbierto(true)}><BookOpen className="h-4 w-4" /> Guía financiera</button>
       {abierto && (
         <Modal titulo="Guía financiera: qué es cada número" onCerrar={() => setAbierto(false)} ancho="max-w-lg">
           <dl className="space-y-3 text-sm">

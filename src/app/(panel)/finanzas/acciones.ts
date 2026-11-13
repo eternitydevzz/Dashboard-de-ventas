@@ -255,22 +255,13 @@ export async function calcularLiquidaciones(mes: string) {
     const productos = new Map(f.productos.map((p) => [p.id, (p.comisiones ?? null) as ComisionProducto]));
     const sinComision = new Set(f.productos.filter((p) => p.cuenta_comision === false).map((p) => p.id));
     const res = liquidacionesMes({ ventas: f.ventas, pagos: f.pagos, citas, personas, comisionesRol: eq.comisionesRol, productos, mes: rango, tramos: tramosDe(proyecto.tramos_comision), sinComision, zona: proyecto.zona_horaria });
-    // Ola 6 (C2): si no se pueden leer las pagadas, se corta; si no, se recalcularían como pendientes (pago doble)
-    const { data: yaPagadas, error } = await db().from("liquidaciones").select("perfil_id").eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pagada");
-    if (error) throw new Error(error.message);
-    const pagadas = new Set((yaPagadas ?? []).map((x) => x.perfil_id));
-    const filas = res.filter((r) => !pagadas.has(r.perfil_id)).map((r) => ({ proyecto_id: proyecto.id, mes, ...r, estado: "pendiente", calculada_en: new Date().toISOString() }));
-    // C9: primero se guardan las nuevas (encima de las pendientes, misma persona y mes) y después se borran las
-    // pendientes de quien ya no sale; antes se borraban primero y, si fallaba guardar, el mes se quedaba sin ninguna
-    // Ola 6 (C2): sin pisar una pagada aunque la paguen mientras se calcula: se crean las que faltan (sin tocar las
-    // que ya hay) y se rehacen solo las que siguen «pendiente»
-    if (filas.length) {
-      await escribir(db().from("liquidaciones").upsert(filas, { onConflict: "proyecto_id,perfil_id,mes", ignoreDuplicates: true }), "liquidaciones");
-      await Promise.all(filas.map((f) => escribir(db().from("liquidaciones").update(f).eq("proyecto_id", f.proyecto_id).eq("perfil_id", f.perfil_id).eq("mes", mes).eq("estado", "pendiente"), "liquidaciones")));
-    }
-    let sobran = db().from("liquidaciones").delete().eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pendiente");
-    if (filas.length) sobran = sobran.not("perfil_id", "in", `(${filas.map((f) => f.perfil_id).join(",")})`);
-    await escribir(sobran, "liquidaciones");
+    // D43: se guarda en la base en un solo paso y con candado por proyecto y mes (recalcular_liquidaciones): dos
+    // recalculos a la vez van uno detrás de otro; las pagadas no se tocan (ni si las pagan mientras tanto), las
+    // pendientes se rehacen y se borran las de quien ya no sale. Devuelve quién tiene ya pagado el mes.
+    const { data: yaPagadas, error } = await db().rpc("recalcular_liquidaciones", { p_proyecto: proyecto.id, p_mes: mes, p_filas: res });
+    if (error) throw new Error(`No se pudo guardar en «liquidaciones»: ${error.message}`);
+    const pagadas = new Set((yaPagadas ?? []) as string[]);
+    const filas = res.filter((r) => !pagadas.has(r.perfil_id));
     refrescar();
     return { personas: filas.length, total: filas.reduce((s, r) => s + r.comision_cobrado, 0), yaPagadas: pagadas.size };
   });

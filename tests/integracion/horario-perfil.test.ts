@@ -1,7 +1,7 @@
 // 1.0 Bloque 1 (Cristian, 11 oct 2026): horario y «Mi perfil». Cada uno cambia su horario; un administrador, el de
 // cualquiera. Los ajustes de las llamadas de los closers solo los pone el administrador. «Libre a una hora» con citas reales.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { borrarEscenario, como, crearEscenario, db, falla, ok, type Escenario } from "../apoyo/escenario";
+import { borrarEscenario, como, crearEscenario, db, falla, ok, PASSWORD, type Escenario } from "../apoyo/escenario";
 import { cambiarMiPassword, guardarHorario, guardarMiPerfil } from "@/app/(panel)/perfil/acciones";
 import { guardarCalendario } from "@/app/(panel)/admin/acciones";
 import { closerLibreA } from "@/lib/agenda-libre";
@@ -95,8 +95,13 @@ describe("Mi perfil", () => {
     await ok(guardarMiPerfil({ nombre: "Test callera nuevo", telefono: "+1 555", whatsapp: "" }));
     const { data } = await db.from("perfiles").select("nombre, telefono, whatsapp").eq("id", e.p.callerA.id).single();
     expect(data).toEqual({ nombre: "Test callera nuevo", telefono: "+1 555", whatsapp: null });
-    await falla(cambiarMiPassword("corta", "corta"), /8 caracteres/);
-    await falla(cambiarMiPassword("Nueva-clave-1", "Nueva-clave-2"), /no coinciden/);
-    await ok(cambiarMiPassword("Nueva-clave-1", "Nueva-clave-1"));
+    await falla(cambiarMiPassword(PASSWORD, "corta", "corta"), /8 caracteres/);
+    await falla(cambiarMiPassword(PASSWORD, "Nueva-clave-1", "Nueva-clave-2"), /no coinciden/);
+    // D43: pide la actual y la comprueba
+    await falla(cambiarMiPassword("", "Nueva-clave-1", "Nueva-clave-1"), /contraseña actual/);
+    await falla(cambiarMiPassword("No-es-la-mia-1", "Nueva-clave-1", "Nueva-clave-1"), /no es correcta/);
+    await ok(cambiarMiPassword(PASSWORD, "Nueva-clave-1", "Nueva-clave-1"));
+    await falla(cambiarMiPassword(PASSWORD, "Otra-clave-22", "Otra-clave-22"), /no es correcta/); // ya cambió
+    await ok(cambiarMiPassword("Nueva-clave-1", PASSWORD, PASSWORD)); // la deja como estaba para el resto de tests
   });
 });

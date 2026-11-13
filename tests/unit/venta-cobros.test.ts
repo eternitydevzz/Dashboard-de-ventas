@@ -20,7 +20,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       const c: Consulta = { tabla, ops: [] };
       consultas.push(c);
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "in", "is", "neq", "order", "limit", "update", "insert", "delete", "maybeSingle", "single"])
+      for (const m of ["select", "eq", "in", "is", "neq", "gt", "order", "limit", "update", "insert", "delete", "maybeSingle", "single"])
         q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
       q.then = (r: (v: Resp) => unknown, f?: (e: unknown) => unknown) => Promise.resolve(base[`${c.tabla}:${tipo(c)}`] ?? { data: null, error: null }).then(r, f);
       return q;
@@ -33,7 +33,7 @@ vi.mock("@/lib/datos", async (original) => ({ ...(await original<typeof import("
 
 const { getSesion } = await import("@/lib/sesion");
 const { registrarVenta } = await import("@/app/(panel)/leads/acciones");
-const { registrarCobro, cambiarFormaPago, registrarDevolucion } = await import("@/app/(panel)/ventas/acciones");
+const { registrarCobro, cambiarFormaPago, registrarDevolucion, darDeBajaMembresia } = await import("@/app/(panel)/ventas/acciones");
 
 const fallo: Resp = { data: null, error: { message: "la base no responde" } };
 const de = (tabla: string, t: string) => consultas.filter((c) => c.tabla === tabla && tipo(c) === t);
@@ -120,6 +120,21 @@ describe("C6 · Cobros, forma de pago y devoluciones", () => {
     expect(await cambiarFormaPago("v1", "reserva")).toEqual({ error: GENERICO });
   });
 
+  it("D43: forma de pago manda los plazos que se quedan (p_fijos); si otro los cambió a la vez, aviso claro", async () => {
+    base["pagos:select"] = { data: [], error: null };
+    base["vencimientos:select"] = { data: [{ id: "x0", importe: 100, estado: "no_paga", numero: 1 }, { id: "x1", importe: 700, estado: "pendiente", numero: 2 }], error: null };
+    expect(await cambiarFormaPago("v1", "reserva")).toBeUndefined();
+    expect(llamadas[0].args).toMatchObject({ p_fijos: ["x0"] });
+    expect((llamadas[0].args.p_plazos as { numero: number }[])[0].numero).toBe(2);
+    base["rpc:cambiar_forma_pago"] = { data: null, error: { message: "cambiar_forma_pago: plazos_cambiados" } };
+    expect(await cambiarFormaPago("v1", "reserva")).toEqual({ error: expect.stringMatching(/acaban de cambiar/) });
+  });
+
+  it("D43: si falla leer la venta, error genérico (no «Venta no encontrada»)", async () => {
+    base["ventas:select"] = fallo;
+    expect(await cambiarFormaPago("v1", "reserva")).toEqual({ error: GENERICO });
+  });
+
   it("forma de pago: si falla leer pagos o plazos, no cambia nada", async () => {
     base["pagos:select"] = fallo;
     expect(await cambiarFormaPago("v1", "reserva")).toEqual({ error: GENERICO });
@@ -133,5 +148,27 @@ describe("C6 · Cobros, forma de pago y devoluciones", () => {
     expect(de("ventas", "update")[0].ops).toContainEqual(["is", ["devuelto", null]]);
     base["ventas:update"] = { data: [], error: null };
     expect(await registrarDevolucion("v1", "100", "", "")).toEqual({ error: "Esta venta ya tiene una devolución registrada." });
+  });
+});
+
+describe("D43 · baja de la membresía mirando el error", () => {
+  beforeEach(() => {
+    base["ventas:select"] = { data: { id: "v1", lead_id: "l1", vendedor_id: "ceo", tipo_pago: "mensual", baja_en: null }, error: null };
+  });
+  it("si falla guardar la baja, error y no se tocan los plazos", async () => {
+    base["ventas:update"] = fallo;
+    expect(await darDeBajaMembresia("v1")).toEqual({ error: GENERICO });
+    expect(de("vencimientos", "delete")).toHaveLength(0);
+  });
+  it("si otro la dio de baja a la vez, aviso y no se tocan los plazos", async () => {
+    base["ventas:update"] = { data: [], error: null };
+    expect(await darDeBajaMembresia("v1")).toEqual({ error: "Esta membresía ya está dada de baja." });
+    expect(de("vencimientos", "delete")).toHaveLength(0);
+  });
+  it("sin fallos: baja solo si seguía de alta y se quitan los plazos pendientes que no han vencido", async () => {
+    base["ventas:update"] = { data: [{ id: "v1" }], error: null };
+    expect(await darDeBajaMembresia("v1")).toBeUndefined();
+    expect(de("ventas", "update")[0].ops).toContainEqual(["is", ["baja_en", null]]);
+    expect(de("vencimientos", "delete")).toHaveLength(1);
   });
 });
