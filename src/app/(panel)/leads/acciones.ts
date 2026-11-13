@@ -213,33 +213,34 @@ export async function registrarVenta(leadId: string, formData: FormData) {
       vendedor = vendedorForm;
     }
   
-    const { data: nueva, error } = await db().from("ventas").insert({
-      proyecto_id: proyecto.id,
-      lead_id: leadId,
-      producto_id: producto.id,
-      vendedor_id: vendedor,
-      facturacion,
-      cash_collected: cash,
-      tipo_pago: tipo,
-      num_cuotas: cuotas,
-      metodo,
-      nota: notaValida(String(formData.get("nota") ?? "")) || null,
-      fecha,
-    }).select("id").single();
-    if (error) throw new ErrorUsuario(error.message);
     // Reserva o cuotas: lo que falta queda en «Pagos pendientes» con sus fechas (se pueden cambiar en Finanzas)
     const plazos = planDePagos({ facturacion, cobradoHoy: cash, tipo, numCuotas: cuotas, fecha });
-    if (plazos.length) await escribir(db().from("vencimientos").insert(plazos.map((x) => ({ ...x, proyecto_id: proyecto.id, venta_id: nueva.id, lead_id: leadId }))), "vencimientos");
-  
-    await escribir(db().from("leads").update({ estado_caller: "vendido" }).eq("id", leadId), "leads");
-    if (cita) {
-      // Mejora de la pasada (Cristian, 11 oct): si la cita aún no ha llegado, se cierra con la hora de ahora
-      // (como si se hubiera adelantado), para que cuente como asistida hoy; en el historial queda la que tenía.
-      const ahora = new Date();
-      const adelantada = cita.fecha && new Date(cita.fecha).getTime() > ahora.getTime();
-      await escribir(db().from("citas").update({ estado: "cerrada", ...(adelantada ? { fecha: ahora.toISOString() } : {}), ...(estrellasCloser ? { estrellas_closer: estrellasCloser } : {}) }).eq("id", cita.id), "citas");
-      if (adelantada) await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", nota: `Cita adelantada: era el ${fechaHora(cita.fecha, proyecto)}` });
-    }
+    // Mejora de la pasada (Cristian, 11 oct): si la cita aún no ha llegado, se cierra con la hora de ahora
+    // (como si se hubiera adelantado), para que cuente como asistida hoy; en el historial queda la que tenía.
+    const ahora = new Date();
+    const adelantada = !!cita?.fecha && new Date(cita.fecha).getTime() > ahora.getTime();
+    // Ola 6 (C1): venta, plazos, lead «vendido» y cita cerrada, todo o nada. Si falla algo, no queda venta
+    // y reintentar no la duplica; si otra venta cerró la misma cita a la vez, esta no se guarda.
+    const { error } = await db().rpc("registrar_venta", {
+      p_proyecto: proyecto.id,
+      p_lead: leadId,
+      p_producto: producto.id,
+      p_vendedor: vendedor,
+      p_facturacion: facturacion,
+      p_cash: cash,
+      p_tipo_pago: tipo,
+      p_num_cuotas: cuotas,
+      p_metodo: metodo,
+      p_nota: notaValida(String(formData.get("nota") ?? "")) || null,
+      p_fecha: fecha,
+      p_plazos: plazos,
+      p_cita: cita?.id ?? null,
+      p_cita_fecha: adelantada ? ahora.toISOString() : null,
+      p_estrellas: estrellasCloser || null,
+    });
+    if (error?.message.includes("cita_cerrada")) throw new ErrorUsuario("Esa cita no es de este lead o ya está cerrada.");
+    if (error) throw new Error(`No se pudo guardar la venta: ${error.message}`);
+    if (cita && adelantada) await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", nota: `Cita adelantada: era el ${fechaHora(cita.fecha, proyecto)}` });
     await registrarActividad({
       proyecto_id: proyecto.id,
       lead_id: leadId,

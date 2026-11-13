@@ -14,6 +14,7 @@ const arg = (c: Consulta, op: string) => c.ops.find(([x]) => x === op)?.[1];
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     auth: { admin: { createUser: async () => ({ data: { user: { id: "nuevo" } }, error: null }), deleteUser: borrarUsuario } },
+    rpc: async (fn: string) => base[`rpc:${fn}`] ?? { data: null, error: null },
     from: (tabla: string) => {
       const c: Consulta = { tabla, ops: [] };
       consultas.push(c);
@@ -132,15 +133,12 @@ describe("2 · Escrituras que no podían fallar en silencio (altos)", () => {
     base["leads:select"] = { data: { id: "l1", caller_id: null, closer_id: null, pipeline_id: null }, error: null };
     base["productos:select"] = { data: { id: "pr1", nombre: "VIP" }, error: null };
     base["citas:select"] = { data: { id: "c1", closer_id: "luis", fecha: "2026-01-01T10:00:00Z" }, error: null };
-    base["ventas:insert"] = { data: { id: "v1" }, error: null };
   });
+  // Ola 6 (C1): venta, plazos y cierre de la cita van juntos en registrar_venta (tests/unit/venta-cobros.test.ts)
   it("venta: si fallan los plazos pendientes o el cierre de la cita, avisa del error", async () => {
-    base["vencimientos:insert"] = fallo;
+    base["rpc:registrar_venta"] = fallo;
     expect(await registrarVenta("l1", venta())).toMatchObject({ error: expect.any(String) });
-    delete base["vencimientos:insert"];
-    base["citas:update"] = fallo;
-    expect(await registrarVenta("l1", venta())).toMatchObject({ error: expect.any(String) });
-    delete base["citas:update"];
+    delete base["rpc:registrar_venta"];
     expect(await registrarVenta("l1", venta())).toBeUndefined();
   });
 
