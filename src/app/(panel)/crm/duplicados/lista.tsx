@@ -19,14 +19,15 @@ export function ListaDuplicados({ grupos }: { grupos: { clave: string; leads: Le
 
   async function unir(queda: LeadDup, sobra: LeadDup) {
     const ok = await confirmar(
-      `¿Unir a ${nombreDe(sobra)} con ${nombreDe(queda)}? Se queda «${nombreDe(queda)}» (el más antiguo) y pasa a él todo lo de «${nombreDe(sobra)}» (ventas, citas, clientes…). «${nombreDe(sobra)}» se borra y no se puede deshacer.`,
+      `¿Unir a ${nombreDe(sobra)} con ${nombreDe(queda)}? Se queda «${nombreDe(queda)}» (el más antiguo) y pasa a él todo lo de «${nombreDe(sobra)}» (ventas, citas, clientes…). «${nombreDe(sobra)}» se borra, también su contacto en GHL, y no se puede deshacer.`,
       { boton: "Unir" }
     );
     if (!ok) return;
     empezar(async () => {
       try {
-        const { ghlSobra } = await exigirOk(unirLeads(queda.id, sobra.id));
-        setResultado(ghlSobra ? `Unidos. El contacto de GHL que sobra es ${ghlSobra}: únelo o bórralo en GHL.` : "Unidos. No sobra ningún contacto en GHL.");
+        const { fallosGhl } = await exigirOk(unirLeads(queda.id, sobra.id));
+        // La unión de la app ya está hecha: lo que GHL no aceptó se hace a mano (queda también en el historial del lead)
+        setResultado(fallosGhl.length ? `Unidos en la app, pero en GHL falta: ${fallosGhl.join(" · ")}.` : "Unidos. GHL ha quedado igual.");
       } catch (e) {
         toast(e instanceof Error ? e.message : "No se pudo unir.", "error");
       }

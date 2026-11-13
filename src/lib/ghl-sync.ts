@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/datos";
 import { descifrar } from "@/lib/cifrado";
-import { CAMPOS_CITA, columnaCitasGhl, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
+import { CAMPOS_CITA, columnaCitasGhl, contactosPrincipales, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { GhlEsperar, cambiarUsuarioCitaGhl, contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
@@ -204,8 +204,10 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
 
       // Buscar el lead: por el contacto de GHL; si no, con el email o el teléfono del contacto; si no, se crea
       let leadId: string | null = null;
-      if (ev.contactId) {
-        const { data } = await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("ghl_contact_id", ev.contactId).maybeSingle();
+      // Fase 3: si el contacto se unió a otro lead al «Unir», la cita es de ese lead
+      const contactoLead = ev.contactId ? (await contactosPrincipales(proyecto.id, [ev.contactId])).get(ev.contactId) ?? ev.contactId : null;
+      if (contactoLead) {
+        const { data } = await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("ghl_contact_id", contactoLead).maybeSingle();
         leadId = data?.id ?? null;
       }
       if (!leadId && ev.contactId) {

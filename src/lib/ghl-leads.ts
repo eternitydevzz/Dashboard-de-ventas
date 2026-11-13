@@ -11,7 +11,7 @@ import "server-only";
 //   a «0. Agendas General»
 // · siempre en la primera columna; los leads nuevos se reparten solos a los callers, como los de la Entrada
 import { db } from "@/lib/datos";
-import { guardarLeads, unirRespuestas, type LeadEntrada } from "@/lib/leads";
+import { contactosPrincipales, guardarLeads, unirRespuestas, type LeadEntrada } from "@/lib/leads";
 import { normalizarRespuestas } from "@/lib/oferta";
 import { camposGhl, contactoGhl, contactosNuevosGhl, type ContactoNuevoGhl } from "@/lib/ghl";
 import { leadDeContactoGhl } from "@/lib/ghl-lead";
@@ -199,18 +199,21 @@ async function cambiosEnGhl(
 ) {
   const cambiados = (await contactosNuevosGhl({ token, locationId, desde: new Date(ahora - VENTANA_CAMBIOS), limite: 100, campo: "dateUpdated", fetchImpl })).filter((c) => !yaHechos.has(c.id));
   if (!cambiados.length) return;
+  // Fase 3: el contacto de un lead que sobró al «Unir» cuenta como el del lead que se quedó
+  const principal = await contactosPrincipales(proyecto.id, cambiados.map((c) => c.id));
+  const cid = (c: string) => principal.get(c) ?? c;
   // Cómo está cada uno en la app (datos, pipeline principal y tarjetas 🔗), en 2 consultas
   const { data: filas, error } = await db()
     .from("leads")
     .select("id, ghl_contact_id, pipeline_id, nombre, apellido, email, telefono, etiquetas, respuestas")
     .eq("proyecto_id", proyecto.id)
-    .in("ghl_contact_id", cambiados.map((c) => c.id));
+    .in("ghl_contact_id", [...new Set(cambiados.map((c) => cid(c.id)))]);
   if (error) throw new Error(error.message);
   const leads = (filas ?? []) as LeadApp[];
   const { data: tarjetas } = leads.length ? await db().from("tarjetas_extra").select("lead_id, pipeline_id").in("lead_id", leads.map((l) => l.id)) : { data: [] };
 
   for (const c of cambiados) {
-    const ya = leads.find((l) => l.ghl_contact_id === c.id);
+    const ya = leads.find((l) => l.ghl_contact_id === cid(c.id));
     const esta = new Set([ya?.pipeline_id, ...(tarjetas ?? []).filter((t) => t.lead_id === ya?.id).map((t) => t.pipeline_id)].filter(Boolean) as string[]);
     const conEtiqueta = tieneEtiquetaDePipeline(c.tags);
     const faltan = conEtiqueta
@@ -270,8 +273,10 @@ async function meterEnPipelines(proyecto: Proyecto, lead: LeadEntrada, nombres: 
 // El lead de la app con ese contacto (o email), con lo que GHL no debe pisar; null si no está
 async function yaExiste(proyectoId: string, l: LeadEntrada): Promise<DatosApp | null> {
   const sel = "nombre, apellido, telefono";
+  // Fase 3: si el contacto se unió a otro lead al «Unir», es ese lead
+  const contacto = l.ghl_contact_id ? (await contactosPrincipales(proyectoId, [l.ghl_contact_id])).get(l.ghl_contact_id) ?? l.ghl_contact_id : null;
   const [porGhl, porEmail] = await Promise.all([
-    l.ghl_contact_id ? db().from("leads").select(sel).eq("proyecto_id", proyectoId).eq("ghl_contact_id", l.ghl_contact_id).limit(1) : null,
+    contacto ? db().from("leads").select(sel).eq("proyecto_id", proyectoId).eq("ghl_contact_id", contacto).limit(1) : null,
     l.email ? db().from("leads").select(sel).eq("proyecto_id", proyectoId).eq("email", l.email).limit(1) : null,
   ]);
   return ((porGhl?.data?.[0] ?? porEmail?.data?.[0]) as DatosApp | undefined) ?? null;

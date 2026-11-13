@@ -41,8 +41,9 @@ beforeAll(async () => {
   const [p2] = (await db.from("pipelines").insert({ proyecto_id: pid, nombre: "Otro", orden: 1 }).select()).data!;
   const wf = await insertar("workflows", { proyecto_id: pid, nombre: "wf", disparador: { tipo: "entrada" } });
   // La misma cita en 2 leads repetidos llega de GHL (las de la app no pueden repetir closer y hora: citas_closer_hora_unica)
-  ids.citaViejo = (await insertar("citas", { proyecto_id: pid, lead_id: viejo, closer_id: e.p.closerA.id, fecha, origen: "ghl" })).id;
-  ids.citaDoble = (await insertar("citas", { proyecto_id: pid, lead_id: nuevo, closer_id: e.p.closerA.id, fecha, origen: "ghl" })).id;
+  // Cerradas: así no entra la regla de «una sola cita abierta» (Fase 3, test propio abajo)
+  ids.citaViejo = (await insertar("citas", { proyecto_id: pid, lead_id: viejo, closer_id: e.p.closerA.id, fecha, origen: "ghl", estado: "cerrada" })).id;
+  ids.citaDoble = (await insertar("citas", { proyecto_id: pid, lead_id: nuevo, closer_id: e.p.closerA.id, fecha, origen: "ghl", estado: "cerrada" })).id;
   ids.citaOtra = (await insertar("citas", { proyecto_id: pid, lead_id: nuevo, closer_id: e.p.closerA.id, fecha: "2026-11-21T10:00:00Z" })).id;
   ids.venta = (await insertar("ventas", { proyecto_id: pid, lead_id: nuevo, vendedor_id: e.p.closerA.id, facturacion: 1997, cash_collected: 500, tipo_pago: "reserva" })).id;
   await insertar("pagos", { venta_id: ids.venta, importe: 500 });
@@ -78,7 +79,9 @@ describe("unir_leads", () => {
   it("todo pasa al más antiguo: ninguna fila apunta al borrado y no se pierde ninguna venta", async () => {
     const { data, error } = await unir(viejo, nuevo);
     expect(error).toBeNull();
-    expect(data).toBe(`${e.pref}-c-nuevo`); // el contacto de GHL que sobra (Cristian lo une o lo borra en GHL)
+    // el contacto de GHL que sobra (la app lo borra en GHL) y queda apuntando al que se queda
+    expect(data).toEqual({ ghl_sobra: `${e.pref}-c-nuevo`, ghl_citas_sobran: [], citas_juntadas: 0, cita_en_sobra: false });
+    expect((await db.from("ghl_contactos_unidos").select("lead_id").eq("proyecto_id", pid).eq("contact_id", `${e.pref}-c-nuevo`)).data).toEqual([{ lead_id: viejo }]);
 
     expect((await db.from("leads").select("id").eq("id", nuevo)).data).toEqual([]);
     for (const t of TABLAS) expect(await cuenta(t, nuevo), t).toBe(0);
@@ -113,7 +116,7 @@ describe("unir_leads", () => {
     const b = (await insertar("leads", { proyecto_id: pid, nombre: "B", ghl_contact_id: `${e.pref}-c-b`, creado_en: "2026-03-01T00:00:00Z" })).id;
     const { data, error } = await unir(a, b);
     expect(error).toBeNull();
-    expect(data).toBeNull();
+    expect(data.ghl_sobra).toBeNull();
     expect((await db.from("leads").select("ghl_contact_id").eq("id", a).single()).data!.ghl_contact_id).toBe(`${e.pref}-c-b`);
   });
   it("las etiquetas se juntan sin distinguir mayúsculas y la tarjeta extra del pipeline donde acaba el lead se borra (1.7, 9 nov)", async () => {
@@ -125,5 +128,34 @@ describe("unir_leads", () => {
     const l = (await db.from("leads").select("etiquetas, pipeline_id").eq("id", a).single()).data!;
     expect(l).toEqual({ etiquetas: ["Agenda", "vip"], pipeline_id: p3.id });
     expect(await cuenta("tarjetas_extra", a)).toBe(0);
+  });
+
+  it("Fase 3: con citas abiertas en los dos queda una sola, la última (su hora y su closer), y devuelve el evento de GHL que sobra", async () => {
+    const a = (await insertar("leads", { proyecto_id: pid, nombre: "A3", ghl_contact_id: `${e.pref}-c-a3`, creado_en: "2026-01-01T00:00:00Z" })).id;
+    const b = (await insertar("leads", { proyecto_id: pid, nombre: "B3", ghl_contact_id: `${e.pref}-c-b3`, creado_en: "2026-03-01T00:00:00Z" })).id;
+    // El caller agendó a mano para A; después B reservó por el link a otra hora y con otro closer
+    const primera = await insertar("citas", { proyecto_id: pid, lead_id: a, closer_id: e.p.closerA.id, agendada_por: e.p.callerA.id, fecha: "2026-11-25T10:00:00Z", ghl_cita_id: `${e.pref}-g-a3`, origen: "manual", creado_en: "2026-11-14T09:00:00Z" });
+    const ultima = await insertar("citas", { proyecto_id: pid, lead_id: b, closer_id: e.p.closerB.id, fecha: "2026-11-26T18:00:00Z", ghl_cita_id: `${e.pref}-g-b3`, origen: "ghl", creado_en: "2026-11-14T12:00:00Z" });
+    const grab = await insertar("grabaciones", { proyecto_id: pid, recording_id: 3, cita_id: primera.id });
+
+    const { data, error } = await unir(a, b);
+    expect(error).toBeNull();
+    expect(data).toEqual({ ghl_sobra: `${e.pref}-c-b3`, ghl_citas_sobran: [`${e.pref}-g-a3`], citas_juntadas: 1, cita_en_sobra: true });
+    const { data: citas } = await db.from("citas").select("id, fecha, closer_id, agendada_por, ghl_cita_id, creado_en").eq("lead_id", a);
+    expect(citas).toHaveLength(1);
+    expect(citas![0]).toMatchObject({ id: ultima.id, closer_id: e.p.closerB.id, agendada_por: e.p.callerA.id, ghl_cita_id: `${e.pref}-g-b3` });
+    expect(new Date(citas![0].fecha).toISOString()).toBe("2026-11-26T18:00:00.000Z");
+    expect(new Date(citas![0].creado_en).toISOString()).toBe("2026-11-14T09:00:00.000Z"); // cuenta desde la primera agenda
+    expect((await db.from("grabaciones").select("cita_id").eq("id", grab.id).single()).data!.cita_id).toBe(ultima.id);
+  });
+
+  it("Fase 3: un contacto ya unido al que sobra pasa al que se queda (uniones en cadena)", async () => {
+    const a = (await insertar("leads", { proyecto_id: pid, nombre: "A4", ghl_contact_id: `${e.pref}-c-a4`, creado_en: "2026-01-01T00:00:00Z" })).id;
+    const b = (await insertar("leads", { proyecto_id: pid, nombre: "B4", ghl_contact_id: `${e.pref}-c-b4`, creado_en: "2026-02-01T00:00:00Z" })).id;
+    const c = (await insertar("leads", { proyecto_id: pid, nombre: "C4", ghl_contact_id: `${e.pref}-c-c4`, creado_en: "2026-03-01T00:00:00Z" })).id;
+    expect((await unir(b, c)).error).toBeNull();
+    expect((await unir(a, b)).error).toBeNull();
+    const { data } = await db.from("ghl_contactos_unidos").select("contact_id, lead_id").eq("proyecto_id", pid).in("contact_id", [`${e.pref}-c-b4`, `${e.pref}-c-c4`]).order("contact_id");
+    expect(data).toEqual([{ contact_id: `${e.pref}-c-b4`, lead_id: a }, { contact_id: `${e.pref}-c-c4`, lead_id: a }]);
   });
 });
