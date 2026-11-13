@@ -40,8 +40,9 @@ beforeAll(async () => {
   // Filas del que sobra en las 14 tablas, más los choques de «no repetir» con el que queda
   const [p2] = (await db.from("pipelines").insert({ proyecto_id: pid, nombre: "Otro", orden: 1 }).select()).data!;
   const wf = await insertar("workflows", { proyecto_id: pid, nombre: "wf", disparador: { tipo: "entrada" } });
-  ids.citaViejo = (await insertar("citas", { proyecto_id: pid, lead_id: viejo, closer_id: e.p.closerA.id, fecha })).id;
-  ids.citaDoble = (await insertar("citas", { proyecto_id: pid, lead_id: nuevo, closer_id: e.p.closerA.id, fecha })).id;
+  // La misma cita en 2 leads repetidos llega de GHL (las de la app no pueden repetir closer y hora: citas_closer_hora_unica)
+  ids.citaViejo = (await insertar("citas", { proyecto_id: pid, lead_id: viejo, closer_id: e.p.closerA.id, fecha, origen: "ghl" })).id;
+  ids.citaDoble = (await insertar("citas", { proyecto_id: pid, lead_id: nuevo, closer_id: e.p.closerA.id, fecha, origen: "ghl" })).id;
   ids.citaOtra = (await insertar("citas", { proyecto_id: pid, lead_id: nuevo, closer_id: e.p.closerA.id, fecha: "2026-11-21T10:00:00Z" })).id;
   ids.venta = (await insertar("ventas", { proyecto_id: pid, lead_id: nuevo, vendedor_id: e.p.closerA.id, facturacion: 1997, cash_collected: 500, tipo_pago: "reserva" })).id;
   await insertar("pagos", { venta_id: ids.venta, importe: 500 });
