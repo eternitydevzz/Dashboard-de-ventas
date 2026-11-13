@@ -165,7 +165,7 @@ export function BarraLateral({
                   <li key={it.href}>
                     <Link
                       href={it.href}
-                      prefetch={conPrecarga(it.href)}
+                      prefetch={ruta !== it.href && conPrecarga(it.href)} // la sección en la que ya estás no se vuelve a precargar en cada guardado
                       onMouseEnter={() => precargar(it.href)}
                       onFocus={() => precargar(it.href)}
                       onTouchStart={() => precargar(it.href)}
