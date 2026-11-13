@@ -20,9 +20,9 @@ export type ConfigGhl = {
   etiquetasExtra?: string[];
   campoCompleto: string;
 };
-export type OportunidadEnvio = { pipelineId: string; etapaId: string | null; nombre: string };
+type OportunidadEnvio = { pipelineId: string; etapaId: string | null; nombre: string };
 
-export type ContactoUpsert = { firstName?: string; lastName?: string; email?: string; phone?: string; source?: string };
+type ContactoUpsert = { firstName?: string; lastName?: string; email?: string; phone?: string; source?: string };
 export type EnvioGhl = {
   contacto: ContactoUpsert; // sin `tags`: en el upsert de GHL ese campo BORRA todas las etiquetas del contacto
   customFields: { id: string; field_value: string }[];

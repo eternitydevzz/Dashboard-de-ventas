@@ -39,7 +39,7 @@ export const ASISTIDAS = ["cerrada", "seguimiento", "perdida"];
 const ABIERTAS = ["pendiente", "confirmada", "confirmacion_pendiente"];
 
 // canal (plan GHL, fase 4): solo las citas de ese canal, y las ventas de los leads con una cita de ese canal
-export type FiltrosAgendas = { closerIds: string[]; productoId?: string | null; evento?: string | null; canal?: string | null };
+type FiltrosAgendas = { closerIds: string[]; productoId?: string | null; evento?: string | null; canal?: string | null };
 
 function media(xs: number[]) {
   return xs.length ? Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 10) / 10 : null;

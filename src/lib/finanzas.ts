@@ -20,7 +20,7 @@ export type Cobro = { fecha: string; importe: number; venta_id: string; metodo: 
 
 const n = (x: unknown) => Number(x) || 0;
 
-export function cobrosDe(ventas: VentaF[], pagos: PagoF[], backend: Set<string>): Cobro[] {
+function cobrosDe(ventas: VentaF[], pagos: PagoF[], backend: Set<string>): Cobro[] {
   const porId = new Map(ventas.map((v) => [v.id, v]));
   const esBack = (v: VentaF | undefined) => !!v?.producto_id && backend.has(v.producto_id);
   return [
@@ -102,7 +102,7 @@ export function saldosCuentas(cuentas: CuentaF[], d: { ventas: VentaF[]; pagos: 
 
 // Estado de los plazos de una venta: los cobros posteriores van tapando los plazos por orden de fecha
 export type VencF = { id: string; venta_id: string | null; importe: number; vence_el: string; estado: "pendiente" | "pagado" | "no_paga" };
-export type EstadoVenc = "pagado" | "por_vencer" | "vencido" | "no_paga";
+type EstadoVenc = "pagado" | "por_vencer" | "vencido" | "no_paga";
 export function estadoVencimientos(vencs: VencF[], pagos: PagoF[], hoy: string) {
   return new Map([...detalleVencimientos(vencs, pagos, hoy)].map(([id, d]) => [id, d.estado]));
 }

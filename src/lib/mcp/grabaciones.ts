@@ -64,7 +64,7 @@ export async function herramientaSubirTranscripcion(a: { grabacionId: string; te
 }
 
 // ---------- transcripciones (para analizar: callers, closers por Fathom y llamadas de GHL) ----------
-export type ArgsTranscripciones = { fuente: "callers" | "fathom" | "ghl"; persona?: string; dias?: number; limite?: number };
+type ArgsTranscripciones = { fuente: "callers" | "fathom" | "ghl"; persona?: string; dias?: number; limite?: number };
 
 const texto = (t: unknown) =>
   typeof t === "string" ? t : Array.isArray(t) ? t.map((x) => (typeof x === "object" && x ? `${(x as { quien?: string; speaker?: { display_name?: string } }).quien ?? (x as { speaker?: { display_name?: string } }).speaker?.display_name ?? ""}: ${(x as { texto?: string; text?: string }).texto ?? (x as { text?: string }).text ?? ""}` : String(x))).join("\n") : "";

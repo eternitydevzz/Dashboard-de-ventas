@@ -8,9 +8,6 @@ import { esCloser, type Perfil } from "@/lib/tipos";
 // Todo por persona y para el periodo elegido; se cuentan personas (leads distintos), no llamadas.
 // La fila «total» usa las mismas reglas con todo el grupo (un lead que tocan dos callers cuenta una vez).
 
-export type KpiCaller = ReturnType<typeof kpiCaller>;
-export type KpiCloser = ReturnType<typeof kpiCloser>;
-
 // Sin nada sobre lo que calcular, «—» en vez de un 0 % engañoso
 const tasa = (parte: number, total: number) => (total ? porcentaje(parte, total) : null);
 

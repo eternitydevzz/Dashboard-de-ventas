@@ -55,7 +55,7 @@ export function Mensajes({ error, ok }: { error: string; ok: string }) {
 const textoBoton = (k: string) => (k === "link_enviado" ? "Link de agenda" : etiquetaEstado(k));
 
 // C11 (plan Callers, 7 nov): iconos de los 9 resultados (los de la maqueta, lucide)
-export const ICONO_RESULTADO: Record<BotonResultado, LucideIcon> = {
+const ICONO_RESULTADO: Record<BotonResultado, LucideIcon> = {
   link_enviado: Link2, // 10 nov: «Link de agenda» en el sitio de «Llamado»
   wsp_enviado: MessageCircle,
   no_responde: PhoneOff,

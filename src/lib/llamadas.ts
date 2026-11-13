@@ -2,7 +2,7 @@
 // Pre-call: citas abiertas que aún no han pasado. Post-call: lo que ya pasó, por estado.
 export const ABIERTAS = ["pendiente", "confirmacion_pendiente", "confirmada"] as const;
 // Las 4 columnas de Pre-call: cada una es un estado de la cita
-export const CLAVES_PRECALL = [
+const CLAVES_PRECALL = [
   { v: "pendiente", t: "Pendiente" },
   { v: "confirmacion_pendiente", t: "Confirmación pendiente" },
   { v: "confirmada", t: "Confirmado" },
@@ -54,7 +54,7 @@ export function ventasPostcall<V extends VentaL>(ventas: V[], sub: "reserva" | "
 
 // ---------- Pipeline «Closers» (Paso 0): Pre-call y Post-call juntos ----------
 // Cada columna puede estar unida a una «clave» (un estado de Pre-call o una columna de Post-call) o ser libre.
-export type ClavePrecall = (typeof CLAVES_PRECALL)[number]["v"];
+type ClavePrecall = (typeof CLAVES_PRECALL)[number]["v"];
 export type ClaveCloser = ClavePrecall | SubPostcall;
 export const CLAVES_CLOSER: { v: ClaveCloser; t: string }[] = [...CLAVES_PRECALL, ...SUB_POSTCALL.map((s) => ({ v: s.v, t: s.t }))];
 export const esClavePrecall = (c: string | null | undefined): c is ClavePrecall => CLAVES_PRECALL.some((x) => x.v === c);

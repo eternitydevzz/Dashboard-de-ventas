@@ -22,14 +22,14 @@ import { unirEtiquetas } from "@/lib/etiquetas";
 import type { Proyecto, Respuesta } from "@/lib/tipos";
 
 type Fetch = typeof fetch;
-export type ResultadoLeads = { nuevos: number; actualizados: number; completados: number; cambiados: number; puestosAlDia: number; espejo?: Omit<ResultadoEspejo, "avisos" | "errores">; avisos: string[]; errores: string[] };
+type ResultadoLeads = { nuevos: number; actualizados: number; completados: number; cambiados: number; puestosAlDia: number; espejo?: Omit<ResultadoEspejo, "avisos" | "errores">; avisos: string[]; errores: string[] };
 
 // Sacado de las 1.622 etiquetas de GHL (17 oct): DFY no tiene etiqueta; el resto, a General
 export const PIPELINE_ETIQUETA: { etiqueta: string; pipeline: string }[] = [
   { etiqueta: "biblioteca recursos", pipeline: "1. Biblioteca Recursos" },
   { etiqueta: "webinar1", pipeline: "2. Webinar 1" },
 ];
-export function tieneEtiquetaDePipeline(tags: string[] | undefined) {
+function tieneEtiquetaDePipeline(tags: string[] | undefined) {
   return (tags ?? []).some((t) => PIPELINE_ETIQUETA.some((x) => x.etiqueta === String(t).trim().toLowerCase()));
 }
 export function pipelinesDeEtiquetas(tags: string[] | undefined) {
@@ -169,12 +169,12 @@ type LeadApp = { id: string; ghl_contact_id: string; pipeline_id: string | null;
 // respuestas se suman (no se borra ninguna).
 type DatosApp = { nombre: string | null; apellido: string | null; telefono: string | null };
 const vacio = (x: string | null | undefined) => !(x ?? "").trim();
-export function sinPisar(l: LeadEntrada, antes: DatosApp): LeadEntrada {
+function sinPisar(l: LeadEntrada, antes: DatosApp): LeadEntrada {
   return { ...l, extra: undefined, nombre: vacio(antes.nombre) ? l.nombre : "", apellido: vacio(antes.apellido) ? l.apellido : "", telefono: vacio(antes.telefono) ? l.telefono : null };
 }
 
 // ¿Trae GHL algo que la app no tiene? (las mismas reglas: si no, no se escribe)
-export function hayCambios(antes: Omit<LeadApp, "id" | "ghl_contact_id" | "pipeline_id">, l: LeadEntrada) {
+function hayCambios(antes: Omit<LeadApp, "id" | "ghl_contact_id" | "pipeline_id">, l: LeadEntrada) {
   if (l.nombre?.trim() && vacio(antes.nombre)) return true;
   if (l.apellido?.trim() && vacio(antes.apellido)) return true;
   if (l.telefono?.trim() && vacio(antes.telefono)) return true;

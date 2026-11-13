@@ -361,16 +361,6 @@ async function validarEntrada(proyectoId: string, cambios: CambiosEntrada) {
   return { nombre: String(cambios.nombre).trim(), ...destino, reglas };
 }
 
-export async function guardarEntrada(id: string, cambios: CambiosEntrada & { activa: boolean }) {
-  return seguro(async () => {
-    const { proyecto } = await exigir(puedeAdmin);
-    await entradaDelProyecto(id, proyecto.id);
-    const fila = await validarEntrada(proyecto.id, cambios);
-    await escribir(db().from("entradas").update({ ...fila, activa: cambios.activa }).eq("id", id), "entradas");
-    refrescar();
-  });
-}
-
 // Panel de endpoints (Cristian, 7 nov): UN solo «Guardar» por Entrada. Primero se comprueba todo (Entrada, datos de la
 // landing y lo de GHL) y después se escribe en una sola actualización: o se guarda todo o no se guarda nada.
 // `ghl` = null cuando el proyecto no tiene GHL conectado: lo de GHL no se toca.
@@ -434,8 +424,8 @@ export async function borrarEntrada(id: string) {
 // «Qué hacer en GHL»: interruptor, campos unidos, pipeline y columna de GHL, etiqueta base, espera y campo de «completo».
 const idGhl = (x: unknown) => (typeof x === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(x.trim()) ? x.trim() : null);
 // Plan GHL, B (Cristian, 7 nov): varias oportunidades (lista de pipelines; sin columna = la primera de GHL) y etiquetas fijas
-export type OportunidadGhlEntrada = { pipeline_id: string; etapa_id: string | null };
-export type CambiosGhlEntrada = {
+type OportunidadGhlEntrada = { pipeline_id: string; etapa_id: string | null };
+type CambiosGhlEntrada = {
   activo: boolean;
   campos: Record<string, string>;
   oportunidades: OportunidadGhlEntrada[];
@@ -506,7 +496,7 @@ async function validarGhl(proyectoId: string, c: CambiosGhlEntrada) {
   }
 }
 
-// ---------- Workflows, 4a-1 (docs/plan-workflows.md, Cristian 7 nov 2026) ----------
+// ---------- Workflows, 4a-1 (Cristian 7 nov 2026) ----------
 // «Probar como workflow»: crea el workflow de la Entrada desde su «Qué hacer en GHL», en MODO PRUEBA (no llama a GHL:
 // solo compara con lo de hoy). Uno encendido por Entrada.
 export async function crearWorkflowDePrueba(entradaId: string) {

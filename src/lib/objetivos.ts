@@ -263,7 +263,7 @@ async function baseDelEquipoDeLaBase(proyectoId: string, desde: Date): Promise<B
 
 // Racha: días seguidos (hacia atrás) en que cumplió TODOS sus objetivos diarios (decisión de Cristian).
 // Los días sin objetivo no la cortan; hoy solo suma si ya está cumplido. Se mira hasta 60 días atrás.
-export const RACHA_MAX = 60;
+const RACHA_MAX = 60;
 export function calcularRacha(base: Base, filas: FilaObjetivo[], p: Perfil, zona: string) {
   const hoy = hoyEnZona(zona);
   let dias = 0;

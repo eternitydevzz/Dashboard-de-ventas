@@ -12,8 +12,8 @@ import type { ClaveMensaje, NumerosCaller, NumerosCloser } from "@/lib/mensajes-
 import type { Rol } from "@/lib/tipos";
 
 // Ventana al entrar (Cristian, 11 nov 2026; maqueta docs/maqueta-bienvenida.html). Sale cuando se quita la bienvenida.
-// Callers y closers: sus mensajes (motivación, grabar, felicitaciones) y sus números. CEO: el reporte de ayer (antes
-// components/reporte-dia.tsx) y sus avisos. Director: nada. Portada: la M de Maestria sobre azul (Cristian: sin fotos de IA).
+// Callers y closers: sus mensajes (motivación, grabar, felicitaciones) y sus números. CEO: el reporte de ayer
+// y sus avisos. Director: nada. Portada: la M de Maestria sobre azul (Cristian: sin fotos de IA).
 type Etiqueta = "MOTIVACIÓN" | "RECUERDA" | "¡FELICIDADES!" | "AYER";
 type Tarjeta = { etiqueta: Etiqueta; titulo: string; texto: string };
 

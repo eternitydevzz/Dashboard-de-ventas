@@ -1,4 +1,4 @@
-// Workflows, 4a (docs/plan-workflows.md, aprobado por Cristian el 7 nov 2026): lo que se calcula sin base de datos ni
+// Workflows, 4a (aprobado por Cristian el 7 nov 2026): lo que se calcula sin base de datos ni
 // internet. Un workflow es un disparador + pasos; una rama abre caminos («si el campo…»). Para hablar con GHL se usan
 // las MISMAS funciones de hoy: los pasos se convierten en la configuración de `armarEnvioGhl` (src/lib/entrada-ghl.ts).
 // Se prueba en tests/unit/workflows.test.ts.
@@ -18,14 +18,14 @@ export type Paso =
   | { id: string; tipo: "rama"; caminos: { condicion: Condicion; pasos: Paso[] }[]; si_no: Paso[] };
 export type PasoSimple = Exclude<Paso, { tipo: "rama" }>;
 // Fase 4d (plan GHL 2.4, Cristian 8 nov 2026): también arranca al agendarse o cancelarse una cita
-export type EventoCita = "agendada" | "cancelada";
+type EventoCita = "agendada" | "cancelada";
 // A3 (plan GHL, Cristian 8 nov 2026): y cuando se pone una etiqueta (se compara en minúsculas)
 export type Disparador = { tipo: "entrada"; entrada_id: string } | { tipo: "cita"; evento: EventoCita } | { tipo: "etiqueta"; etiqueta: string };
 export type DisparoCita = { tipo: "cita"; evento: EventoCita; canal: string | null; calendario: string | null; fecha: string | null };
-export type DisparoEtiqueta = { tipo: "etiqueta"; etiqueta: string };
+type DisparoEtiqueta = { tipo: "etiqueta"; etiqueta: string };
 export type Disparo = DisparoCita | DisparoEtiqueta;
 export type LeadParaEnvio = { nombre: string | null; apellido: string | null; email: string | null; telefono: string | null; seguimiento: unknown };
-export type WorkflowNuevo = { nombre: string; disparador: Disparador; pasos: Paso[] };
+type WorkflowNuevo = { nombre: string; disparador: Disparador; pasos: Paso[] };
 
 // Lo que hace falta de una Entrada para pasar su «Qué hacer en GHL» a workflow (columnas de `entradas`)
 export type EntradaParaWorkflow = {

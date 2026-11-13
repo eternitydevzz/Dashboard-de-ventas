@@ -7,7 +7,7 @@ import type { ResumenWorkflow } from "@/lib/workflows-motor";
 import { coincidenTexto } from "@/lib/workflows-vista";
 import { borrarWorkflow, crearWorkflowDePrueba, devolverAHoy, pararWorkflow, pasarWorkflowAReal, reintentarEjecuciones } from "./acciones";
 
-// Workflows, 4a-1 (docs/plan-workflows.md, Cristian 7 nov 2026): en la tarjeta de cada Entrada, el botón
+// Workflows, 4a-1 (Cristian 7 nov 2026): en la tarjeta de cada Entrada, el botón
 // «Probar como workflow» y la línea «Workflow en prueba: 18 de 18 leads coinciden» (modo prueba: no llama a GHL).
 export type WorkflowVista = { id: string; modo: string; resumen: ResumenWorkflow; diferencias: { quien: string; lista: string[] }[] };
 

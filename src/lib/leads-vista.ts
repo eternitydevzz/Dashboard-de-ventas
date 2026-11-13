@@ -29,8 +29,8 @@ export type LeadDeLaBase = {
 export const CAMPOS_LEAD = "id, nombre, apellido, email, telefono, pais, etiquetas, respuestas, pipeline_id, etapa_id, caller_id, closer_id, estado_caller, creado_en, fuente, estrellas_caller, oferta";
 export type Tarjeta = { lead_id: string; pipeline_id: string; etapa_id: string | null };
 export type PipelineVista = { id: string; nombre: string };
-export type EtapaVista = { id: string; nombre: string; pipeline_id: string; color: string };
-export type PersonaVista = { id: string; nombre: string; rol: string; baja?: boolean }; // baja: ya no está en el equipo
+type EtapaVista = { id: string; nombre: string; pipeline_id: string; color: string };
+type PersonaVista = { id: string; nombre: string; rol: string; baja?: boolean }; // baja: ya no está en el equipo
 
 // Hasta dónde llegó cada lead (embudo de la misma tanda; reglas de KPIs). Se guarda como suma de estos números.
 export const MARCA = { contactado: 1, contesta: 2, agendado: 4, asistio: 8, compro: 16 } as const;
@@ -64,7 +64,7 @@ export function marcasEmbudo(
 // Un lead compacto: [id, nombre, teléfono, email, país, alta (segundos), pipeline, columna, 🔗 [[pipeline, columna]…],
 // caller, closer, estado, estrellas, oferta, fuente, etiquetas, respuestas [[pregunta, respuesta]…], marcas]. Las
 // posiciones apuntan a las listas de `LeadsCompactos`; -1 = ninguno.
-export type LeadCompacto = [string, string, string | null, string | null, string | null, number, number, number, [number, number][], number, number, string, number | null, string | null, number, number[], [number, number][], number];
+type LeadCompacto = [string, string, string | null, string | null, string | null, number, number, number, [number, number][], number, number, string, number | null, string | null, number, number[], [number, number][], number];
 export type LeadsCompactos = {
   pipelines: PipelineVista[];
   etapas: EtapaVista[];

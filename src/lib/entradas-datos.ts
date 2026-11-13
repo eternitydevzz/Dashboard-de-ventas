@@ -18,7 +18,7 @@ export type EnvioEntrada = {
   ghl_intentos?: number;
   ghl_error?: string | null;
 };
-export const COLUMNAS_ENVIO = "id, entrada_id, lead_id, procesado, error, recibido_en, payload, ghl_estado, ghl_intentos, ghl_error";
+const COLUMNAS_ENVIO = "id, entrada_id, lead_id, procesado, error, recibido_en, payload, ghl_estado, ghl_intentos, ghl_error";
 export const ULTIMOS = 15; // los que se ven al abrir
 export const VER_MAS = 50; // los que trae cada «Ver más» (cada envío lleva el formulario entero)
 

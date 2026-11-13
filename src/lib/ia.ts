@@ -69,7 +69,7 @@ export async function encolarAnalisis(proyectoId: string, grabacionId: string) {
   await db().from("analisis_llamadas").upsert({ proyecto_id: proyectoId, grabacion_id: g.id, cita_id: g.cita_id, closer_id: g.closer_id, lead_id: leadId, estado: "pendiente", error: null }, { onConflict: "grabacion_id" });
 }
 
-export async function analizarUno(analisisId: string, llamar?: LlamarClaude) {
+async function analizarUno(analisisId: string, llamar?: LlamarClaude) {
   const { data: a } = await db().from("analisis_llamadas").select("*, grabaciones(titulo, inicio, resumen, transcripcion), proyectos(nombre)").eq("id", analisisId).single();
   if (!a) return;
   await db().from("analisis_llamadas").update({ estado: "procesando", empezado_en: new Date().toISOString() }).eq("id", analisisId);

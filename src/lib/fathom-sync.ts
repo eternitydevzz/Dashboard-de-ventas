@@ -54,7 +54,7 @@ export async function sincronizarFathom(proyectoId: string, o: { perfilIds?: str
   return res;
 }
 
-export async function conciliarPendientes(proyectoId: string, closerId: string, formato: string | null) {
+async function conciliarPendientes(proyectoId: string, closerId: string, formato: string | null) {
   const { data: pend } = await db().from("grabaciones").select("id, inicio, titulo, invitados").eq("proyecto_id", proyectoId).eq("closer_id", closerId).eq("conciliacion", "pendiente");
   if (!pend?.length) return 0;
   const citas = await todas<{ id: string; fecha: string; closer_id: string | null; leads: { nombre: string; apellido: string; email: string | null } | null }>((a, b) =>

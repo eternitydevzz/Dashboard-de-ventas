@@ -3,7 +3,7 @@
 // de la app, tarjeta blanca translúcida con borde fino, filo de luz arriba y sombra suave. Todo en estilos en línea
 // y con tablas, que es lo que respetan los programas de correo. Lo que escribe el equipo se escapa siempre.
 
-export type OpcionesEmail = {
+type OpcionesEmail = {
   titulo: string;
   intro?: string;
   filas?: [string, string][];
@@ -23,7 +23,7 @@ const C = {
 };
 const FUENTE = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
-export const escaparHtml = (s: string) =>
+const escaparHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const conSaltos = (s: string) => escaparHtml(s).replace(/\r?\n/g, "<br>");
 const urlSegura = (u: string) => /^https:\/\//i.test(u) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(u);

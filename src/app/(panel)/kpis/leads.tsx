@@ -39,7 +39,7 @@ export function PestanaLeads({ barra, desde, hasta, zona, ofertas, csv }: { barr
   const [error, setError] = useState("");
   useEffect(() => {
     let vivo = true;
-    // Mientras llegan, la precarga del menú espera (lib/pantalla-lista.ts)
+    // Mientras llegan, la bienvenida espera (lib/pantalla-lista.ts)
     const listo = cargandoDatos();
     exigirOk(cargarLeadsPestana())
       .then((d) => vivo && setDatos(d as LeadsCompactos))
@@ -63,7 +63,7 @@ export function PestanaLeads({ barra, desde, hasta, zona, ofertas, csv }: { barr
     return (
       <>
         <div className="tarjeta px-4">{barra}</div>
-        {/* data-datos-pendientes: llega en el HTML desde el principio; mientras está, el menú no precarga (lib/pantalla-lista.ts) */}
+        {/* data-datos-pendientes: llega en el HTML desde el principio; mientras está, la bienvenida espera (lib/pantalla-lista.ts) */}
         <div className="animate-pulse space-y-3" aria-busy="true" data-datos-pendientes="">
           <p className="text-sm text-texto-3">Cargando todos los leads…</p>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-24 rounded-xl bg-panel-2" />)}</div>

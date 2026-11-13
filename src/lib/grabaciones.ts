@@ -4,7 +4,6 @@ import { ErrorUsuario } from "@/lib/resultado";
 // Cada navegador graba en su formato: Chrome y Firefox en webm/ogg (opus), Safari en mp4 (aac).
 const EXT: Record<string, string> = { "audio/webm": "webm", "video/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "mp4", "audio/mpeg": "mp3" };
 const TIPO: Record<string, string> = { webm: "audio/webm", ogg: "audio/ogg", mp4: "audio/mp4", mp3: "audio/mpeg" };
-export const EXT_GRABACION = ["webm", "ogg", "mp4", "mp3"] as const;
 
 export function extDeTipo(mime: string) {
   return EXT[mime.split(";")[0].trim().toLowerCase()] ?? null;

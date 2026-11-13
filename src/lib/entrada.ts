@@ -62,7 +62,7 @@ function primero(o: Json, claves: string[]) {
   return "";
 }
 
-export type Interpretado = {
+type Interpretado = {
   lead: LeadEntrada;
   fuente: string | null;
   evento: string | null;

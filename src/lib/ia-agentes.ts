@@ -20,7 +20,7 @@ export type ConfigAgentes = Partial<Record<Agente, { activo?: boolean; instrucci
 
 export const activos = (c: ConfigAgentes) => AGENTES.filter((a) => c[a.v]?.activo !== false);
 
-export const ESTADOS_CIERRE = ["cerrada", "seguimiento", "perdida", "no_califica", "no_show"] as const;
+const ESTADOS_CIERRE = ["cerrada", "seguimiento", "perdida", "no_califica", "no_show"] as const;
 
 // Formato JSON que tiene que devolver Claude (salidas estructuradas). Solo con los agentes activos.
 export function esquemaAnalisis(c: ConfigAgentes) {

@@ -20,7 +20,7 @@ export async function cargarGuion(proyectoId: string, rol: RolGuion, mercado?: M
 // El guion que ve quien llama: el del closer para los closers; el del caller para el resto
 export const rolDelGuion = (rol: string): RolGuion => (rol === "closer" ? "closer" : "caller");
 
-export type MarcaGuardada = { id: string; lead_id: string; perfil_id: string | null; rol: RolGuion; hechos: number; total: number; resultado: string | null; creado_en: string };
+type MarcaGuardada = { id: string; lead_id: string; perfil_id: string | null; rol: RolGuion; hechos: number; total: number; resultado: string | null; creado_en: string };
 
 export async function ultimasMarcas(proyectoId: string, limite = 200): Promise<{ filas: MarcaGuardada[]; sinTabla: boolean }> {
   const { data, error } = await db().from("guion_marcas").select("id, lead_id, perfil_id, rol, hechos, total, resultado, creado_en").eq("proyecto_id", proyectoId).order("creado_en", { ascending: false }).limit(limite);

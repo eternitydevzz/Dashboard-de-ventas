@@ -17,7 +17,7 @@ export async function pasosCloser(proyectoId: string) {
   return (creados ?? []) as { id: string; nombre: string; orden: number }[];
 }
 
-export type ClienteCloser = { lead_id: string; nombre: string; email: string | null; closer_id: string; productos: string[]; desde: string; hechos: Record<string, string> };
+type ClienteCloser = { lead_id: string; nombre: string; email: string | null; closer_id: string; productos: string[]; desde: string; hechos: Record<string, string> };
 
 export async function clientesDeCloser(proyectoId: string, perfil: Perfil, closerFiltro?: string) {
   const ver = esJefe(perfil) ? closerFiltro || null : perfil.id;

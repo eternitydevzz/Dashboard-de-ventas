@@ -90,14 +90,9 @@ export function BarraLateral({
   precarga?: string[]; // las 3 secciones de su rol que se precargan al abrir la app (lib/mensajes-entrada.ts)
 }) {
   const ruta = usePathname();
-  // Fase 2 (Cristian, 12 oct 2026): el menú ya no precarga todas las pantallas al aparecer (medido: 24 peticiones
-  // al servidor en 10 s por cada pantalla abierta); solo la que se señala con el ratón o el dedo, justo antes del clic.
-  // Velocidad (17 oct 2026, Cristian: «me sigue cargando lento al cambiar de sección»): ahora sí se precargan todas
-  // las secciones del menú al abrir la app, completas (prefetch={true}: la página con sus datos), y se guardan 5 min
-  // (staleTimes en next.config.ts); el 12 oct se repetían porque caducaban al momento. Los cambios las borran al
-  // instante (revalidatePath y avisos-en-vivo.tsx), así que no enseñan datos viejos.
+  // Lo precargado se guarda 5 min (staleTimes en next.config.ts); los cambios lo borran al instante
+  // (revalidatePath y avisos-en-vivo.tsx), así que no enseña datos viejos.
   // Al pulsar, el botón se marca al momento (sin esperar al servidor); vale mientras no cambie la ruta
-  // 18 oct 2026: la precarga empieza cuando la pantalla en la que se entra ya tiene sus datos (lib/pantalla-lista.ts)
   // 25 oct 2026 (Cristian, la base se saturó con el equipo trabajando): ya NO se precargan todas las secciones al
   // abrir la app (cada pestaña preparaba Funnel, KPIs, Ranking… cada 5 min). Solo la que se señala con el ratón,
   // el dedo o el teclado, justo antes de pulsar (como antes del 17 oct), y completa.

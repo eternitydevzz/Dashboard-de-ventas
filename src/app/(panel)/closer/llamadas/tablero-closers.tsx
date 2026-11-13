@@ -24,7 +24,7 @@ import { TarjetaCrm } from "@/components/tarjeta-crm";
 // hasta que cambie su estado. Todo se mueve arrastrando (Fase 4, tarjeta común del CRM); en el móvil, donde arrastrar
 // no funciona, la cita lleva un «Mover a…» (N10, 13 nov) que hace lo mismo que soltarla en esa columna.
 
-export type TarjetaCitaC = {
+type TarjetaCitaC = {
   id: string;
   lead_id: string;
   estado: EstadoCita;
@@ -39,7 +39,7 @@ export type TarjetaCitaC = {
   pasada: boolean;
   recuperar: boolean; // 3 nov: sin closer del equipo y sin resultado → en rojo
 };
-export type TarjetaVentaC = { id: string; lead_id: string; nombre: string; detalle: string; facturacionTxt: string; faltaTxt: string; pendiente: number; cobrado: number; devuelta: boolean };
+type TarjetaVentaC = { id: string; lead_id: string; nombre: string; detalle: string; facturacionTxt: string; faltaTxt: string; pendiente: number; cobrado: number; devuelta: boolean };
 export type ColumnaC = { id: string; clave: ClaveCloser | null; t: string; d?: string; color: string; citas: TarjetaCitaC[]; ventas: TarjetaVentaC[] };
 
 type Item = { clase: "cita"; cita: TarjetaCitaC; origen: string } | { clase: "venta"; venta: TarjetaVentaC; origen: string };

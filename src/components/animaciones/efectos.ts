@@ -3,7 +3,7 @@
 // ningún estilo puesto, y nunca bloquean el clic.
 import { DESLIZA, SUAVE, panelConDesenfoque, retrasoFila, retrasoPanel, textoConteo } from "./valores";
 
-export const quieto = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const quieto = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const PANEL = ".tarjeta";
 const FILAS = "tbody tr, li, div[role=button]";

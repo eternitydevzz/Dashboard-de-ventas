@@ -17,7 +17,7 @@ export type FichaCliente = {
   caso_fecha: string | null;
   onboarding: Record<string, string>;
 };
-export const fichaVacia = (leadId: string): FichaCliente => ({ lead_id: leadId, estado: "activo", proximo_contacto: null, caso_exito: false, caso_resultado: null, caso_enlace: null, caso_fecha: null, onboarding: {} });
+const fichaVacia = (leadId: string): FichaCliente => ({ lead_id: leadId, estado: "activo", proximo_contacto: null, caso_exito: false, caso_resultado: null, caso_enlace: null, caso_fecha: null, onboarding: {} });
 
 // Una fila por cliente con lo que compró, pagó y le falta (sale de Ventas y Finanzas)
 export function resumenClientes(d: { ventas: VentaF[]; pagos: PagoF[]; vencimientos: VencF[]; fichas: FichaCliente[] }, hoy: string) {
@@ -44,7 +44,6 @@ export function resumenClientes(d: { ventas: VentaF[]; pagos: PagoF[]; vencimien
     };
   });
 }
-export type FilaCliente = ReturnType<typeof resumenClientes>[number];
 
 // Seguimiento: vencidos / hoy / próximos / sin fecha
 export function grupoSeguimiento(proximo: string | null, hoy: string) {

@@ -10,7 +10,7 @@ import type { Mercado } from "@/lib/mercado";
 
 // KPIs en tarjetas (Fase 5, estilo glass): una por persona con sus números clave y sus tasas en barras.
 // Al pulsarla, una ventana con todo el detalle de esa sección y el botón para ir a su ficha (Equipo).
-export type CifraKpi = { t: string; v: string; d?: string; tasa?: number | null };
+type CifraKpi = { t: string; v: string; d?: string; tasa?: number | null };
 export type PersonaKpi = { id: string; nombre: string; foto?: string | null; rol: string; mercado?: Mercado; grandes: CifraKpi[]; tasas: CifraKpi[]; detalle: CifraKpi[] };
 
 export function TarjetasKpis({ personas, vacio, conFicha }: { personas: PersonaKpi[]; vacio: string; conFicha: boolean }) {

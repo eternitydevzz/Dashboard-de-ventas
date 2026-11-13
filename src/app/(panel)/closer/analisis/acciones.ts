@@ -53,15 +53,6 @@ export async function guardarConfigIa(productoId: string | null, contexto: strin
   });
 }
 
-export async function borrarConfigIa(productoId: string) {
-  return seguro(async () => {
-    await exigirSeccion("agendas"); // H5
-    const { proyecto } = await jefe();
-    await escribir(db().from("config_ia").delete().eq("proyecto_id", proyecto.id).eq("producto_id", productoId), "config_ia");
-    refrescar();
-  });
-}
-
 // ---------- Analizar ----------
 export async function reanalizar(id: string) {
   return seguro(async () => {

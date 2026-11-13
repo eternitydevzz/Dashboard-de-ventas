@@ -6,7 +6,7 @@
 export const CANALES = ["callers", "yt", "ig", "p1", "email", "biblioteca", "webinar", "dfy", "facu", "directo", "otro"] as const;
 export type Canal = (typeof CANALES)[number];
 
-export const NOMBRE_CANAL: Record<Canal, string> = {
+const NOMBRE_CANAL: Record<Canal, string> = {
   callers: "Callers",
   yt: "YouTube",
   ig: "Instagram",
