@@ -67,6 +67,9 @@ describe("Equipo", () => {
     const { data: uno } = await db.from("miembros_equipo").select("id").eq("proyecto_id", e.proyecto.id).eq("nombre", "Uno").single();
     await db.from("permisos_seccion").insert({ proyecto_id: e.proyecto.id, rol: "director", seccion: "equipo", permitido: true });
     como(e, e.p.director);
+    // Ola 6 (B2): crear cuentas exige Administración; con ella, un director sigue sin poder crear un CEO
+    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "closer", "es", "+34 600 000 000"), /Administración/);
+    como(e, { ...e.p.director, admin_activo: true });
     await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "ceo", "es", "+34 600 000 000"), /Rol no válido/);
     await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "", "+34 600 000 000"), /España o de Latam/);
     await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "es", "12"), /teléfono válido/);

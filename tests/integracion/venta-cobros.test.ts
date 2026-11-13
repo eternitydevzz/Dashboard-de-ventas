@@ -15,8 +15,10 @@ afterAll(async () => {
 
 const nuevoLead = async (nombre: string) =>
   (await db.from("leads").insert({ proyecto_id: e.proyecto.id, nombre, email: `${e.pref}-${nombre.toLowerCase()}@x.test`, caller_id: e.p.callerA.id, closer_id: e.p.closerA.id }).select("id").single()).data!.id as string;
+// Cada cita a una hora distinta: el índice «1 closer, 1 hora» no deja 2 citas abiertas del mismo closer a la misma hora
+let hora = 0;
 const nuevaCita = async (lead: string) =>
-  (await db.from("citas").insert({ proyecto_id: e.proyecto.id, lead_id: lead, closer_id: e.p.closerA.id, fecha: "2026-10-05T15:00:00.000Z", estado: "confirmada" }).select("id").single()).data!.id as string;
+  (await db.from("citas").insert({ proyecto_id: e.proyecto.id, lead_id: lead, closer_id: e.p.closerA.id, fecha: new Date(Date.UTC(2026, 9, 5, 15 + hora++)).toISOString(), estado: "confirmada" }).select("id").single()).data!.id as string;
 const ventasDe = async (lead: string) => (await db.from("ventas").select("id, tipo_pago, devuelto").eq("lead_id", lead)).data!;
 const vender = (lead: string, extra: Record<string, string> = {}) =>
   registrarVenta(lead, formulario({ producto: e.productos["Mentoría grupal"], facturacion: "1000", cash: "100", tipo_pago: "reserva", metodo: "stripe", ...extra }));
