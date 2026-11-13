@@ -1,7 +1,7 @@
 // C6 (plan Callers, 7 nov; 7c.2): ficha de cualificación en el guion. 8 campos + «Nota», texto libre, ninguno
 // obligatorio. Se guarda siempre; el servidor solo escribe si algo cambió (idempotente).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CAMPOS_FICHA, limpiarFicha, mismaFicha } from "@/lib/ficha-cualificacion";
+import { CAMPOS_FICHA, fichaAlLeer, limpiarFicha, mismaFicha } from "@/lib/ficha-cualificacion";
 
 type Resp = { data: unknown; error: { message: string } | null };
 let respuesta: Record<string, Resp>;
@@ -64,5 +64,20 @@ describe("C6 · guardar (idempotente)", () => {
   it("si la base falla al guardar, da error (no «guardado»)", async () => {
     respuesta["cualificaciones:upsert"] = { data: null, error: { message: "caída" } };
     await expect(guardarFichaDe("l1", { lugar: "Madrid" })).rejects.toThrow();
+  });
+});
+
+// A9 (13 nov): si la lectura falla, lo escrito mientras tanto se pone encima de la base al leerla bien (no la pisa)
+describe("C6 · ficha al leer tras un fallo", () => {
+  const base = { lugar: "Madrid", dolor: "No llega a fin de mes" };
+  it("sin nada escrito: la de la base, o la copia sin guardar del navegador (como antes)", () => {
+    expect(fichaAlLeer(base, null, {})).toEqual(base);
+    expect(fichaAlLeer(base, { lugar: "Sevilla" }, {})).toEqual({ lugar: "Sevilla" });
+  });
+  it("lo escrito sin leer se suma a la base sin borrar sus campos", () => {
+    expect(fichaAlLeer(base, null, { edad: "34", dolor: "Deudas" })).toEqual({ lugar: "Madrid", dolor: "Deudas", edad: "34" });
+  });
+  it("los vacíos escritos sin leer no borran nada de la base", () => {
+    expect(fichaAlLeer(base, null, { lugar: "  " })).toEqual(base);
   });
 });
