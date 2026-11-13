@@ -94,7 +94,7 @@ export function PestanaUtms({ barra, desde, hasta, canales, zona }: { barra: Rea
     return (
       <>
         <div className="tarjeta px-4">{barra}</div>
-        {error ? <p className="text-sm text-mal">{error}</p> : <p className="animate-pulse text-sm text-texto-3" aria-busy="true" data-datos-pendientes="">Cargando los leads…</p>}
+        {error ? <p className="text-sm text-mal">{error}</p> : <p className="animate-pulse text-sm text-texto-3" role="status" data-datos-pendientes="">Cargando los leads…</p>}
       </>
     );
   // Rediseño (maqueta v1, Cristian 11 nov 2026): «Sin dato» aparte (casi ningún lead tiene UTM) y gráficos
