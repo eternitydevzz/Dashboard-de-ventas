@@ -35,10 +35,10 @@ export async function registrarCobro(ventaId: string, importeTxt: string, metodo
       if (fechaTxt < diaEnZona(venta.fecha, proyecto.zona_horaria)) throw new ErrorUsuario("La fecha del cobro no puede ser anterior a la venta.");
       if (fechaTxt !== hoyEnZona(proyecto.zona_horaria)) fecha = localAIso(`${fechaTxt}T12:00`, proyecto.zona_horaria);
     }
-    const { data: pagos } = await db().from("pagos").select("importe").eq("venta_id", ventaId);
-    const cobrado = Number(venta.cash_collected) + (pagos ?? []).reduce((s, p) => s + Number(p.importe), 0);
-    if (cobrado + importe > Number(venta.facturacion) + 0.001) throw new ErrorUsuario("Con ese importe se cobraría más que la facturación.");
-    await escribir(db().from("pagos").insert({ venta_id: ventaId, importe, metodo, registrado_por: perfil.id, fecha }), "pagos");
+    // Ola 6 (C6): la base bloquea la venta, suma lo cobrado y solo entonces guarda: dos cobros a la vez no pasan de lo facturado
+    const { error } = await db().rpc("registrar_cobro", { p_proyecto: proyecto.id, p_venta: ventaId, p_importe: importe, p_metodo: metodo, p_registrado_por: perfil.id, p_fecha: fecha });
+    if (error?.message.includes("excede_facturacion")) throw new ErrorUsuario("Con ese importe se cobraría más que la facturación.");
+    if (error) throw new Error(`No se pudo guardar en «pagos»: ${error.message}`);
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: "cobro", nota: `Cobro registrado: ${importe}` });
     revalidatePath("/", "layout");
   });
@@ -60,7 +60,9 @@ export async function registrarDevolucion(ventaId: string, importeTxt: string, f
     if (importe > cobrado + 0.001) throw new ErrorUsuario(`No se puede devolver más de lo cobrado (${cobrado}).`);
     if (fechaTxt && !/^\d{4}-\d{2}-\d{2}$/.test(fechaTxt)) throw new ErrorUsuario("Fecha no válida."); // C9
     const fecha = fechaTxt ? localAIso(`${fechaTxt}T12:00`, proyecto.zona_horaria) : new Date().toISOString();
-    await escribir(db().from("ventas").update({ devuelto: importe, devuelto_en: fecha, devolucion_nota: nota.trim() || null }).eq("id", ventaId), "ventas");
+    // Ola 6 (C6): solo si sigue sin devolución (dos a la vez: la 2.ª no pisa la 1.ª)
+    const { data: hecha } = await escribir(db().from("ventas").update({ devuelto: importe, devuelto_en: fecha, devolucion_nota: nota.trim() || null }).eq("id", ventaId).is("devuelto", null).select("id"), "ventas");
+    if (!hecha?.length) throw new ErrorUsuario("Esta venta ya tiene una devolución registrada.");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: "devolucion", nota: `Devolución: ${importe}${nota.trim() ? ` · ${nota.trim()}` : ""}` });
     revalidatePath("/", "layout");
   });
@@ -103,10 +105,11 @@ export async function cambiarFormaPago(ventaId: string, tipo: "reserva" | "cuota
     if (tipo !== "reserva" && tipo !== "cuotas") throw new ErrorUsuario("Elige reserva o cuotas.");
     const n = tipo === "cuotas" ? Math.round(leerNumero(numCuotasTxt)) : 1;
     if (tipo === "cuotas" && !(n >= 1 && n <= 60)) throw new ErrorUsuario("Pon de 1 a 60 cuotas para lo que falta.");
-    const [{ data: pagos }, { data: vencs }] = await Promise.all([
+    const [{ data: pagos, error: e1 }, { data: vencs, error: e2 }] = await Promise.all([
       db().from("pagos").select("importe").eq("venta_id", ventaId),
       db().from("vencimientos").select("id, importe, estado, numero").eq("venta_id", ventaId),
     ]);
+    if (e1 || e2) throw new Error(`No se pudieron leer cobros y plazos: ${(e1 ?? e2)!.message}`);
     const cobradoDespues = (pagos ?? []).reduce((s, p) => s + Number(p.importe), 0);
     const fijos = (vencs ?? []).filter((v) => v.estado !== "pendiente"); // pagados a mano o «no paga»: se quedan
     const redondo = (x: number) => Math.round(x * 100) / 100;
@@ -128,9 +131,8 @@ export async function cambiarFormaPago(ventaId: string, tipo: "reserva" | "cuota
       const cada = Math.floor((falta / n) * 100) / 100;
       for (let i = 0; i < n; i++) nuevos.push({ numero: ++numero, importe: i === n - 1 ? redondo(falta - cada * (n - 1)) : cada, vence_el: mas(i + 1) });
     }
-    await escribir(db().from("vencimientos").delete().eq("venta_id", ventaId).eq("estado", "pendiente"), "vencimientos");
-    await escribir(db().from("vencimientos").insert(nuevos.map((x) => ({ ...x, proyecto_id: proyecto.id, venta_id: ventaId, lead_id: venta.lead_id }))), "vencimientos");
-    await escribir(db().from("ventas").update({ tipo_pago: tipo, num_cuotas: tipo === "cuotas" ? n : null }).eq("id", ventaId), "ventas");
+    // Ola 6 (C6): borrar los pendientes, crear los nuevos y cambiar la venta, todo o nada (antes podía quedarse sin plazos)
+    await escribir(db().rpc("cambiar_forma_pago", { p_proyecto: proyecto.id, p_venta: ventaId, p_tipo: tipo, p_num_cuotas: tipo === "cuotas" ? n : null, p_plazos: nuevos }), "vencimientos");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: tipo, nota: tipo === "cuotas" ? `Pasa a cuotas: ${n} de lo que falta (${falta})` : `Pasa a reserva: falta ${falta} en un plazo` });
     revalidatePath("/", "layout");
   });
