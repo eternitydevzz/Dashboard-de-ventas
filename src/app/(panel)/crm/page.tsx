@@ -2,6 +2,7 @@ import Link from "next/link";
 import { nombreVisiblePipeline } from "@/lib/pipelines-nombre";
 import { esJefe, puedeAdmin } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
+import { miMoneda } from "@/lib/mercado-datos";
 import { db, todas, equipo } from "@/lib/datos";
 import { calcularNivel, type FilaPermisoPipeline } from "@/lib/pipelines";
 import { columnaCitasGhl, columnaCitasPorNombre } from "@/lib/leads";
@@ -183,7 +184,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           editar={nivel === "editar"}
           jefe={jefe}
           productos={(productos ?? []) as Producto[]}
-          moneda={proyecto.moneda}
+          moneda={await miMoneda(proyecto, perfil.id)}
           estrellasOpcionales={perfil.rol !== "caller"}
           canales={canales}
           tableroClosers={closers ? { ...closers, soloMirar: perfil.rol === "caller" } : null}

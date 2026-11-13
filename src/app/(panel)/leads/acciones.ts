@@ -15,6 +15,7 @@ import { ABIERTAS } from "@/lib/llamadas";
 import { CON_ESTRELLAS, etiquetaEstado } from "@/lib/estados-caller";
 import { closerDeLaRotacion, sumarRotacion } from "@/lib/rotacion";
 import { closerLibreA } from "@/lib/agenda-libre";
+import { miMercado } from "@/lib/mercado-datos";
 
 const refrescar = () => revalidatePath("/", "layout");
 
@@ -118,7 +119,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
     if (!fechaLocal) throw new ErrorUsuario("Elige fecha y hora.");
     const esCaller = perfil.rol === "caller";
-    if (esCaller) closerId = await closerDeLaRotacion(proyecto.id, lead.pais);
+    if (esCaller) closerId = await closerDeLaRotacion(proyecto.id, lead.pais, await miMercado(proyecto.id, perfil.id)); // 13 nov: España → closers de España
     // El caller elige una hora libre del calendario; se vuelve a mirar al guardar (otro caller pudo cogerla antes)
     if (esCaller) {
       const libre = await closerLibreA(proyecto, closerId, new Date(aIso(fechaLocal, proyecto.zona_horaria)));

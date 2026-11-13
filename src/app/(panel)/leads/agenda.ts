@@ -10,6 +10,7 @@ import { ajustesDe, CITA_NO_OCUPA, TEXTO_MOTIVO } from "@/lib/disponibilidad";
 import { horarioValido } from "@/lib/horarios";
 import { huecosLibres } from "@/lib/huecos";
 import { closerDeLaRotacion } from "@/lib/rotacion";
+import { miMercado } from "@/lib/mercado-datos";
 
 // Al elegir la hora en una ventana de agendar a mano: si el closer elegido está libre (si no, se avisa y se puede
 // agendar igual). La rotación de closers se quitó el 11 oct (4.4): el closer de las citas por link lo pone GHL.
@@ -37,10 +38,12 @@ export async function consultarAgenda(fechaLocal: string, closerId: string | nul
 export async function huecosAgendaRotacion(leadId?: string) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes");
-    const { proyecto } = await getSesion();
+    const { perfil, proyecto } = await getSesion();
     // 11 nov: el closer depende del país del lead (el mismo que pondrá agendarCita)
     const { data: lead } = leadId ? await db().from("leads").select("pais").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle() : { data: null };
-    const closerId = await closerDeLaRotacion(proyecto.id, (lead?.pais as string | null | undefined) ?? null);
+    // 13 nov: y del mercado del caller (España → closers de España), igual que agendarCita
+    const mercado = perfil.rol === "caller" ? await miMercado(proyecto.id, perfil.id) : null;
+    const closerId = await closerDeLaRotacion(proyecto.id, (lead?.pais as string | null | undefined) ?? null, mercado);
     const ahora = new Date();
     const [{ data: m }, { data: citas, error }] = await Promise.all([
       db().from("miembros_proyecto").select("horario, calendario, perfiles(nombre)").eq("proyecto_id", proyecto.id).eq("perfil_id", closerId).maybeSingle(),

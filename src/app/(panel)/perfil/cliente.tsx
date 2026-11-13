@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useAccion } from "@/components/acciones-lead";
-import { cambiarMiPassword, guardarMiPerfil } from "./acciones";
+import { cambiarMiPassword, guardarMiMercado, guardarMiPerfil } from "./acciones";
+import { MERCADOS, type Mercado } from "@/lib/mercado";
 
 export function FormMisDatos({ nombre, telefono, whatsapp, email }: { nombre: string; telefono: string; whatsapp: string; email: string }) {
   const [d, setD] = useState({ nombre, telefono, whatsapp });
@@ -42,5 +43,32 @@ export function FormMiPassword() {
       {error && <p className="text-xs text-mal">{error}</p>}
       <button className="btn-primario" disabled={pendiente}>Cambiar contraseña</button>
     </form>
+  );
+}
+
+// 13 nov (Cristian): de qué equipo es (cambia sus links, recursos, guion y manuales)
+export function FormMiMercado({ inicial }: { inicial: Mercado | null }) {
+  const [m, setM] = useState(inicial);
+  const { pendiente, error, ejecutar } = useAccion();
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Mi equipo">
+        {MERCADOS.map((x) => (
+          <button
+            key={x.v}
+            type="button"
+            role="radio"
+            aria-checked={m === x.v}
+            disabled={pendiente}
+            className={m === x.v ? "btn-primario" : "btn-secundario"}
+            onClick={() => { setM(x.v); ejecutar(() => guardarMiMercado(x.v), `Ahora eres del equipo de ${x.t}`); }}
+          >
+            {x.v === "es" ? "Trabajo desde España" : "Trabajo desde Latinoamérica"}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-texto-3">Con esto ves los links de agenda y de pago, los recursos, el guion y los manuales de tu equipo.</p>
+      {error && <p className="text-xs text-mal">{error}</p>}
+    </div>
   );
 }

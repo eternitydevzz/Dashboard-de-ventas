@@ -292,7 +292,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
               <p className="mt-3 text-xs text-texto-3">Moneda: <b>{proyecto.moneda}</b> · Zona horaria: <b>{proyecto.zona_horaria}</b> (se eligen al crear el proyecto).</p>
             </Seccion>
             <Seccion titulo="Link de agenda (GHL)">
-              <LinkAgenda inicial={proyecto.link_agenda ?? ""} />
+              <LinkAgenda inicial={proyecto.link_agenda ?? ""} inicialEs={proyecto.link_agenda_es ?? ""} />
             </Seccion>
             <Seccion titulo="Reparto automático de leads (callers)">
               <RepartoPorcentaje

@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
+import { mercadosDelProyecto, miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
+import { entraEnMercado, mercadoValido, type Mercado } from "@/lib/mercado";
+import { EtiquetaMercado, FiltroMercado } from "@/components/mercado-equipo";
 import { Phone, CalendarCheck, CalendarDays, MessageCircle, UserCheck, Users, Trophy } from "lucide-react";
 import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
@@ -41,12 +44,14 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   // H5: a un closer con «Mis leads», sus leads como closer (lo suyo), en forma de cola
   const comoCloser = perfil.rol === "closer";
   // Velocidad (17 oct 2026): guion y equipo a la vez (antes, uno detrás de otro)
-  const [{ guion }, gente, sp] = await Promise.all([
+  const [{ guion }, gente, sp, mercados] = await Promise.all([
     cargarGuion(proyecto.id, rolDelGuion(perfil.rol)), // Fase 6
     equipo(proyecto.id, !!perfil.es_prueba),
     searchParams,
+    jefe ? mercadosDelProyecto(proyecto.id) : ({} as Record<string, Mercado>),
   ]);
-  const callers = gente.filter((g) => g.rol === "caller");
+  const filtroM = jefe ? mercadoValido(sp.mercado) : null; // 13 nov: el jefe elige callers de España o de Latam
+  const callers = gente.filter((g) => g.rol === "caller" && entraEnMercado(mercados, g.id, filtroM));
   const caller = jefe ? callers.find((c) => c.id === sp.caller) ?? callers[0] : perfil;
   const filtro = typeof sp.columna === "string" && FILTROS.some((f) => f.v === sp.columna) ? sp.columna : "nuevo";
   const orden = leerOrden(sp.orden, sp.dir); // C2: orden de las cabeceras, en el servidor
@@ -54,8 +59,8 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   if (!caller) {
     return (
       <>
-        <Cabecera titulo="Callers" />
-        <Contenido><Vacio icono={Users} texto="No hay callers en este proyecto. Créalos en Administración." /></Contenido>
+        <Cabecera titulo="Callers" acciones={filtroM ? <FiltroMercado /> : undefined} />
+        <Contenido><Vacio icono={Users} texto={filtroM ? "No hay callers de ese mercado." : "No hay callers en este proyecto. Créalos en Administración."} /></Contenido>
       </>
     );
   }
@@ -89,7 +94,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   if (pedido && !visibles.includes(pedido)) visibles.push(pedido);
   const closers = gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }));
   const cortos = nombresCortos(callers); // F13: dos callers con el mismo nombre se distinguen
-  const enlaceFiltro = (v: string) => `/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), columna: v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`;
+  const enlaceFiltro = (v: string) => `/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), ...(filtroM ? { mercado: filtroM } : {}), columna: v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`;
 
   return (
     <>
@@ -98,11 +103,12 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
         subtitulo={jefe ? `Viendo la cola de ${caller.nombre}` : `${leads.length} leads asignados · elige a quién llamar`}
         acciones={
           <>
+            {jefe && <FiltroMercado />}
             {jefe && (
               <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
                 {callers.map((c) => (
-                  <Link prefetch={false} key={c.id} href={`/caller?caller=${c.id}`} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
-                    <Avatar nombre={c.nombre} tamano="h-6 w-6 text-[9px]" />{cortos.get(c.id)}
+                  <Link prefetch={false} key={c.id} href={`/caller?caller=${c.id}${filtroM ? `&mercado=${filtroM}` : ""}`} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
+                    <Avatar nombre={c.nombre} tamano="h-6 w-6 text-[9px]" />{cortos.get(c.id)}<EtiquetaMercado m={mercados[c.id]} />
                   </Link>
                 ))}
               </div>
@@ -145,8 +151,8 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           closers={closers}
           productos={(productos ?? []) as Producto[]}
           rol={perfil.rol}
-          linkAgenda={proyecto.link_agenda}
-          moneda={proyecto.moneda}
+          linkAgenda={await miLinkAgenda(proyecto, perfil.id)}
+          moneda={await miMoneda(proyecto, perfil.id)}
           guion={guion}
           miNombre={perfil.nombre}
           nombresPipeline={nombresPipeline}

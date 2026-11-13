@@ -11,7 +11,9 @@ import { Cabecera, Contenido, Insignia } from "@/components/ui";
 import { BuscadorUrl } from "@/app/(panel)/closer/llamadas/cliente";
 import { EditorPrograma, InterruptorActivo } from "./cliente";
 import { LinksPago } from "@/components/links-pago";
-import { linksDe } from "@/lib/links-pago";
+import { contenidoMercado } from "@/lib/mercado";
+import { mercadoVista } from "@/lib/mercado-datos";
+import { SelectorMercado } from "@/components/selector-mercado";
 import type { Producto } from "@/lib/tipos";
 import { clientesSuyos } from "@/app/(panel)/clientes/cargar";
 
@@ -26,6 +28,9 @@ export default async function ProgramasPage({ searchParams }: PageProps<"/progra
   const estado = typeof sp.estado === "string" ? sp.estado : "";
   const lista = sp.vista === "lista";
   const q = typeof sp.q === "string" ? sp.q : "";
+  // 13 nov: los jefes eligen Latam / España; el resto ve sus links y el precio en su moneda ($ o €, mismo número)
+  const c = contenidoMercado(await mercadoVista(jefe, sp.mercado, proyecto.id, perfil.id), { crudo: jefe });
+  const $m = { moneda: c.moneda(proyecto) };
   const [{ data }, ventas, eq] = await Promise.all([
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).order("orden"),
     todas<{ producto_id: string | null; lead_id: string }>((a, b) => db().from("ventas").select("producto_id, lead_id").eq("proyecto_id", proyecto.id).order("id").range(a, b)),
@@ -53,10 +58,11 @@ export default async function ProgramasPage({ searchParams }: PageProps<"/progra
     <>
       <Cabecera titulo="Programas" subtitulo={`${proyecto.nombre} · lo que vendéis, su precio y su comisión`} acciones={mirar ? undefined : <EditorPrograma programa={null} moneda={proyecto.moneda} comisionesRol={eq.comisionesRol} editables={editables} />} />
       <Contenido>
+        {jefe && <SelectorMercado actual={c.mercado} href={(m) => url({ mercado: m === "es" ? "es" : null })} />}
         <div className="tarjeta grid grid-cols-1 divide-y divide-borde sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <div className="p-5"><div className="text-4xl font-semibold tabular-nums">{todos.length}</div><div className="titulo-seccion mt-1">Programas</div></div>
           <div className="p-5"><div className="text-4xl font-semibold tabular-nums text-ok">{todos.filter((p) => p.activo).length}</div><div className="titulo-seccion mt-1">Activos · {todos.filter((p) => !p.activo).length} inactivos</div></div>
-          <div className="p-5"><div className="text-4xl font-semibold tabular-nums text-oro">{dinero(precioMedio, proyecto)}</div><div className="titulo-seccion mt-1">Precio medio</div></div>
+          <div className="p-5"><div className="text-4xl font-semibold tabular-nums text-oro">{dinero(precioMedio, $m)}</div><div className="titulo-seccion mt-1">Precio medio</div></div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BuscadorUrl placeholder="Buscar programa…" />
@@ -81,10 +87,10 @@ export default async function ProgramasPage({ searchParams }: PageProps<"/progra
                       <td><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: p.color }} />{p.nombre}{p.backend_offer && <Insignia tono="morado">Back-end</Insignia>}</td>
                       <td className="text-texto-2">{p.categoria ?? "—"}</td>
                       <td>{pago(p)}</td>
-                      <td className="text-right tabular-nums">{p.precio !== null ? dinero(Number(p.precio), proyecto) : "Personalizado"}</td>
+                      <td className="text-right tabular-nums">{p.precio !== null ? dinero(Number(p.precio), $m) : "Personalizado"}</td>
                       <td className="text-right tabular-nums">{clientes(p.id)}</td>
                       <td>{mirar ? (p.activo ? "Sí" : "No") : <InterruptorActivo id={p.id} activo={p.activo} />}</td>
-                      <td className="whitespace-nowrap"><LinksPago productoId={p.id} programa={p.nombre} links={linksDe(p)} reserva={proyecto.link_reserva ?? null} editor={jefe} conReserva={p.modo_pago !== "mensual"} boton="pequeno" /></td>
+                      <td className="whitespace-nowrap"><LinksPago productoId={p.id} programa={p.nombre} links={c.linksPago(p)} reserva={c.linkReserva(proyecto)} mercado={c.mercado} editor={jefe} conReserva={p.modo_pago !== "mensual"} boton="pequeno" /></td>
                       <td className="w-44">{!mirar && <EditorPrograma programa={p} moneda={proyecto.moneda} comisionesRol={eq.comisionesRol} editables={editables} />}</td>
                     </tr>
                   ))}
@@ -103,8 +109,8 @@ export default async function ProgramasPage({ searchParams }: PageProps<"/progra
                       <div className="flex items-center gap-2 font-semibold"><span className="h-2.5 w-2.5 rounded-full" style={{ background: p.color }} />{p.nombre}</div>
                       {!mirar && <InterruptorActivo id={p.id} activo={p.activo} />}
                     </div>
-                    <div className="text-4xl font-semibold tabular-nums">{p.precio !== null ? dinero(Number(p.precio), proyecto) : <span className="text-2xl text-texto-2">Precio personalizado</span>}</div>
-                    <LinksPago productoId={p.id} programa={p.nombre} links={linksDe(p)} reserva={proyecto.link_reserva ?? null} editor={jefe} conReserva={p.modo_pago !== "mensual"} />
+                    <div className="text-4xl font-semibold tabular-nums">{p.precio !== null ? dinero(Number(p.precio), $m) : <span className="text-2xl text-texto-2">Precio personalizado</span>}</div>
+                    <LinksPago productoId={p.id} programa={p.nombre} links={c.linksPago(p)} reserva={c.linkReserva(proyecto)} mercado={c.mercado} editor={jefe} conReserva={p.modo_pago !== "mensual"} />
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       <Insignia>{pago(p)}</Insignia>
                       {p.backend_offer && <Insignia tono="morado">Back-end</Insignia>}

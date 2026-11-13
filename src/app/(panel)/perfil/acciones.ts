@@ -6,6 +6,7 @@ import { getSesion, puedeAdmin } from "@/lib/auth";
 import { db, escribir } from "@/lib/datos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { horarioValido } from "@/lib/horarios";
+import { mercadoValido } from "@/lib/mercado";
 
 // 25 oct 2026: también borra la memoria compartida (lib/memoria.ts), para que lo guardado se vea al momento
 const refrescar = () => {
@@ -48,6 +49,19 @@ export async function guardarHorario(perfilId: string, horario: unknown) {
     const { data, error } = await db().from("miembros_proyecto").update({ horario: h }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).select("perfil_id");
     if (error) throw new ErrorUsuario(error.message);
     if (!data?.length) throw new ErrorUsuario("Esa persona no está en este proyecto.");
+    refrescar();
+  });
+}
+
+// 13 nov (Cristian): cada persona elige si es del equipo de Latam o del de España (al entrar y en «Mi perfil»)
+export async function guardarMiMercado(mercado: string) {
+  return seguro(async () => {
+    const { perfil, proyecto } = await getSesion();
+    const m = mercadoValido(mercado);
+    if (!m) throw new ErrorUsuario("Elige Latam o España.");
+    const { data, error } = await db().from("miembros_proyecto").update({ mercado: m }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).select("perfil_id");
+    if (error) throw new ErrorUsuario(/mercado/.test(error.message) ? "Falta aplicar la migración de la base (España)." : error.message);
+    if (!data?.length) throw new ErrorUsuario("No estás en este proyecto.");
     refrescar();
   });
 }

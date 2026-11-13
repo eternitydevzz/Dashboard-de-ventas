@@ -33,6 +33,9 @@ import { IndividualAgendas, ComparativaAgendas } from "@/components/metricas-age
 import { VistaAgendas } from "@/app/(panel)/closer/vista-agendas";
 import { SIN_CANAL, opcionesCanal } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
+import { FiltroMercado } from "@/components/mercado-equipo";
+import { entraEnMercado, mercadoDe, mercadoValido } from "@/lib/mercado";
+import { mercadosDelProyecto } from "@/lib/mercado-datos";
 
 // KPIs de cada caller y closer (Paso H2) y sus objetivos (Paso H3). Solo director y CEO (decisión de Cristian, 10 oct 2026).
 export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
@@ -184,7 +187,11 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const per = leerPeriodo(sp);
     const rango = rangoNav(per.periodo, per.n, proyecto.zona_horaria, per.desde, per.hasta);
     const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : null);
-    const todos = calcularKpis(base, rango, proyecto.zona_horaria);
+    // 13 nov: los jefes filtran por mercado (Todos / España / Latam): personas, totales y métricas de las agendas
+    const mercados = await mercadosDelProyecto(proyecto.id);
+    const filtroM = jefe && !propio ? mercadoValido(sp.mercado) : null;
+    const entra = (id: string) => entraEnMercado(mercados, id, filtroM);
+    const todos = calcularKpis(filtroM ? { ...base, gente: base.gente.filter((g) => entra(g.id)) } : base, rango, proyecto.zona_horaria);
     const kpis = propio ? { ...todos, callers: todos.callers.filter((c) => c.perfil.id === perfil.id), closers: todos.closers.filter((c) => c.perfil.id === perfil.id) } : todos;
     // Fase 5: tarjetas por persona y embudo del equipo
     const n = (x: number) => x.toLocaleString("es-ES");
@@ -192,6 +199,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
       id: c.perfil.id,
       nombre: c.perfil.nombre,
       rol: "Caller",
+      mercado: mercadoDe(mercados[c.perfil.id]),
       grandes: [
         { t: "Llamadas", v: n(c.llamadas) },
         { t: "Contactados", v: n(c.contactados) },
@@ -222,6 +230,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
       id: c.perfil.id,
       nombre: c.perfil.nombre,
       rol: "Closer",
+      mercado: mercadoDe(mercados[c.perfil.id]),
       grandes: [
         { t: "Citas", v: n(c.citas) },
         { t: "Asistidas", v: n(c.asistidas) },
@@ -258,7 +267,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
       const ventas = new Set(agendas.ventas.map((v) => v.id));
       agendas.pagos = agendas.pagos.filter((x) => ventas.has(x.venta_id));
     }
-    const vis = closersVisibles(perfil, agendas.gente, str("closer"));
+    const vis = closersVisibles(perfil, filtroM ? agendas.gente.filter((g) => entra(g.id)) : agendas.gente, str("closer"));
     const filtrosAg = { productoId: str("producto"), evento: str("evento"), canal: str("canal") || null };
     const mAg = metricasAgendas(agendas, rango, { closerIds: vis.ids, ...filtrosAg });
     const comparativaVisible = jefe && !propio;
@@ -269,6 +278,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const qs = new URLSearchParams(Object.entries(sp).filter(([, v]) => typeof v === "string") as [string, string][]);
     const filtrosComunes = (
       <>
+        {jefe && !propio && <FiltroMercado />}
         <FiltroUrl nombre="producto" etiqueta="Producto" todos="Todos los productos" opciones={agendas.productos.map((x) => ({ v: x.id, t: x.nombre }))} />
         {/* Fase 4 (plan GHL): canal de la cita, por el UTM de la página donde reservó */}
         <FiltroUrl nombre="canal" etiqueta="Canal" todos="Todos los canales" opciones={[...opcionesCanal(canales).map((c) => ({ v: c.clave as string, t: c.nombre })), { v: SIN_CANAL, t: "Sin canal" }]} />
@@ -331,7 +341,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
           <details className="tarjeta p-4">
             <summary className="cursor-pointer text-sm font-medium text-texto-2">Ver como tabla (con los totales)</summary>
             <div className="mt-4">
-              <TablasKpis kpis={kpis} dinero={$} sinTotales={propio} />
+              <TablasKpis kpis={kpis} dinero={$} sinTotales={propio} mercados={mercados} />
             </div>
           </details>
           <Seccion titulo="¿Cómo se calcula cada número?">

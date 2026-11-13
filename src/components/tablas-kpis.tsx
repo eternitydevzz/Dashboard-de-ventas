@@ -2,6 +2,8 @@ import { Phone, TrendingUp, Users } from "lucide-react";
 import type { calcularKpis } from "@/lib/kpis";
 import { pct } from "@/lib/formato";
 import { Avatar, Vacio } from "@/components/ui";
+import { EtiquetaMercado } from "@/components/mercado-equipo";
+import { mercadoDe, type Mercado } from "@/lib/mercado";
 
 type Kpis = ReturnType<typeof calcularKpis>;
 
@@ -47,11 +49,12 @@ function Cabeceras({ primera, cols }: { primera: string; cols: { t: string; d: s
   );
 }
 
-function Persona({ nombre }: { nombre: string }) {
+function Persona({ nombre, mercado }: { nombre: string; mercado?: Mercado }) {
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
       <Avatar nombre={nombre} tamano="h-7 w-7 text-[10px]" />
       {nombre}
+      {mercado && <EtiquetaMercado m={mercado} />}
     </div>
   );
 }
@@ -96,7 +99,8 @@ function CeldasCloser({ c, dinero }: { c: FilaCloser; dinero: (n: number) => str
 
 const FILA_TOTAL = "bg-panel-2 font-semibold";
 
-export function TablasKpis({ kpis, dinero, sinTotales }: { kpis: Kpis; dinero: (n: number) => string; sinTotales?: boolean }) {
+// `mercados` (13 nov): con él, «ES» / «LATAM» junto a cada nombre
+export function TablasKpis({ kpis, dinero, sinTotales, mercados }: { kpis: Kpis; dinero: (n: number) => string; sinTotales?: boolean; mercados?: Record<string, Mercado> }) {
   return (
     <div className="grid gap-4">
       <div className="overflow-x-auto rounded-lg border border-borde">
@@ -111,7 +115,7 @@ export function TablasKpis({ kpis, dinero, sinTotales }: { kpis: Kpis; dinero: (
             <tbody>
               {kpis.callers.map((c) => (
                 <tr key={c.perfil.id}>
-                  <td><Persona nombre={c.perfil.nombre} /></td>
+                  <td><Persona nombre={c.perfil.nombre} mercado={mercados && mercadoDe(mercados[c.perfil.id])} /></td>
                   <CeldasCaller c={c} dinero={dinero} />
                 </tr>
               ))}
@@ -135,7 +139,7 @@ export function TablasKpis({ kpis, dinero, sinTotales }: { kpis: Kpis; dinero: (
             <tbody>
               {kpis.closers.map((c) => (
                 <tr key={c.perfil.id}>
-                  <td><Persona nombre={c.perfil.nombre} /></td>
+                  <td><Persona nombre={c.perfil.nombre} mercado={mercados && mercadoDe(mercados[c.perfil.id])} /></td>
                   <CeldasCloser c={c} dinero={dinero} />
                 </tr>
               ))}
