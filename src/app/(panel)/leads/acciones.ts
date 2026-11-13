@@ -3,7 +3,7 @@
 import { crearCitaEnGhl } from "@/lib/cita-en-ghl";
 import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 import { getSesion, esJefe } from "@/lib/auth";
 import { db, registrarActividad, escribir } from "@/lib/datos";
 import { fechaHora, localAIso } from "@/lib/formato";
@@ -17,7 +17,9 @@ import { closerDeLaRotacion, sumarRotacion } from "@/lib/rotacion";
 import { closerLibreA } from "@/lib/agenda-libre";
 import { miMercado } from "@/lib/mercado-datos";
 
-const refrescar = () => revalidatePath("/", "layout");
+// Cristian (13 nov): al guardar, solo se recarga la pantalla actual (antes, unas 4 enteras por guardado).
+// Lo demás (CRM, Mi Funnel) puede ir hasta 5 min por detrás para ese lead.
+const refrescar = () => refresh();
 
 // Quién puede tocar un lead: jefes, o el caller/closer asignado.
 async function leadPermitido(leadId: string): Promise<{ lead: Lead; perfil: Perfil; proyecto: Proyecto }> {

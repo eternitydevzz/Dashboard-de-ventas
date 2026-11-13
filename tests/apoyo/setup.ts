@@ -15,7 +15,7 @@ vi.mock("@/lib/sesion", () => ({
   }),
 }));
 // Fuera de Next no hay caché que refrescar
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), refresh: vi.fn() }));
 // Fuera de Next no hay «después de contestar»: `after` hace su trabajo en el momento
 vi.mock("next/server", async (original) => ({
   ...(await original<typeof import("next/server")>()),

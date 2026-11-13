@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let guardado: Record<string, unknown> | null;
 let exigirImpl: () => Promise<unknown>;
-vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined, refresh: () => undefined }));
 vi.mock("@/lib/memoria", () => ({ olvidarTodo: () => undefined }));
 vi.mock("@/lib/auth", () => ({ exigir: () => exigirImpl(), puedeAdmin: {}, puedeCrearProyectos: {}, exigirCambiarComisionRol: {} }));
 vi.mock("@/lib/datos", () => ({

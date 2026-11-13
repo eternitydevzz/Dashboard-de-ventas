@@ -9,7 +9,7 @@ import { esCloser, type Perfil } from "@/lib/tipos";
 let actualizado: Record<string, unknown> | null;
 let personaBD: { rol: Perfil["rol"] };
 let exigirImpl: () => Promise<unknown>;
-vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined, refresh: () => undefined }));
 vi.mock("@/lib/memoria", () => ({ olvidarTodo: () => undefined }));
 vi.mock("@/lib/auth", async (orig) => ({ ...(await orig<object>()), exigir: () => exigirImpl() }));
 vi.mock("@/lib/datos", () => {
