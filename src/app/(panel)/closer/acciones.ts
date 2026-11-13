@@ -10,6 +10,7 @@ import { descifrar } from "@/lib/cifrado";
 import { borrarCitaGhl, cambiarUsuarioCitaGhl } from "@/lib/ghl";
 import { db, registrarActividad, todas, escribir } from "@/lib/datos";
 import { localAIso, ETIQUETA_ESTADO_CITA } from "@/lib/formato";
+import { zonaPersona } from "@/lib/zona-persona";
 import { estrellasEntre } from "@/lib/estrellas";
 import type { Cita, EstadoCita } from "@/lib/tipos";
 import { datosAgendaGhl, telefonoClave } from "@/lib/leads";
@@ -76,7 +77,7 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
     // 4.4 (Cristian, 11 oct): también las citas de GHL se reagendan aquí (la app es el CRM; GHL solo trae datos).
     // La nueva cita no lleva el id de GHL, así la sincronización no le cambia la hora.
     if (!fechaLocal) throw new ErrorUsuario("Elige la nueva fecha.");
-    const fecha = localAIso(fechaLocal, proyecto.zona_horaria);
+    const fecha = localAIso(fechaLocal, zonaPersona(perfil, proyecto)); // N2: la escribe en su hora (la ventana lo dice)
     // Bloque 3 (Cristian, 11 oct 2026): se queda el mismo closer; si no está libre a la nueva hora, se elige otra.
     // Si el closer aún no tiene horario puesto no se puede comprobar su horario, pero sí que no choque con otra cita.
     if (cita.closer_id) {

@@ -5,6 +5,7 @@ import { Plus, X, Copy } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
 import { NOMBRES_DIAS, PLANTILLAS, deplantilla, horaEnOtraZona, type Horario, type Tramo } from "@/lib/horarios";
 import { guardarHorario } from "@/app/(panel)/perfil/acciones";
+import { nombreZona } from "@/lib/zona-persona";
 
 type Semana = Record<number, Tramo[]>;
 type Fechas = Record<string, Tramo[]>;
@@ -27,10 +28,12 @@ const hoyYmd = () => new Date().toISOString().slice(0, 10);
 // con la hora de quien mira al lado (la de su ordenador o móvil) si es distinta.
 // - Con `perfilId`: botón «Guardar horario» (Mi perfil y Administración).
 // - Con `campo`: escribe el horario en un campo oculto de un formulario (onboarding).
-export function EditorHorario({ inicial, zona, perfilId, campo, plantillas = false }: { inicial: Horario; zona: string; perfilId?: string; campo?: string; plantillas?: boolean }) {
+// - N2: con `zonaVer` (la zona que eligió el caller o closer en «Mi perfil»), «tu hora» es la de esa zona y no la del aparato.
+export function EditorHorario({ inicial, zona, perfilId, campo, plantillas = false, zonaVer }: { inicial: Horario; zona: string; perfilId?: string; campo?: string; plantillas?: boolean; zonaVer?: string | null }) {
   const [semana, setSemana] = useState<Semana>(inicial?.semana ?? {});
   const [fechas, setFechas] = useState<Fechas>(inicial?.fechas ?? {});
-  const zonaLocal = useSyncExternalStore(sinCambios, zonaDelAparato, () => null);
+  const zonaAparato = useSyncExternalStore(sinCambios, zonaDelAparato, () => null);
+  const zonaLocal = zonaVer || zonaAparato;
   const [nuevaFecha, setNuevaFecha] = useState("");
   const { pendiente, error, ejecutar } = useAccion();
 
@@ -52,7 +55,7 @@ export function EditorHorario({ inicial, zona, perfilId, campo, plantillas = fal
     <div className="space-y-4">
       <p className="text-xs text-texto-3">
         Horas de <b className="text-texto-2">{NOMBRE_ZONA[zona] ?? zona}</b> (la hora del proyecto)
-        {zonaLocal && zonaLocal !== zona && local("12:00") && <> · al lado, en gris, <b className="text-texto-2">tu hora</b> ({zonaLocal})</>}. Los huecos entre tramos son los descansos.
+        {zonaLocal && zonaLocal !== zona && local("12:00") && <> · al lado, en gris, <b className="text-texto-2">tu hora</b> ({nombreZona(zonaLocal)})</>}. Los huecos entre tramos son los descansos.
       </p>
 
       {plantillas && (
