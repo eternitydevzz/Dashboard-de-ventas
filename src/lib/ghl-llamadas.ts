@@ -10,7 +10,7 @@ import { GHL_BASE } from "@/lib/ghl";
 
 type Fetch = typeof fetch;
 const VERSION = "2021-04-15";
-export type MensajeGhl = { id: string; messageType?: string; contactId?: string; userId?: string; dateAdded?: string; direction?: string; meta?: { callDuration?: string | number | null; callStatus?: string | null } | null };
+type MensajeGhl = { id: string; messageType?: string; contactId?: string; userId?: string; dateAdded?: string; direction?: string; meta?: { callDuration?: string | number | null; callStatus?: string | null } | null };
 export type Linea = { quien: string; inicio: number; texto: string };
 
 const TIPOS_LLAMADA = ["TYPE_CALL", "TYPE_CAMPAIGN_CALL", "TYPE_CAMPAIGN_MANUAL_CALL", "TYPE_CUSTOM_CALL"];

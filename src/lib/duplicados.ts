@@ -2,7 +2,7 @@ import { telefonoClave } from "@/lib/leads";
 
 // D2 (plan GHL 4.3): posibles duplicados por teléfono (últimas 9 cifras, `telefonoClave`). Cada grupo trae sus leads
 // del más antiguo al más nuevo: el primero es el que se queda al unir (D1: `unir_leads` rechaza si queda el más nuevo).
-export type LeadTel = { id: string; telefono: string | null; creado_en: string };
+type LeadTel = { id: string; telefono: string | null; creado_en: string };
 
 export function agruparDuplicados<T extends LeadTel>(leads: T[]): { clave: string; leads: T[] }[] {
   const grupos = new Map<string, T[]>();

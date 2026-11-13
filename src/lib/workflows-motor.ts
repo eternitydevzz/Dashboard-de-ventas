@@ -1,5 +1,5 @@
 import "server-only";
-// Workflows, 4a-1 (docs/plan-workflows.md, aprobado por Cristian el 7 nov 2026): el motor, en MODO PRUEBA.
+// Workflows, 4a-1 (aprobado por Cristian el 7 nov 2026): el motor, en MODO PRUEBA.
 // - Al llegar un envío a una Entrada con workflow encendido se crea su ejecución (si ese lead ya tiene una esperando,
 //   no se crea otra: se juntan, igual que hoy).
 // - La lectura de cada minuto (/api/ghl/leer) avanza las que ya tocan: un tramo por lectura (los tramos se cortan en
@@ -16,10 +16,10 @@ import { avisarPorEmail, mandarEnvioGhl, ESPERA_429, MAX_ESPERA_429, MAX_LEADS_P
 import { GhlEsperar } from "@/lib/ghl";
 import { aplanarPasos, compararEnvios, configDePasos, encajaDisparador, envioDeWorkflow, envioSintetico, tramos, type Disparo, type LeadParaEnvio, type Paso, type PasoSimple } from "@/lib/workflows";
 
-export type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: typeof fetch; avisar?: Avisar };
+type GhlParaWorkflows = { locationId: string; token: string; fetchImpl?: typeof fetch; avisar?: Avisar };
 
 type Json = Record<string, unknown>;
-export const MAX_INTENTOS_WF = 5;
+const MAX_INTENTOS_WF = 5;
 const REINTENTAR_EN = 50_000; // como los envíos de las Entradas: lo coge la lectura del minuto (src/lib/ghl-envios.ts)
 
 type Ejecucion = { id: string; workflow_id: string; pasos: Paso[]; lead_id: string; entrada_id: string | null; tramo: number; intentos: number; registro: Json[]; creado_en: string };

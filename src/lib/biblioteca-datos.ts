@@ -5,7 +5,7 @@ import type { Respuesta } from "@/lib/tipos";
 
 // Bloque A: lo que hace falta de un lead para repasar su oferta. Desde que se quitó la pestaña «Biblioteca»
 // (26 oct 2026), el repaso lo lanza la pestaña «Leads» (lib/leads-kpis.ts).
-export type FilaBiblioteca = { id: string; etiquetas: string[] | null; respuestas: Respuesta[] | null; fuente: string | null; oferta: string | null };
+type FilaBiblioteca = { id: string; etiquetas: string[] | null; respuestas: Respuesta[] | null; fuente: string | null; oferta: string | null };
 
 // Pone al día la oferta (y el nombre único de las preguntas) de los que no la tengan bien: así los leads que ya
 // estaban antes de existir la oferta, o si la regla cambia, se ordenan solos al abrir KPIs → «Leads»

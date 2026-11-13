@@ -10,7 +10,7 @@ import { guardarMarcasGuion } from "@/app/(panel)/guiones/acciones";
 import { bloquesGuion, rellenar, type Guion } from "@/lib/guiones";
 import type { Respuesta } from "@/lib/tipos";
 
-export type ResultadoGuion = { clave: string; texto: string; icono: ReactNode };
+type ResultadoGuion = { clave: string; texto: string; icono: ReactNode };
 
 // Logo de WhatsApp en su verde (lucide no trae logos de marca)
 const LogoWsp = () => (

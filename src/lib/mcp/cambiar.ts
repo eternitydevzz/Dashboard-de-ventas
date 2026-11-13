@@ -170,7 +170,7 @@ export async function herramientaAgendar(a: { leadId: string; closer: string; fe
 }
 
 // ---------- registrar_venta (dinero, plazos y comisiones; siempre con confirmación) ----------
-export type ArgsVenta = { leadId: string; producto: string; facturacion: number; cash: number; tipoPago: "completo" | "reserva" | "cuotas" | "mensual"; numCuotas?: number; metodo: "stripe" | "transferencia" | "otro"; fecha?: string; vendedor?: string; nota?: string; confirmar?: boolean };
+type ArgsVenta = { leadId: string; producto: string; facturacion: number; cash: number; tipoPago: "completo" | "reserva" | "cuotas" | "mensual"; numCuotas?: number; metodo: "stripe" | "transferencia" | "otro"; fecha?: string; vendedor?: string; nota?: string; confirmar?: boolean };
 
 export async function herramientaVenta(a: ArgsVenta) {
   const { proyecto } = await getSesion();

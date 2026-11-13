@@ -1,6 +1,6 @@
 // Embudo dibujado (Fase 5): cada paso es una franja más estrecha que la anterior, con su número y, entre paso y
 // paso, el % que pasa al siguiente. Se usa en KPIs y en Agendas. Sin JavaScript: se pinta en el servidor.
-export type PasoEmbudo = { t: string; n: number; d?: string };
+type PasoEmbudo = { t: string; n: number; d?: string };
 
 const COLORES = ["#2f55d4", "#3b6ae0", "#4f7fe8", "#16a34a", "#0f9a4a"];
 

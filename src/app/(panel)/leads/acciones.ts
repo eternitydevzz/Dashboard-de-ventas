@@ -90,16 +90,6 @@ export async function confirmarAgenda(leadId: string) {
   });
 }
 
-export async function registrarWhatsapp(leadId: string, nota: string) {
-  return seguro(async () => {
-    await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
-    nota = notaValida(nota);
-    const { perfil, proyecto } = await leadPermitido(leadId);
-    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "whatsapp", nota: nota || "Mensaje de WhatsApp enviado" });
-    refrescar();
-  });
-}
-
 export async function anadirNota(leadId: string, nota: string) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5

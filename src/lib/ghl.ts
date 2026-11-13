@@ -8,7 +8,7 @@ import { mismoNombre } from "@/lib/formato";
 
 export const GHL_BASE = "https://services.leadconnectorhq.com";
 
-export type EventoGhl = {
+type EventoGhl = {
   id: string;
   calendarId?: string;
   contactId?: string;
@@ -215,7 +215,7 @@ async function escribir(fetchImpl: Fetch, token: string, metodo: "POST" | "PUT" 
   return res.json().catch(() => ({}));
 }
 
-export type ContactoParaGhl = { firstName?: string; lastName?: string; email?: string; phone?: string; source?: string };
+type ContactoParaGhl = { firstName?: string; lastName?: string; email?: string; phone?: string; source?: string };
 export async function crearOActualizarContactoGhl(o: {
   token: string;
   locationId: string;
@@ -288,7 +288,7 @@ export async function quitarEtiquetasGhl(o: { token: string; contactId: string; 
 // No hay «unir»: se pone B y se quita A en cada contacto con A y después DELETE de A. En GHL van en minúsculas.
 // Búsqueda por etiqueta: POST /contacts/search, filtro { field: "tags", operator: "eq" }, máx. 500 por página y
 // 10.000 en total con `page` (search-contacts-advanced.md, leído el 8 nov).
-export type EtiquetaGhl = { id: string; name: string };
+type EtiquetaGhl = { id: string; name: string };
 const minus = (s: string) => s.trim().toLowerCase();
 const PERMISO_TAGS = "Edit Tags (locations/tags.write)";
 // Límite de GHL (100 cada 10 s): al unir, 2 llamadas por contacto; con 250 ms entre contactos ≈ 80 cada 10 s

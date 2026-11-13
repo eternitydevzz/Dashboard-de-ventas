@@ -75,8 +75,8 @@ export function pasoNuevo(tipo: Paso["tipo"]): Paso {
 }
 
 // ---------- Validar antes de guardar ----------
-export const MAX_PASOS = 60;
-export const MAX_NIVELES = 3;
+const MAX_PASOS = 60;
+const MAX_NIVELES = 3;
 const OPERADORES = ["igual", "contiene", "existe", "no_existe"] as const;
 const texto = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const idExterno = (v: unknown) => (typeof v === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(v.trim()) ? v.trim() : null);

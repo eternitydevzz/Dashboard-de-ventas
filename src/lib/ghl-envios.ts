@@ -29,7 +29,7 @@ import { enviarEmail, urlApp } from "@/lib/email";
 type Fetch = typeof fetch;
 type Json = Record<string, unknown>;
 
-export const MAX_INTENTOS = 5;
+const MAX_INTENTOS = 5;
 export const EMAIL_AVISO_GHL = "info@eternity.llc"; // Cristian, 6 nov 2026
 // Con 2 pipelines (mandarEnvioGhl): upsert, etiquetas, quitar, 1 búsqueda de oportunidades y 2 × crear/mover = 6 por
 // lead (+1 «quitar etiqueta» de un workflow) y las columnas, 1 vez por vuelta. 10 leads ≈ 70, por debajo del límite de

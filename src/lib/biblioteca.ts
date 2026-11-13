@@ -5,7 +5,7 @@ import type { Respuesta } from "@/lib/tipos";
 import { SIN_PAIS, nombrePais } from "@/lib/formato";
 
 // Opciones de cada pregunta, en el orden de la vista (lo que no está aquí cuenta como «Otro»)
-export const OPCIONES: Record<keyof RespuestasBiblioteca, { v: string; t: string }[]> = {
+const OPCIONES: Record<keyof RespuestasBiblioteca, { v: string; t: string }[]> = {
   situacion: [
     { v: "Empleado", t: "Empleado" },
     { v: "Freelance / Self-employed", t: "Freelance" },
@@ -50,8 +50,8 @@ export const RANGO: Partial<Record<keyof RespuestasBiblioteca, Record<string, nu
 };
 // 1b (Cristian, 26 oct 2026): el país es el que se guarda en el lead (sacado de su teléfono al guardarlo; lib/pais.ts).
 // Antes salía de una lista de prefijos que metía a República Dominicana y Puerto Rico en «EE. UU./Canadá».
-export type LeadBiblioteca = { id: string; respuestas: Respuesta[]; pais: string | null; oferta?: Oferta | null };
-export const BUSCA_INGRESOS = ["Llegar a $5,000 al mes", "Cerrar mi primer cliente en USA"];
+type LeadBiblioteca = { id: string; respuestas: Respuesta[]; pais: string | null; oferta?: Oferta | null };
+const BUSCA_INGRESOS = ["Llegar a $5,000 al mes", "Cerrar mi primer cliente en USA"];
 
 // Qué encaja en cada escalón de la escalera (texto de la vista de Cristian). Con la pestaña «Biblioteca» quitada
 // (Cristian, 26 oct 2026), la escalera se ve en KPIs → «Leads».

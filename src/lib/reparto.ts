@@ -12,7 +12,7 @@ export const MODOS_REPARTO: { v: ModoReparto; t: string; d: string }[] = [
 // C11 (7 nov): los que aún hay que trabajar (llamar o escribir); criterio de Claude, apuntado en el plan
 export const SIN_TRABAJAR = ["nuevo", "wsp_enviado", "no_responde", "seguimiento", "llamar_luego", "link_enviado"]; // 10 nov: sin «Llamado»; «Link enviado» sigue siendo del caller
 
-export type OpcionesReparto = { modo: ModoReparto; n?: number; porPersona?: number; tope?: number };
+type OpcionesReparto = { modo: ModoReparto; n?: number; porPersona?: number; tope?: number };
 
 // Devuelve a quién va cada lead (en el orden en que vienen). `carga`: leads sin trabajar que ya tiene cada caller.
 export function planReparto(leads: string[], callers: string[], o: OpcionesReparto, carga: Record<string, number> = {}, azar: () => number = Math.random) {

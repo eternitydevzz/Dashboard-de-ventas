@@ -71,7 +71,7 @@ function ElegirDesde({ nombre, valor, onCambio }: { nombre: string; valor: strin
 }
 
 // ---------- Conectar una landing nueva (5 preguntas) ----------
-export function NuevaEntrada({ pipelines, onCreada }: { pipelines: Pipe[]; onCreada?: (mensaje: string) => void }) {
+function NuevaEntrada({ pipelines, onCreada }: { pipelines: Pipe[]; onCreada?: (mensaje: string) => void }) {
   const [estado, accion, enviando] = useActionState(crearEntrada, null as Res);
   const [destino, setDestino] = useState<{ p: string | null; e: string | null }>({ p: pipelines[0]?.id ?? null, e: null });
   // 1.1 (11 oct 2026): al crearla, el formulario se vacía (antes se podía crear dos veces); si falla, se queda
@@ -123,7 +123,7 @@ export type GhlDeEntrada = {
   ghl_campo_completo: string;
 };
 
-export type EntradaVista = DatosLanding & {
+type EntradaVista = DatosLanding & {
   id: string;
   nombre: string;
   url: string;

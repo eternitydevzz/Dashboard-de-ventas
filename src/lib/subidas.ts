@@ -12,7 +12,7 @@ const BUCKETS = {
   manuales: "html", // C9 (plan Callers, 7 nov)
   grabaciones: "webm|ogg|mp4|mp3", // C10: cada navegador graba en su formato
 } as const;
-export type BucketSubida = keyof typeof BUCKETS;
+type BucketSubida = keyof typeof BUCKETS;
 
 // Archivos subidos que nunca se guardaron (se cerró la pestaña justo antes, o falló la acción):
 // se borran los de más de 1 día que no usa ningún recurso. Los CSV se borran al importarlos,

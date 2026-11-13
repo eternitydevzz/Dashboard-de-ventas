@@ -5,7 +5,7 @@ import type { Rol } from "@/lib/tipos";
 
 export type Area = { id: string; nombre: string; color: string; orden: number };
 export type Puesto = { id: string; area_id: string | null; nombre: string; rol_base: Rol | "otro" };
-export type MiembroEquipo = {
+type MiembroEquipo = {
   id: string;
   perfil_id: string | null;
   nombre: string;
@@ -29,7 +29,7 @@ const AREAS_INICIALES = [
 ];
 
 // La primera vez (o en un proyecto nuevo): áreas iniciales, comisiones por rol y la gente del proyecto en el equipo.
-export async function asegurarEquipo(proyectoId: string) {
+async function asegurarEquipo(proyectoId: string) {
   const [{ count: nAreas }, { data: roles }, { data: miembros }, { data: enEquipo }] = await Promise.all([
     db().from("areas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyectoId),
     db().from("comisiones_rol").select("rol").eq("proyecto_id", proyectoId),

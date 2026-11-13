@@ -11,7 +11,7 @@ import { asignarLeads } from "@/app/(panel)/crm/acciones";
 // MCP, Fase 2 (11 nov 2026): las herramientas usan las mismas funciones y acciones que el dashboard, «como» la persona de
 // la clave (lib/mcp/sesion-mcp.ts). Se ejecutan dentro de conSesionMcp; los permisos son los de la app.
 
-export type ArgsKpis = { periodo?: PeriodoNav; n?: number; desde?: string; hasta?: string };
+type ArgsKpis = { periodo?: PeriodoNav; n?: number; desde?: string; hasta?: string };
 
 // Igual que KPIs → «Por persona»: periodo por defecto «mes», zona del proyecto, y a un caller o closer solo lo suyo
 export async function herramientaKpis(a: ArgsKpis) {
@@ -30,7 +30,7 @@ export async function herramientaKpis(a: ArgsKpis) {
   };
 }
 
-export type ArgsAsignar = { leadIds: string[]; caller?: string | null; closer?: string | null; confirmar?: boolean };
+type ArgsAsignar = { leadIds: string[]; caller?: string | null; closer?: string | null; confirmar?: boolean };
 
 // Una persona del proyecto por su id o su nombre (sin distinguir mayúsculas). Con dos del mismo nombre, no elige.
 async function personaDe(proyectoId: string, rol: "caller" | "closer", quien: string | null | undefined) {

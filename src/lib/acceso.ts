@@ -9,7 +9,7 @@ import { DURA_ENLACE } from "@/lib/enlace";
 // - «pedido»: el que pide la propia persona desde el login (caducado u olvidó la contraseña);
 // - «ficha»: el «Enviar enlace mágico» de la ficha de cada persona.
 // El enlace es de Supabase: un solo uso y dura lo que diga su ajuste (24 h).
-export type TipoEnlace = "bienvenida" | "pedido" | "ficha";
+type TipoEnlace = "bienvenida" | "pedido" | "ficha";
 
 export async function mandarEnlace(persona: { nombre: string; email: string }, tipo: TipoEnlace, proyecto?: string): Promise<ResultadoEmail> {
   const { data, error } = await db().auth.admin.generateLink({ type: "magiclink", email: persona.email });

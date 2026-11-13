@@ -15,7 +15,7 @@ import { guardarError } from "@/lib/errores-app";
 import { closerDeLaRotacion } from "@/lib/rotacion";
 
 type ProyectoGhl = Proyecto & { ghl_token: string | null; ghl_location_id: string | null };
-export type ResultadoSync = { nuevas: number; actualizadas: number; canceladas: number; sinUnir: number; invalidas: number; closers: number; errores: string[] };
+type ResultadoSync = { nuevas: number; actualizadas: number; canceladas: number; sinUnir: number; invalidas: number; closers: number; errores: string[] };
 
 const DIA = 86_400_000;
 // Plan GHL (16 oct): como mucho, cuántas citas que ya no vienen se comprueban una a una en cada lectura

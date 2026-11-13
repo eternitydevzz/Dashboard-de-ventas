@@ -34,7 +34,7 @@ export function elegir<T extends ConId>(lista: T[], quien: string, que: string):
 }
 
 // ---------- funnel (KPIs → Funnel; src/app/(panel)/kpis/page.tsx) ----------
-export type ArgsFunnel = { periodo?: Periodo; desde?: string; hasta?: string; vendedor?: string; producto?: string };
+type ArgsFunnel = { periodo?: Periodo; desde?: string; hasta?: string; vendedor?: string; producto?: string };
 
 export async function herramientaFunnel(a: ArgsFunnel) {
   const { perfil, proyecto } = await exigirSeccion("funnel");
@@ -52,7 +52,7 @@ export async function herramientaFunnel(a: ArgsFunnel) {
 }
 
 // ---------- ranking (src/app/(panel)/ranking/page.tsx) ----------
-export type ArgsRanking = { periodo?: Periodo; desde?: string; hasta?: string };
+type ArgsRanking = { periodo?: Periodo; desde?: string; hasta?: string };
 
 export async function herramientaRanking(a: ArgsRanking) {
   const { proyecto } = await exigirSeccion("ranking");
@@ -71,7 +71,7 @@ export async function herramientaRanking(a: ArgsRanking) {
 
 // ---------- finanzas (Finanzas → Resumen; src/app/(panel)/finanzas/tab-resumen.tsx) ----------
 // Como la pantalla, cargarFinanzas prepara antes los plazos de las membresías (asegurarPlazosMensuales): no es solo leer.
-export type ArgsNav = { periodo?: PeriodoNav; n?: number; desde?: string; hasta?: string };
+type ArgsNav = { periodo?: PeriodoNav; n?: number; desde?: string; hasta?: string };
 
 export async function herramientaFinanzas(a: ArgsNav) {
   const { proyecto } = await exigirSeccion("finanzas");
@@ -94,7 +94,7 @@ export async function herramientaFinanzas(a: ArgsNav) {
 }
 
 // ---------- buscar_leads (CRM) ----------
-export type ArgsBuscar = { texto?: string; pais?: string; pipeline?: string; columna?: string; caller?: string | null; closer?: string | null; etiqueta?: string; sinActividadDias?: number; limite?: number };
+type ArgsBuscar = { texto?: string; pais?: string; pipeline?: string; columna?: string; caller?: string | null; closer?: string | null; etiqueta?: string; sinActividadDias?: number; limite?: number };
 type LeadFila = { id: string; nombre: string; apellido: string | null; email: string | null; telefono: string | null; pais: string | null; etiquetas: string[] | null; pipeline_id: string | null; etapa_id: string | null; etapa_callers_id: string | null; caller_id: string | null; closer_id: string | null; estado_caller: string; creado_en: string };
 
 // Código del país a partir del código («ES») o del nombre en español («España»); «Sin país» tal cual
@@ -243,7 +243,7 @@ export async function herramientaFichaLead(a: { leadId: string }) {
 }
 
 // ---------- agenda_citas (Agendas → Llamadas; src/app/(panel)/closer/llamadas/page.tsx) ----------
-export type ArgsAgenda = ArgsNav & { closer?: string; estado?: string; sinResultado?: boolean };
+type ArgsAgenda = ArgsNav & { closer?: string; estado?: string; sinResultado?: boolean };
 
 export async function herramientaAgenda(a: ArgsAgenda) {
   const { perfil, proyecto } = await exigirSeccion("agendas");

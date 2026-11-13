@@ -3,13 +3,13 @@
 // directores; mientras no pongan el suyo, sale este de ejemplo. Sin base de datos: se prueba con tests.
 
 export type RolGuion = "caller" | "closer";
-export type PasoGuion = { id: string; titulo: string; texto: string; checklist: string[]; pistas: string[] };
-export type Objecion = { id: string; objecion: string; respuesta: string };
+type PasoGuion = { id: string; titulo: string; texto: string; checklist: string[]; pistas: string[] };
+type Objecion = { id: string; objecion: string; respuesta: string };
 export type Guion = { pasos: PasoGuion[]; objeciones: Objecion[] };
 // Lo que marcó una persona en una llamada: por paso, los índices de su checklist marcados
 export type Marcas = Record<string, number[]>;
 
-export const LIMITES = { pasos: 15, checklist: 10, pistas: 8, objeciones: 30, texto: 1500, linea: 200 };
+const LIMITES = { pasos: 15, checklist: 10, pistas: 8, objeciones: 30, texto: 1500, linea: 200 };
 
 const id = (prefijo: string, i: number) => `${prefijo}${i + 1}`;
 
@@ -138,7 +138,7 @@ export function resumenMarcas(guion: Guion, marcas: Marcas) {
 
 // Para leer el guion con aire (Cristian, 10 nov): bloques separados por una línea en blanco y, en cada línea, qué es.
 // titulo «Paso 2» · nota «(Silencio…)» · si «Si dice X: "…"» (etiqueta + frase) · punto «• …» · lead «Lorena: "…"» · frase
-export type LineaGuion = { tipo: "titulo" | "nota" | "si" | "punto" | "lead" | "frase"; texto: string; etiqueta?: string };
+type LineaGuion = { tipo: "titulo" | "nota" | "si" | "punto" | "lead" | "frase"; texto: string; etiqueta?: string };
 export function bloquesGuion(texto: string): LineaGuion[][] {
   return texto
     .split(/\n\s*\n/)

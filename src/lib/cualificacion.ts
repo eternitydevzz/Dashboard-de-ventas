@@ -3,12 +3,12 @@
 import { normal } from "@/lib/llamadas";
 
 export type LeadQ = { id: string; respuestas: { pregunta: string; respuesta: string }[] | null };
-export type CitaQ = { lead_id: string; estado: string };
-export type VentaQ = { lead_id: string; cash_collected: number; devuelto: number | null; pagado: number };
+type CitaQ = { lead_id: string; estado: string };
+type VentaQ = { lead_id: string; cash_collected: number; devuelto: number | null; pagado: number };
 
 const ASISTIDA = ["cerrada", "seguimiento", "perdida"]; // hubo llamada (igual que en Métricas)
 
-export type FilaEstudio = { pregunta: string; respuesta: string; leads: number; llamadas: number; cerradas: number; cierre: number; cash: number; cashPorLlamada: number };
+type FilaEstudio = { pregunta: string; respuesta: string; leads: number; llamadas: number; cerradas: number; cierre: number; cash: number; cashPorLlamada: number };
 
 export function estudioRespuestas(d: { leads: LeadQ[]; citas: CitaQ[]; ventas: VentaQ[] }, preguntas?: string[]) {
   const llamadas = new Map<string, number>();

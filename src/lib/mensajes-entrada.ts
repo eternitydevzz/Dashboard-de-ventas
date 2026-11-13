@@ -18,7 +18,7 @@ export type ClaveMensaje =
   | "cag3" | "cag10" | "v1" | "v3" | "v5";
 
 // Felicitaciones: si sale una nueva en el día, la ventana vuelve a abrirse aunque ya se viera ese día
-export const FELICITACIONES: ClaveMensaje[] = ["ll100", "ll150", "ag1", "ag3", "ag5", "venta_agenda", "cag3", "cag10", "v1", "v3", "v5"];
+const FELICITACIONES: ClaveMensaje[] = ["ll100", "ll150", "ag1", "ag3", "ag5", "venta_agenda", "cag3", "cag10", "v1", "v3", "v5"];
 
 export type NumerosCaller = { llamadasHoy: number; agendasHoy: number; agendasSemana: number; ventasDeSusAgendasHoy: number };
 export type NumerosCloser = { agendasNuevasHoy: number; agendasSemana: number; ventasHoy: number; ventasMes: number };

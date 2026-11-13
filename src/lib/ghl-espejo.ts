@@ -15,7 +15,7 @@ import { mismoNombre } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
 
 type Fetch = typeof fetch;
-export const PIPELINES_ESPEJO = ["2. Webinar 1"];
+const PIPELINES_ESPEJO = ["2. Webinar 1"];
 const MAX_NUEVOS = 20; // leads nuevos (con su contacto leído de GHL) por lectura; el resto, en la siguiente
 export type ResultadoEspejo = { nuevos: number; anadidos: number; movidos: number; columnas: number; avisos: string[]; errores: string[] };
 

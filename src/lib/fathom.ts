@@ -6,10 +6,10 @@
 //   recording_start_time, recording_end_time, calendar_invitees [{ name, email, is_external }], default_summary.markdown_formatted, transcript
 import { normal } from "@/lib/llamadas";
 
-export const FATHOM_BASE = "https://api.fathom.ai/external/v1";
+const FATHOM_BASE = "https://api.fathom.ai/external/v1";
 type Fetch = typeof fetch;
 
-export type ReunionFathom = {
+type ReunionFathom = {
   title?: string | null;
   meeting_title?: string | null;
   recording_id: number;

@@ -13,7 +13,7 @@ export type FiltroLeads = {
   oferta?: string; // "" o sin poner = todas; si no, la oferta de la Biblioteca («vip», «grupal»…)
 };
 
-export const enPipeline = (l: LeadVista, pipelineId: string) => l.pipelineId === pipelineId || l.tarjetas.some((t) => t.pipelineId === pipelineId);
+const enPipeline = (l: LeadVista, pipelineId: string) => l.pipelineId === pipelineId || l.tarjetas.some((t) => t.pipelineId === pipelineId);
 export const paisDe = (l: LeadVista) => l.pais ?? SIN_PAIS;
 
 // Todo menos la fuente (la comparación por fuente y los números de los botones usan esto)

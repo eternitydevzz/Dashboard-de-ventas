@@ -1,4 +1,4 @@
-// Workflows 4b (docs/plan-workflows.md; boceto glass aprobado por Cristian el 7 nov 2026): Administración → Workflows.
+// Workflows 4b (boceto glass aprobado por Cristian el 7 nov 2026): Administración → Workflows.
 // Solo lectura: la lista, el lienzo (cajas de arriba abajo, ramas una al lado de otra; en el móvil, una debajo de otra) y
 // el historial de los últimos 50 leads. Sin JavaScript en el navegador: se elige el workflow con un enlace (?wf=).
 import Link from "next/link";

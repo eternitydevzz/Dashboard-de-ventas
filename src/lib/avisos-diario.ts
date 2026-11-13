@@ -7,7 +7,7 @@ import { ZONA_CEO, avisosCeo, reporteDia } from "@/lib/avisos-ceo";
 // (cae en la franja 8:00-8:59 de Madrid en verano y en invierno); solo manda la llamada que cae a las 8 de Madrid, y la tabla avisos_diario evita el segundo email.
 const DESTINO = "info@eternity.llc";
 
-export type ResultadoDiario = { estado: "fuera_de_hora" | "ya_enviado" | "enviado" } | { estado: "fallo"; motivo: string };
+type ResultadoDiario = { estado: "fuera_de_hora" | "ya_enviado" | "enviado" } | { estado: "fallo"; motivo: string };
 
 export async function enviarDiario(proyectoId: string, ahora = new Date()): Promise<ResultadoDiario> {
   const hora = Number(new Intl.DateTimeFormat("en-GB", { timeZone: ZONA_CEO, hour: "numeric", hourCycle: "h23" }).format(ahora));

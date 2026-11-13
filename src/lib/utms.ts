@@ -3,7 +3,7 @@ import { sumarDias } from "@/lib/formato";
 import type { Barra } from "@/components/barras";
 export const SIN_DATO = "Sin dato";
 export const CAMPOS_UTM = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
-export type CampoUtm = (typeof CAMPOS_UTM)[number];
+type CampoUtm = (typeof CAMPOS_UTM)[number];
 export type Clave = CampoUtm | "landing" | "etiqueta";
 
 // `marcas`: las del embudo de KPIs → Leads (lib/leads-vista.ts, MARCA), para el embudo por utm_source (rediseño, 11 nov 2026)

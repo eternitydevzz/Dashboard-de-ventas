@@ -15,7 +15,7 @@ import { masEnviosEntrada, reintentarEnvioGhl } from "./acciones";
 
 const quien = (x: EnvioEntrada) => String(x.payload?.email || x.payload?.phone || x.payload?.name || "—");
 
-export function ReintentarGhl({ eventoId }: { eventoId: string }) {
+function ReintentarGhl({ eventoId }: { eventoId: string }) {
   const { pendiente, ejecutar } = useAccion();
   return (
     <button type="button" className="btn-secundario text-xs" disabled={pendiente} onClick={() => ejecutar(() => reintentarEnvioGhl(eventoId), "Se manda en la próxima lectura (menos de 1 min)")}>
