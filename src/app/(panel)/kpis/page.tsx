@@ -137,9 +137,11 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
       </>
     );
   }
-  const base = await cargarBase(proyecto);
+  // D43: la base se pide ya; «Por persona» la espera a la vez que el resto de sus lecturas (antes, una detrás de otra)
+  const cargandoBase = cargarBase(proyecto);
 
   if (vista === "funnel") {
+    const base = await cargandoBase;
     // Lo que era la página «Funnel» (26 oct, Cristian): las cifras de dinero y de actividad del periodo, por vendedor y
     // producto. Sin la tabla «KPIs por persona»: está en la pestaña de al lado.
     const periodo = (typeof sp.periodo === "string" ? sp.periodo : "mes") as Periodo;
@@ -188,7 +190,13 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const rango = rangoNav(per.periodo, per.n, proyecto.zona_horaria, per.desde, per.hasta);
     const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : null);
     // 13 nov: los jefes filtran por mercado (Todos / España / Latam): personas, totales y métricas de las agendas
-    const mercados = await mercadosDelProyecto(proyecto.id);
+    const [base, mercados, agendas, canales, panel] = await Promise.all([
+      cargandoBase,
+      mercadosDelProyecto(proyecto.id),
+      cargarAgendas(proyecto, !!perfil.es_prueba),
+      canalesDe(proyecto.id),
+      jefe ? null : panelObjetivos(proyecto, perfil), // cada uno ve sus objetivos (como en Agendas)
+    ]);
     const filtroM = jefe && !propio ? mercadoValido(sp.mercado) : null;
     const entra = (id: string) => entraEnMercado(mercados, id, filtroM);
     const todos = calcularKpis(filtroM ? { ...base, gente: base.gente.filter((g) => entra(g.id)) } : base, rango, proyecto.zona_horaria);
@@ -260,7 +268,6 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const leadsPeriodo = base.leads.filter((l) => enRango(l.creado_en, rango)).length;
 
     // Métricas de las agendas (las de Agendas → Métricas). Un caller ve solo las citas que agendó él; un closer, las suyas
-    const [agendas, canales] = await Promise.all([cargarAgendas(proyecto, !!perfil.es_prueba), canalesDe(proyecto.id)]);
     const mirar = perfil.rol === "caller";
     if (mirar) {
       agendas.citas = agendas.citas.filter((c) => c.agendada_por === perfil.id || c.closer_id === perfil.id);
@@ -276,7 +283,6 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const porCloser = comparativaVisible
       ? vis.todos.map((c) => ({ c, m: metricasAgendas(agendas, rango, { closerIds: [c.id], ...filtrosAg }) })).filter(({ c, m }) => !("baja" in c && c.baja) || m.agendadas || m.cash)
       : [];
-    const panel = jefe ? null : await panelObjetivos(proyecto, perfil); // cada uno ve sus objetivos (como en Agendas)
     const qs = new URLSearchParams(Object.entries(sp).filter(([, v]) => typeof v === "string") as [string, string][]);
     const filtrosComunes = (
       <>
@@ -365,6 +371,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
   }
 
   // ---------- Objetivos ----------
+  const base = await cargandoBase;
   const datos = await cargarObjetivos(proyecto.id);
   const personas = base.gente.filter((g) => !("baja" in g && g.baja) && (g.rol === "caller" || g.rol === "closer" || g.rol === "director"));
   // Pendiente 9 (10 oct 2026): ver el avance de un periodo pasado (?ver=AAAA-MM-DD; sin fecha, ahora)

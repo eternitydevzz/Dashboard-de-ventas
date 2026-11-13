@@ -7,9 +7,9 @@ import type { Rol } from "@/lib/tipos";
 // que saturaban la base). Solo cuentan las que la persona tiene en su menú.
 export const PRECARGA_ROL: Record<Rol, string[]> = {
   caller: ["/caller", "/crm", "/mi-funnel"],
-  closer: ["/closer", "/crm", "/mi-funnel"],
-  director: ["/kpis", "/caller", "/closer"],
-  ceo: ["/kpis", "/crm", "/closer"],
+  closer: ["/closer/llamadas", "/crm", "/mi-funnel"], // el mismo href que el menú «Agendas» (layout.tsx)
+  director: ["/kpis", "/caller", "/closer/llamadas"],
+  ceo: ["/kpis", "/crm", "/closer/llamadas"],
 };
 
 export type ClaveMensaje =

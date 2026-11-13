@@ -56,7 +56,7 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-oro-suave text-oro"><Package className="h-5 w-5" /></span>
                   <div className="min-w-0">
                     <div className="font-semibold">{p.nombre}</div>
-                    <div className="text-sm text-oro">{p.precio ? dinero(Number(p.precio), { moneda: c.moneda(proyecto) }) : "Precio personalizado"}</div>
+                    <div className="text-sm text-oro-texto">{p.precio ? dinero(Number(p.precio), { moneda: c.moneda(proyecto) }) : "Precio personalizado"}</div>
                   </div>
                 </div>
                 <LinkProducto etiqueta="Dossier" url={p.link_dossier ?? null} productoId={p.id} campo="link_dossier" editor={editor} />
@@ -71,7 +71,7 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
           acciones={
             <div className="flex flex-wrap gap-1 text-sm">
               {[["", "Todos"], ["pdf", "PDF"], ["enlace", "Enlaces"], ["guion", "Guiones"], ["video", "Vídeos"]].map(([v, t]) => (
-                <Link prefetch={true} key={v} href={`/recursos?${conMercado({ ...(v ? { tipo: v } : {}), ...(q ? { q } : {}) })}`} className={`rounded-md px-2.5 py-1 ${tipo === v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>{t}</Link>
+                <Link key={v} href={`/recursos?${conMercado({ ...(v ? { tipo: v } : {}), ...(q ? { q } : {}) })}`} className={`rounded-md px-2.5 py-1 ${tipo === v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>{t}</Link>
               ))}
             </div>
           }

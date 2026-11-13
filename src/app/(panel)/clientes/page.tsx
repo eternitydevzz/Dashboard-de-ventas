@@ -54,7 +54,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
           <div className="flex flex-wrap items-center gap-2">
             {VISTAS.map((x) => {
               const I = x.icono;
-              return <Link prefetch={true} key={x.v} href={url({ ver: ver === x.v ? null : x.v })} className={ver === x.v ? "btn-primario" : "btn-secundario"}><I className="h-4 w-4" /> {x.t}</Link>;
+              return <Link key={x.v} href={url({ ver: ver === x.v ? null : x.v })} className={ver === x.v ? "btn-primario" : "btn-secundario"}><I className="h-4 w-4" /> {x.t}</Link>;
             })}
             {!suyos && <NuevoCliente productos={(prods.data ?? []) as Producto[]} vendedores={gente.filter((g) => g.rol !== "ceo").map((g) => ({ id: g.id, nombre: g.nombre }))} moneda={proyecto.moneda} />}
           </div>
@@ -79,12 +79,12 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
           <>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex rounded-lg border border-borde bg-panel p-0.5">
-                {[...ESTADOS_CLIENTE.map((x) => [x.v, `${x.t}s`]), ["todos", "Todos"]].map(([v, t]) => <Link prefetch={true} key={v} href={url({ estado: v === "activo" ? null : v })} className={`rounded-md px-3 py-1.5 text-sm ${estado === v ? "bg-primario text-white" : "text-texto-2"}`}>{t} <span className="text-xs opacity-70">{v === "todos" ? d.filas.length : d.filas.filter((f) => f.ficha.estado === v).length}</span></Link>)}
+                {[...ESTADOS_CLIENTE.map((x) => [x.v, `${x.t}s`]), ["todos", "Todos"]].map(([v, t]) => <Link key={v} href={url({ estado: v === "activo" ? null : v })} className={`rounded-md px-3 py-1.5 text-sm ${estado === v ? "bg-primario text-white" : "text-texto-2"}`}>{t} <span className="text-xs opacity-70">{v === "todos" ? d.filas.length : d.filas.filter((f) => f.ficha.estado === v).length}</span></Link>)}
               </div>
               <BuscadorUrl placeholder="Buscar por nombre, email o teléfono…" />
               <div className="ml-auto flex rounded-lg border border-borde bg-panel p-0.5">
-                <Link prefetch={true} href={url({ vista: null })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") !== "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
-                <Link prefetch={true} href={url({ vista: "cards" })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") === "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tarjetas</Link>
+                <Link href={url({ vista: null })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") !== "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
+                <Link href={url({ vista: "cards" })} className={`rounded-md px-3 py-1.5 text-sm ${s("vista") === "cards" ? "bg-primario text-white" : "text-texto-2"}`}>Tarjetas</Link>
               </div>
             </div>
             {lista.length === 0 ? (
@@ -106,7 +106,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
                         <td className="tabular-nums">{pct(progresoOnboarding(f.ficha.onboarding, d.pasos))}</td>
                         <td className="whitespace-nowrap">{f.ficha.proximo_contacto ? f.ficha.proximo_contacto.split("-").reverse().join("/") : "—"}</td>
                         <td><Insignia tono={TONO_ESTADO[f.ficha.estado]}>{ESTADOS_CLIENTE.find((x) => x.v === f.ficha.estado)?.t}</Insignia></td>
-                        <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} /></td>
+                        <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -134,7 +134,7 @@ function Tarjeta({ f, d, moneda }: { f: ClienteVista; d: DatosClientes; moneda: 
       </div>
       <div className="flex items-center justify-between border-t border-borde pt-3 text-xs text-texto-3">
         <span>Próximo contacto: {f.ficha.proximo_contacto ? f.ficha.proximo_contacto.split("-").reverse().join("/") : "—"}</span>
-        <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} />
+        <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} />
       </div>
     </article>
   );
@@ -144,7 +144,7 @@ function Seguimiento({ d, hoy }: { d: DatosClientes; hoy: string }) {
   const activos = d.filas.filter((f) => f.ficha.estado !== "abandonado");
   const grupos = [
     { v: "vencido", t: "Vencidos", tono: "text-mal" },
-    { v: "hoy", t: "Hoy", tono: "text-oro" },
+    { v: "hoy", t: "Hoy", tono: "text-oro-texto" },
     { v: "proximo", t: "Próximos", tono: "text-texto" },
     { v: "sin_fecha", t: "Sin fecha", tono: "text-texto-3" },
   ] as const;
@@ -158,7 +158,7 @@ function Seguimiento({ d, hoy }: { d: DatosClientes; hoy: string }) {
             {fs.length === 0 && <p className="py-4 text-center text-xs text-texto-3">Nadie</p>}
             {fs.map((f) => (
               <div key={f.lead_id} className="rounded-lg bg-panel-2 p-3 text-sm">
-                <div className="flex items-center justify-between gap-2"><Link href={`/leads/${f.lead_id}`} className="font-medium hover:text-primario">{f.lead.nombre}</Link><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} texto="Apuntar" /></div>
+                <div className="flex items-center justify-between gap-2"><Link href={`/leads/${f.lead_id}`} className="font-medium hover:text-primario">{f.lead.nombre}</Link><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} texto="Apuntar" /></div>
                 {f.ficha.proximo_contacto && <div className="text-xs text-texto-3">{f.ficha.proximo_contacto.split("-").reverse().join("/")}</div>}
                 {f.notas[0] && <p className="mt-1 line-clamp-2 text-xs text-texto-2">{f.notas[0].nota}</p>}
               </div>
@@ -212,7 +212,7 @@ function Casos({ d }: { d: DatosClientes }) {
                 <span>{f.ficha.caso_fecha ? f.ficha.caso_fecha.split("-").reverse().join("/") : ""}</span>
                 {f.ficha.caso_enlace && <a href={f.ficha.caso_enlace} target="_blank" rel="noopener noreferrer" className="text-primario hover:underline">Ver testimonio</a>}
               </div>
-              <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} pestana="caso" texto="Editar" />
+              <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} pestana="caso" texto="Editar" />
             </article>
           ))}
         </div>
@@ -234,7 +234,7 @@ function Onboardings({ d, editarPasos }: { d: DatosClientes; editarPasos: boolea
               <td><Link href={`/leads/${f.lead_id}`} className="hover:text-primario">{f.lead.nombre}</Link></td>
               {d.pasos.map((p) => <td key={p.id} className="text-center">{f.ficha.onboarding[p.id] ? <span className="text-ok" aria-label="Hecho">✓</span> : <span className="text-texto-3" aria-label="Pendiente">·</span>}</td>)}
               <td className="text-right tabular-nums">{pct(progresoOnboarding(f.ficha.onboarding, d.pasos))}</td>
-              <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} pestana="onboarding" texto="Marcar" /></td>
+              <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} pestana="onboarding" texto="Marcar" /></td>
             </tr>
           ))}
         </tbody>

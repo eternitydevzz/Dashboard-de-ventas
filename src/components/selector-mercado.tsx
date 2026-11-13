@@ -6,7 +6,7 @@ export function SelectorMercado({ actual, href }: { actual: Mercado; href: (m: M
   return (
     <div className="tarjeta flex flex-wrap items-center gap-1 p-1.5" role="tablist" aria-label="Equipo">
       {MERCADOS.map((m) => (
-        <Link prefetch={true} key={m.v} href={href(m.v)} role="tab" aria-selected={actual === m.v} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${actual === m.v ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
+        <Link key={m.v} href={href(m.v)} role="tab" aria-selected={actual === m.v} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${actual === m.v ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
           {m.t}
         </Link>
       ))}

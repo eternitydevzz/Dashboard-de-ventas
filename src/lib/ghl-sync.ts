@@ -30,8 +30,9 @@ export const MAX_CITAS_NUEVAS = 20;
 type Fuente = { nombre: string; calendarId: string | null; userId: string | null; closerId: string | null; calendario: string | null };
 
 // Trae las citas de GHL y las guarda en la app.
-export async function sincronizarCalendarios(proyectoId: string, opciones: { fetchImpl?: typeof fetch; ahora?: Date } = {}): Promise<ResultadoSync> {
-  const { data: proyecto } = await db().from("proyectos").select("*").eq("id", proyectoId).single<ProyectoGhl>();
+// `opciones.proyecto`: el que ya leyó quien llama (la lectura de cada minuto), para no volver a pedirlo (D43)
+export async function sincronizarCalendarios(proyectoId: string, opciones: { fetchImpl?: typeof fetch; ahora?: Date; proyecto?: ProyectoGhl } = {}): Promise<ResultadoSync> {
+  const proyecto = opciones.proyecto ?? (await db().from("proyectos").select("*").eq("id", proyectoId).single<ProyectoGhl>()).data;
   if (!proyecto?.ghl_token || !proyecto.ghl_location_id) throw new Error("Falta conectar GHL (token e id de la subcuenta) en Administración → Integraciones.");
   const token = descifrar(proyecto.ghl_token, "el token de GHL");
   const fetchImpl = opciones.fetchImpl;

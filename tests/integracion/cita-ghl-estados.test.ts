@@ -17,7 +17,7 @@ afterAll(async () => {
 
 const enviar = (cuerpo: unknown) =>
   POST(
-    new NextRequest(`http://localhost/api/webhooks/ghl/${e.proyecto.id}?secreto=${secreto}`, { method: "POST", body: JSON.stringify(cuerpo), headers: { "content-type": "application/json" } }),
+    new NextRequest(`http://localhost/api/webhooks/ghl/${e.proyecto.id}`, { method: "POST", body: JSON.stringify(cuerpo), headers: { "content-type": "application/json", "x-eternity-secreto": secreto } }),
     { params: Promise.resolve({ proyectoId: e.proyecto.id }) } as never
   );
 const nuevoLead = async (nombre: string, estado: string) =>

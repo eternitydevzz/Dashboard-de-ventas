@@ -61,6 +61,11 @@ describe("Ficha de una persona", () => {
     await falla(guardarPermisoPersona(e.p.callerA.id, "clientes", true), /tú no la tienes/);
     await ok(guardarPermisoPersona(e.p.callerA.id, "agendas", true)); // él la tiene
     await falla(guardarPermisoPersona(e.p.callerA.id, "inventada", true), /no válida/);
+    // D43: los permisos de otro director, solo el CEO
+    await falla(guardarPermisoPersona(e.p.director.id, "ranking", false), /solo los cambia el CEO/);
+    como(e, e.p.ceo);
+    await ok(guardarPermisoPersona(e.p.director.id, "ranking", false));
+    await ok(guardarPermisoPersona(e.p.director.id, "ranking", null));
   });
 });
 

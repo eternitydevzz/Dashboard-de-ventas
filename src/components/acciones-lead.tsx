@@ -232,18 +232,18 @@ export function AccionesLead({
     const bv = "inline-flex items-center gap-1.5 rounded-[10px] border border-white/30 bg-white/15 px-2.5 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-white/25 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-white";
     return (
       <>
-        <section className="relative rounded-[18px] bg-gradient-to-br from-[#2b59d1] to-[#3f6ee6] px-4 pb-3 pt-3.5 text-white shadow-[0_10px_30px_-16px_rgb(43_89_209/0.6)] sm:px-[18px]" aria-label="Lead elegido">
+        <section className="relative rounded-[18px] bg-gradient-to-br from-primario-boton to-[#3f6ee6] px-4 pb-3 pt-3.5 text-white shadow-[0_10px_30px_-16px_rgb(43_89_209/0.6)] sm:px-[18px]" aria-label="Lead elegido">
           {cabecera}
           <div className="mt-3 flex flex-wrap gap-1.5 border-t border-white/20 pt-3" role="toolbar" aria-label="Herramientas">
             {guion && (
-              <button type="button" className={`${bv} !border-white !bg-white !text-[#1f3fa0]`} onClick={() => abrirGuion(true)}>
+              <button type="button" className={`${bv} !border-white !bg-white !text-primario-boton`} onClick={() => abrirGuion(true)}>
                 <ScrollText className="h-4 w-4" /> Guion
               </button>
             )}
             {/* C10 (7c.3): «Grabar» abre el guion y empieza a grabar */}
             {puedeGrabar && grabadora && (
               <button type="button" className={`${bv} !border-white !bg-white !text-[#b4202f]`} disabled={!!grabadora.grabando} onClick={() => { abrirGuion(true); void grabadora.empezar(leadId, nombre); }}>
-                <span className="h-2.5 w-2.5 rounded-full bg-[#d0303f]" /> {grabadora.grabando?.leadId === leadId ? "Grabando…" : "Grabar"}
+                <span className="h-2.5 w-2.5 rounded-full bg-mal" /> {grabadora.grabando?.leadId === leadId ? "Grabando…" : "Grabar"}
               </button>
             )}
             {/* F9 (plan Callers): abrir WhatsApp ya no apunta nada; lo apunta el resultado «Wsp enviado» */}

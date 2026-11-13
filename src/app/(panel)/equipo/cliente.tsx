@@ -148,7 +148,7 @@ export function EditorAreas({ areas }: { areas: Area[] }) {
       <form className="flex items-center gap-2" action={(fd) => ejecutar(() => guardarArea(null, String(fd.get("nombre")), String(fd.get("color"))), "Área creada")}>
         <input name="color" type="color" defaultValue="#64748b" className="h-8 w-8 shrink-0 cursor-pointer rounded border border-borde bg-transparent" aria-label="Color" />
         <input name="nombre" required placeholder="Nueva área" className="campo py-1.5" />
-        <button className="btn-secundario px-2 py-1.5" disabled={pendiente}><Plus className="h-4 w-4" /></button>
+        <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir área"><Plus className="h-4 w-4" /></button>
       </form>
       {error && <p className="text-xs text-mal">{error}</p>}
     </div>

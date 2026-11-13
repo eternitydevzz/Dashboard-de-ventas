@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type Resp = { data: unknown; error: { message: string } | null };
 type Cita = { id: string; ghl_cita_id: string; estado: string; fecha: string; closer_id: null; canal: null; ghl_calendario: string; creado_en: string; lead_id: string };
 let citas: Cita[];
+let lecturasProyecto = 0;
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (tabla: string) => {
@@ -13,7 +14,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       const q: Record<string, unknown> = {};
       for (const m of ["select", "eq", "in", "not", "gte", "lt", "lte", "order", "limit", "update", "insert", "upsert", "maybeSingle", "single"]) q[m] = (...a: unknown[]) => (ops.push([m, a]), q);
       const responder = (): Resp => {
-        if (tabla === "proyectos" && !hay("update")) return { data: { id: "p1", ghl_token: "x", ghl_location_id: "loc", ghl_calendarios: ["cal1"] }, error: null };
+        if (tabla === "proyectos" && !hay("update")) return lecturasProyecto++, { data: { id: "p1", ghl_token: "x", ghl_location_id: "loc", ghl_calendarios: ["cal1"] }, error: null };
         if (tabla === "leads") return { data: { id: "l1", estado_caller: "nuevo", etiquetas: [] }, error: null };
         if (tabla === "citas" && hay("insert")) {
           const fila = ops.find(([o]) => o === "insert")![1][0] as { ghl_cita_id: string; fecha: string; estado: string };
@@ -86,5 +87,14 @@ describe("tope de citas nuevas por lectura", () => {
     const r = await sincronizarCalendarios("p1", { ahora });
     expect(r.actualizadas).toBe(5);
     expect(r.nuevas).toBe(5);
+  });
+
+  it("D43: con el proyecto ya leído (la lectura de cada minuto) no lo vuelve a pedir", async () => {
+    lecturasProyecto = 0;
+    const proyecto = { id: "p1", ghl_token: "x", ghl_location_id: "loc", ghl_calendarios: ["cal1"] } as unknown as NonNullable<Parameters<typeof sincronizarCalendarios>[1]>["proyecto"];
+    expect((await sincronizarCalendarios("p1", { ahora, proyecto })).nuevas).toBe(20);
+    expect(lecturasProyecto).toBe(0);
+    await sincronizarCalendarios("p1", { ahora });
+    expect(lecturasProyecto).toBe(1);
   });
 });
