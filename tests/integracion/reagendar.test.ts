@@ -8,17 +8,19 @@ import { consultarAgenda } from "@/app/(panel)/leads/agenda";
 import { reagendarCita } from "@/app/(panel)/closer/acciones";
 
 let e: Escenario;
+let leadC: string; // Fase 3: un lead tiene una sola cita abierta, así que la de las 20:00 va en otro
 // Lunes 4 de enero de 2038 (Nueva York), de 9 a 18, para los dos closers
 const LUNES = { semana: { 1: [{ desde: "09:00", hasta: "18:00" }] }, fechas: {} };
 beforeAll(async () => {
   e = await crearEscenario();
   await db.from("miembros_proyecto").update({ horario: LUNES }).eq("proyecto_id", e.proyecto.id).in("perfil_id", [e.p.closerA.id, e.p.closerB.id]);
-  // Citas hechas a mano por un jefe: A a las 11:00; B a las 13:00 y a las 15:00; A a las 20:00 (fuera de horario)
+  // Citas hechas a mano por un jefe: A a las 11:00; B a las 13:00 y a las 15:00; A a las 20:00 (fuera de horario, LeadC)
   como(e, e.p.director);
   await ok(agendarCita(e.leads.LeadLibre, e.p.closerA.id, "2038-01-04T11:00", ""));
   await ok(agendarCita(e.leads.LeadA, e.p.closerB.id, "2038-01-04T13:00", ""));
   await ok(agendarCita(e.leads.LeadB, e.p.closerB.id, "2038-01-04T15:00", ""));
-  await ok(agendarCita(e.leads.LeadB, e.p.closerA.id, "2038-01-04T20:00", ""));
+  leadC = (await db.from("leads").insert({ proyecto_id: e.proyecto.id, nombre: "LeadC" }).select("id").single()).data!.id;
+  await ok(agendarCita(leadC, e.p.closerA.id, "2038-01-04T20:00", ""));
 });
 afterAll(async () => {
   if (e) await borrarEscenario(e);
@@ -31,7 +33,7 @@ describe("Agendar a mano", () => {
     como(e, e.p.ceo);
     expect(await consultarAgenda("2038-01-04T20:00", e.p.closerA.id)).toMatchObject({ aviso: expect.stringMatching(/fuera de su horario/) });
     expect(await consultarAgenda("2038-01-04T10:00", e.p.closerA.id)).toEqual({ aviso: null });
-    expect(await closerDe(e.leads.LeadB, "2038-01-04T20:00")).toBe(e.p.closerA.id);
+    expect(await closerDe(leadC, "2038-01-04T20:00")).toBe(e.p.closerA.id);
   });
 });
 
@@ -46,7 +48,7 @@ describe("Reagendar", () => {
   });
   it("closer sin horario: solo se comprueba que no choque con otra cita", async () => {
     await db.from("miembros_proyecto").update({ horario: null }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.closerA.id);
-    const { data: cita } = await db.from("citas").select("id").eq("lead_id", e.leads.LeadB).eq("fecha", new Date("2038-01-04T20:00:00-05:00").toISOString()).single();
+    const { data: cita } = await db.from("citas").select("id").eq("lead_id", leadC).eq("fecha", new Date("2038-01-04T20:00:00-05:00").toISOString()).single();
     await falla(reagendarCita(cita!.id, "2038-01-04T11:15"), /No está libre/); // A tiene la de las 11:00 (30 min)
     await ok(reagendarCita(cita!.id, "2038-01-05T22:00"));
     // 1.1: al agendar con un closer sin horario, el aviso lo dice claro

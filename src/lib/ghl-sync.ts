@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/datos";
 import { descifrar } from "@/lib/cifrado";
-import { columnaCitasGhl, datosAgendaGhl, guardarLeads, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
+import { CAMPOS_CITA, columnaCitasGhl, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
+import { avisarCloserAgenda } from "@/lib/aviso-closer";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { GhlEsperar, cambiarUsuarioCitaGhl, contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
 import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/lib/canal";
@@ -120,11 +121,11 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
     )
   );
   for (const l of lecturas) for (const ev of l.eventos) if (ev.id) vienen.add(ev.id);
-  type CitaApp = { id: string; ghl_cita_id: string; estado: string; fecha: string; closer_id: string | null; canal: string | null; ghl_calendario: string | null; creado_en: string; lead_id: string };
+  type CitaApp = { id: string; ghl_cita_id: string; estado: string; fecha: string; closer_id: string | null; canal: string | null; ghl_calendario: string | null; creado_en: string; lead_id: string; agendada_por: string | null };
   const enApp = new Map<string, CitaApp>();
   const ids = [...vienen];
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await db().from("citas").select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en, lead_id").eq("proyecto_id", proyecto.id).in("ghl_cita_id", ids.slice(i, i + 200));
+    const { data } = await db().from("citas").select(CAMPOS_CITA).eq("proyecto_id", proyecto.id).in("ghl_cita_id", ids.slice(i, i + 200));
     for (const c of (data ?? []) as CitaApp[]) enApp.set(c.ghl_cita_id, c);
   }
 
@@ -158,8 +159,10 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
             const o = await origenDe(ev.contactId);
             if (o.canal) {
               Object.assign(extra, { canal: o.canal }, o.origen_url ? { origen_url: o.origen_url } : {});
-              const { data: c } = await db().from("citas").select("lead_id").eq("id", existe.id).single();
-              if (c) await ponerEtiqueta(c.lead_id, etiquetaCanal(o.canal, canales));
+              // Fase 3: si llega «callers», la agenda pasa a contar para el caller del lead (sin quitar uno que ya la tenga)
+              const quien = (await datosAgendaGhl(existe.lead_id, o.canal)).agendada_por;
+              if (quien && !existe.agendada_por) extra.agendada_por = quien;
+              await ponerEtiqueta(existe.lead_id, etiquetaCanal(o.canal, canales));
             }
           }
           if (Object.keys(extra).length) await db().from("citas").update(extra).eq("id", existe.id);
@@ -243,12 +246,20 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         }
       }
       const datosOrigen = calendario ? { ghl_calendario: calendario, ...origen } : {};
-      const { data: creada, error } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerFinal, ...(await datosAgendaGhl(leadId)), fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select("id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en, lead_id").single();
+      const agenda = await datosAgendaGhl(leadId, origen?.canal ?? null);
+      // Fase 3: si el lead ya tiene una cita abierta, esta se junta con ella (manda la última)
+      const junta = abierta ? await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId: closerFinal, ghlCitaId: ev.id, origen: "ghl", agendadaPor: agenda.agendada_por, extra: datosOrigen }, { ahora }) : null;
+      const { data: creada, error } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerFinal, ...agenda, fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select(CAMPOS_CITA).single());
       if (error) {
         r.errores.push(`Cita ${ev.id}: ${error.message}`);
         continue;
       }
       enApp.set(ev.id, creada as CitaApp); // si sale en otro calendario de esta misma lectura, ya no se crea dos veces
+      // La vieja de GHL ya no es de esta cita: si viene después en esta lectura, no debe devolverle su hora
+      if (junta?.ghlViejo) {
+        enApp.delete(junta.ghlViejo);
+        procesadas.add(junta.ghlViejo);
+      }
       await db().from("citas_sin_lead").update({ estado: "resuelta" }).eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ev.id);
       if (estado === "pendiente" || estado === "confirmada") {
         // Plan GHL (Cristian, 16 oct): un lead que ya compró sigue «vendido» aunque reserve otra llamada.
@@ -265,9 +276,13 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       // Fase 4: el lead lleva la etiqueta de su canal («Canal: YouTube»), para el filtro del CRM
       if (origen?.canal) await ponerEtiqueta(leadId, etiquetaCanal(origen.canal, canales));
       await db().from("actividades").insert({ proyecto_id: proyecto.id, lead_id: leadId, tipo: "cita", resultado: "agendada", nota: `Cita del calendario de GHL${calendario ? ` «${calendario}»` : ` con ${f.nombre}`}` });
-      r.nuevas++;
+      if (junta) r.actualizadas++;
+      else r.nuevas++;
       // Solo citas futuras: la lectura mira 30 días atrás y, al añadir un calendario, las viejas dispararían en masa
-      if (abierta && new Date(fecha).getTime() >= ahora.getTime()) await disparar(proyecto.id, leadId, { tipo: "cita", evento: "agendada", canal: origen?.canal ?? null, calendario, fecha }, r);
+      if (abierta && new Date(fecha).getTime() >= ahora.getTime()) {
+        await disparar(proyecto.id, leadId, { tipo: "cita", evento: "agendada", canal: origen?.canal ?? null, calendario, fecha }, r);
+        if (!junta && closerFinal) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId: closerFinal, citaId: (creada as CitaApp).id, motivo: "nueva" });
+      }
     }
 
     // Arreglo 21 (por closer): una cita de GHL de este closer, dentro del rango consultado, que ya no viene es que se

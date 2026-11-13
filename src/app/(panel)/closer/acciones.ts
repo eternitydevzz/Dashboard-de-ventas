@@ -13,7 +13,8 @@ import { localAIso, ETIQUETA_ESTADO_CITA } from "@/lib/formato";
 import { zonaPersona } from "@/lib/zona-persona";
 import { estrellasEntre } from "@/lib/estrellas";
 import type { Cita, EstadoCita } from "@/lib/tipos";
-import { datosAgendaGhl, telefonoClave } from "@/lib/leads";
+import { datosAgendaGhl, juntarConCitaAbierta, telefonoClave } from "@/lib/leads";
+import { avisarCloserAgenda } from "@/lib/aviso-closer";
 import { ABIERTAS } from "@/lib/llamadas";
 
 // Arreglo 31: «cerrada» no se puede poner a mano: una cita se cierra registrando su venta
@@ -220,7 +221,10 @@ export async function importarCitas(texto: string) {
       if (!leadId) { fallos.push(`Fila ${n}: no hay ningún lead con ese ${email ? "email" : "teléfono"}`); continue; }
       if (yaHay.has(claveCita(leadId, closerId, fecha))) { fallos.push(`Fila ${n}: esa cita ya existe (mismo lead, closer y hora); no se duplica`); continue; }
       yaHay.add(claveCita(leadId, closerId, fecha));
-      const { error: errFila } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: (fila.nota ?? "").trim() || null });
+      // Fase 3: con una cita abierta, se junta con ella (sin avisos: un CSV puede traer cientos)
+      const notaFila = (fila.nota ?? "").trim() || null;
+      const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId, ghlCitaId: null, origen: "manual", agendadaPor: perfil.id, extra: notaFila ? { nota: notaFila } : {} }, { perfilId: perfil.id, sinAviso: true });
+      const { error: errFila } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: notaFila }));
       if (chocaHora(errFila)) { fallos.push(`Fila ${n}: ese closer ya tiene otra cita a esa hora`); continue; }
       if (errFila) throw new Error(`No se pudo guardar en «citas»: ${errFila.message}`);
       await escribir(db().from("leads").update({ estado_caller: "agendado", closer_id: closerId }).eq("id", leadId), "leads");
@@ -263,7 +267,14 @@ export async function unirCitaSinLead(id: string, leadId: string) {
     const { data: lead } = await db().from("leads").select("id").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!lead) throw new ErrorUsuario("Elige un lead de este proyecto.");
     const { data: ya } = await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", s.ghl_cita_id).maybeSingle();
-    if (!ya) await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: s.closer_id, ...(await datosAgendaGhl(leadId)), fecha: s.fecha, origen: "ghl", ghl_cita_id: s.ghl_cita_id, nota: s.titulo });
+    if (!ya) {
+      // Fase 3: sin canal no hay crédito de caller (datosAgendaGhl); con una cita abierta, se junta con ella
+      const agenda = await datosAgendaGhl(leadId, null);
+      const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha: s.fecha, closerId: s.closer_id, ghlCitaId: s.ghl_cita_id, origen: "ghl", agendadaPor: agenda.agendada_por }, { perfilId: perfil.id });
+      const { data: nueva, error } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: s.closer_id, ...agenda, fecha: s.fecha, origen: "ghl", ghl_cita_id: s.ghl_cita_id, nota: s.titulo }).select("id").single());
+      if (error) throw new Error(`No se pudo guardar en «citas»: ${error.message}`);
+      if (!junta && nueva && s.closer_id && new Date(s.fecha).getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId: s.closer_id, citaId: nueva.id, motivo: "nueva" });
+    }
     if (s.ghl_contact_id) await db().from("leads").update({ ghl_contact_id: s.ghl_contact_id }).eq("id", leadId).is("ghl_contact_id", null);
     await escribir(db().from("citas_sin_lead").update({ estado: "resuelta" }).eq("id", id), "citas_sin_lead");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", resultado: "agendada", nota: "Cita de GHL unida a mano" });

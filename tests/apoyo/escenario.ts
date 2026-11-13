@@ -132,7 +132,7 @@ export async function agendaPorLink(e: Escenario, leadId: string, caller: Perfil
   await ok(registrarLlamada(leadId, "seguimiento", "", estrellas));
   const { data, error } = await db
     .from("citas")
-    .insert({ proyecto_id: e.proyecto.id, lead_id: leadId, closer_id: closerId, fecha: localAIso(fechaLocal, e.proyecto.zona_horaria), origen: "ghl", ...(await datosAgendaGhl(leadId)) })
+    .insert({ proyecto_id: e.proyecto.id, lead_id: leadId, closer_id: closerId, fecha: localAIso(fechaLocal, e.proyecto.zona_horaria), origen: "ghl", ...(await datosAgendaGhl(leadId, "callers")) }) // Fase 3: el link de callers
     .select("id")
     .single();
   if (error) throw new Error(error.message);

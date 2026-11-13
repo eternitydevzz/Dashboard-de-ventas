@@ -24,6 +24,8 @@ vi.mock("@/lib/cifrado", () => ({ descifrar: () => "token" }));
 vi.mock("@/lib/leads", () => ({
   columnaCitasGhl: async () => null,
   datosAgendaGhl: async () => ({}),
+  CAMPOS_CITA: "*",
+  juntarConCitaAbierta: async () => null, // Fase 3: sin cita abierta (se prueba en ghl-sync-agenda-unica)
   guardarLeads: async () => undefined,
   moverAAgendadosOrganico: async () => undefined,
   pipelineCitaGhl: async () => null,

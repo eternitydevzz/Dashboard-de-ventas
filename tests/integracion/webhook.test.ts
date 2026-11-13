@@ -94,8 +94,11 @@ describe("Arreglos 18, 19 y 20 del webhook de GHL", () => {
     for (let i = 0; i < 2; i++) expect((await enviar({ tipo: "cita_agendada", email, fecha: "2026-11-03T15:00:00Z" })).status).toBe(200);
     const { data: l } = await db.from("leads").select("id").eq("proyecto_id", e.proyecto.id).eq("email", email).single();
     expect(await citaDe(l!.id)).toHaveLength(1);
-    expect((await enviar({ tipo: "cita_agendada", email, fecha: "2026-11-04T15:00:00Z" })).status).toBe(200); // otra hora: otra cita
-    expect(await citaDe(l!.id)).toHaveLength(2);
+    // Fase 3 (Cristian, 13 nov): otra hora con la cita aún abierta se junta con ella (manda la última)
+    expect((await enviar({ tipo: "cita_agendada", email, fecha: "2026-11-04T15:00:00Z" })).status).toBe(200);
+    const despues = await citaDe(l!.id);
+    expect(despues).toHaveLength(1);
+    expect(new Date(despues[0].fecha).toISOString()).toBe("2026-11-04T15:00:00.000Z");
   });
   it("cita con el formato real de GHL: la hora sin zona se lee en la zona del calendario (11 oct 2026)", async () => {
     // Copia del webhook que mandó GHL en la primera reserva de prueba (Webhook normal + Custom data)
