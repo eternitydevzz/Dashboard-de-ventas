@@ -49,3 +49,17 @@ export async function guardarTranscripcion(id: string, texto: string) {
     revalidatePath("/grabaciones");
   });
 }
+
+// N9 (Cristian, 13 nov): solo CEO y directores. Primero el audio: si falla, la fila se queda y se avisa
+export async function borrarGrabacion(id: string) {
+  return seguro(async () => {
+    const { perfil, proyecto } = await exigirSeccion("grabaciones");
+    if (!esJefe(perfil)) throw new ErrorUsuario("Solo el CEO y los directores borran grabaciones.");
+    const { data: g } = await db().from("grabaciones_caller").select("id, archivo_path").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (!g) throw new ErrorUsuario("Grabación no encontrada. Puede que ya se haya borrado.");
+    const { error } = await db().storage.from("grabaciones").remove([g.archivo_path]);
+    if (error) throw new ErrorUsuario("No se pudo borrar el audio, así que la grabación no se ha borrado. Inténtalo de nuevo.");
+    await escribir(db().from("grabaciones_caller").delete().eq("id", g.id).eq("proyecto_id", proyecto.id), "grabaciones");
+    revalidatePath("/grabaciones");
+  });
+}
