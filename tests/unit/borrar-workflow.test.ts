@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let wf: Record<string, unknown> | null;
 let borrado: { tabla: string; filtros: [string, unknown][] } | null;
-vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined, refresh: () => undefined }));
 vi.mock("@/lib/memoria", () => ({ olvidarTodo: () => undefined }));
 vi.mock("@/lib/auth", () => ({ exigir: async () => ({ proyecto: { id: "p1" } }), puedeAdmin: {}, puedeCrearProyectos: {}, exigirCambiarComisionRol: {} }));
 vi.mock("@/lib/datos", () => ({
