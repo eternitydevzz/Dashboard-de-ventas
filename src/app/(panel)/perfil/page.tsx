@@ -50,7 +50,7 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
         )}
         {conHorario && (
           <Seccion titulo={perfil.rol === "closer" ? `Mi horario para recibir llamadas · ${proyecto.nombre}` : `Mi horario de trabajo · ${proyecto.nombre}`}>
-            <EditorHorario inicial={horarioValido(miembro?.horario)} zona={proyecto.zona_horaria} perfilId={perfil.id} plantillas />
+            <EditorHorario inicial={horarioValido(miembro?.horario)} zona={proyecto.zona_horaria} zonaVer={zonaValida(perfil.zona_horaria) ?? undefined} perfilId={perfil.id} plantillas />
           </Seccion>
         )}
         {ajustes && (

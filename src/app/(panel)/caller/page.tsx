@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { zonaPersona } from "@/lib/zona-persona";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
 import { mercadosDelProyecto, miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
 import { entraEnMercado, mercadoValido, type Mercado } from "@/lib/mercado";
@@ -146,7 +147,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           callerId={jefe ? caller.id : null}
           pestana={filtro}
           orden={orden}
-          zona={proyecto.zona_horaria}
+          zona={zonaPersona(perfil, proyecto)}
           conIA={!!pesos}
           closers={closers}
           productos={(productos ?? []) as Producto[]}

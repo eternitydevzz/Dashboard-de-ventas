@@ -6,6 +6,7 @@ import { getSesion } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ETIQUETA_ROL } from "@/lib/formato";
 import { horarioValido } from "@/lib/horarios";
+import { zonaValida } from "@/app/(panel)/perfil/foto-zona";
 import { EditorHorario } from "@/components/editor-horario";
 import { FormularioSinVaciar } from "@/components/formulario-sin-vaciar";
 
@@ -121,7 +122,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
                   : "Cuándo vas a trabajar: por la mañana, por la tarde, todo el día o las horas que quieras. Puedes cambiarlo cuando quieras en «Mi perfil»."}
               </p>
             </div>
-            <EditorHorario inicial={horarioValido(miembro?.horario)} zona={proyecto.zona_horaria} campo="horario" plantillas />
+            <EditorHorario inicial={horarioValido(miembro?.horario)} zona={proyecto.zona_horaria} zonaVer={zonaValida(perfil.zona_horaria) ?? undefined} campo="horario" plantillas />
             {error && ERRORES[error] && <p className="text-sm text-mal">{ERRORES[error]}</p>}
             <button className="btn-primario w-full">Empezar</button>
           </div>

@@ -1,5 +1,6 @@
 "use server";
 
+import { zonaPersona } from "@/lib/zona-persona";
 import { crearCitaEnGhl } from "@/lib/cita-en-ghl";
 import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
@@ -62,7 +63,7 @@ export async function registrarLlamada(leadId: string, resultado: ResultadoSimpl
     const { lead, perfil, proyecto } = await leadPermitido(leadId);
     if (lead.estado_caller === "vendido" && perfil.rol === "caller") throw new ErrorUsuario("Este lead ya compró: lo lleva el closer.");
     const n = CON_ESTRELLAS.has(resultado) ? estrellasEntre(estrellas, 2, 5) : null;
-    const llamar = resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, proyecto.zona_horaria) : null; // aIso valida el formato
+    const llamar = resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, zonaPersona(perfil, proyecto)) : null; // 13 nov: en la zona de quien lo pone // aIso valida el formato
     // F3 (plan Callers, 7 nov): si falla, error (antes salía «Guardado» aunque el estado no cambiara)
     await escribir(db().from("leads").update({ estado_caller: resultado, llamar_en: llamar, ...(n ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");
     const tipo = resultado === "link_enviado" || resultado === "wsp_enviado" ? "llamada" : "cambio_etapa";
