@@ -42,7 +42,8 @@ export function kpiCaller(ix: Indices, ids: Set<string>) {
   const llamadas = acts.filter((a) => a.tipo === "llamada").length;
   // Contactado = le llamó o le mandó un WhatsApp · contesta = el lead avanzó (C11, punto 16: No interesa, Seguimiento,
   // Llamar luego, Agendado, Confirma Agenda, Reagendado o Cerrados; desde el 10 nov también Link de agenda y Wsp enviado)
-  const contactados = new Set(acts.filter((a) => a.tipo === "llamada" || a.tipo === "whatsapp").map((a) => a.lead_id));
+  // N8 (13 nov): desde el 7 nov los botones apuntan «cambio_etapa», no «llamada»; quien contesta o «No responde» también fue contactado
+  const contactados = new Set(acts.filter((a) => a.tipo === "llamada" || a.tipo === "whatsapp" || a.resultado === "no_responde" || esContacto(a)).map((a) => a.lead_id));
   const contestan = new Set(acts.filter(esContacto).map((a) => a.lead_id));
 
   // Agendados: leads con una cita creada por él en el periodo (también si luego se reagendó)

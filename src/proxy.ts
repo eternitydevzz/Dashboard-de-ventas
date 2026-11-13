@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { CSP_VISOR, politicaCsp } from "@/lib/csp";
+import { COOKIE_SESION_CORTA, opcionesCookie } from "@/lib/supabase/server";
 
 // Refresca la sesión de Supabase en cada petición y manda al login
 // a quien no ha iniciado sesión. Los permisos reales se comprueban
@@ -22,6 +23,8 @@ export async function proxy(request: NextRequest) {
     return h;
   };
   let response = NextResponse.next({ request: { headers: cabeceras() } });
+  // N4: al renovar la sesión, se respeta «Mantener la sesión iniciada» (lib/supabase/server.ts)
+  const corta = request.cookies.get(COOKIE_SESION_CORTA)?.value === "1";
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +37,7 @@ export async function proxy(request: NextRequest) {
         setAll(lista) {
           lista.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request: { headers: cabeceras() } });
-          lista.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          lista.forEach(({ name, value, options }) => response.cookies.set(name, value, opcionesCookie(options, corta)));
         },
       },
     }

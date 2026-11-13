@@ -1,11 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { anotar, bloqueado, dentroDelLimite } from "@/lib/limite";
 import { db } from "@/lib/datos";
 import { mandarEnlace } from "@/lib/acceso";
-import { createSessionClient } from "@/lib/supabase/server";
+import { COOKIE_SESION_CORTA, createSessionClient } from "@/lib/supabase/server";
 import { sesionDe } from "@/lib/sesion";
 import { rutaInicio } from "@/lib/permisos";
 
@@ -22,12 +22,17 @@ export async function iniciarSesion(_prev: { error: string; email?: string }, fo
     return { error: "Demasiados intentos fallidos. Espera 15 minutos y vuelve a probar.", email };
   }
 
-  const supabase = await createSessionClient();
+  // N4: casilla «Mantener la sesión iniciada» (marcada por defecto). Desmarcada = se cierra al cerrar el navegador.
+  const corta = formData.get("recordar") !== "on";
+  const supabase = await createSessionClient(corta);
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     await Promise.all([anotar(`login:email:${email}`), anotar(`login:ip:${ip}`)]);
     return { error: "Email o contraseña incorrectos.", email };
   }
+  const tarro = await cookies();
+  if (corta) tarro.set(COOKIE_SESION_CORTA, "1", { path: "/", sameSite: "lax", httpOnly: true });
+  else tarro.delete(COOKIE_SESION_CORTA);
   // Velocidad (17 oct 2026): directo a su sección (antes, a «/», que volvía a mandarla: una ida y vuelta más).
   // Sin onboarding hecho, el panel la manda a /onboarding igual que antes.
   const { perfil, proyecto } = await sesionDe(data.user.id);
@@ -36,7 +41,8 @@ export async function iniciarSesion(_prev: { error: string; email?: string }, fo
 
 export async function cerrarSesion() {
   const supabase = await createSessionClient();
-  await supabase.auth.signOut();
+  // N4: «local» cierra solo este navegador. Sin nada, Supabase usa «global» y saca a la persona de todos sus aparatos.
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/login");
 }
 

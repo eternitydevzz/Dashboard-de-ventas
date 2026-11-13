@@ -207,7 +207,12 @@ export function Insignia({ children, tono = "neutro" }: { children: ReactNode; t
   return <span className={`chip ${clases[tono]}`}>{children}</span>;
 }
 
-export function Avatar({ nombre, tamano = "h-8 w-8 text-[11px]" }: { nombre: string; tamano?: string }) {
+// N3 (13 nov 2026): `foto` es perfiles.foto; se sirve desde la propia app (/perfil/foto/…: la CSP solo deja
+// imágenes de 'self'). Sin foto, las iniciales de siempre.
+export function Avatar({ nombre, foto, tamano = "h-8 w-8 text-[11px]" }: { nombre: string; foto?: string | null; tamano?: string }) {
+  // next/image no sirve aquí: su optimizador pide la foto sin la sesión de quien mira
+  // eslint-disable-next-line @next/next/no-img-element
+  if (foto) return <img src={`/perfil/foto/${foto}`} alt={nombre} className={`shrink-0 rounded-full object-cover ${tamano}`} />;
   const ini = iniciales(nombre);
   return (
     <span className={`flex shrink-0 items-center justify-center rounded-full bg-primario-suave font-semibold text-primario ${tamano}`}>

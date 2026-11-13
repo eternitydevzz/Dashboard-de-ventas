@@ -212,13 +212,13 @@ export function AccionesLead({
         <Modal titulo="Añadir nota" onCerrar={() => setModal(null)}>
           <div className="space-y-3">
             <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={4} className="campo" placeholder="Escribe la nota…" />
+            {/* 13 nov: se borra y se cierra solo si se guardó (antes se perdía aunque fallara) */}
             <button
               className="btn-primario w-full"
-              onClick={() => {
-                ejecutar(() => anadirNota(leadId, nota), "Nota guardada");
-                setNota("");
-                setModal(null);
-              }}
+              disabled={pendiente}
+              onClick={() =>
+                unaVez("nota", () => exigirOk(anadirNota(leadId, nota)).then(() => { setNota(""); setModal(null); }), "Nota guardada")
+              }
             >
               Guardar nota
             </button>
@@ -263,7 +263,8 @@ export function AccionesLead({
             <label className="flex items-center gap-2 text-[12.5px] font-semibold text-texto-2">
               Mover a
               <select className="campo w-auto py-1.5" value={estado ?? ""} disabled={pendiente} onChange={(e) => e.target.value && e.target.value !== estado && resultado(e.target.value, true)}>
-                {ESTADOS_CALLER.filter((x) => x.v !== "vendido").map((x) => <option key={x.v} value={x.v}>{x.t}</option>)}
+                {/* «Cerrados» no se elige (lo pone el closer), pero un lead vendido lo enseña en vez de «Leads» (13 nov) */}
+                {ESTADOS_CALLER.filter((x) => x.v !== "vendido" || estado === "vendido").map((x) => <option key={x.v} value={x.v} disabled={x.v === "vendido"}>{x.t}</option>)}
               </select>
             </label>
           </div>

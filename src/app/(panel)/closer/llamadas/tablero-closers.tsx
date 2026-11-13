@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { cambiarEstadoCita, reagendarCita } from "../acciones";
 import { registrarVenta } from "@/app/(panel)/leads/acciones";
 import { moverCitaColumna } from "@/app/(panel)/crm/acciones";
@@ -21,7 +21,8 @@ import { TarjetaCrm } from "@/components/tarjeta-crm";
 // Tablero «Closers» (Paso 0, Cristian 10 oct 2026): Pre-call y Post-call juntos, en el CRM y en Agendas.
 // Columnas unidas: Pre-call cambia el estado de la cita; Post-call como en el H6 (estrellas, fecha, venta; las
 // ventas entre Reserva, Cuotas y Cerradas; fuera de ellas se borran). Columnas libres: la cita se queda ahí
-// hasta que cambie su estado. Todo se mueve arrastrando (Fase 4: sin «Mover a…», tarjeta común del CRM).
+// hasta que cambie su estado. Todo se mueve arrastrando (Fase 4, tarjeta común del CRM); en el móvil, donde arrastrar
+// no funciona, la cita lleva un «Mover a…» (N10, 13 nov) que hace lo mismo que soltarla en esa columna.
 
 export type TarjetaCitaC = {
   id: string;
@@ -72,6 +73,13 @@ export function TableroClosers({
   const [colSobre, setColSobre] = useState<string | null>(null);
   const [ventana, setVentana] = useState<Ventana | null>(null);
   const nombre = (i: Item) => (i.clase === "cita" ? i.cita.nombre : i.venta.nombre);
+  // Doble clic en «Registrar venta» = dos ventas: la ventana no se cierra hasta que responde el servidor (como en acciones-lead)
+  const ventaEnCurso = useRef(false);
+  function registrarUnaVez(leadId: string, fd: FormData) {
+    if (ventaEnCurso.current) return;
+    ventaEnCurso.current = true;
+    ejecutar(() => registrarVenta(leadId, fd).finally(() => (ventaEnCurso.current = false)), "Venta registrada");
+  }
 
   // Borra la venta y devuelve su cita (la que estaba «cerrada»), o avisa si no hay
   async function quitarVenta(venta: TarjetaVentaC) {
@@ -198,7 +206,7 @@ export function TableroClosers({
               <div className="flex max-h-[70vh] min-h-24 flex-col gap-2 overflow-y-auto p-2">
                 {total === 0 && <p className="py-6 text-center text-xs text-texto-3">Sin llamadas</p>}
                 {col.citas.map((c) => (
-                  <TarjetaCita key={c.id} c={c} origen={col.id} soloMirar={soloMirar} />
+                  <TarjetaCita key={c.id} c={c} origen={col.id} soloMirar={soloMirar} columnas={columnas} ocupado={pendiente} onMover={(destino) => mover({ clase: "cita", cita: c, origen: col.id }, destino)} />
                 ))}
                 {col.ventas.map((v) => (
                   <TarjetaCrm
@@ -270,7 +278,7 @@ export function TableroClosers({
               if (ventana.item.clase !== "cita") return;
               const { lead_id, id } = ventana.item.cita;
               fd.set("cita_id", id); // cierra esta cita, aunque estuviera terminada
-              ejecutar(() => registrarVenta(lead_id, fd), "Venta registrada");
+              registrarUnaVez(lead_id, fd);
               setVentana(null);
             }}
           />
@@ -319,8 +327,24 @@ export function TableroClosers({
   );
 }
 
-// Sin botones (Cristian, 13 oct 2026): la cita se mueve arrastrando; el clic abre el popup del lead
-function TarjetaCita({ c, origen, soloMirar }: { c: TarjetaCitaC; origen: string; soloMirar: boolean }) {
+// Sin botones (Cristian, 13 oct 2026): la cita se mueve arrastrando; el clic abre el popup del lead.
+// N10: en pantallas pequeñas (sin arrastrar), «Mover a…».
+function TarjetaCita({ c, origen, soloMirar, columnas, ocupado, onMover }: { c: TarjetaCitaC; origen: string; soloMirar: boolean; columnas: ColumnaC[]; ocupado: boolean; onMover: (destino: ColumnaC) => void }) {
+  const moverA = !soloMirar && (
+    <select
+      aria-label={`Mover a ${c.nombre} a otra columna`}
+      className="campo py-1.5 text-xs sm:hidden"
+      value=""
+      disabled={ocupado}
+      onChange={(e) => {
+        const destino = columnas.find((x) => x.id === e.target.value);
+        if (destino) onMover(destino);
+      }}
+    >
+      <option value="">Mover a…</option>
+      {columnas.filter((x) => x.id !== origen).map((x) => <option key={x.id} value={x.id}>{x.t}</option>)}
+    </select>
+  );
   return (
     <TarjetaCrm
       leadId={c.lead_id}
@@ -337,7 +361,7 @@ function TarjetaCita({ c, origen, soloMirar }: { c: TarjetaCitaC; origen: string
           <span className="chip bg-panel-2 text-texto-3">{c.quien}</span>
         </>
       }
-      pie={c.nota ? <div className="text-xs text-texto-2">📝 {c.nota}</div> : undefined}
+      pie={c.nota || moverA ? <>{c.nota && <div className="text-xs text-texto-2">📝 {c.nota}</div>}{moverA}</> : undefined}
     />
   );
 }

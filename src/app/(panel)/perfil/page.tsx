@@ -6,7 +6,8 @@ import { ajustesDe } from "@/lib/disponibilidad";
 import { esCloser } from "@/lib/tipos";
 import { Cabecera, Contenido, Seccion } from "@/components/ui";
 import { EditorHorario } from "@/components/editor-horario";
-import { FormMisDatos, FormMiMercado, FormMiPassword } from "./cliente";
+import { FormMisDatos, FormMiFoto, FormMiMercado, FormMiPassword, FormMiZona } from "./cliente";
+import { conZona, zonaValida } from "./foto-zona";
 import { leerMercado } from "@/lib/mercado-datos";
 
 // «Mi perfil» (bloque 1 de 1.0): para todos. Datos, contraseña y, para callers y closers, su horario.
@@ -16,12 +17,19 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
   const conHorario = perfil.rol === "caller" || perfil.rol === "closer";
   const { data: miembro } = conHorario ? await db().from("miembros_proyecto").select("horario, calendario").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).maybeSingle() : { data: null };
   const mercado = await leerMercado(proyecto.id, perfil.id); // undefined = no es miembro o falta la migración
+  const { foto, zona_horaria: zona } = perfil as { foto?: string | null; zona_horaria?: string | null }; // N3 y N2 (aún no en el tipo Perfil)
   const ajustes = esCloser(perfil) ? ajustesDe(proyecto.calendario, miembro?.calendario) : null;
   return (
     <>
       <Cabecera titulo="Mi perfil" subtitulo={<>{ETIQUETA_ROL[perfil.rol]} · {perfil.email}</>} />
       <Contenido>
         {bienvenida && <p className="rounded-lg bg-ok-suave px-3 py-2 text-sm text-ok">Ya has entrado. Si no recuerdas tu contraseña, crea una nueva aquí abajo («Cambiar mi contraseña»).</p>}
+        {/* N3: undefined = la base aún no tiene la columna (no se enseña) */}
+        {foto !== undefined && (
+          <Seccion titulo="Mi foto">
+            <FormMiFoto nombre={perfil.nombre} foto={foto} />
+          </Seccion>
+        )}
         <div className="grid gap-5 xl:grid-cols-2">
           <Seccion titulo="Mis datos">
             <FormMisDatos nombre={perfil.nombre} telefono={perfil.telefono ?? ""} whatsapp={perfil.whatsapp ?? ""} email={perfil.email} />
@@ -33,6 +41,11 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
         {mercado !== undefined && (
           <Seccion titulo={`Mi equipo · ${proyecto.nombre}`}>
             <FormMiMercado inicial={mercado} />
+          </Seccion>
+        )}
+        {zona !== undefined && conZona(perfil.rol) && (
+          <Seccion titulo="Mi zona horaria">
+            <FormMiZona inicial={zonaValida(zona)} />
           </Seccion>
         )}
         {conHorario && (

@@ -98,6 +98,14 @@ describe("F4 · KPIs de hoy de la cola: solo de este proyecto", () => {
     }
     expect(consultas.some((c) => c.tabla === "ventas")).toBe(false);
   });
+  it("si falla una consulta, error en vez de enseñar 0 (13 nov)", async () => {
+    respuesta["actividades:select"] = { data: [], error: null };
+    respuesta["citas:select"] = fallo;
+    await expect(kpisHoyCola("p1", "u1", "2026-11-07T00:00:00.000Z")).rejects.toThrow("la base no responde");
+    respuesta["actividades:select"] = fallo;
+    respuesta["citas:select"] = { data: null, error: null, count: 0 };
+    await expect(kpisHoyCola("p1", "u1", "2026-11-07T00:00:00.000Z")).rejects.toThrow("la base no responde");
+  });
 });
 
 describe("F13 · selector de callers del jefe: se distinguen dos con el mismo nombre", () => {
