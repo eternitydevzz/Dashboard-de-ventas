@@ -18,7 +18,8 @@ const cerrarSiOk = (r: unknown, cerrar: () => void) => {
 };
 
 // Ficha del cliente: estado, seguimiento, onboarding y caso de éxito
-export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana = "seguimiento", texto = "Gestionar" }: { leadId: string; nombre: string; ficha: FichaCliente; pasos: Paso[]; notas: { nota: string; creado_en: string }[]; pestana?: "seguimiento" | "onboarding" | "caso"; texto?: string }) {
+// Las fechas, en la zona del proyecto (`zona`; sin ella, Nueva York, la del proyecto según el plan) y no en la del aparato
+export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana = "seguimiento", texto = "Gestionar", zona = "America/New_York" }: { leadId: string; nombre: string; ficha: FichaCliente; pasos: Paso[]; notas: { nota: string; creado_en: string }[]; pestana?: "seguimiento" | "onboarding" | "caso"; texto?: string; zona?: string }) {
   const [abierto, setAbierto] = useState(false);
   const [tab, setTab] = useState(pestana);
   const { pendiente, error, ejecutar } = useAccion();
@@ -51,7 +52,7 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
                 {notas.length > 0 && (
                   <div className="space-y-2 border-t border-borde pt-3">
                     <div className="titulo-seccion">Notas anteriores</div>
-                    {notas.slice(0, 8).map((n) => <div key={n.creado_en} className="rounded-lg bg-panel-2 p-2"><div className="text-[11px] text-texto-3">{new Date(n.creado_en).toLocaleDateString("es-ES")}</div>{n.nota}</div>)}
+                    {notas.slice(0, 8).map((n) => <div key={n.creado_en} className="rounded-lg bg-panel-2 p-2"><div className="text-[11px] text-texto-3">{new Date(n.creado_en).toLocaleDateString("es-ES", { timeZone: zona })}</div>{n.nota}</div>)}
                   </div>
                 )}
               </form>
@@ -64,7 +65,7 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
                   <label key={p.id} className="flex items-center gap-2 rounded-lg bg-panel-2 px-3 py-2">
                     <input type="checkbox" defaultChecked={!!ficha.onboarding[p.id]} disabled={pendiente} onChange={(e) => ejecutar(() => marcarPasoOnboarding(leadId, p.id, e.target.checked), e.target.checked ? "Paso hecho" : "Paso desmarcado")} />
                     <span className="flex-1">{p.nombre}</span>
-                    {ficha.onboarding[p.id] && <span className="text-[11px] text-texto-3">{new Date(ficha.onboarding[p.id]).toLocaleDateString("es-ES")}</span>}
+                    {ficha.onboarding[p.id] && <span className="text-[11px] text-texto-3">{new Date(ficha.onboarding[p.id]).toLocaleDateString("es-ES", { timeZone: zona })}</span>}
                   </label>
                 ))}
               </div>
