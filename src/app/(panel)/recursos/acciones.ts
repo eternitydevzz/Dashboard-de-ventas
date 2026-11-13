@@ -7,7 +7,9 @@ import { olvidarTodo } from "@/lib/memoria";
 import { exigir, puedeRecursos } from "@/lib/auth";
 import { db, escribir } from "@/lib/datos";
 import { borrarSubida, leerSubida, prepararSubida } from "@/lib/subidas";
-import { esHttps, linksDe, linksValidos, type LinkPago } from "@/lib/links-pago";
+import { esHttps, linksValidos, type LinkPago } from "@/lib/links-pago";
+import { contenidoMercado, mercadoValido, type Mercado } from "@/lib/mercado";
+import { miMercado } from "@/lib/mercado-datos";
 import { recursosVisibles } from "@/lib/recursos";
 import { dinero } from "@/lib/formato";
 import type { Producto, Recurso } from "@/lib/tipos";
@@ -22,11 +24,13 @@ export async function recursosLlamada() {
   return seguro(async (): Promise<RecursosLlamada> => {
     const { perfil, proyecto } = await exigirSeccion("recursos");
     const editor = puedeRecursos(perfil);
-    const [{ data: productos }, { data: recursosData }] = await Promise.all([
+    const [{ data: productos }, { data: recursosData }, mercado] = await Promise.all([
       db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
       db().from("recursos").select("*").eq("proyecto_id", proyecto.id).order("creado_en", { ascending: false }),
+      miMercado(proyecto.id, perfil.id),
     ]);
-    const recursos = recursosVisibles((recursosData ?? []) as Recurso[], perfil);
+    const c = contenidoMercado(mercado); // 13 nov: lo de su mercado (en la llamada, también los jefes)
+    const recursos = recursosVisibles(c.filas((recursosData ?? []) as Recurso[]), perfil);
     // Enlaces firmados (1 hora) para los PDF privados, como en la página
     const firmados = new Map<string, string>();
     const pdfs = recursos.filter((r) => r.archivo_path).map((r) => r.archivo_path!);
@@ -37,8 +41,8 @@ export async function recursosLlamada() {
     return {
       productos: ((productos ?? []) as Producto[])
         .filter((p) => editor || perfil.rol !== "caller" || p.vende_caller)
-        .map((p) => ({ id: p.id, nombre: p.nombre, precio: p.precio ? dinero(Number(p.precio), proyecto) : "Precio personalizado", dossier: p.link_dossier ?? null, links: linksDe(p) })),
-      reserva: proyecto.link_reserva ?? null,
+        .map((p) => ({ id: p.id, nombre: p.nombre, precio: p.precio ? dinero(Number(p.precio), { moneda: c.moneda(proyecto) }) : "Precio personalizado", dossier: p.link_dossier ?? null, links: c.linksPago(p) })),
+      reserva: c.linkReserva(proyecto),
       recursos: recursos.map((r) => ({ id: r.id, titulo: r.titulo, tipo: r.tipo, href: r.archivo_path ? (firmados.get(r.archivo_path) ?? null) : (r.url ?? null), contenido: r.tipo === "guion" ? (r.contenido ?? "") : null })),
     };
   });
@@ -77,6 +81,7 @@ export async function crearRecurso(_prev: unknown, formData: FormData) {
     if (!TIPOS.includes(tipo) || !ROLES.includes(paraRol)) return { error: "Tipo no válido." };
 
     const fila: Record<string, unknown> = { proyecto_id: proyecto.id, titulo, tipo, para_rol: paraRol, creado_por: perfil.id };
+    if (formData.get("mercado") === "es") fila.mercado = "es"; // 13 nov: subido mirando España
     if (tipo === "guion") {
       const contenido = String(formData.get("contenido") ?? "").trim();
       if (!contenido) return { error: "Escribe el guion." };
@@ -132,30 +137,34 @@ export async function guardarLinkPago(productoId: string, url: string, campo: "l
     // Como en Programas (arreglo 35): los links de los productos, solo https
     if (limpio && !(urlValida(limpio) && limpio.toLowerCase().startsWith("https://"))) throw new ErrorUsuario("Pon un enlace válido que empiece por https://");
     await escribir(db().from("productos").update({ [campo]: limpio || null }).eq("id", productoId).eq("proyecto_id", proyecto.id), "productos");
+    olvidarTodo(); // Callers guarda los productos 1 minuto (lib/memoria.ts)
     revalidatePath("/recursos");
   });
 }
 
 // Fase 7 (Cristian, 12 oct): varios links de pago por programa y el de Reserva aparte. Los cambia quien edita recursos.
-export async function guardarLinksPago(productoId: string, links: unknown) {
+// 13 nov: con mercado «es», la versión de España (vacía = el equipo de España ve la de Latam)
+export async function guardarLinksPago(productoId: string, links: unknown, mercado: Mercado = "latam") {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeRecursos);
     const lista = linksValidos(links);
     const entraron = Array.isArray(links) ? links.filter((x) => x && typeof x === "object" && String((x as { url?: string }).url ?? "").trim()).length : 0;
     if (entraron > lista.length) throw new ErrorUsuario("Algún link no es válido o está repetido: tienen que empezar por https://");
-    const { error } = await db().from("productos").update({ links_pago: lista }).eq("id", productoId).eq("proyecto_id", proyecto.id);
+    const campo = mercadoValido(mercado) === "es" ? "links_pago_es" : "links_pago";
+    const { error } = await db().from("productos").update({ [campo]: lista }).eq("id", productoId).eq("proyecto_id", proyecto.id);
     if (error) throw new ErrorUsuario(/links_pago/.test(error.message) ? "Falta aplicar la migración de la base (links de pago)." : error.message);
     olvidarTodo(); // 25 oct 2026: borrar la memoria compartida (lib/memoria.ts)
     revalidatePath("/", "layout");
   });
 }
 
-export async function guardarLinkReserva(url: string) {
+export async function guardarLinkReserva(url: string, mercado: Mercado = "latam") {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeRecursos);
     const limpio = url.trim();
     if (limpio && !esHttps(limpio)) throw new ErrorUsuario("Pon un enlace válido que empiece por https://");
-    const { error } = await db().from("proyectos").update({ link_reserva: limpio || null }).eq("id", proyecto.id);
+    const campo = mercadoValido(mercado) === "es" ? "link_reserva_es" : "link_reserva";
+    const { error } = await db().from("proyectos").update({ [campo]: limpio || null }).eq("id", proyecto.id);
     if (error) throw new ErrorUsuario(/link_reserva/.test(error.message) ? "Falta aplicar la migración de la base (links de pago)." : error.message);
     olvidarTodo(); // 25 oct 2026: borrar la memoria compartida (lib/memoria.ts)
     revalidatePath("/", "layout");

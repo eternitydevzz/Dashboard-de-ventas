@@ -2,6 +2,7 @@ import { ETIQUETA_ESTADO } from "@/lib/estados-caller";
 import { CAMPOS_FICHA, limpiarFicha } from "@/lib/ficha-cualificacion";
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
+import { miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Mail, Phone, Globe, Tag, FileText, History, CalendarDays, ShoppingCart, Compass } from "lucide-react";
 import { getSesion, esJefe } from "@/lib/auth";
@@ -219,8 +220,8 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 vendedores={jefe ? gente.filter((g) => g.rol === "closer" || g.rol === "caller").map((g) => ({ id: g.id, nombre: g.nombre })) : undefined}
                 closerCita={closerCita}
                 miId={perfil.id}
-                linkAgenda={proyecto.link_agenda}
-                moneda={proyecto.moneda}
+                linkAgenda={await miLinkAgenda(proyecto, perfil.id)}
+                moneda={await miMoneda(proyecto, perfil.id)}
                 compacto
                 guion={guion}
                 nombreLead={nombreCompleto}

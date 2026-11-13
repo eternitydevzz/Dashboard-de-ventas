@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { olvidarTodo } from "@/lib/memoria";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { db, escribir } from "@/lib/datos";
 import { exigirSeccion, soloLoSuyo } from "@/lib/permisos";
@@ -90,6 +91,7 @@ export async function guardarPrograma(d: DatosPrograma) {
       const { count } = await db().from("productos").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
       await escribir(db().from("productos").insert({ ...fila, proyecto_id: proyecto.id, orden: count ?? 0 }), "productos");
     }
+    olvidarTodo(); // Callers guarda los productos 1 minuto (lib/memoria.ts)
     revalidatePath("/", "layout");
   });
 }
@@ -99,6 +101,7 @@ export async function activarPrograma(id: string, activo: boolean) {
     const { perfil, proyecto } = await exigirSeccion("programas");
     if (soloLoSuyo(perfil, "programas")) throw new ErrorUsuario("Programas es solo para mirar."); // H5
     await escribir(db().from("productos").update({ activo }).eq("id", id).eq("proyecto_id", proyecto.id), "productos");
+    olvidarTodo();
     revalidatePath("/", "layout");
   });
 }

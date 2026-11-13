@@ -51,9 +51,10 @@ export function FormProyecto({ aviso }: { aviso: string }) {
 }
 
 // 4.4 (Cristian, 11 oct): el link del calendario de GHL que el caller manda al lead con «Link enviado»
-export function LinkAgenda({ inicial }: { inicial: string }) {
+export function LinkAgenda({ inicial, inicialEs }: { inicial: string; inicialEs: string }) {
   const { pendiente, error, ok, ejecutar } = useAccion();
   const [valor, setValor] = useState(inicial);
+  const [valorEs, setValorEs] = useState(inicialEs);
   return (
     <div className="space-y-3">
       <div>
@@ -61,8 +62,25 @@ export function LinkAgenda({ inicial }: { inicial: string }) {
         <input id="admin-link-agenda" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="https://…" className="campo" />
         <p className="mt-1 text-xs text-texto-3">El de reservas que reparte entre los closers. Cuando un caller pulsa «Link enviado», se abre WhatsApp con este link ya escrito. La hora y el closer llegan luego desde GHL.</p>
       </div>
+      {/* 13 nov: el del equipo de España */}
+      <div>
+        <label className="etiqueta-campo" htmlFor="admin-link-agenda-es">Link del calendario · España</label>
+        <input id="admin-link-agenda-es" value={valorEs} onChange={(e) => setValorEs(e.target.value)} placeholder="Vacío = el de arriba" className="campo" />
+      </div>
       <Mensajes error={error} ok={ok} />
-      <button className="btn-primario" disabled={pendiente} onClick={() => ejecutar(() => guardarLinkAgenda(valor), "Link de agenda guardado")}>Guardar</button>
+      <button
+        className="btn-primario"
+        disabled={pendiente}
+        onClick={() =>
+          ejecutar(async () => {
+            const r = await guardarLinkAgenda(valor);
+            if (r && typeof r === "object" && "error" in r && r.error) return r;
+            return valorEs.trim() !== inicialEs ? guardarLinkAgenda(valorEs, "es") : r;
+          }, "Links de agenda guardados")
+        }
+      >
+        Guardar
+      </button>
     </div>
   );
 }

@@ -33,6 +33,8 @@ export type Proyecto = {
   aviso_webhook_url: string | null;
   link_agenda?: string | null; // link del calendario de GHL que el caller manda al lead (11 oct)
   link_reserva?: string | null; // Fase 7: link de Reserva, vale para cualquier programa
+  link_agenda_es?: string | null; // 13 nov: versiones de España (lib/mercado); vacío = las de Latam
+  link_reserva_es?: string | null;
   etapa_citas_ghl?: string | null; // Fase 4: columna donde van los leads con cita de GHL (antes, «Orgánico → Agendados» por nombre)
   ghl_leads_hasta?: string | null; // leads por API (16 oct): fecha de la oportunidad de GHL más nueva ya leída; null = aún sin activar
   ghl_calendarios?: string[]; // plan GHL (16 oct): ids de los calendarios de GHL que lee la app; vacío = por closer, como antes
@@ -123,6 +125,7 @@ export type Producto = {
   link_pago: string | null;
   link_dossier?: string | null; // 1.0 bloque 7: va encima del link de pago
   links_pago?: unknown; // Fase 7: varios links de pago (lib/links-pago)
+  links_pago_es?: unknown; // 13 nov: los de España (lib/mercado); vacío = los de Latam
   vende_caller: boolean;
   cuenta_comision?: boolean; // 1.0 bloque 4: si no, no paga comisión ni suma para el tramo
   activo: boolean;
@@ -175,6 +178,7 @@ export type Recurso = {
   contenido: string | null;
   archivo_path: string | null;
   para_rol: "todos" | "caller" | "closer";
+  mercado?: "latam" | "es"; // 13 nov (lib/mercado)
   creado_en: string;
 };
 

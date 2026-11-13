@@ -34,3 +34,9 @@ export function mismaFicha(a: unknown, b: unknown) {
   const x = limpiarFicha(a), y = limpiarFicha(b);
   return CAMPOS_FICHA.every(({ k }) => (x[k] ?? "") === (y[k] ?? ""));
 }
+
+// Al leer bien la ficha: la copia sin guardar de este navegador (o la de la base) y, encima, lo que se escribió
+// mientras la lectura fallaba (esos campos se vieron vacíos, así que no borran nada de la base)
+export function fichaAlLeer(base: Ficha, copia: Ficha | null, escritoSinLeer: Ficha): Ficha {
+  return { ...(copia ?? base), ...limpiarFicha(escritoSinLeer) };
+}

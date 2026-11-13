@@ -5,11 +5,13 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { Avatar } from "@/components/ui";
+import { EtiquetaMercado } from "@/components/mercado-equipo";
+import type { Mercado } from "@/lib/mercado";
 
 // KPIs en tarjetas (Fase 5, estilo glass): una por persona con sus números clave y sus tasas en barras.
 // Al pulsarla, una ventana con todo el detalle de esa sección y el botón para ir a su ficha (Equipo).
 export type CifraKpi = { t: string; v: string; d?: string; tasa?: number | null };
-export type PersonaKpi = { id: string; nombre: string; rol: string; grandes: CifraKpi[]; tasas: CifraKpi[]; detalle: CifraKpi[] };
+export type PersonaKpi = { id: string; nombre: string; rol: string; mercado?: Mercado; grandes: CifraKpi[]; tasas: CifraKpi[]; detalle: CifraKpi[] };
 
 export function TarjetasKpis({ personas, vacio, conFicha }: { personas: PersonaKpi[]; vacio: string; conFicha: boolean }) {
   const [abierta, setAbierta] = useState<PersonaKpi | null>(null);
@@ -27,7 +29,7 @@ export function TarjetasKpis({ personas, vacio, conFicha }: { personas: PersonaK
               <Avatar nombre={p.nombre} tamano="h-9 w-9 text-xs" />
               <div className="min-w-0">
                 <div className="truncate font-semibold">{p.nombre}</div>
-                <div className="text-xs text-texto-3">{p.rol}</div>
+                <div className="flex items-center gap-1.5 text-xs text-texto-3">{p.rol}{p.mercado && <EtiquetaMercado m={p.mercado} />}</div>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-4 gap-2">

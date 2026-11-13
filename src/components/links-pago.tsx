@@ -33,6 +33,7 @@ export function LinksPago({
   editor,
   conReserva = true,
   boton = "normal",
+  mercado = "latam",
 }: {
   productoId: string;
   programa: string;
@@ -41,6 +42,7 @@ export function LinksPago({
   editor: boolean;
   conReserva?: boolean; // la Membresía no la lleva
   boton?: "normal" | "pequeno";
+  mercado?: "latam" | "es"; // 13 nov: qué versión se guarda (la de Latam o la de España)
 }) {
   const [abierta, setAbierta] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -63,7 +65,7 @@ export function LinksPago({
         <CreditCard className="h-4 w-4" /> Links de pago{links.length ? ` (${links.length})` : ""}
       </button>
       {abierta && (
-        <Modal titulo={`Links de pago · ${programa}`} onCerrar={() => setAbierta(false)} ancho="max-w-xl">
+        <Modal titulo={`Links de pago · ${programa}${mercado === "es" ? " · España" : ""}`} onCerrar={() => setAbierta(false)} ancho="max-w-xl">
           {!editando ? (
             <div className="space-y-4">
               {links.length ? <ul className="space-y-2">{links.map((l) => <FilaLink key={l.url} l={l} />)}</ul> : <p className="text-sm text-texto-3">Este programa no tiene links de pago todavía.</p>}
@@ -100,9 +102,9 @@ export function LinksPago({
                   disabled={pendiente}
                   onClick={() =>
                     ejecutar(async () => {
-                      const r = await guardarLinksPago(productoId, filas.filter((f) => f.url.trim()));
+                      const r = await guardarLinksPago(productoId, filas.filter((f) => f.url.trim()), mercado);
                       if (r && typeof r === "object" && "error" in r && r.error) return r;
-                      if (conReserva && reservaTxt.trim() !== (reserva ?? "")) return guardarLinkReserva(reservaTxt);
+                      if (conReserva && reservaTxt.trim() !== (reserva ?? "")) return guardarLinkReserva(reservaTxt, mercado);
                       return r;
                     }, "Links guardados")
                   }

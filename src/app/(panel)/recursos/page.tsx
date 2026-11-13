@@ -8,7 +8,9 @@ import { dinero, fecha } from "@/lib/formato";
 import { Cabecera, Contenido, Seccion, Insignia, Vacio } from "@/components/ui";
 import { NuevoRecurso, BorrarRecurso, CopiarLink, LinkProducto, VerGuion } from "./cliente";
 import { LinksPago } from "@/components/links-pago";
-import { linksDe } from "@/lib/links-pago";
+import { contenidoMercado } from "@/lib/mercado";
+import { mercadoVista } from "@/lib/mercado-datos";
+import { SelectorMercado } from "@/components/selector-mercado";
 import type { Producto, Recurso } from "@/lib/tipos";
 
 const ICONO = { pdf: FileText, enlace: Link2, guion: ScrollText, video: Video };
@@ -20,6 +22,9 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
   const sp = await searchParams;
   const tipo = typeof sp.tipo === "string" ? sp.tipo : "";
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
+  // 13 nov: quien edita elige Latam / España; el resto ve lo de su mercado
+  const c = contenidoMercado(await mercadoVista(editor, sp.mercado, proyecto.id, perfil.id), { crudo: editor });
+  const conMercado = (x: Record<string, string>) => new URLSearchParams({ ...x, ...(editor && c.mercado === "es" ? { mercado: "es" } : {}) });
   const sinTildes = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   const [{ data: productos }, { data: recursosData }] = await Promise.all([
@@ -27,7 +32,7 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
     db().from("recursos").select("*").eq("proyecto_id", proyecto.id).order("creado_en", { ascending: false }),
   ]);
   // Bloque 7: con buscador (por título)
-  const recursos = recursosVisibles((recursosData ?? []) as Recurso[], perfil, tipo).filter((r) => !q || sinTildes(r.titulo).includes(sinTildes(q)));
+  const recursos = recursosVisibles(c.filas((recursosData ?? []) as Recurso[]), perfil, tipo).filter((r) => !q || sinTildes(r.titulo).includes(sinTildes(q)));
 
   // Enlaces firmados (1 hora) para los PDF privados
   const firmados = new Map<string, string>();
@@ -39,8 +44,9 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
 
   return (
     <>
-      <Cabecera titulo="Links y recursos" subtitulo="Todo lo que necesitas a mano durante las llamadas" acciones={editor ? <NuevoRecurso /> : undefined} />
+      <Cabecera titulo="Links y recursos" subtitulo="Todo lo que necesitas a mano durante las llamadas" acciones={editor ? <NuevoRecurso mercado={c.mercado} /> : undefined} />
       <Contenido>
+        {editor && <SelectorMercado actual={c.mercado} href={(m) => `/recursos?${new URLSearchParams({ ...(tipo ? { tipo } : {}), ...(q ? { q } : {}), ...(m === "es" ? { mercado: "es" } : {}) })}`} />}
         {/* Bloque 7 de 1.0 (Cristian): una tarjeta por producto con su dossier encima del link de pago */}
         <Seccion titulo="Productos: dossier y link de pago">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -50,11 +56,11 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-oro-suave text-oro"><Package className="h-5 w-5" /></span>
                   <div className="min-w-0">
                     <div className="font-semibold">{p.nombre}</div>
-                    <div className="text-sm text-oro">{p.precio ? dinero(Number(p.precio), proyecto) : "Precio personalizado"}</div>
+                    <div className="text-sm text-oro">{p.precio ? dinero(Number(p.precio), { moneda: c.moneda(proyecto) }) : "Precio personalizado"}</div>
                   </div>
                 </div>
                 <LinkProducto etiqueta="Dossier" url={p.link_dossier ?? null} productoId={p.id} campo="link_dossier" editor={editor} />
-                <LinksPago productoId={p.id} programa={p.nombre} links={linksDe(p)} reserva={proyecto.link_reserva ?? null} editor={editor} conReserva={p.modo_pago !== "mensual"} />
+                <LinksPago productoId={p.id} programa={p.nombre} links={c.linksPago(p)} reserva={c.linkReserva(proyecto)} editor={editor} conReserva={p.modo_pago !== "mensual"} mercado={c.mercado} />
               </div>
             ))}
           </div>
@@ -65,13 +71,14 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
           acciones={
             <div className="flex flex-wrap gap-1 text-sm">
               {[["", "Todos"], ["pdf", "PDF"], ["enlace", "Enlaces"], ["guion", "Guiones"], ["video", "Vídeos"]].map(([v, t]) => (
-                <Link prefetch={true} key={v} href={`/recursos?${new URLSearchParams({ ...(v ? { tipo: v } : {}), ...(q ? { q } : {}) })}`} className={`rounded-md px-2.5 py-1 ${tipo === v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>{t}</Link>
+                <Link prefetch={true} key={v} href={`/recursos?${conMercado({ ...(v ? { tipo: v } : {}), ...(q ? { q } : {}) })}`} className={`rounded-md px-2.5 py-1 ${tipo === v ? "bg-primario-suave text-primario" : "text-texto-2 hover:bg-panel-2"}`}>{t}</Link>
               ))}
             </div>
           }
         >
           <form className="relative mb-4" action="/recursos">
             {tipo && <input type="hidden" name="tipo" value={tipo} />}
+            {editor && c.mercado === "es" && <input type="hidden" name="mercado" value="es" />}
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-3" />
             <input name="q" defaultValue={q} className="campo pl-9" placeholder="Buscar un recurso por su nombre…" aria-label="Buscar un recurso" />
           </form>

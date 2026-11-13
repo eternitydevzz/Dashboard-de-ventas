@@ -1,12 +1,20 @@
 import "server-only";
 import { db } from "@/lib/datos";
 import { GUION_EJEMPLO, guionValido, type Guion, type RolGuion } from "@/lib/guiones";
+import { getSesion } from "@/lib/sesion";
+import { contenidoMercado, type Mercado } from "@/lib/mercado";
+import { miMercado } from "@/lib/mercado-datos";
 
-// Fase 6: el guion guardado del proyecto o, si no hay (o la base aún no tiene la tabla), el de ejemplo
-export async function cargarGuion(proyectoId: string, rol: RolGuion): Promise<{ guion: Guion; deEjemplo: boolean }> {
-  const { data, error } = await db().from("guiones").select("contenido").eq("proyecto_id", proyectoId).eq("rol", rol).maybeSingle();
-  const g = !error && data ? guionValido(data.contenido) : null;
-  return g ? { guion: g, deEjemplo: false } : { guion: GUION_EJEMPLO[rol], deEjemplo: true };
+// Fase 6: el guion guardado del proyecto o, si no hay (o la base aún no tiene la tabla), el de ejemplo.
+// 13 nov: el de su mercado (España cae en el de Latam). Sin `mercado`, el de quien ha entrado.
+// `propio` = hay uno guardado para ese mercado (para «Volver al de…» en el editor).
+export async function cargarGuion(proyectoId: string, rol: RolGuion, mercado?: Mercado | null): Promise<{ guion: Guion; deEjemplo: boolean; propio: boolean }> {
+  const m = mercado !== undefined ? mercado : await miMercado(proyectoId, (await getSesion()).perfil.id);
+  const { data, error } = await db().from("guiones").select("*").eq("proyecto_id", proyectoId).eq("rol", rol);
+  const fila = !error ? contenidoMercado(m).guion((data ?? []) as { mercado?: string; contenido: unknown }[]) : null;
+  const g = fila ? guionValido(fila.contenido) : null;
+  const propio = !!fila && (fila.mercado ?? "latam") === (m === "es" ? "es" : "latam");
+  return g ? { guion: g, deEjemplo: false, propio } : { guion: GUION_EJEMPLO[rol], deEjemplo: true, propio: false };
 }
 
 // El guion que ve quien llama: el del closer para los closers; el del caller para el resto

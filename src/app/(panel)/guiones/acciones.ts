@@ -7,29 +7,33 @@ import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { guionValido, resumenMarcas, type Marcas, type RolGuion } from "@/lib/guiones";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
+import { mercadoValido, type Mercado } from "@/lib/mercado";
 
 // Fase 6 · Guion de llamadas: lo editan el CEO y los directores; lo usan callers y closers al llamar.
 const ROLES: RolGuion[] = ["caller", "closer"];
 const sinTabla = (m: string) => /guiones|guion_marcas|schema cache|does not exist/i.test(m);
 
-export async function guardarGuion(rol: RolGuion, contenido: unknown) {
+// 13 nov: uno por mercado; el de España, si no hay, es el de Latam
+export async function guardarGuion(rol: RolGuion, contenido: unknown, mercado: Mercado = "latam") {
   return seguro(async () => {
     const { perfil, proyecto } = await exigir(esJefe);
     if (!ROLES.includes(rol)) throw new ErrorUsuario("Guion no válido.");
     const g = guionValido(contenido);
     if (!g) throw new ErrorUsuario("El guion necesita al menos un paso con título.");
-    const { error } = await db().from("guiones").upsert({ proyecto_id: proyecto.id, rol, contenido: g, actualizado_en: new Date().toISOString(), actualizado_por: perfil.id });
+    // Sin `mercado` en la fila, la de Latam (también vale si la base aún no tiene la columna)
+    const deEspana = mercadoValido(mercado) === "es" ? { mercado: "es" } : {};
+    const { error } = await db().from("guiones").upsert({ proyecto_id: proyecto.id, rol, ...deEspana, contenido: g, actualizado_en: new Date().toISOString(), actualizado_por: perfil.id });
     if (error) throw new ErrorUsuario(sinTabla(error.message) ? "Falta aplicar la migración de la base (guiones)." : error.message);
     revalidatePath("/", "layout");
   });
 }
 
-// Vuelve al guion de ejemplo
-export async function restaurarGuion(rol: RolGuion) {
+// Vuelve al guion de ejemplo (en España: quita el suyo y el equipo de España ve el de Latam)
+export async function restaurarGuion(rol: RolGuion, mercado: Mercado = "latam") {
   return seguro(async () => {
     const { proyecto } = await exigir(esJefe);
     if (!ROLES.includes(rol)) throw new ErrorUsuario("Guion no válido.");
-    const { error } = await db().from("guiones").delete().eq("proyecto_id", proyecto.id).eq("rol", rol);
+    const { error } = await db().from("guiones").delete().eq("proyecto_id", proyecto.id).eq("rol", rol).eq("mercado", mercadoValido(mercado) ?? "latam");
     if (error && !sinTabla(error.message)) throw new ErrorUsuario(error.message);
     revalidatePath("/", "layout");
   });

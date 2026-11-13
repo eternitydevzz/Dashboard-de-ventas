@@ -9,7 +9,8 @@ import { Modal } from "@/components/modal";
 import { confirmar, pedirTexto } from "@/components/dialogos";
 import { Pastillas } from "@/components/eleccion";
 
-export function NuevoRecurso() {
+// 13 nov: mirando España, el recurso nuevo es del equipo de España
+export function NuevoRecurso({ mercado = "latam" }: { mercado?: "latam" | "es" }) {
   const [abierto, setAbierto] = useState(false);
   const [tipo, setTipo] = useState("pdf");
   const [estado, accion, enviando] = useActionState(crearRecurso, null as null | { ok?: string; error?: string });
@@ -36,8 +37,9 @@ export function NuevoRecurso() {
     <>
       <button className="btn-primario" onClick={() => setAbierto(true)}><Plus className="h-4 w-4" /> Nuevo recurso</button>
       {abierto && (
-        <Modal titulo="Nuevo recurso" onCerrar={() => setAbierto(false)} ancho="max-w-lg">
+        <Modal titulo={mercado === "es" ? "Nuevo recurso · España" : "Nuevo recurso"} onCerrar={() => setAbierto(false)} ancho="max-w-lg">
           <form onSubmit={enviar} className="space-y-3">
+            <input type="hidden" name="mercado" value={mercado} />
             <label className="block"><span className="etiqueta-campo">Título</span><input name="titulo" required className="campo" placeholder="Ej: Guion de apertura" /></label>
             <div className="grid grid-cols-2 gap-3">
               <div>

@@ -6,7 +6,8 @@ import { ajustesDe } from "@/lib/disponibilidad";
 import { esCloser } from "@/lib/tipos";
 import { Cabecera, Contenido, Seccion } from "@/components/ui";
 import { EditorHorario } from "@/components/editor-horario";
-import { FormMisDatos, FormMiPassword } from "./cliente";
+import { FormMisDatos, FormMiMercado, FormMiPassword } from "./cliente";
+import { leerMercado } from "@/lib/mercado-datos";
 
 // «Mi perfil» (bloque 1 de 1.0): para todos. Datos, contraseña y, para callers y closers, su horario.
 export default async function PerfilPage({ searchParams }: PageProps<"/perfil">) {
@@ -14,6 +15,7 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
   const bienvenida = (await searchParams).bienvenida === "1"; // Fase 1: llega desde un enlace de entrar
   const conHorario = perfil.rol === "caller" || perfil.rol === "closer";
   const { data: miembro } = conHorario ? await db().from("miembros_proyecto").select("horario, calendario").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).maybeSingle() : { data: null };
+  const mercado = await leerMercado(proyecto.id, perfil.id); // undefined = no es miembro o falta la migración
   const ajustes = esCloser(perfil) ? ajustesDe(proyecto.calendario, miembro?.calendario) : null;
   return (
     <>
@@ -28,6 +30,11 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
             <FormMiPassword />
           </Seccion>
         </div>
+        {mercado !== undefined && (
+          <Seccion titulo={`Mi equipo · ${proyecto.nombre}`}>
+            <FormMiMercado inicial={mercado} />
+          </Seccion>
+        )}
         {conHorario && (
           <Seccion titulo={perfil.rol === "closer" ? `Mi horario para recibir llamadas · ${proyecto.nombre}` : `Mi horario de trabajo · ${proyecto.nombre}`}>
             <EditorHorario inicial={horarioValido(miembro?.horario)} zona={proyecto.zona_horaria} perfilId={perfil.id} plantillas />

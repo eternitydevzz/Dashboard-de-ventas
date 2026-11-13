@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, RotateCw } from "lucide-react";
-import { CAMPOS_FICHA, limpiarFicha, mismaFicha, type CampoFicha, type Ficha } from "@/lib/ficha-cualificacion";
+import { CAMPOS_FICHA, fichaAlLeer, limpiarFicha, mismaFicha, type CampoFicha, type Ficha } from "@/lib/ficha-cualificacion";
 import { guardarFicha, leerFicha } from "@/app/(panel)/caller/ficha-acciones";
 
 // C6 (plan Callers, 7 nov; 7c.2): la ficha se guarda SIEMPRE, sin botón «Guardar»:
@@ -11,7 +11,7 @@ import { guardarFicha, leerFicha } from "@/app/(panel)/caller/ficha-acciones";
 // /api/cualificacion). Mientras no está en la base, hay una copia en este navegador (localStorage), por lead.
 const ESPERA = 1500;
 const clave = (leadId: string) => `ficha-cualificacion:${leadId}`;
-type Estado = "cargando" | "listo" | "guardando" | "guardado" | "error";
+type Estado = "cargando" | "listo" | "guardando" | "guardado" | "error" | "sinLeer"; // sinLeer: falló la lectura
 
 function leerCopia(leadId: string): Ficha | null {
   try {
@@ -37,10 +37,13 @@ export function useFicha(leadId: string) {
   const actual = useRef<Ficha>({});
   const reloj = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cargada = useRef(false);
+  const [intento, setIntento] = useState(0); // «Reintentar» tras una lectura fallida
+  const deLead = useRef(leadId);
 
   const guardar = useCallback(async (): Promise<boolean> => {
     if (reloj.current) clearTimeout(reloj.current);
-    if (!cargada.current) return true; // aún no se ha leído: no se pisa lo que haya en la base
+    // Sin leer la base no se guarda nunca (pisaría la ficha que hubiera); si hay algo escrito, el botón no sigue
+    if (!cargada.current) return mismaFicha(actual.current, {});
     const f = actual.current;
     if (mismaFicha(f, guardada.current)) return true;
     setEstado("guardando");
@@ -61,22 +64,29 @@ export function useFicha(leadId: string) {
   useEffect(() => {
     let vivo = true;
     cargada.current = false;
+    if (deLead.current !== leadId) {
+      deLead.current = leadId;
+      actual.current = {}; // lo escrito es de otro lead
+    }
+    // Si la lectura falla (error de la base, red o un despliegue a mitad de sesión): aviso y «Reintentar», sin
+    // «Cargando…» para siempre y sin dar la ficha por leída (antes salía vacía y al guardar pisaba la de la base)
+    const fallo = () => vivo && setEstado("sinLeer");
     void leerFicha(leadId).then((r) => {
       if (!vivo) return;
-      const base = r && typeof r === "object" && !("error" in r) ? (r as Ficha) : {};
-      if (r && typeof r === "object" && "error" in r) setEstado("error");
+      if (!r || typeof r !== "object" || "error" in r) return void fallo();
+      const base = r as Ficha;
       const copia = leerCopia(leadId);
       guardada.current = base;
-      actual.current = copia ?? base;
+      actual.current = fichaAlLeer(base, copia, actual.current);
       setCampos(actual.current);
       cargada.current = true;
-      if (!(r && typeof r === "object" && "error" in r)) setEstado("listo");
-      if (copia && !mismaFicha(copia, base)) void guardar();
-    });
+      setEstado("listo");
+      if (!mismaFicha(actual.current, base)) void guardar();
+    }, fallo);
     return () => {
       vivo = false;
     };
-  }, [leadId, guardar]);
+  }, [leadId, guardar, intento]);
 
   // Al salir de la página o cerrar la pestaña (o pasar a otra app en el móvil): envío que sobrevive al cierre
   useEffect(() => {
@@ -100,17 +110,23 @@ export function useFicha(leadId: string) {
     const f = { ...actual.current, [k]: v };
     actual.current = f;
     setCampos(f);
+    if (!cargada.current) return; // sin leer: solo en memoria (una copia a medias pisaría la base al volver a entrar)
     escribirCopia(leadId, f);
     if (estado !== "error") setEstado("listo");
     if (reloj.current) clearTimeout(reloj.current);
     reloj.current = setTimeout(() => void guardar(), ESPERA);
   };
 
-  return { campos, estado, cambiar, guardar };
+  const releer = () => {
+    setEstado("cargando");
+    setIntento((n) => n + 1);
+  };
+
+  return { campos, estado, cambiar, guardar, releer };
 }
 
 export function PanelFicha({ ficha }: { ficha: ReturnType<typeof useFicha> }) {
-  const { campos, estado, cambiar, guardar } = ficha;
+  const { campos, estado, cambiar, guardar, releer } = ficha;
   // El recuadro azul clarito lo pone el lateral entero del guion (Cristian, 7 nov); aquí, los campos en blanco
   return (
     <div className="space-y-2">
@@ -123,6 +139,11 @@ export function PanelFicha({ ficha }: { ficha: ReturnType<typeof useFicha> }) {
           {estado === "error" && (
             <button type="button" className="inline-flex items-center gap-1 font-medium text-mal hover:underline" onClick={() => void guardar()}>
               <RotateCw className="h-3.5 w-3.5" /> No se guardó · Reintentar
+            </button>
+          )}
+          {estado === "sinLeer" && (
+            <button type="button" className="inline-flex items-center gap-1 font-medium text-mal hover:underline" onClick={releer}>
+              <RotateCw className="h-3.5 w-3.5" /> No se pudo cargar (no se guarda) · Reintentar
             </button>
           )}
         </span>
