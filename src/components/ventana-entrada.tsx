@@ -69,7 +69,7 @@ export function VentanaEntrada({ rol, nombre, avisos = [] }: { rol: Rol; nombre:
 
   // Añade los popups que no han salido ya (ni, si son «por sesión», en esta pestaña)
   const anadir = (r: TarjetaPopup[] | { error: string }) => {
-    if (esError(r)) return;
+    if (!Array.isArray(r)) return; // { error }: no se enseña nada
     const nuevos = quitarVistosEnSesion(r, deSesion).filter((t) => !yaSalieron.current.has(t.id));
     if (!nuevos.length) return;
     nuevos.forEach((t) => yaSalieron.current.add(t.id));
