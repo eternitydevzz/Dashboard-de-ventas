@@ -16,7 +16,7 @@ export type ManualFila = { id: string; titulo: string; actualizado_en: string; p
 
 // Cristian (7 nov, tras verlo en la app): el manual ocupa todo el ancho y el alto; arriba, un botón por manual
 // para cambiar de uno a otro (antes, una lista a la izquierda que le quitaba sitio al .html)
-export function VisorManuales({ manuales, elegido, editor, zona }: { manuales: ManualFila[]; elegido: ManualFila; editor: boolean; zona: Proyecto["zona_horaria"] }) {
+export function VisorManuales({ manuales, elegido, editor, zona, mercado = "latam" }: { manuales: ManualFila[]; elegido: ManualFila; editor: boolean; zona: Proyecto["zona_horaria"]; mercado?: "latam" | "es" }) {
   const src = `/api/manuales/${elegido.id}?v=${encodeURIComponent(elegido.actualizado_en)}`; // ?v=: al cambiarlo, no sale el viejo
   return (
     <section className="tarjeta flex flex-col overflow-hidden">
@@ -25,14 +25,14 @@ export function VisorManuales({ manuales, elegido, editor, zona }: { manuales: M
           {manuales.map((m) => {
             const on = m.id === elegido.id;
             return (
-              <Link key={m.id} href={`/manuales?m=${m.id}`} aria-current={on ? "page" : undefined} title={`Actualizado el ${fechaHora(m.actualizado_en, { zona_horaria: zona })}${m.por ? ` · por ${m.por}` : ""}`} className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${on ? "border-transparent bg-primario-boton text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)]" : "border-borde bg-panel-2 text-texto-2 hover:border-borde-fuerte hover:text-texto"}`}>
+              <Link key={m.id} href={`/manuales?m=${m.id}${editor && mercado === "es" ? "&mercado=es" : ""}`} aria-current={on ? "page" : undefined} title={`Actualizado el ${fechaHora(m.actualizado_en, { zona_horaria: zona })}${m.por ? ` · por ${m.por}` : ""}`} className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${on ? "border-transparent bg-primario-boton text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)]" : "border-borde bg-panel-2 text-texto-2 hover:border-borde-fuerte hover:text-texto"}`}>
                 <BookOpen className="h-4 w-4" /> {m.titulo}
               </Link>
             );
           })}
         </BarraDeslizable>
         <a href={src} target="_blank" rel="noreferrer" className="btn-secundario px-2.5 py-1.5 text-xs"><Maximize2 className="h-3.5 w-3.5" /> Pantalla completa</a>
-        {editor && <SubirManual cambiar={elegido} />}
+        {editor && <SubirManual cambiar={elegido} mercado={mercado} />}
       </div>
       {/* Aislado: sin allow-same-origin, el manual no puede leer la sesión ni tocar la app (lib/csp.ts, CSP_VISOR) */}
       <iframe key={src} src={src} title={elegido.titulo} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" className="h-[calc(100dvh-210px)] min-h-[480px] w-full bg-white" />
@@ -41,7 +41,8 @@ export function VisorManuales({ manuales, elegido, editor, zona }: { manuales: M
 }
 
 // «Subir manual (.html)» (nuevo) o «Cambiar este manual» (el .html nuevo sustituye al anterior)
-export function SubirManual({ cambiar }: { cambiar?: ManualFila }) {
+// 13 nov: mirando España, el manual nuevo es del equipo de España
+export function SubirManual({ cambiar, mercado = "latam" }: { cambiar?: ManualFila; mercado?: "latam" | "es" }) {
   const [abierto, setAbierto] = useState(false);
   const [error, setError] = useState("");
   const [enviando, iniciar] = useTransition();
@@ -67,9 +68,10 @@ export function SubirManual({ cambiar }: { cambiar?: ManualFila }) {
         <Upload className={cambiar ? "h-3.5 w-3.5" : "h-4 w-4"} /> {cambiar ? "Cambiar este manual" : "Subir manual (.html)"}
       </button>
       {abierto && (
-        <Modal titulo={cambiar ? `Cambiar «${cambiar.titulo}»` : "Subir manual"} onCerrar={() => setAbierto(false)}>
+        <Modal titulo={cambiar ? `Cambiar «${cambiar.titulo}»` : mercado === "es" ? "Subir manual · España" : "Subir manual"} onCerrar={() => setAbierto(false)}>
           <form onSubmit={enviar} className="space-y-3">
             {cambiar && <input type="hidden" name="id" value={cambiar.id} />}
+            <input type="hidden" name="mercado" value={mercado} />
             <label className="block"><span className="etiqueta-campo">Título</span><input name="titulo" required maxLength={80} defaultValue={cambiar?.titulo ?? ""} className="campo" placeholder="Manual general" /></label>
             <label className="block"><span className="etiqueta-campo">Archivo .html</span><input name="archivo" type="file" accept=".html,text/html" required className="campo" /></label>
             {cambiar && <p className="text-xs text-texto-3">El archivo nuevo sustituye al anterior para todo el equipo.</p>}

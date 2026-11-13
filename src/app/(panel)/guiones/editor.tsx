@@ -13,7 +13,9 @@ type ObjE = { objecion: string; respuesta: string };
 
 const aLineas = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
 
-export function EditorGuion({ rol, guion, deEjemplo }: { rol: RolGuion; guion: Guion; deEjemplo: boolean }) {
+// 13 nov: `mercado` = qué guion se guarda; en España, `propio` = ya tiene el suyo (si no, se parte del de Latam)
+export function EditorGuion({ rol, guion, deEjemplo, mercado = "latam", propio = !deEjemplo }: { rol: RolGuion; guion: Guion; deEjemplo: boolean; mercado?: "latam" | "es"; propio?: boolean }) {
+  const es = mercado === "es";
   const [pasos, setPasos] = useState<PasoE[]>(guion.pasos.map((p) => ({ titulo: p.titulo, texto: p.texto, checklist: p.checklist.join("\n"), pistas: p.pistas.join("\n") })));
   const [objs, setObjs] = useState<ObjE[]>(guion.objeciones.map((o) => ({ objecion: o.objecion, respuesta: o.respuesta })));
   const { pendiente, error, ejecutar } = useAccion();
@@ -72,16 +74,17 @@ export function EditorGuion({ rol, guion, deEjemplo }: { rol: RolGuion; guion: G
           disabled={pendiente}
           onClick={() =>
             ejecutar(
-              () => guardarGuion(rol, { pasos: pasos.map((p) => ({ titulo: p.titulo, texto: p.texto, checklist: aLineas(p.checklist), pistas: aLineas(p.pistas) })), objeciones: objs }),
+              () => guardarGuion(rol, { pasos: pasos.map((p) => ({ titulo: p.titulo, texto: p.texto, checklist: aLineas(p.checklist), pistas: aLineas(p.pistas) })), objeciones: objs }, mercado),
               "Guion guardado"
             )
           }
         >
           <Save className="h-4 w-4" /> Guardar guion
         </button>
-        {!deEjemplo && (
-          <button type="button" className="btn-secundario" disabled={pendiente} onClick={() => void confirmar("¿Volver al guion de ejemplo? Se pierde el que tienes ahora.").then((ok) => ok && ejecutar(() => restaurarGuion(rol), "Guion de ejemplo puesto"))}>
-            <RotateCcw className="h-4 w-4" /> Volver al de ejemplo
+        {es && !propio && <p className="self-center text-xs text-texto-3">España aún no tiene guion propio: ve el de Latam. Al guardar, este pasa a ser el de España.</p>}
+        {propio && (
+          <button type="button" className="btn-secundario" disabled={pendiente} onClick={() => void confirmar(es ? "¿Quitar el guion de España? El equipo de España verá el de Latam." : "¿Volver al guion de ejemplo? Se pierde el que tienes ahora.").then((ok) => ok && ejecutar(() => restaurarGuion(rol, mercado), es ? "Ahora España ve el de Latam" : "Guion de ejemplo puesto"))}>
+            <RotateCcw className="h-4 w-4" /> {es ? "Usar el de Latam" : "Volver al de ejemplo"}
           </button>
         )}
       </div>

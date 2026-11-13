@@ -210,7 +210,8 @@ export async function guardarPreguntasReporte(rol: "caller" | "closer", lista: u
 
 // ---------- Proyecto ----------
 // 4.4 (Cristian, 11 oct): el link del calendario de GHL que el caller manda al lead al pulsar «Link enviado»
-export async function guardarLinkAgenda(link: string) {
+// 13 nov: con «es», el del equipo de España (vacío = usa el de Latam)
+export async function guardarLinkAgenda(link: string, mercado: "latam" | "es" = "latam") {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     const limpio = link.trim();
@@ -223,7 +224,7 @@ export async function guardarLinkAgenda(link: string) {
       }
       if (!ok) throw new ErrorUsuario("El link de agenda tiene que empezar por https://");
     }
-    await escribir(db().from("proyectos").update({ link_agenda: limpio || null }).eq("id", proyecto.id), "proyectos");
+    await escribir(db().from("proyectos").update({ [mercado === "es" ? "link_agenda_es" : "link_agenda"]: limpio || null }).eq("id", proyecto.id), "proyectos");
     refrescar();
   });
 }

@@ -21,6 +21,7 @@ import { BuscadorUrl, CrearLlamada, FilaSinUnir, ImportarCitas, SincronizarGhl }
 import type { Producto } from "@/lib/tipos";
 import { SIN_CANAL, opcionesCanal, origenCitaGhl } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
+import { miMoneda } from "@/lib/mercado-datos";
 
 const TABS = [
   { v: "agendas", t: "Agendas" },
@@ -50,6 +51,7 @@ const sumarMes = (ym: string, n: number) => {
 
 export default async function LlamadasPage({ searchParams }: PageProps<"/closer/llamadas">) {
   const { perfil, proyecto } = await exigirPagina("agendas"); // H5
+  const monedaVenta = await miMoneda(proyecto, perfil.id); // 13 nov: € para el equipo de España (mismo número)
   const jefe = esJefe(perfil);
   // H5 (caso 1 confirmado por Cristian): un caller con «Agendas» ve solo las citas que agendó él, solo para mirar
   const mirar = perfil.rol === "caller";
@@ -91,7 +93,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   // Tablero «Closers» (Pre-call o Post-call): las columnas de esa parte, con las citas que pasan el buscador
   const tablero = (lista: typeof etapasCl) => {
     const { columnas } = columnasCloser(lista, citas, ventas, { proyecto, jefe, nombrePersona, canales });
-    return <TableroClosers columnas={columnas} productos={prods} moneda={proyecto.moneda} jefe={jefe} soloMirar={mirar} />;
+    return <TableroClosers columnas={columnas} productos={prods} moneda={monedaVenta} jefe={jefe} soloMirar={mirar} />;
   };
 
   // Contadores de arriba (este mes)
@@ -403,7 +405,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
               {jefe && <Insignia tono={porRecuperar(c) ? "mal" : "neutro"}>{porRecuperar(c) ? `Recuperar · ${quienLlevaba(c, nombrePersona)}` : quienLlevaba(c, nombrePersona)}</Insignia>}
               <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
             </div>
-            {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={proyecto.moneda} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} />}
+            {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={monedaVenta} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} />}
           </li>
         ))}
       </ul>

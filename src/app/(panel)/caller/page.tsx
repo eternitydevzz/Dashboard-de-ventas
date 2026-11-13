@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
+import { miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
 import { Phone, CalendarCheck, CalendarDays, MessageCircle, UserCheck, Users, Trophy } from "lucide-react";
 import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
@@ -134,8 +135,8 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           closers={closers}
           productos={(productos.data ?? []) as Producto[]}
           rol={perfil.rol}
-          linkAgenda={proyecto.link_agenda}
-          moneda={proyecto.moneda}
+          linkAgenda={await miLinkAgenda(proyecto, perfil.id)}
+          moneda={await miMoneda(proyecto, perfil.id)}
           guion={guion}
           miNombre={perfil.nombre}
           nombresPipeline={nombresPipeline}

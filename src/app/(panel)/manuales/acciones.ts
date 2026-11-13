@@ -40,7 +40,8 @@ export async function guardarManual(formData: FormData) {
       if (viejo.archivo_path !== ruta) await borrarSubida("manuales", viejo.archivo_path);
     } else {
       const { count } = await db().from("manuales").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-      await escribir(db().from("manuales").insert({ proyecto_id: proyecto.id, titulo, archivo_path: ruta, orden: count ?? 0, actualizado_por: perfil.id, actualizado_en: ahora }), "manuales");
+      const deEspana = formData.get("mercado") === "es" ? { mercado: "es" } : {}; // 13 nov: subido mirando España
+      await escribir(db().from("manuales").insert({ proyecto_id: proyecto.id, titulo, archivo_path: ruta, orden: count ?? 0, actualizado_por: perfil.id, actualizado_en: ahora, ...deEspana }), "manuales");
     }
     revalidatePath("/manuales");
   });
