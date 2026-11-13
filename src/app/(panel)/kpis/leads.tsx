@@ -63,9 +63,8 @@ export function PestanaLeads({ barra, desde, hasta, zona, ofertas, csv }: { barr
     return (
       <>
         <div className="tarjeta px-4">{barra}</div>
-        {/* data-datos-pendientes: llega en el HTML desde el principio; mientras está, la bienvenida espera (lib/pantalla-lista.ts).
-            Sin aria-busy (D43): la entrada animada (components/animaciones) esperaba a que acabara la carga */}
-        <div className="animate-pulse space-y-3" role="status" data-datos-pendientes="">
+        {/* data-datos-pendientes: llega en el HTML desde el principio; mientras está, la bienvenida espera (lib/pantalla-lista.ts) */}
+        <div className="animate-pulse space-y-3" aria-busy="true" data-datos-pendientes="">
           <p className="text-sm text-texto-3">Cargando todos los leads…</p>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-24 rounded-xl bg-panel-2" />)}</div>
           {[0, 1, 2, 3].map((i) => <div key={i} className="h-9 rounded-lg bg-panel-2" />)}
@@ -199,7 +198,7 @@ function Contenido({ barra, vista, desde, hasta, zona, ofertas, csv }: { barra: 
         acciones={
           <div className="flex flex-wrap items-center gap-2">
             {csv}
-            <AccionesLeads leads={visibles} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} zona={zona} callers={gente.filter((g) => g.rol === "caller" && !g.baja)} repartir={oferta ? `Repartir ${ETIQUETA_OFERTA[oferta as Oferta]}` : "Repartir lo que ves"} />
+            <AccionesLeads leads={visibles} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} callers={gente.filter((g) => g.rol === "caller" && !g.baja)} repartir={oferta ? `Repartir ${ETIQUETA_OFERTA[oferta as Oferta]}` : "Repartir lo que ves"} />
           </div>
         }
       >
@@ -224,7 +223,6 @@ function Contenido({ barra, vista, desde, hasta, zona, ofertas, csv }: { barra: 
           etapas={etapas}
           gente={gente}
           fuente={fuente}
-          zona={zona}
           onCerrar={() => setPaisVentana(null)}
         />
       )}
@@ -376,11 +374,11 @@ function TablaLeads({ leads, pipelines, etapas, gente, fuente }: { leads: LeadVi
 // Cristian (26 oct 2026): clic en un país del mapa o del ranking → las personas de ese país (con los filtros de arriba)
 // en la misma tabla que «Todos los datos»: oferta primero, el formulario, clic en un título para ordenar y clic en una
 // persona para ver su ficha. Exportar y repartir, solo los de ese país.
-function VentanaPais({ pais, leads, pipelines, etapas, gente, fuente, zona, onCerrar }: { pais: string; leads: LeadVista[]; pipelines: Vista["pipelines"]; etapas: Vista["etapas"]; gente: Vista["gente"]; fuente: string | null; zona: string; onCerrar: () => void }) {
+function VentanaPais({ pais, leads, pipelines, etapas, gente, fuente, onCerrar }: { pais: string; leads: LeadVista[]; pipelines: Vista["pipelines"]; etapas: Vista["etapas"]; gente: Vista["gente"]; fuente: string | null; onCerrar: () => void }) {
   return (
     <Modal titulo={`${nombrePais(pais)} · ${leads.length.toLocaleString("es-ES")} ${leads.length === 1 ? "lead" : "leads"}`} onCerrar={onCerrar} ancho="max-w-6xl">
       <div className="mb-3 flex flex-wrap justify-end gap-2">
-        <AccionesLeads leads={leads} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} zona={zona} callers={gente.filter((g) => g.rol === "caller" && !g.baja)} repartir={`Repartir ${nombrePais(pais)}`} />
+        <AccionesLeads leads={leads} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} callers={gente.filter((g) => g.rol === "caller" && !g.baja)} repartir={`Repartir ${nombrePais(pais)}`} />
       </div>
       <div className="-mx-5 max-h-[65vh] overflow-y-auto px-5">
         <TablaLeads leads={leads} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} />

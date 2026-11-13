@@ -10,7 +10,6 @@ import { cargarCitasVentas, columnasCloser } from "@/lib/tablero-closers";
 import { canalesDe } from "@/lib/canales-datos";
 import { Cabecera, Contenido } from "@/components/ui";
 import { FiltroUrl } from "@/components/barra-periodo";
-import { ahoraMs } from "@/lib/formato";
 import { TableroCrm, type LeadTarjeta } from "./tablero";
 import { compactarCrm } from "./compacto";
 import { esCloser, type Etapa, type Pipeline, type Producto, type Respuesta } from "@/lib/tipos";
@@ -158,7 +157,6 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           moneda={await miMoneda(proyecto, perfil.id)}
           estrellasOpcionales={perfil.rol !== "caller"}
           canales={canales}
-          ahora={ahoraMs()} // D43: «hace X d» con la hora del servidor (sin #418)
           tableroClosers={closers ? { ...closers, soloMirar: perfil.rol === "caller" } : null}
           permisos={
             admin && pipeline

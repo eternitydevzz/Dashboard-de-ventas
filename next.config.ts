@@ -28,13 +28,10 @@ const nextConfig: NextConfig = {
   experimental: {
     // Los archivos ya no pasan por las acciones (van directos a Supabase); por debajo de los 4,5 MB de Vercel
     serverActions: { bodySizeLimit: "4mb" },
-    // Cuánto guarda el navegador cada pantalla (17 oct 2026, Cristian: 5 min). Según la guía de Next 16 (staleTimes):
-    // · static: lo precargado completo (prefetch={true}, las 3 secciones del menú de cada rol) y las páginas estáticas.
-    // · dynamic (Next trae 0 s): lo ya visitado y la precarga por defecto (solo hasta loading.tsx, sin datos).
-    // Mientras dure, volver a esa pantalla enseña lo guardado sin preguntar al servidor: un cambio de OTRO puede tardar
-    // hasta 5 min en verse (avisos-en-vivo.tsx está apagado desde el 25 oct). Lo borran revalidatePath (refrescarTodo),
-    // router.refresh y cambiar cookies en una acción; refrescarPantalla() (refresh) recarga la pantalla actual y la guía
-    // no dice que borre las demás.
+    // Velocidad (13 oct 2026): lo visitado o precargado (p. ej. una pestaña del CRM) vale 30 s (antes, nada o 5 min):
+    // para no enseñar datos viejos de otros; los cambios propios lo refrescan al momento
+    // 17 oct 2026 (Cristian): 5 min. No enseña datos viejos: los cambios propios (revalidatePath) y los avisos
+    // en vivo de los demás (avisos-en-vivo.tsx → refrescarTodo) borran todo lo guardado al momento
     staleTimes: { static: 300, dynamic: 300 },
   },
   async headers() {

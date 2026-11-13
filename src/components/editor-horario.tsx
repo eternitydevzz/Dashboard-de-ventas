@@ -6,7 +6,6 @@ import { useAccion } from "@/components/acciones-lead";
 import { NOMBRES_DIAS, PLANTILLAS, deplantilla, horaEnOtraZona, type Horario, type Tramo } from "@/lib/horarios";
 import { guardarHorario } from "@/app/(panel)/perfil/acciones";
 import { nombreZona } from "@/lib/zona-persona";
-import { hoyEnZona } from "@/lib/formato";
 
 type Semana = Record<number, Tramo[]>;
 type Fechas = Record<string, Tramo[]>;
@@ -22,6 +21,7 @@ const zonaDelAparato = () => {
     return null;
   }
 };
+const hoyYmd = () => new Date().toISOString().slice(0, 10);
 
 // Horario como los calendarios de GHL (bloque 1 de 1.0): varios tramos por día (los huecos son los descansos)
 // y fechas sueltas (libre o con otro horario) que mandan sobre la semana. Siempre en la hora del proyecto,
@@ -39,7 +39,7 @@ export function EditorHorario({ inicial, zona, perfilId, campo, plantillas = fal
 
   const horario = { semana, fechas };
   const hayTramos = Object.values(semana).some((t) => t.length);
-  const ref = hoyEnZona(zona); // «hoy» del proyecto (en UTC, de 20:00 a 24:00 de Nueva York ya era mañana)
+  const ref = hoyYmd();
   const local = (hm: string, ymd = ref) => (zonaLocal ? horaEnOtraZona(hm, ymd, zona, zonaLocal) : null);
 
   const ponDia = (d: number, t: Tramo[]) => setSemana((s) => ({ ...s, [d]: t }));

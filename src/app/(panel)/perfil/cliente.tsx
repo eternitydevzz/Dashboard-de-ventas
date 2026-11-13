@@ -25,7 +25,6 @@ export function FormMisDatos({ nombre, telefono, whatsapp, email }: { nombre: st
 }
 
 export function FormMiPassword() {
-  const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
   const [repetida, setRepetida] = useState("");
   const { pendiente, error, ejecutar } = useAccion();
@@ -35,13 +34,12 @@ export function FormMiPassword() {
       onSubmit={(e) => {
         e.preventDefault();
         ejecutar(async () => {
-          const r = await cambiarMiPassword(actual, nueva, repetida);
-          if (!r) { setActual(""); setNueva(""); setRepetida(""); }
+          const r = await cambiarMiPassword(nueva, repetida);
+          if (!r) { setNueva(""); setRepetida(""); }
           return r;
         }, "Contraseña cambiada");
       }}
     >
-      <label className="block"><span className="etiqueta-campo">Contraseña actual</span><input className="campo" type="password" autoComplete="current-password" required value={actual} onChange={(e) => setActual(e.target.value)} /></label>
       <label className="block"><span className="etiqueta-campo">Nueva contraseña</span><input className="campo" type="password" autoComplete="new-password" minLength={8} required value={nueva} onChange={(e) => setNueva(e.target.value)} /></label>
       <label className="block"><span className="etiqueta-campo">Repítela</span><input className="campo" type="password" autoComplete="new-password" minLength={8} required value={repetida} onChange={(e) => setRepetida(e.target.value)} /></label>
       <p className="text-xs text-texto-3">Mínimo 8 caracteres.</p>

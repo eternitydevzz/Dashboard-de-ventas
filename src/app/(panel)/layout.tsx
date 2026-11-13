@@ -50,8 +50,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
         ...(tiene("cola") ? [{ href: "/caller", texto: jefe ? "Callers" : "Mis leads", icono: "caller" as const, exacto: true }] : []),
         // C10 (plan Callers, 7 nov): llamadas grabadas desde el guion (aparte de «Llamadas de GHL»)
         ...(tiene("grabaciones") ? [{ href: "/grabaciones", texto: "Grabaciones", icono: "grabaciones" as const }] : []),
-        // D43: directo a Llamadas (/closer solo redirige ahí); se marca en todo /closer
-        ...(tiene("agendas") ? [{ href: "/closer/llamadas", seccion: "/closer", texto: jefe ? "Agendas" : "Mis agendas", icono: "closer" as const }] : []),
+        ...(tiene("agendas") ? [{ href: "/closer", texto: jefe ? "Agendas" : "Mis agendas", icono: "closer" as const }] : []),
         // Bloque 7 de 1.0: onboarding de los clientes de cada closer (aparte del onboarding de Clientes)
         ...(tiene("agendas") && (jefe || esCloser(perfil)) ? [{ href: "/onboarding-closers", texto: jefe ? "Onboarding closers" : "Onboarding", icono: "onboarding" as const }] : []),
         ...(LLAMADAS_GHL_VISIBLE && tiene("grabadas") ? [{ href: "/caller/grabadas", texto: jefe ? "Llamadas de GHL" : "Mis llamadas grabadas", icono: "grabadas" as const }] : []),

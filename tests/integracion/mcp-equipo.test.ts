@@ -6,7 +6,6 @@ import { getSesion } from "@/lib/sesion";
 import { conSesionMcp, sesionMcp } from "@/lib/mcp/sesion-mcp";
 import { sesionMcpDe } from "@/lib/mcp/clave";
 import { herramientaBorrarMiembro, herramientaCrearMiembro, herramientaDarDeBaja } from "@/lib/mcp/equipo";
-import { herramientaBorrar, herramientaVenta } from "@/lib/mcp/cambiar";
 import type { Perfil } from "@/lib/tipos";
 
 let e: Escenario;
@@ -59,28 +58,6 @@ describe("MCP: equipo", () => {
     await como(e.p.ceo, () => herramientaBorrarMiembro({ persona: e.p.callerB.id, leadsA: "nadie", confirmar: true }));
     expect(await perfilDe(e.p.callerB.email)).toBeNull();
     expect((await db.from("leads").select("caller_id").in("id", [e.leads.LeadA, e.leads.LeadB])).data!.every((l) => l.caller_id === null)).toBe(true);
-  });
-
-  // Fase 2 (D43): las vistas previas piden el mismo permiso que la acción (antes bastaba con tener sesión)
-  it("vistas previas con permiso: crear_miembro sin Administración, borrar sin ser CEO y vender como caller, no", async () => {
-    const args = { nombre: "Sin permiso", email: `${e.pref}-sinpermiso@eternity.test`, telefono: "+34 600 000 000", rol: "caller", mercado: "es" };
-    await expect(como(e.p.director, () => herramientaCrearMiembro(args))).rejects.toThrow();
-    await expect(como(e.p.callerC, () => herramientaBorrar({ leadIds: [e.leads.LeadA] }))).rejects.toThrow();
-    await expect(como(e.p.callerC, () => herramientaVenta({ leadId: e.leads.LeadA, producto: "x", facturacion: 1, cash: 0, tipoPago: "completo", metodo: "otro" }))).rejects.toThrow();
-  });
-
-  // C4 y C5 (Fase 2): con historial no se borra (se perdería en cascada); dar de baja mueve TODOS sus leads, no solo 1.000
-  it("con historial solo se da de baja; dar de baja mueve más de 1.000 leads", async () => {
-    const p = e.p.callerC;
-    const etapa = (await db.from("leads").select("pipeline_id, etapa_id").eq("id", e.leads.LeadA).single()).data!;
-    const nuevos = Array.from({ length: 1005 }, (_, i) => ({ proyecto_id: e.proyecto.id, nombre: `C5-${i}`, email: `${e.pref}-c5-${i}@x.test`, caller_id: p.id, ...etapa }));
-    expect((await db.from("leads").insert(nuevos)).error).toBeNull();
-    expect((await db.from("reportes").insert({ proyecto_id: e.proyecto.id, perfil_id: p.id, rol: "caller", fecha: "2026-11-13", respuestas: {} })).error).toBeNull();
-    await expect(como(e.p.ceo, () => herramientaBorrarMiembro({ persona: p.id, leadsA: "nadie", confirmar: true }))).rejects.toThrow(/historial/);
-    expect(await perfilDe(p.email)).not.toBeNull();
-    await como(e.p.ceo, () => herramientaDarDeBaja({ persona: p.id, leadsA: "nadie", confirmar: true }));
-    const { count } = await db.from("leads").select("id", { count: "exact", head: true }).eq("caller_id", p.id);
-    expect(count).toBe(0);
   });
 
   it("no se puede tocar a un CEO ni a uno mismo", async () => {

@@ -2,7 +2,7 @@
 // sus pasos y contesta lo que diga `contestar` (o `base["tabla:tipo"]`, o vacío).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Resp = { data: unknown; error: { message: string; code?: string } | null; count?: number | null };
+type Resp = { data: unknown; error: { message: string; code?: string } | null };
 type Consulta = { tabla: string; ops: [string, unknown[]][] };
 let consultas: Consulta[];
 let base: Record<string, Resp>;
@@ -10,10 +10,8 @@ let contestar: (c: Consulta) => Resp | undefined;
 const tipo = (c: Consulta) => ["delete", "upsert", "update", "insert"].find((o) => c.ops.some(([x]) => x === o)) ?? "select";
 const arg = (c: Consulta, op: string) => c.ops.find(([x]) => x === op)?.[1];
 
-let rpcs: { nombre: string; args: unknown }[];
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
-    rpc: async (nombre: string, args: unknown) => (rpcs.push({ nombre, args }), base[`rpc:${nombre}`] ?? { data: [], error: null }),
     from: (tabla: string) => {
       const c: Consulta = { tabla, ops: [] };
       consultas.push(c);
@@ -38,15 +36,13 @@ vi.mock("@/lib/finanzas", async (original) => ({
 
 const { getSesion } = await import("@/lib/sesion");
 const fin = await import("@/app/(panel)/finanzas/acciones");
-const { asegurarPlazosMensuales, asegurarFinanzas } = await import("@/lib/finanzas-datos");
-const { cargarClientes } = await import("@/app/(panel)/clientes/cargar");
+const { asegurarPlazosMensuales } = await import("@/lib/finanzas-datos");
 
 const fallo: Resp = { data: null, error: { message: "la base no responde" } };
 const de = (tabla: string, t: string) => consultas.filter((c) => c.tabla === tabla && tipo(c) === t);
 
 beforeEach(() => {
   consultas = [];
-  rpcs = [];
   base = { "citas:select": { data: [], error: null } };
   contestar = () => undefined;
   vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "ceo", rol: "ceo" }, proyecto: { id: "p1", nombre: "Eternity", zona_horaria: "America/New_York" } } as never);
@@ -91,19 +87,22 @@ describe("C3 · plazos de la membresía", () => {
 });
 
 describe("C2 · comisiones sin pago doble", () => {
-  // D43: ahora en un solo paso en la base (recalcular_liquidaciones, con candado por proyecto y mes)
-  it("si falla la función de la base, error y nada guardado a mano", async () => {
-    base["rpc:recalcular_liquidaciones"] = fallo;
+  it("si falla leer las pagadas, corta sin guardar nada", async () => {
+    base["liquidaciones:select"] = fallo;
     expect(await fin.calcularLiquidaciones("2026-11")).toMatchObject({ error: expect.any(String) });
-    for (const t of ["upsert", "update", "delete", "insert"]) expect(de("liquidaciones", t)).toHaveLength(0);
+    expect(de("liquidaciones", "upsert")).toHaveLength(0);
+    expect(de("liquidaciones", "update")).toHaveLength(0);
+    expect(de("liquidaciones", "delete")).toHaveLength(0);
   });
-  it("manda todas las calculadas en una llamada; las pagadas que devuelve la base no cuentan como nuevas", async () => {
-    base["rpc:recalcular_liquidaciones"] = { data: ["beto"], error: null }; // beto ya está pagada
-    expect(await fin.calcularLiquidaciones("2026-11")).toMatchObject({ personas: 1, total: 50, yaPagadas: 1 });
-    expect(rpcs).toHaveLength(1);
-    expect(rpcs[0]).toMatchObject({ nombre: "recalcular_liquidaciones", args: { p_proyecto: "p1", p_mes: "2026-11" } });
-    expect((rpcs[0].args as { p_filas: { perfil_id: string }[] }).p_filas.map((f) => f.perfil_id)).toEqual(["ana", "beto"]);
-    for (const t of ["upsert", "update", "delete", "insert"]) expect(de("liquidaciones", t)).toHaveLength(0);
+  it("crea las que faltan sin pisar las que ya hay y rehace solo las que siguen «pendiente»", async () => {
+    base["liquidaciones:select"] = { data: [{ perfil_id: "beto" }], error: null }; // beto ya está pagada
+    expect(await fin.calcularLiquidaciones("2026-11")).toMatchObject({ personas: 1, yaPagadas: 1 });
+    const [crear] = de("liquidaciones", "upsert");
+    expect(arg(crear, "upsert")?.[1]).toMatchObject({ ignoreDuplicates: true });
+    expect((arg(crear, "upsert")?.[0] as { perfil_id: string }[]).map((f) => f.perfil_id)).toEqual(["ana"]);
+    const [rehacer] = de("liquidaciones", "update");
+    expect(rehacer.ops).toContainEqual(["eq", ["perfil_id", "ana"]]);
+    expect(rehacer.ops).toContainEqual(["eq", ["estado", "pendiente"]]);
   });
 });
 
@@ -137,47 +136,5 @@ describe("E · cuentas y desmarcar pago", () => {
     base["liquidaciones:update"] = { data: [{ id: "f1" }], error: null };
     expect(await fin.desmarcarLiquidacion("f1")).toBeUndefined();
     expect(de("movimientos", "delete")[0].ops).toContainEqual(["eq", ["id", "m1"]]);
-  });
-});
-
-describe("D43 · asegurarFinanzas y asegurarPasos miran el error", () => {
-  const vacio: Resp = { data: null, error: null, count: 0 };
-  const repetido: Resp = { data: null, error: { message: "duplicate key", code: "23505" } };
-  it("asegurarFinanzas: si falla leer, corta sin crear nada (antes un fallo contaba como «0»)", async () => {
-    base["cuentas:select"] = fallo;
-    base["categorias_finanzas:select"] = vacio;
-    await expect(asegurarFinanzas("p1")).rejects.toThrow(/no responde/);
-    expect(de("cuentas", "insert")).toHaveLength(0);
-    expect(de("categorias_finanzas", "insert")).toHaveLength(0);
-  });
-  it("asegurarFinanzas: si otra página las creó a la vez (23505) sigue; otro fallo al crear, error", async () => {
-    base["cuentas:select"] = vacio;
-    base["categorias_finanzas:select"] = vacio;
-    base["cuentas:insert"] = repetido;
-    base["categorias_finanzas:insert"] = repetido;
-    await expect(asegurarFinanzas("p1")).resolves.toBeUndefined();
-    base["categorias_finanzas:insert"] = fallo;
-    await expect(asegurarFinanzas("p1")).rejects.toThrow(/no responde/);
-  });
-  it("asegurarFinanzas: con cuentas y categorías ya puestas, no crea nada", async () => {
-    base["cuentas:select"] = { data: null, error: null, count: 1 };
-    base["categorias_finanzas:select"] = { data: null, error: null, count: 6 };
-    await asegurarFinanzas("p1");
-    expect(de("cuentas", "insert")).toHaveLength(0);
-    expect(de("categorias_finanzas", "insert")).toHaveLength(0);
-  });
-  const proyecto = { id: "p1", zona_horaria: "America/New_York" } as never;
-  it("asegurarPasos: si falla leer, corta sin crear pasos", async () => {
-    base["pasos_onboarding:select"] = fallo;
-    await expect(cargarClientes(proyecto)).rejects.toThrow(/pasos de onboarding/);
-    expect(de("pasos_onboarding", "insert")).toHaveLength(0);
-  });
-  it("asegurarPasos: un fallo al crearlos es error; el 23505 (otra página a la vez) no", async () => {
-    base["pasos_onboarding:select"] = vacio;
-    base["pasos_onboarding:insert"] = fallo;
-    await expect(cargarClientes(proyecto)).rejects.toThrow(/crear los pasos/);
-    base["pasos_onboarding:insert"] = repetido;
-    base["productos:select"] = fallo; // pasa de asegurarPasos y se para en la lectura siguiente
-    await expect(cargarClientes(proyecto)).rejects.toThrow(/los productos/);
   });
 });

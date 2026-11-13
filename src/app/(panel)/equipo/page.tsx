@@ -55,7 +55,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-texto-3">
           {puesto(m.puesto_id) && <span>{puesto(m.puesto_id)}</span>}
           {m.rol ? <Insignia tono="primario">{ROL_TXT[m.rol]}</Insignia> : <span className="inline-flex items-center gap-1"><KeyRound className="h-3 w-3" />Sin acceso</span>}
-          {resumenComision(m) && <span className="text-oro-texto">{resumenComision(m)}</span>}
+          {resumenComision(m) && <span className="text-oro">{resumenComision(m)}</span>}
         </div>
       </div>
       {/* Bloque 5 de 1.0: la ficha completa (lo de más allá de datos y comisión, solo con Administración) */}

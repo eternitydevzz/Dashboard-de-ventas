@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
-import { conBajas, db, equipo, todas } from "@/lib/datos";
+import { conBajas, db, equipo } from "@/lib/datos";
 import { rangoDe, fecha as fmtFecha, ETIQUETA_ROL } from "@/lib/formato";
 import { PREGUNTAS, preguntasDe, preguntasValidas, rolDeReporte, tasasCloser, type Pregunta } from "@/lib/reportes";
 import { Cabecera, Contenido, Seccion, Insignia, Vacio, Avatar } from "@/components/ui";
@@ -31,16 +31,13 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
   if (rol) {
     const hoy = rangoDe("hoy", proyecto.zona_horaria);
     const desde = hoy.desde!.toISOString();
-    // D43: las actividades de hoy pueden pasar de 1.000 filas: todas() pagina con orden fijo
-    const [acts, { count: agendas }, { data: citas }, { count: ventas }] = await Promise.all([
-      todas<{ tipo: string; resultado: string | null }>((d, h) =>
-        db().from("actividades").select("tipo, resultado").eq("perfil_id", perfil.id).gte("creado_en", desde).order("id").range(d, h)
-      ),
+    const [{ data: acts }, { count: agendas }, { data: citas }, { count: ventas }] = await Promise.all([
+      db().from("actividades").select("tipo, resultado").eq("perfil_id", perfil.id).gte("creado_en", desde),
       db().from("citas").select("id", { count: "exact", head: true }).eq("agendada_por", perfil.id).gte("creado_en", desde),
       db().from("citas").select("estado, fecha").eq("closer_id", perfil.id).gte("fecha", desde).lt("fecha", hoy.hasta!.toISOString()),
       db().from("ventas").select("id", { count: "exact", head: true }).eq("vendedor_id", perfil.id).gte("fecha", desde),
     ]);
-    const a = acts;
+    const a = acts ?? [];
     const c = citas ?? [];
     sugeridos =
       rol === "caller"

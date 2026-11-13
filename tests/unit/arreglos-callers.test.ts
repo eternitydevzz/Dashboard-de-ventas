@@ -98,14 +98,6 @@ describe("F4 · KPIs de hoy de la cola: solo de este proyecto", () => {
     }
     expect(consultas.some((c) => c.tabla === "ventas")).toBe(false);
   });
-  it("las actividades se leen paginadas con orden fijo (D43: más de 1.000 en un día)", async () => {
-    respuesta["actividades:select"] = { data: [], error: null };
-    respuesta["citas:select"] = { data: null, error: null, count: 0 };
-    await kpisHoyCola("p1", "u1", "2026-11-07T00:00:00.000Z");
-    const c = consultas.find((x) => x.tabla === "actividades")!;
-    expect(c.ops).toContainEqual(["order", ["id"]]);
-    expect(c.ops).toContainEqual(["range", [0, 999]]);
-  });
   it("si falla una consulta, error en vez de enseñar 0 (13 nov)", async () => {
     respuesta["actividades:select"] = { data: [], error: null };
     respuesta["citas:select"] = fallo;

@@ -49,7 +49,7 @@ export default async function FinanzasPage({ searchParams }: PageProps<"/finanza
           {PESTANAS.map((x) => {
             const Icono = x.icono;
             return (
-              <Link key={x.v} href={qs(x.v)} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${tab === x.v ? "bg-primario font-medium text-white" : "text-texto-2 hover:bg-panel-2"}`}>
+              <Link prefetch={true} key={x.v} href={qs(x.v)} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${tab === x.v ? "bg-primario font-medium text-white" : "text-texto-2 hover:bg-panel-2"}`}>
                 <Icono className="h-4 w-4" /> {x.t}
               </Link>
             );

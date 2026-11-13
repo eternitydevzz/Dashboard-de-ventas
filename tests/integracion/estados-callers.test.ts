@@ -19,7 +19,7 @@ afterAll(async () => {
 
 const enviar = (cuerpo: unknown) =>
   POST(
-    new NextRequest(`http://localhost/api/webhooks/ghl/${e.proyecto.id}`, { method: "POST", body: JSON.stringify(cuerpo), headers: { "content-type": "application/json", "x-eternity-secreto": secreto } }),
+    new NextRequest(`http://localhost/api/webhooks/ghl/${e.proyecto.id}?secreto=${secreto}`, { method: "POST", body: JSON.stringify(cuerpo), headers: { "content-type": "application/json" } }),
     { params: Promise.resolve({ proyectoId: e.proyecto.id }) } as never
   );
 const lead = async (id: string) => (await db.from("leads").select("estado_caller, closer_id, estrellas_caller").eq("id", id).single()).data!;

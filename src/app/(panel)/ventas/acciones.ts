@@ -11,8 +11,7 @@ import { leerNumero } from "@/lib/numero";
 
 async function ventaPermitida(ventaId: string) {
   const { perfil, proyecto } = await getSesion();
-  const { data: venta, error } = await db().from("ventas").select("*").eq("id", ventaId).eq("proyecto_id", proyecto.id).maybeSingle();
-  if (error) throw new Error(`No se pudo leer la venta: ${error.message}`); // D43: un fallo no es «no encontrada»
+  const { data: venta } = await db().from("ventas").select("*").eq("id", ventaId).eq("proyecto_id", proyecto.id).maybeSingle();
   if (!venta) throw new ErrorUsuario("Venta no encontrada.");
   if (!esJefe(perfil) && venta.vendedor_id !== perfil.id) throw new ErrorUsuario("Esta venta no es tuya.");
   return { venta, perfil, proyecto };
@@ -133,10 +132,7 @@ export async function cambiarFormaPago(ventaId: string, tipo: "reserva" | "cuota
       for (let i = 0; i < n; i++) nuevos.push({ numero: ++numero, importe: i === n - 1 ? redondo(falta - cada * (n - 1)) : cada, vence_el: mas(i + 1) });
     }
     // Ola 6 (C6): borrar los pendientes, crear los nuevos y cambiar la venta, todo o nada (antes podía quedarse sin plazos)
-    // D43: con los plazos que se quedan (p_fijos); si alguien marcó o desmarcó uno mientras tanto, la base no cambia nada
-    const { error } = await db().rpc("cambiar_forma_pago", { p_proyecto: proyecto.id, p_venta: ventaId, p_tipo: tipo, p_num_cuotas: tipo === "cuotas" ? n : null, p_plazos: nuevos, p_fijos: fijos.map((v) => v.id) });
-    if (error?.message.includes("plazos_cambiados")) throw new ErrorUsuario("Los plazos de esta venta acaban de cambiar. Recarga la página y vuelve a probar.");
-    if (error) throw new Error(`No se pudo guardar en «vencimientos»: ${error.message}`);
+    await escribir(db().rpc("cambiar_forma_pago", { p_proyecto: proyecto.id, p_venta: ventaId, p_tipo: tipo, p_num_cuotas: tipo === "cuotas" ? n : null, p_plazos: nuevos }), "vencimientos");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: tipo, nota: tipo === "cuotas" ? `Pasa a cuotas: ${n} de lo que falta (${falta})` : `Pasa a reserva: falta ${falta} en un plazo` });
     revalidatePath("/", "layout");
   });
@@ -150,10 +146,7 @@ export async function darDeBajaMembresia(ventaId: string) {
     if (venta.tipo_pago !== "mensual") throw new ErrorUsuario("Solo las membresías (pago cada mes) se dan de baja.");
     if (venta.baja_en) throw new ErrorUsuario("Esta membresía ya está dada de baja.");
     const hoy = hoyEnZona(proyecto.zona_horaria);
-    // D43: solo si sigue de alta (dos bajas a la vez no se pisan) y mirando el error de cada paso
-    const { data: baja, error } = await db().from("ventas").update({ baja_en: new Date().toISOString() }).eq("id", ventaId).is("baja_en", null).select("id");
-    if (error) throw new Error(`No se pudo guardar en «ventas»: ${error.message}`);
-    if (!baja?.length) throw new ErrorUsuario("Esta membresía ya está dada de baja.");
+    await escribir(db().from("ventas").update({ baja_en: new Date().toISOString() }).eq("id", ventaId), "ventas");
     await escribir(db().from("vencimientos").delete().eq("venta_id", ventaId).eq("estado", "pendiente").gt("vence_el", hoy), "vencimientos");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: "baja", nota: "Membresía dada de baja" });
     revalidatePath("/", "layout");

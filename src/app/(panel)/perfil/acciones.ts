@@ -3,9 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { olvidarTodo } from "@/lib/memoria";
 import { getSesion, puedeAdmin } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
 import { db, escribir } from "@/lib/datos";
-import { anotar, bloqueado } from "@/lib/limite";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { horarioValido } from "@/lib/horarios";
 import { mercadoValido } from "@/lib/mercado";
@@ -29,27 +27,13 @@ export async function guardarMiPerfil(datos: { nombre: string; telefono: string;
   });
 }
 
-// D43: pide la actual, para que una sesión abierta en otro aparato no baste para quedarse la cuenta.
-// Mismo freno que el login: 8 fallos cada 15 minutos.
-export async function cambiarMiPassword(actual: string, nueva: string, repetida: string) {
+export async function cambiarMiPassword(nueva: string, repetida: string) {
   return seguro(async () => {
     const { perfil } = await getSesion();
-    if (!actual) throw new ErrorUsuario("Escribe tu contraseña actual.");
     if (nueva.length < 8) throw new ErrorUsuario("La contraseña necesita al menos 8 caracteres.");
     if (nueva !== repetida) throw new ErrorUsuario("Las dos contraseñas no coinciden.");
-    const clave = `password:${perfil.id}`;
-    const quince = 15 * 60_000;
-    if (await bloqueado(clave, 8, quince)) throw new ErrorUsuario("Demasiados intentos fallidos. Espera 15 minutos y vuelve a probar.");
-    // Cliente aparte y sin guardar sesión: no toca las cookies de la persona
-    const prueba = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { error: mala } = await prueba.auth.signInWithPassword({ email: perfil.email, password: actual });
-    if (mala) {
-      await anotar(clave);
-      throw new ErrorUsuario("La contraseña actual no es correcta.");
-    }
-    await prueba.auth.signOut({ scope: "local" }).catch(() => {}); // cierra solo esa sesión de comprobación
     const { error } = await db().auth.admin.updateUserById(perfil.id, { password: nueva });
-    if (error) throw new ErrorUsuario(error.message); // de Auth (p. ej. contraseña débil), no de la base
+    if (error) throw new ErrorUsuario(error.message);
   });
 }
 
@@ -64,7 +48,7 @@ export async function guardarHorario(perfilId: string, horario: unknown) {
     const h = horarioValido(horario);
     if (!h) throw new ErrorUsuario("Pon al menos un tramo en algún día, con la hora de inicio antes que la de fin (HH:MM).");
     const { data, error } = await db().from("miembros_proyecto").update({ horario: h }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).select("perfil_id");
-    if (error) throw new Error(error.message);
+    if (error) throw new ErrorUsuario(error.message);
     if (!data?.length) throw new ErrorUsuario("Esa persona no está en este proyecto.");
     refrescar();
   });
