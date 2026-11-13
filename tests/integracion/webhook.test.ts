@@ -15,10 +15,10 @@ afterAll(async () => {
 });
 
 function enviar(cuerpo: unknown, clave = secreto, proyectoId = e.proyecto.id) {
-  const req = new NextRequest(`http://localhost/api/webhooks/ghl/${proyectoId}`, {
+  const req = new NextRequest(`http://localhost/api/webhooks/ghl/${proyectoId}?secreto=${clave}`, {
     method: "POST",
     body: typeof cuerpo === "string" ? cuerpo : JSON.stringify(cuerpo),
-    headers: { "content-type": "application/json", "x-eternity-secreto": clave },
+    headers: { "content-type": "application/json" },
   });
   return POST(req, { params: Promise.resolve({ proyectoId }) } as never);
 }
@@ -134,13 +134,6 @@ describe("Formato de las plantillas de GUIA-GHL (clave en cabecera)", () => {
       }),
       { params: Promise.resolve({ proyectoId: e.proyecto.id }) } as never
     );
-  it("D43: la clave buena en la dirección (?secreto=) ya no vale", async () => {
-    const r = await POST(
-      new NextRequest(`http://localhost/api/webhooks/ghl/${e.proyecto.id}?secreto=${secreto}`, { method: "POST", body: "{}", headers: { "content-type": "application/json" } }),
-      { params: Promise.resolve({ proyectoId: e.proyecto.id }) } as never
-    );
-    expect(r.status).toBe(401);
-  });
   it("la clave en la cabecera x-eternity-secreto funciona y una mala no", async () => {
     expect((await conCabecera({ tipo: "lead_nuevo", contact_id: `${e.pref}-cab`, email: `${e.pref}-cab@x.test`, first_name: "Cab" })).status).toBe(200);
     expect((await conCabecera({ tipo: "lead_nuevo" }, "mala")).status).toBe(401);

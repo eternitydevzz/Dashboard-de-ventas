@@ -97,7 +97,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
       <div className="tarjeta ventana flex max-h-full w-full max-w-6xl flex-col overflow-hidden lg:flex-row">
         {/* Pasos */}
         <aside className="hidden w-72 shrink-0 border-r border-borde p-5 lg:block">
-          <div className="titulo-seccion text-oro-texto">Alta de miembro</div>
+          <div className="titulo-seccion text-oro">Alta de miembro</div>
           <h2 className="mt-1 text-xl font-semibold">Crear de principio a fin</h2>
           <p className="mt-1 text-sm text-texto-2">Un solo flujo une el puesto, lo que cobra, el acceso y los permisos.</p>
           <ol className="mt-5 space-y-1">
@@ -116,14 +116,14 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
         <section className="flex min-w-0 flex-1 flex-col">
           <div className="h-1 bg-panel-2"><div className="h-full bg-oro transition-all" style={{ width: `${pct(((paso + 1) / PASOS.length) * 100)}` }} /></div>
           <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-7">
-            <div className="font-mono text-xs text-oro-texto">0{paso + 1} · {PASOS[paso].t.toUpperCase()}</div>
+            <div className="font-mono text-xs text-oro">0{paso + 1} · {PASOS[paso].t.toUpperCase()}</div>
             {paso === 0 && (
               <>
                 <h3 className="text-2xl font-semibold">¿Quién entra en el equipo?</h3>
                 <p className="text-sm text-texto-2">Nombre, área, país y teléfono. El email se pide después, si le creas una cuenta.</p>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setVarios(false)} className={`btn-secundario ${!varios ? "border-oro text-oro-texto" : ""}`}><User className="h-4 w-4" /> Uno</button>
-                  <button type="button" onClick={() => setVarios(true)} className={`btn-secundario ${varios ? "border-oro text-oro-texto" : ""}`}><Users className="h-4 w-4" /> Varios a la vez</button>
+                  <button type="button" onClick={() => setVarios(false)} className={`btn-secundario ${!varios ? "border-oro text-oro" : ""}`}><User className="h-4 w-4" /> Uno</button>
+                  <button type="button" onClick={() => setVarios(true)} className={`btn-secundario ${varios ? "border-oro text-oro" : ""}`}><Users className="h-4 w-4" /> Varios a la vez</button>
                 </div>
                 {varios ? (
                   <div><label className="etiqueta-campo" htmlFor="alta-lista">Un nombre por línea</label><textarea id="alta-lista" rows={5} className="campo" value={lista} onChange={(e) => setLista(e.target.value)} placeholder={"Camila Ríos\nJorge Pérez"} /><p className="mt-1 text-xs text-texto-3">Varios a la vez entran sin cuenta (solo en el organigrama); el acceso se les da luego desde su ficha.</p></div>
@@ -185,8 +185,8 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => setPropia(false)} className={`btn-secundario ${!propia ? "border-oro text-oro-texto" : ""}`}>La de su rol ({ROL_TXT[rolFinal]}: {pct(deRol.pct_venta)}{rolFinal === "caller" ? ` · ${pct(deRol.pct_agenda)} por agenda` : ""})</button>
-                  {puedeComision && <button type="button" onClick={() => setPropia(true)} className={`btn-secundario ${propia ? "border-oro text-oro-texto" : ""}`}>Una propia</button>}
+                  <button type="button" onClick={() => setPropia(false)} className={`btn-secundario ${!propia ? "border-oro text-oro" : ""}`}>La de su rol ({ROL_TXT[rolFinal]}: {pct(deRol.pct_venta)}{rolFinal === "caller" ? ` · ${pct(deRol.pct_agenda)} por agenda` : ""})</button>
+                  {puedeComision && <button type="button" onClick={() => setPropia(true)} className={`btn-secundario ${propia ? "border-oro text-oro" : ""}`}>Una propia</button>}
                 </div>
                 {!puedeComision && <p className="text-xs text-texto-3">Una comisión propia solo la pueden poner el CEO o el director.</p>}
                 {propia && (
@@ -196,8 +196,8 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
                       {rolFinal === "caller" && <label className="block"><span className="etiqueta-campo">% cuando el closer cierra su agenda</span><input className="campo" inputMode="decimal" value={pctAgenda} onChange={(e) => setPctAgenda(e.target.value)} placeholder={String(deRol.pct_agenda)} /></label>}
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => setPorProducto(false)} className={`btn-secundario ${!porProducto ? "border-oro text-oro-texto" : ""}`}>Igual en todos los productos</button>
-                      <button type="button" onClick={() => setPorProducto(true)} className={`btn-secundario ${porProducto ? "border-oro text-oro-texto" : ""}`}>Distinto por producto</button>
+                      <button type="button" onClick={() => setPorProducto(false)} className={`btn-secundario ${!porProducto ? "border-oro text-oro" : ""}`}>Igual en todos los productos</button>
+                      <button type="button" onClick={() => setPorProducto(true)} className={`btn-secundario ${porProducto ? "border-oro text-oro" : ""}`}>Distinto por producto</button>
                     </div>
                     {porProducto && (
                       <div className="divide-y divide-borde rounded-xl border border-borde">

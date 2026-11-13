@@ -1,7 +1,5 @@
 import "server-only";
 import { getSesion } from "@/lib/sesion";
-import { esJefe, exigir } from "@/lib/auth";
-import { exigirSeccion } from "@/lib/permisos";
 import { db, porTrozos } from "@/lib/datos";
 import { ErrorUsuario, esError, type ConError } from "@/lib/resultado";
 import { fechaHora, localAIso } from "@/lib/formato";
@@ -29,25 +27,16 @@ async function leadsDe(ids: string[]) {
   const unicos = [...new Set((ids ?? []).filter(Boolean))];
   if (!unicos.length) throw new ErrorUsuario("No hay leads.");
   if (unicos.length > MAX) throw new ErrorUsuario(`Como mucho ${MAX} leads a la vez.`);
-  const { perfil, proyecto } = await getSesion();
-  const encontrados: { id: string; nombre: string; apellido: string | null; pipeline_id: string | null; caller_id: string | null; closer_id: string | null }[] = [];
+  const { proyecto } = await getSesion();
+  const encontrados: { id: string; nombre: string; apellido: string | null; pipeline_id: string | null }[] = [];
   for (let i = 0; i < unicos.length; i += 200) {
-    const { data, error } = await db().from("leads").select("id, nombre, apellido, pipeline_id, caller_id, closer_id").in("id", unicos.slice(i, i + 200)).eq("proyecto_id", proyecto.id);
+    const { data, error } = await db().from("leads").select("id, nombre, apellido, pipeline_id").in("id", unicos.slice(i, i + 200)).eq("proyecto_id", proyecto.id);
     if (error) throw new Error(`No se pudieron leer los leads: ${error.message}`);
     encontrados.push(...(data ?? []));
   }
   if (encontrados.length !== unicos.length) throw new ErrorUsuario(`${unicos.length - encontrados.length} de esos leads no son de ${proyecto.nombre}. No se ha cambiado nada.`);
-  // D43: como leadPermitido de la app, la vista previa no enseña nombres de leads que no son tuyos (salvo jefes)
-  if (!esJefe(perfil) && encontrados.some((l) => l.caller_id !== perfil.id && l.closer_id !== perfil.id)) throw new ErrorUsuario("Alguno de esos leads no está asignado a ti. No se ha cambiado nada.");
   return encontrados.map((l) => ({ id: l.id, nombre: `${l.nombre} ${l.apellido ?? ""}`.trim(), pipeline_id: l.pipeline_id }));
 }
-// Lo que piden moverLeads y cambiarEtiquetas del CRM, antes de enseñar la vista previa
-async function permisoMasivo() {
-  await exigirSeccion("crm");
-  await exigir(esJefe);
-}
-// Lo que piden agendarCita y registrarVenta de la ficha
-const permisoFicha = () => exigirSeccion("cola", "crm", "agendas", "clientes");
 const muestra = (l: { id: string; nombre: string }[]) => l.slice(0, 30).map(({ id, nombre }) => ({ id, nombre }));
 
 // Columna por pipeline + columna (nombre o id)
@@ -68,7 +57,6 @@ export async function herramientaMover(a: { leadIds: string[]; pipeline: string;
     ok(await moverLead(leads[0].id, destino.id));
     return { hecho: `«${leads[0].nombre}» movido a ${destino.nombre}.` };
   }
-  await permisoMasivo();
   if (!a.confirmar) return vista(`Mover ${leads.length} leads a ${destino.nombre}.`, { leads: muestra(leads) });
   const n = ok(await moverLeads(leads.map((l) => l.id), destino.id));
   return { hecho: `${n} leads movidos a ${destino.nombre}.` };
@@ -80,7 +68,6 @@ export async function herramientaEtiquetas(a: { leadIds: string[]; anadir?: stri
   const anadir = a.anadir ?? [];
   const quitar = a.quitar ?? [];
   const que = [anadir.length && `añadir ${anadir.map((x) => `«${x}»`).join(", ")}`, quitar.length && `quitar ${quitar.map((x) => `«${x}»`).join(", ")}`].filter(Boolean).join(" y ");
-  if (leads.length > 1) await permisoMasivo();
   if (leads.length > 1 && !a.confirmar) return vista(`En ${leads.length} leads: ${que}.`, { leads: muestra(leads) });
   const n = ok(await cambiarEtiquetas(leads.map((l) => l.id), anadir, quitar));
   return { hecho: `Etiquetas cambiadas en ${n} lead${n === 1 ? "" : "s"}: ${que}.` };
@@ -107,8 +94,6 @@ export async function herramientaCrearLead(a: { nombre: string; email?: string; 
 
 // ---------- borrar_leads (solo el CEO, como en el CRM; siempre con confirmación) ----------
 export async function herramientaBorrar(a: { leadIds: string[]; confirmar?: boolean }) {
-  await exigirSeccion("crm");
-  await exigir((p) => p.rol === "ceo"); // como borrarLeads del CRM
   const leads = await leadsDe(a.leadIds);
   const ids = leads.map((l) => l.id);
   if (!a.confirmar) {
@@ -165,7 +150,6 @@ export async function herramientaNota(a: { leadId: string; nota: string }) {
 
 // ---------- agendar_cita (crea la cita también en el calendario de GHL; siempre con confirmación) ----------
 export async function herramientaAgendar(a: { leadId: string; closer: string; fecha: string; nota?: string; estrellas?: number; confirmar?: boolean }) {
-  await permisoFicha();
   const { perfil, proyecto } = await getSesion();
   const [lead] = await leadsDe([a.leadId]);
   const { data } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(nombre, rol, tambien_closer, activo)").eq("proyecto_id", proyecto.id);
@@ -189,9 +173,7 @@ export async function herramientaAgendar(a: { leadId: string; closer: string; fe
 type ArgsVenta = { leadId: string; producto: string; facturacion: number; cash: number; tipoPago: "completo" | "reserva" | "cuotas" | "mensual"; numCuotas?: number; metodo: "stripe" | "transferencia" | "otro"; fecha?: string; vendedor?: string; nota?: string; confirmar?: boolean };
 
 export async function herramientaVenta(a: ArgsVenta) {
-  await permisoFicha();
-  const { perfil, proyecto } = await getSesion();
-  if (perfil.rol === "caller") throw new ErrorUsuario("El caller no registra ventas: las cierra el closer."); // como registrarVenta
+  const { proyecto } = await getSesion();
   const [lead] = await leadsDe([a.leadId]);
   const { data: prods } = await db().from("productos").select("id, nombre").eq("proyecto_id", proyecto.id).order("orden");
   const producto = elegir((prods ?? []) as { id: string; nombre: string }[], a.producto, "producto");

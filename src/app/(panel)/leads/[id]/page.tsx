@@ -256,7 +256,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 <ul className="space-y-2 text-sm">
                   {(ventas.data as (Venta & { productos: { nombre: string } | null })[]).map((v) => (
                     <li key={v.id} className="rounded-lg border border-borde bg-panel-2 px-3 py-2">
-                      <div className="flex justify-between font-medium"><span>{v.productos?.nombre ?? "Producto"}</span><span className="text-oro-texto">{dinero(Number(v.facturacion), proyecto)}</span></div>
+                      <div className="flex justify-between font-medium"><span>{v.productos?.nombre ?? "Producto"}</span><span className="text-oro">{dinero(Number(v.facturacion), proyecto)}</span></div>
                       <div className="text-xs text-texto-3">Cobrado {dinero(Number(v.cash_collected), proyecto)} · {RESULTADO[v.tipo_pago]} · {nombre(v.vendedor_id)} · {fechaHora(v.fecha, proyecto)}</div>
                       {v.devuelto && <div className="text-xs text-mal">Devuelto {dinero(Number(v.devuelto), proyecto)}{v.devuelto_en ? ` el ${fechaHora(v.devuelto_en, proyecto)}` : ""}{v.devolucion_nota ? ` · ${v.devolucion_nota}` : ""}</div>}
                     </li>

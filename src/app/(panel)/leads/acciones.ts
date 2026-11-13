@@ -102,12 +102,6 @@ export async function anadirNota(leadId: string, nota: string) {
 }
 
 // ---------- Agendar cita con un closer ----------
-// D43 (misma regla que reagendarCita): la persona escribe la hora en su zona; CamposCita la pasa a hora del proyecto con esto
-export async function zonasDeAgendar() {
-  const { perfil, proyecto } = await getSesion();
-  return { proyecto: proyecto.zona_horaria as string, persona: zonaPersona(perfil, proyecto) as string };
-}
-
 // C11 (Cristian, 7 nov, punto 13): el caller vuelve a agendar a mano (fecha y hora); su closer lo pone la rotación
 // (lib/rotacion.ts), aunque se intente otro. Directores, CEO y closers eligen el closer, como siempre.
 // La cita en GHL la crea la sesión de GHL (pendiente, plan Callers): hasta entonces, solo en la app.
@@ -126,7 +120,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     }
     // Las estrellas de la llamada (2 a 5): obligatorias para el caller (como hoy), opcionales para jefe o closer
     const n = esCaller || estrellas !== undefined ? estrellasEntre(estrellas, 2, 5) : null;
-    const fecha = aIso(fechaLocal, proyecto.zona_horaria); // en hora del proyecto: CamposCita ya convirtió la de la persona
+    const fecha = aIso(fechaLocal, proyecto.zona_horaria);
     const { data: closer } = await db()
       .from("miembros_proyecto")
       .select("perfil_id, perfiles!inner(rol, nombre)")

@@ -20,17 +20,13 @@ export default async function AgendasMetricasPage({ searchParams }: PageProps<"/
   const jefe = esJefe(perfil);
   // H5 (caso 1): un caller con «Agendas» ve solo las citas que agendó él (y las ventas de esos leads), solo mirar
   const mirar = perfil.rol === "caller";
-  // D43: lo que no depende de lo demás, a la vez (antes, uno detrás de otro)
-  const [sp, datos, panel] = await Promise.all([
-    searchParams,
-    cargarAgendas(proyecto, !!perfil.es_prueba),
-    jefe ? null : panelObjetivos(proyecto, perfil), // cada closer ve solo los suyos, su racha y el del equipo (H3-H4)
-  ]);
+  const sp = await searchParams;
   const p = leerPeriodo(sp);
   const rango = rangoNav(p.periodo, p.n, proyecto.zona_horaria, p.desde, p.hasta);
   const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : null);
   const comparativa = jefe && str("vista") === "comparativa";
 
+  const datos = await cargarAgendas(proyecto, !!perfil.es_prueba);
   if (mirar) {
     datos.citas = datos.citas.filter((c) => c.agendada_por === perfil.id || c.closer_id === perfil.id);
     const leads = new Set(datos.citas.map((c) => c.lead_id));
@@ -45,6 +41,7 @@ export default async function AgendasMetricasPage({ searchParams }: PageProps<"/
   // Fase 2: los jefes reciben las dos vistas ya calculadas (el botón Individual/Comparativa cambia al instante)
   const porCloser = jefe ? vis.todos.map((c) => ({ c, m: metricasAgendas(datos, rango, { closerIds: [c.id], ...filtros }) })).filter(({ c, m }) => !("baja" in c && c.baja) || m.agendadas || m.cash) : [];
   const $ = (n: number) => dinero(n, proyecto);
+  const panel = jefe ? null : await panelObjetivos(proyecto, perfil); // cada closer ve solo los suyos, su racha y el del equipo (H3-H4)
   const qs = new URLSearchParams(Object.entries(sp).filter(([, v]) => typeof v === "string") as [string, string][]);
 
   const filtrosComunes = (

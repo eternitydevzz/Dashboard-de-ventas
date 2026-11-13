@@ -109,7 +109,6 @@ export function TableroCrm({
   moneda,
   estrellasOpcionales,
   canales: tablaCanales,
-  ahora,
   tableroClosers,
   permisos,
 }: {
@@ -130,7 +129,6 @@ export function TableroCrm({
   moneda: string;
   estrellasOpcionales: boolean;
   canales: TablaCanales; // B2b: los del proyecto (los nombres se pueden cambiar)
-  ahora: number; // D43: momento de la petición, del servidor, para «hace X d»
   tableroClosers: { columnas: ColumnaC[]; sinColumna: number; soloMirar: boolean } | null;
   permisos: { filas: FilaPermiso[]; gente: { id: string; nombre: string; rol: string }[] } | null;
 }) {
@@ -422,10 +420,10 @@ export function TableroCrm({
         )}
         {/* Cristian (28 oct): Tablero/Lista y «Subir CSV» solo con icono, para que la barra quepa en una fila */}
         {jefe && tipo !== "closers" && <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-          <button onClick={() => setVista("tablero")} title="Tablero" aria-label="Tablero" aria-pressed={vista === "tablero"} className={`flex items-center rounded-md px-2.5 py-1.5 text-sm ${vista === "tablero" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
+          <button onClick={() => setVista("tablero")} title="Tablero" aria-label="Tablero" className={`flex items-center rounded-md px-2.5 py-1.5 text-sm ${vista === "tablero" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
             <LayoutGrid className="h-4 w-4" />
           </button>
-          <button onClick={() => setVista("lista")} title="Lista" aria-label="Lista" aria-pressed={vista === "lista"} className={`flex items-center rounded-md px-2.5 py-1.5 text-sm ${vista === "lista" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
+          <button onClick={() => setVista("lista")} title="Lista" aria-label="Lista" className={`flex items-center rounded-md px-2.5 py-1.5 text-sm ${vista === "lista" ? "bg-panel text-texto shadow-sm" : "text-texto-3"}`}>
             <List className="h-4 w-4" />
           </button>
         </div>}
@@ -542,7 +540,6 @@ export function TableroCrm({
                       lead={l}
                       caller={l.caller_id ? nombrePorId[l.caller_id] : null}
                       closer={l.closer_id ? nombrePorId[l.closer_id] : null}
-                      ahora={ahora}
                       onDrag={() => setArrastrando(l.id)}
                       arrastrando={arrastrando === l.id}
                       marcada={seleccion.has(l.id)}
@@ -644,7 +641,6 @@ function Tarjeta({
   lead,
   caller,
   closer,
-  ahora,
   onDrag,
   arrastrando,
   marcada,
@@ -653,7 +649,6 @@ function Tarjeta({
   lead: LeadTarjeta;
   caller: string | null;
   closer: string | null;
-  ahora: number;
   onDrag: () => void;
   arrastrando: boolean;
   marcada: boolean;
@@ -670,7 +665,8 @@ function Tarjeta({
       arriba={
         <span className="flex shrink-0 items-center gap-1 text-[11px] text-texto-3">
           {lead.otroPipeline && <span title="También está en otro pipeline (su pipeline principal es otro)">🔗</span>}
-          <span title={`Entró el ${lead.creado_en.slice(0, 10)}`}>{haceDias(lead.creado_en, ahora)}</span>
+          {/* Date.now() distinto en servidor y navegador si cambia el día entre medias: se queda el del servidor (sin #418) */}
+          <span title={`Entró el ${lead.creado_en.slice(0, 10)}`} suppressHydrationWarning>{haceDias(lead.creado_en)}</span>
         </span>
       }
       arrastrable

@@ -176,41 +176,4 @@ describe("Finanzas", () => {
     const { data: sigue } = await db.from("liquidaciones").select("estado, comision_cobrado").eq("id", l!.id).single();
     expect(sigue).toMatchObject({ estado: "pagada", comision_cobrado: 49.7 });
   });
-
-  it("D43: recalcular_liquidaciones (un paso, con candado): mismas cifras, 2 a la vez no se pisan y la pagada no vuelve a pendiente", async () => {
-    como(e, e.p.ceo);
-    const mes = hoyEnZona(e.proyecto.zona_horaria).slice(0, 7);
-    const foto = async () =>
-      ((await db.from("liquidaciones").select("perfil_id, estado, base_facturado, base_cobrado, comision_facturado, comision_cobrado, tramo, detalle").eq("proyecto_id", e.proyecto.id).eq("mes", mes).order("perfil_id")).data ?? []).map((x) => ({ ...x, comision_cobrado: Number(x.comision_cobrado) }));
-    await ok(calcularLiquidaciones(mes));
-    const antes = await foto();
-    expect(antes.find((x) => x.perfil_id === e.p.closerB.id)).toMatchObject({ estado: "pagada", comision_cobrado: 49.7 }); // la del test anterior
-    expect(antes.find((x) => x.perfil_id === e.p.closerA.id)).toMatchObject({ comision_facturado: 200, comision_cobrado: 150 }); // las cifras de siempre
-    const [r1, r2] = await Promise.all([calcularLiquidaciones(mes), calcularLiquidaciones(mes)]);
-    expect(r1).toEqual(r2);
-    expect(await foto()).toEqual(antes);
-    // Llamada directa: la pagada no se pisa aunque venga en la lista; la pendiente de quien ya no sale se borra
-    const { data: pagadas, error } = await db.rpc("recalcular_liquidaciones", {
-      p_proyecto: e.proyecto.id,
-      p_mes: mes,
-      p_filas: [{ perfil_id: e.p.closerB.id, base_facturado: 1, base_cobrado: 1, comision_facturado: 1, comision_cobrado: 1, detalle: [] }],
-    });
-    expect(error).toBeNull();
-    expect(pagadas).toEqual([e.p.closerB.id]);
-    const despues = await foto();
-    expect(despues.filter((x) => x.estado === "pendiente")).toHaveLength(0);
-    expect(despues.find((x) => x.perfil_id === e.p.closerB.id)).toMatchObject({ estado: "pagada", comision_cobrado: 49.7 });
-    await ok(calcularLiquidaciones(mes)); // las deja como estaban
-    expect(await foto()).toEqual(antes);
-  });
-
-  it("D43: cambiar_forma_pago no cambia nada si los plazos que se quedan ya no son los que leyó la app", async () => {
-    const { data: v } = await db.from("ventas").select("id, facturacion").eq("proyecto_id", e.proyecto.id).eq("lead_id", e.leads.LeadA).single();
-    const plazos = async () => (await db.from("vencimientos").select("id, estado, numero, importe").eq("venta_id", v!.id).order("numero")).data ?? [];
-    const antes = await plazos();
-    const fijos = antes.filter((x) => x.estado !== "pendiente").map((x) => x.id);
-    const { error } = await db.rpc("cambiar_forma_pago", { p_proyecto: e.proyecto.id, p_venta: v!.id, p_tipo: "reserva", p_num_cuotas: null, p_plazos: [{ numero: 99, importe: 1, vence_el: "2030-01-01" }], p_fijos: [...fijos, crypto.randomUUID()] });
-    expect(error?.message).toMatch(/plazos_cambiados/);
-    expect(await plazos()).toEqual(antes);
-  });
 });

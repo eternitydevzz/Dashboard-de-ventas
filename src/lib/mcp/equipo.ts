@@ -2,8 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { getSesion } from "@/lib/sesion";
 import { exigir, puedeAdmin } from "@/lib/auth";
-import { db, escribir, todas } from "@/lib/datos";
-import { exigirSeccion } from "@/lib/permisos";
+import { db, escribir } from "@/lib/datos";
 import { ErrorUsuario, esError } from "@/lib/resultado";
 import { mercadoValido } from "@/lib/mercado";
 import type { Rol } from "@/lib/tipos";
@@ -41,9 +40,7 @@ async function personasDelProyecto(proyectoId: string) {
 export type ArgsCrearMiembro = { nombre: string; email: string; telefono: string; rol: string; mercado: string; area?: string; confirmar?: boolean };
 
 export async function herramientaCrearMiembro(a: ArgsCrearMiembro) {
-  // D43: la vista previa pide lo mismo que crearMiembro (sección Equipo y Administración), no solo la sesión
-  await exigirSeccion("equipo");
-  const { proyecto } = await exigir(puedeAdmin);
+  const { proyecto } = await getSesion();
   const rol = a.rol as Rol;
   if (!["caller", "closer", "director", "ceo"].includes(rol)) throw new ErrorUsuario("Rol no válido. Usa: caller, closer, director o ceo.");
   const mercado = mercadoValido(a.mercado);
@@ -79,26 +76,14 @@ async function prepararSalida(a: ArgsBaja, borrar: boolean) {
   const p = await elegir(gente, a.persona, "personas");
   if (p.id === perfil.id) throw new ErrorUsuario("No puedes darte de baja ni borrarte a ti mismo.");
   if (p.rol === "ceo") throw new ErrorUsuario("A un CEO no se le da de baja ni se le borra desde aquí.");
-  // C5: todas sus filas (un caller ya tiene más de 1.000 leads; antes solo se movían los 1.000 primeros)
-  const contar = (tabla: string) =>
-    db().from(tabla).select("perfil_id", { count: "exact", head: true }).eq("perfil_id", p.id).then(({ count, error }) => {
-      if (error) throw new Error(`No se pudo leer ${tabla}: ${error.message}`);
-      return count ?? 0;
-    });
-  const [comoCaller, comoCloser, proyectos, liquidaciones, reportes, objetivos] = await Promise.all([
-    todas<{ id: string }>((d, h) => db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("caller_id", p.id).order("id").range(d, h)),
-    todas<{ id: string }>((d, h) => db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("closer_id", p.id).order("id").range(d, h)),
-    contar("miembros_proyecto"),
-    contar("liquidaciones"),
-    contar("reportes"),
-    contar("objetivos"),
+  const [{ data: comoCaller }, { data: comoCloser }, { count: proyectos }] = await Promise.all([
+    db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("caller_id", p.id),
+    db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("closer_id", p.id),
+    db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("perfil_id", p.id),
   ]);
-  if (borrar && proyectos > 1) throw new ErrorUsuario(`${p.nombre} está en ${proyectos} proyectos. Borrarla la quitaría de todos: dala de baja en su lugar.`);
-  // C4: borrar la cuenta borra en cascada sus comisiones, reportes y objetivos; con historial, solo se le da de baja
-  const historial = [liquidaciones && `${liquidaciones} comisiones`, reportes && `${reportes} reportes`, objetivos && `${objetivos} objetivos`].filter(Boolean);
-  if (borrar && historial.length) throw new ErrorUsuario(`${p.nombre} tiene historial (${historial.join(", ")}) que se perdería al borrarla: dala de baja en su lugar (dar_de_baja_miembro). No se ha cambiado nada.`);
-  const callerIds = comoCaller.map((l) => l.id);
-  const closerIds = comoCloser.map((l) => l.id);
+  if (borrar && (proyectos ?? 0) > 1) throw new ErrorUsuario(`${p.nombre} está en ${proyectos} proyectos. Borrarla la quitaría de todos: dala de baja en su lugar.`);
+  const callerIds = (comoCaller ?? []).map((l) => l.id);
+  const closerIds = (comoCloser ?? []).map((l) => l.id);
   const total = callerIds.length + closerIds.length;
   // Cristian (13 nov): con leads, no se hace nada hasta que diga a quién van («nadie» = sin asignar)
   if (total && !a.leadsA) throw new ErrorUsuario(`${p.nombre} tiene ${total} leads (${callerIds.length} como caller, ${closerIds.length} como closer). Di a quién pasarlos con leadsA (nombre o id), o «nadie» para dejarlos sin asignar. No se ha cambiado nada.`);

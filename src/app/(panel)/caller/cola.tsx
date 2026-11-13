@@ -232,7 +232,7 @@ export function ColaCaller({
                     <h2 className="text-[19px] font-semibold leading-tight">{nombreDe(seleccionado)}</h2>
                     {seleccionado.telefono && <div className="mt-0.5 text-[14.5px] font-semibold tabular-nums">{seleccionado.telefono}</div>}
                     <div className="mt-0.5 break-words text-xs text-white/85">
-                      {[nombrePais(seleccionado.pais), seleccionado.email?.trim(), `Entró el ${dia.format(new Date(seleccionado.creado_en))}, ${hora.format(new Date(seleccionado.creado_en))}${conZona(rol) ? ` (hora de ${nombreZona(zona)})` : ""}`, seleccionado.pipeline_id ? nombresPipeline[seleccionado.pipeline_id] : null].filter(Boolean).join(" · ")}
+                      {[nombrePais(seleccionado.pais), seleccionado.email, `Entró el ${dia.format(new Date(seleccionado.creado_en))}, ${hora.format(new Date(seleccionado.creado_en))}${conZona(rol) ? ` (hora de ${nombreZona(zona)})` : ""}`, seleccionado.pipeline_id ? nombresPipeline[seleccionado.pipeline_id] : null].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                 </div>

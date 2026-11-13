@@ -26,8 +26,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
   const { proyectoId } = await ctx.params;
   if (!/^[0-9a-f-]{36}$/i.test(proyectoId)) return NextResponse.json({ ok: false }, { status: 404 });
   const secreto = request.headers.get("x-eternity-secreto") ?? "";
-  // D43: el proyecto se lee 1 vez aquí y se pasa a las citas, los envíos, los workflows y los leads (antes, 5 lecturas)
-  const { data: proyecto } = await createAdminClient().from("proyectos").select("*").eq("id", proyectoId).maybeSingle<ProyectoGhl>();
+  const { data: proyecto } = await createAdminClient().from("proyectos").select("id, webhook_secreto").eq("id", proyectoId).maybeSingle();
   if (!proyecto || !secreto || !igual(secreto, proyecto.webhook_secreto)) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
     if (!(await dentroDelLimite(`ghl-leer-fallo:${ip}`, 30, 15 * 60_000))) return NextResponse.json({ ok: false, error: "Demasiados intentos" }, { status: 429 });
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
   const motivo = (e: unknown) => (e instanceof Error ? e.message : String(e));
   const enviarYLeer = async () => {
     try {
-      envios = await enviarPendientes(proyecto);
+      envios = await enviarPendientes(proyectoId);
       if (envios.errores.length) await anotar("envíos", envios.errores.slice(0, 3));
     } catch (e) {
       await anotar("envíos", [motivo(e)]);
@@ -60,23 +59,16 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
     try {
       // Cada lead con fallo ya está en `errores` (también los que se reintentan): no se cuentan dos veces
       const usados = envios ? envios.enviados + envios.errores.length : 0;
-      const ghl = (() => {
-        try {
-          const x = conGhl(proyecto);
-          return { locationId: x.proyecto.ghl_location_id as string, token: x.token };
-        } catch {
-          return undefined;
-        }
-      })();
+      const ghl = await proyectoConGhl(proyectoId).then((x) => ({ locationId: x.proyecto.ghl_location_id as string, token: x.token })).catch(() => undefined);
       const wf = await avanzarEjecuciones(proyectoId, { limite: Math.max(0, MAX_LEADS_POR_LECTURA - usados), ghl });
       wfHechas = wf.hechas;
       if (wf.errores.length) await anotar("workflows", wf.errores.slice(0, 3));
     } catch (e) {
       await anotar("workflows", [motivo(e)]);
     }
-    return leerLeads(proyecto);
+    return leerLeads(proyectoId);
   };
-  const [citas, leads] = await Promise.allSettled([sincronizarCalendarios(proyectoId, { proyecto }), enviarYLeer()]);
+  const [citas, leads] = await Promise.allSettled([sincronizarCalendarios(proyectoId), enviarYLeer()]);
   if (citas.status === "fulfilled" && citas.value.errores.length) await anotar("citas", citas.value.errores.slice(0, 3));
   // Si la lectura de citas revienta entera, ghl_ultimo_resultado no se actualiza: el error queda aquí
   if (citas.status === "rejected") await anotar("citas", [motivo(citas.reason)]);
@@ -97,20 +89,20 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
 }
 
 type ProyectoGhl = Proyecto & { ghl_token: string | null; ghl_location_id: string | null };
-function conGhl(proyecto: ProyectoGhl) {
-  if (!proyecto.ghl_token || !proyecto.ghl_location_id) throw new Error("Falta conectar GHL");
+async function proyectoConGhl(proyectoId: string) {
+  const { data: proyecto } = await createAdminClient().from("proyectos").select("*").eq("id", proyectoId).single<ProyectoGhl>();
+  if (!proyecto?.ghl_token || !proyecto.ghl_location_id) throw new Error("Falta conectar GHL");
   return { proyecto, token: descifrar(proyecto.ghl_token, "el token de GHL") };
 }
 
 // Leads por API (Cristian, 16-17 oct 2026): contactos nuevos de GHL → su pipeline en la app (por su etiqueta)
-async function leerLeads(p: ProyectoGhl) {
-  const { proyecto, token } = conGhl(p);
+async function leerLeads(proyectoId: string) {
+  const { proyecto, token } = await proyectoConGhl(proyectoId);
   return leerLeadsGhl(proyecto, token);
 }
 
-async function enviarPendientes(p: ProyectoGhl) {
-  const { proyecto, token } = conGhl(p);
-  const proyectoId = proyecto.id;
+async function enviarPendientes(proyectoId: string) {
+  const { proyecto, token } = await proyectoConGhl(proyectoId);
   const r = await enviarPendientesGhl(proyecto, token);
   // A3: las etiquetas nuevas que puso «Qué hacer en GHL» arrancan los workflows de etiqueta; un fallo no para la lectura
   for (const n of r.nuevas) await dispararEtiquetas(proyectoId, n.leadId, n.etiquetas).catch((e) => console.error("[ghl-leer] workflows de etiqueta", proyectoId, e instanceof Error ? e.message : e));

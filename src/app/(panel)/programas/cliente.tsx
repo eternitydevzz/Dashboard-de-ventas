@@ -46,7 +46,7 @@ export function EditorPrograma({ programa, moneda, comisionesRol, editables }: {
   return (
     <>
       {programa ? (
-        <button className="btn-secundario w-full justify-center border-oro/40 text-oro-texto" onClick={() => setAbierto(true)}><ExternalLink className="h-4 w-4" /> Gestionar programa</button>
+        <button className="btn-secundario w-full justify-center border-oro/40 text-oro" onClick={() => setAbierto(true)}><ExternalLink className="h-4 w-4" /> Gestionar programa</button>
       ) : (
         <button className="btn-primario" onClick={() => setAbierto(true)}><Plus className="h-4 w-4" /> Nuevo programa</button>
       )}

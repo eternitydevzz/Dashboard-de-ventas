@@ -4,7 +4,7 @@ import { closerLibreA } from "@/lib/agenda-libre";
 import { TEXTO_MOTIVO } from "@/lib/disponibilidad";
 import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
-import { refrescarPantalla } from "@/lib/refrescar";
+import { revalidatePath } from "next/cache";
 import { getSesion, esJefe, exigir } from "@/lib/auth";
 import { descifrar } from "@/lib/cifrado";
 import { borrarCitaGhl, cambiarUsuarioCitaGhl } from "@/lib/ghl";
@@ -67,7 +67,7 @@ export async function cambiarEstadoCita(citaId: string, estado: EstadoCita, nota
         if (destino) await db().from("leads").update({ etapa_id: destino.id }).eq("id", lead.id);
       }
     }
-    refrescarPantalla();
+    revalidatePath("/", "layout");
   });
 }
 
@@ -79,7 +79,7 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
     // 4.4 (Cristian, 11 oct): también las citas de GHL se reagendan aquí (la app es el CRM; GHL solo trae datos).
     // La nueva cita no lleva el id de GHL, así la sincronización no le cambia la hora.
     if (!fechaLocal) throw new ErrorUsuario("Elige la nueva fecha.");
-    const fecha = localAIso(fechaLocal, zonaPersona(perfil, proyecto)); // N2: la escribe en su hora (la ventana lo dice); al agendar, igual (CamposCita)
+    const fecha = localAIso(fechaLocal, zonaPersona(perfil, proyecto)); // N2: la escribe en su hora (la ventana lo dice)
     // Bloque 3 (Cristian, 11 oct 2026): se queda el mismo closer; si no está libre a la nueva hora, se elige otra.
     // Si el closer aún no tiene horario puesto no se puede comprobar su horario, pero sí que no choque con otra cita.
     if (cita.closer_id) {
@@ -106,7 +106,7 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
       throw new Error(`No se pudo guardar en «citas»: ${errNueva.message}`);
     }
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "reagendada", nota: "Cita reagendada" });
-    refrescarPantalla();
+    revalidatePath("/", "layout");
   });
 }
 
@@ -146,7 +146,7 @@ export async function cambiarCloserCita(citaId: string, closerId: string) {
     await escribir(db().from("citas").update({ closer_id: closerId }).eq("id", citaId), "citas");
     await escribir(db().from("leads").update({ closer_id: closerId }).eq("id", cita.lead_id), "leads");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "closer", nota: `Cita pasada a ${nuevo.perfiles.nombre}` });
-    refrescarPantalla();
+    revalidatePath("/", "layout");
   });
 }
 
@@ -159,7 +159,7 @@ export async function borrarCita(citaId: string) {
     }
     await escribir(db().from("citas").delete().eq("id", citaId), "citas");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "borrada", nota: "Cita borrada" });
-    refrescarPantalla();
+    revalidatePath("/", "layout");
   });
 }
 
@@ -226,7 +226,7 @@ export async function importarCitas(texto: string) {
       await escribir(db().from("leads").update({ estado_caller: "agendado", closer_id: closerId }).eq("id", leadId), "leads");
       creadas++;
     }
-    refrescarPantalla();
+    revalidatePath("/", "layout");
     return { creadas, fallos };
   });
 }
@@ -244,7 +244,7 @@ export async function sincronizarGhl(soloSiHaceMas?: number) {
     const { sincronizarCalendarios } = await import("@/lib/ghl-sync");
     try {
       const r = await sincronizarCalendarios(proyecto.id);
-      refrescarPantalla();
+      revalidatePath("/", "layout");
       return r;
     } catch (e) {
       throw new ErrorUsuario(e instanceof Error ? e.message : "No se pudo sincronizar con GHL.");
@@ -267,7 +267,7 @@ export async function unirCitaSinLead(id: string, leadId: string) {
     if (s.ghl_contact_id) await db().from("leads").update({ ghl_contact_id: s.ghl_contact_id }).eq("id", leadId).is("ghl_contact_id", null);
     await escribir(db().from("citas_sin_lead").update({ estado: "resuelta" }).eq("id", id), "citas_sin_lead");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", resultado: "agendada", nota: "Cita de GHL unida a mano" });
-    refrescarPantalla();
+    revalidatePath("/", "layout");
   });
 }
 
@@ -277,6 +277,6 @@ export async function descartarCitaSinLead(id: string) {
     const { perfil, proyecto } = await getSesion();
     if (!esJefe(perfil)) throw new ErrorUsuario("Solo el director o el CEO revisan las citas sin unir.");
     await escribir(db().from("citas_sin_lead").update({ estado: "descartada" }).eq("id", id).eq("proyecto_id", proyecto.id), "citas_sin_lead");
-    refrescarPantalla();
+    revalidatePath("/", "layout");
   });
 }
