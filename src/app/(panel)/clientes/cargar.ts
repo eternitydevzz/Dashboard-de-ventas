@@ -24,6 +24,9 @@ export async function cargarClientes(proyecto: Proyecto) {
     db().from("pasos_onboarding").select("id, nombre, orden").eq("proyecto_id", proyecto.id).order("orden"),
     db().from("productos").select("id, nombre, color").eq("proyecto_id", proyecto.id),
   ]);
+  // si la base falla, error.tsx en vez de una pantalla vacía como si no hubiera nada
+  for (const [r, que] of [[pasos, "los pasos de onboarding"], [productos, "los productos"]] as const)
+    if (r.error) throw new Error(`No se pudieron leer ${que}: ${r.error.message}`);
   const n = <T extends object>(x: T, ks: (keyof T)[]) => ({ ...x, ...Object.fromEntries(ks.map((k) => [k, x[k] === null ? null : Number(x[k])])) }) as T;
   const filas = resumenClientes(
     {
@@ -37,7 +40,8 @@ export async function cargarClientes(proyecto: Proyecto) {
   const ids = filas.map((f) => f.lead_id);
   const leads = new Map<string, { nombre: string; email: string | null; telefono: string | null }>();
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await db().from("leads").select("id, nombre, apellido, email, telefono").in("id", ids.slice(i, i + 200));
+    const { data, error } = await db().from("leads").select("id, nombre, apellido, email, telefono").in("id", ids.slice(i, i + 200));
+    if (error) throw new Error(`No se pudieron leer los leads: ${error.message}`);
     for (const l of data ?? []) leads.set(l.id, { nombre: `${l.nombre} ${l.apellido ?? ""}`.trim() || "Sin nombre", email: l.email, telefono: l.telefono });
   }
   const notas = new Map<string, { nota: string; creado_en: string }[]>();

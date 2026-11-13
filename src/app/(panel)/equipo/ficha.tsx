@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, RotateCw } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { EditorHorario } from "@/components/editor-horario";
 import { ListaPermisosPersona } from "@/app/(panel)/admin/permisos";
@@ -39,16 +39,22 @@ export function FichaPersona({
   const [pestana, setPestana] = useState<Pestana>(m ? "datos" : "acceso");
   const [f, setF] = useState<Ficha | null>(null);
   const [error, setError] = useState("");
+  const [fallo, setFallo] = useState(false); // falló la red: «Reintentar» en vez de «Cargando…» para siempre
 
   const recargar = useCallback(() => {
     if (!perfilId) return;
-    cargarFicha(perfilId).then((r) => {
-      if ("error" in r) setError(r.error);
-      else {
-        setError("");
-        setF(r);
-      }
-    });
+    cargarFicha(perfilId).then(
+      (r) => {
+        setFallo(!r || typeof r !== "object");
+        if (!r || typeof r !== "object") return;
+        if ("error" in r) setError(r.error);
+        else {
+          setError("");
+          setF(r);
+        }
+      },
+      () => setFallo(true),
+    );
   }, [perfilId]);
   useEffect(() => {
     if (abierta && conAcceso) recargar();
@@ -82,7 +88,12 @@ export function FichaPersona({
           )}
           <div className="max-h-[70vh] overflow-y-auto pr-1">
             {pestana === "datos" && m && <DatosYComision m={m} {...datos} />}
-            {pestana !== "datos" && conAcceso && !f && !error && <p className="text-sm text-texto-3">Cargando…</p>}
+            {pestana !== "datos" && conAcceso && !f && !error && !fallo && <p className="text-sm text-texto-3">Cargando…</p>}
+            {pestana !== "datos" && fallo && (
+              <button type="button" className="inline-flex items-center gap-1 text-sm font-medium text-mal hover:underline" onClick={() => (setFallo(false), recargar())}>
+                <RotateCw className="h-3.5 w-3.5" /> No se pudo cargar · Reintentar
+              </button>
+            )}
             {pestana !== "datos" && error && <p className="text-sm text-mal">{error}</p>}
             {f && pestana === "acceso" && <AccesoPersona key={`${f.persona.email}-${f.persona.rol}`} f={f} recargar={recargar} />}
             {f && pestana === "permisos" && (
