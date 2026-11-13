@@ -47,14 +47,18 @@ export function AccesoPersona({ f, recargar }: { f: Ficha; recargar: () => void 
         <button type="button" className="btn-secundario px-3 py-1.5 text-xs" disabled={pendiente} onClick={() => hacer(() => guardarContactoPersona(p.id, contacto), "Contacto guardado")}>Guardar contacto</button>
       </Bloque>
       <Bloque titulo="Entrar en la app">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="block min-w-56 flex-1"><span className="etiqueta-campo">Email de acceso</span><input className="campo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <button type="button" className="btn-secundario" disabled={pendiente || email.trim().toLowerCase() === p.email} onClick={() => void confirmar(`¿Cambiar el email de acceso de ${p.nombre} a ${email}? Desde ahora entrará con este.`).then((ok) => ok && hacer(() => cambiarEmailPersona(p.id, email), "Email cambiado"))}>Cambiar email</button>
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="block min-w-56 flex-1"><span className="etiqueta-campo">Nueva contraseña</span><input className="campo" type="text" autoComplete="off" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Mínimo 8 caracteres" /></label>
-          <button type="button" className="btn-secundario" disabled={pendiente || pass.length < 8} onClick={() => ejecutar(async () => { await exigirOk(cambiarPassword(p.id, pass)); setPass(""); }, "Contraseña cambiada")}>Cambiar contraseña</button>
-        </div>
+        {(f.soyCeo || f.soyYo) && (
+          <>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="block min-w-56 flex-1"><span className="etiqueta-campo">Email de acceso</span><input className="campo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+              <button type="button" className="btn-secundario" disabled={pendiente || email.trim().toLowerCase() === p.email} onClick={() => void confirmar(`¿Cambiar el email de acceso de ${p.nombre} a ${email}? Desde ahora entrará con este.`).then((ok) => ok && hacer(() => cambiarEmailPersona(p.id, email), "Email cambiado"))}>Cambiar email</button>
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="block min-w-56 flex-1"><span className="etiqueta-campo">Nueva contraseña</span><input className="campo" type="text" autoComplete="off" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Mínimo 8 caracteres" /></label>
+              <button type="button" className="btn-secundario" disabled={pendiente || pass.length < 8} onClick={() => ejecutar(async () => { await exigirOk(cambiarPassword(p.id, pass)); setPass(""); }, "Contraseña cambiada")}>Cambiar contraseña</button>
+            </div>
+          </>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className="btn-secundario" disabled={pendiente} onClick={() => ejecutar(() => enviarEnlaceMagico(p.id), `Enlace enviado a ${p.email}`)}>Enviar enlace mágico</button>
           <span className="text-xs text-texto-3">Le llega un email para entrar sin contraseña (dura 24 horas).</span>

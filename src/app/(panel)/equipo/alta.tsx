@@ -26,18 +26,18 @@ const PASOS = [
   { t: "Revisión", d: "Confirmar y crear", i: CircleCheck },
 ];
 
-export function AltaMiembro({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar, puedeComision, codigoMoneda }: { areas: Area[]; puestos: Puesto[]; productos: Producto[]; comisionesRol: Record<string, { pct_venta: number; pct_agenda: number }>; rolesQuePuedoDar: Rol[]; puedeComision: boolean; codigoMoneda: "USD" | "EUR" }) {
+export function AltaMiembro({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar, puedeComision, codigoMoneda, admin }: { areas: Area[]; puestos: Puesto[]; productos: Producto[]; comisionesRol: Record<string, { pct_venta: number; pct_agenda: number }>; rolesQuePuedoDar: Rol[]; puedeComision: boolean; codigoMoneda: "USD" | "EUR"; admin: boolean }) {
   const [abierto, setAbierto] = useState(false);
   const moneda = (n: number) => new Intl.NumberFormat(codigoMoneda === "EUR" ? "es-ES" : "en-US", { style: "currency", currency: codigoMoneda, maximumFractionDigits: 0 }).format(n);
   return (
     <>
       <button className="btn-primario" onClick={() => setAbierto(true)}><Plus className="h-4 w-4" /> Dar de alta un miembro</button>
-      {abierto && <Portal><Asistente {...{ areas, puestos, productos, comisionesRol, rolesQuePuedoDar, puedeComision, moneda }} onCerrar={() => setAbierto(false)} /></Portal>}
+      {abierto && <Portal><Asistente {...{ areas, puestos, productos, comisionesRol, rolesQuePuedoDar, puedeComision, moneda, admin }} onCerrar={() => setAbierto(false)} /></Portal>}
     </>
   );
 }
 
-function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar, puedeComision, moneda, onCerrar }: { areas: Area[]; puestos: Puesto[]; productos: Producto[]; comisionesRol: Record<string, { pct_venta: number; pct_agenda: number }>; rolesQuePuedoDar: Rol[]; puedeComision: boolean; moneda: (n: number) => string; onCerrar: () => void }) {
+function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar, puedeComision, moneda, admin, onCerrar }: { areas: Area[]; puestos: Puesto[]; productos: Producto[]; comisionesRol: Record<string, { pct_venta: number; pct_agenda: number }>; rolesQuePuedoDar: Rol[]; puedeComision: boolean; moneda: (n: number) => string; admin: boolean; onCerrar: () => void }) {
   const soyCeo = rolesQuePuedoDar.includes("ceo");
   const { pendiente, error, ejecutar } = useAccion();
   const [paso, setPaso] = useState(0);
@@ -68,7 +68,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
   const rolFinal: Rol = rolesQuePuedoDar.includes(propuesto) ? propuesto : rolesQuePuedoDar[0];
   const deRol = comisionesRol[rolFinal] ?? { pct_venta: 0, pct_agenda: 0 };
   const nombres = varios ? lista.split("\n").map((x) => x.trim()).filter(Boolean) : [nombre.trim()].filter(Boolean);
-  const accesoReal = varios ? "organigrama" : acceso;
+  const accesoReal = varios || !admin ? "organigrama" : acceso;
   const pctMostrado = propia ? leerNumero(pctVenta) || 0 : deRol.pct_venta;
   const ejemplo = productos.find((x) => x.precio) ?? null;
   const areaObj = areas.find((a) => a.id === area);
@@ -219,6 +219,8 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
                 <h3 className="text-2xl font-semibold">¿Cómo entra en la app?</h3>
                 {varios ? (
                   <p className="rounded-lg bg-aviso-suave px-3 py-2 text-sm text-aviso">Al dar de alta a varios a la vez, entran solo en el organigrama. Luego les das acceso desde su ficha.</p>
+                ) : !admin ? (
+                  <p className="rounded-lg bg-aviso-suave px-3 py-2 text-sm text-aviso">Entra solo en el organigrama. La cuenta de acceso la crea quien tiene Administración.</p>
                 ) : (
                   <>
                     <div className="grid gap-3 sm:grid-cols-2">

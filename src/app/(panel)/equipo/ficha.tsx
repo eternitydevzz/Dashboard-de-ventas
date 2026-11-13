@@ -87,7 +87,7 @@ export function FichaPersona({
             </div>
           )}
           <div className="max-h-[70vh] overflow-y-auto pr-1">
-            {pestana === "datos" && m && <DatosYComision m={m} {...datos} />}
+            {pestana === "datos" && m && <DatosYComision m={m} {...datos} admin={admin} />}
             {pestana !== "datos" && conAcceso && !f && !error && !fallo && <p className="text-sm text-texto-3">Cargando…</p>}
             {pestana !== "datos" && fallo && (
               <button type="button" className="inline-flex items-center gap-1 text-sm font-medium text-mal hover:underline" onClick={() => (setFallo(false), recargar())}>
