@@ -11,7 +11,7 @@ import { exigir, esJefe, puedeAdmin, getSesion } from "@/lib/auth";
 import { CLAVES_CLOSER } from "@/lib/llamadas";
 import { exigirNivel } from "@/lib/pipelines";
 import type { EstadoCaller, TipoPipeline } from "@/lib/tipos";
-import { db, registrarActividad, escribir } from "@/lib/datos";
+import { db, registrarActividad, escribir, porTrozos, trozos } from "@/lib/datos";
 import { guardarLeads, primeraEtapa } from "@/lib/leads";
 import { conPais } from "@/lib/pais";
 import { filaALead, mapaValido } from "@/lib/csv";
@@ -365,7 +365,7 @@ export async function asignarLeads(leadIds: string[], callerId: string | null | 
     const cambios: Record<string, string | null> = {};
     if (callerId !== undefined) cambios.caller_id = callerId || null;
     if (closerId !== undefined) cambios.closer_id = closerId || null;
-    await escribir(db().from("leads").update(cambios).in("id", leadIds).eq("proyecto_id", proyecto.id), "leads");
+    for (const t of trozos(leadIds)) await escribir(db().from("leads").update(cambios).in("id", t).eq("proyecto_id", proyecto.id), "leads");
     const { data: personas } = await db().from("perfiles").select("id, nombre").in("id", [callerId, closerId].filter(Boolean) as string[]);
     const nombre = (id?: string | null) => personas?.find((p) => p.id === id)?.nombre ?? "nadie";
     await db().from("actividades").insert(
@@ -426,13 +426,13 @@ export async function moverLeads(leadIds: string[], etapaId: string) {
     const callers = e.pipelines.tipo === "callers";
     // Fase 4: los que ya tienen tarjeta en ese pipeline (sin ser el suyo principal) mueven esa tarjeta;
     // el resto cambia su pipeline y columna principales
-    const { data: extra } = callers ? { data: [] } : await db().from("tarjetas_extra").select("lead_id").in("lead_id", ids).eq("pipeline_id", e.pipeline_id);
-    const conTarjeta = new Set((extra ?? []).map((x) => x.lead_id as string));
+    const extra = callers ? [] : await porTrozos<{ lead_id: string }>(ids, (t, d, h) => db().from("tarjetas_extra").select("lead_id").in("lead_id", t).eq("pipeline_id", e.pipeline_id).order("id").range(d, h));
+    const conTarjeta = new Set(extra.map((x) => x.lead_id));
     const principales = ids.filter((id) => !conTarjeta.has(id));
-    if (conTarjeta.size) await escribir(db().from("tarjetas_extra").update({ etapa_id: etapaId }).in("lead_id", [...conTarjeta]).eq("pipeline_id", e.pipeline_id), "tarjetas_extra");
-    if (principales.length)
+    for (const t of trozos([...conTarjeta])) await escribir(db().from("tarjetas_extra").update({ etapa_id: etapaId }).in("lead_id", t).eq("pipeline_id", e.pipeline_id), "tarjetas_extra");
+    for (const t of trozos(principales))
       await escribir(
-        db().from("leads").update(callers ? { etapa_callers_id: etapaId } : { etapa_id: etapaId, pipeline_id: e.pipeline_id }).in("id", principales).eq("proyecto_id", proyecto.id),
+        db().from("leads").update(callers ? { etapa_callers_id: etapaId } : { etapa_id: etapaId, pipeline_id: e.pipeline_id }).in("id", t).eq("proyecto_id", proyecto.id),
         "leads"
       );
     await db().from("actividades").insert(ids.map((id) => ({ proyecto_id: proyecto.id, lead_id: id, perfil_id: perfil.id, tipo: "cambio_etapa", nota: `Movido a «${e.nombre}» (en masa)` })));
@@ -452,16 +452,16 @@ export async function cambiarEtiquetas(leadIds: string[], anadir: string[], quit
     const menos = new Set(limpia(quitar).map((x) => x.toLowerCase()));
     if (!mas.length && !menos.size) throw new ErrorUsuario("Escribe alguna etiqueta.");
     if (mas.some((x) => x.length > 60)) throw new ErrorUsuario("Etiqueta demasiado larga (máx. 60).");
-    const { data } = await db().from("leads").select("id, etiquetas").in("id", ids).eq("proyecto_id", proyecto.id);
+    const data = await porTrozos<{ id: string; etiquetas: string[] | null }>(ids, (t, d, h) => db().from("leads").select("id, etiquetas").in("id", t).eq("proyecto_id", proyecto.id).order("id").range(d, h));
     await Promise.all(
-      (data ?? []).map((l) => {
+      data.map((l) => {
         const actuales = ((l.etiquetas ?? []) as string[]).filter((x) => !menos.has(x.toLowerCase()));
         const nuevas = [...actuales, ...mas.filter((x) => !actuales.some((a) => a.toLowerCase() === x.toLowerCase()))];
         return escribir(db().from("leads").update({ etiquetas: nuevas }).eq("id", l.id), "leads");
       })
     );
     refrescar();
-    return data?.length ?? 0;
+    return data.length;
   });
 }
 
@@ -472,13 +472,12 @@ export async function borrarLeads(leadIds: string[]) {
     await exigirSeccion("crm");
     const { proyecto } = await exigir((p) => p.rol === "ceo"); // borrar en masa, solo el CEO (Cristian, 12 oct)
     const ids = idsValidos(leadIds);
-    const [{ data: conCita }, { data: conVenta }] = await Promise.all([
-      db().from("citas").select("lead_id").in("lead_id", ids),
-      db().from("ventas").select("lead_id").in("lead_id", ids),
-    ]);
-    const protegidos = new Set([...(conCita ?? []), ...(conVenta ?? [])].map((x) => x.lead_id as string));
+    // Ola 3 (C9): todas las citas y ventas (en trozos y paginadas); si una lectura falla, lanza y no se borra nada
+    const leer = (tabla: "citas" | "ventas") => porTrozos<{ lead_id: string }>(ids, (t, d, h) => db().from(tabla).select("lead_id").in("lead_id", t).order("id").range(d, h));
+    const [conCita, conVenta] = await Promise.all([leer("citas"), leer("ventas")]);
+    const protegidos = new Set([...conCita, ...conVenta].map((x) => x.lead_id));
     const borrar = ids.filter((id) => !protegidos.has(id));
-    if (borrar.length) await escribir(db().from("leads").delete().in("id", borrar).eq("proyecto_id", proyecto.id), "leads");
+    for (const t of trozos(borrar)) await escribir(db().from("leads").delete().in("id", t).eq("proyecto_id", proyecto.id), "leads");
     refrescar();
     return { borrados: borrar.length, saltados: protegidos.size };
   });

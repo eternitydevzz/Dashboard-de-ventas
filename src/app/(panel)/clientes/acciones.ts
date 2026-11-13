@@ -120,7 +120,9 @@ export async function nuevoCliente(formData: FormData) {
     if (!email && telefonoClave(telefono).length < 6) throw new ErrorUsuario("Pon el email o el teléfono.");
     // Si ya existe (por email o teléfono), la venta va a ese lead
     let leadId: string | null = null;
-    if (email) leadId = (await db().from("leads").select("id").eq("proyecto_id", proyecto.id).ilike("email", email).maybeSingle()).data?.id ?? null;
+    // C9: «_» y «%» son comodines de ilike (a_b@x.com encontraba a axb@x.com): se escapan; ilike y no eq porque
+    // el índice único es por lower(email) y puede haber emails guardados con mayúsculas
+    if (email) leadId = (await db().from("leads").select("id").eq("proyecto_id", proyecto.id).ilike("email", email.replace(/[\\%_]/g, "\\$&")).maybeSingle()).data?.id ?? null;
     if (!leadId && telefonoClave(telefono).length >= 6) {
       const data = await todas<{ id: string; telefono: string | null }>((a, b) => db().from("leads").select("id, telefono").eq("proyecto_id", proyecto.id).not("telefono", "is", null).order("id").range(a, b));
       leadId = data.find((l) => telefonoClave(l.telefono) === telefonoClave(telefono))?.id ?? null;

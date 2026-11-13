@@ -105,17 +105,24 @@ export async function crearMiembro(a: AltaMiembro) {
       const { mercado, telefono } = paisYTelefono(a.acceso.mercado, a.acceso.telefono);
       const { data, error } = await db().auth.admin.createUser({ email, password: a.acceso.password, email_confirm: true });
       if (error) throw new ErrorUsuario(error.message.includes("already") ? "Ya existe un usuario con ese email." : error.message);
-      const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: nombres[0], email, rol: a.acceso.rol, telefono });
-      if (e2) {
-        await db().auth.admin.deleteUser(data.user.id);
-        throw new ErrorUsuario(e2.message);
+      const nuevo = data.user.id;
+      // C9: si falla algo después de crear el usuario, se borra (su perfil y su sitio en el proyecto van con él)
+      try {
+        const { error: e2 } = await db().from("perfiles").insert({ id: nuevo, nombre: nombres[0], email, rol: a.acceso.rol, telefono });
+        if (e2) throw new ErrorUsuario(e2.message);
+        const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
+        await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: nuevo, orden: count ?? 0, mercado }), "miembros_proyecto");
+      } catch (e) {
+        await db().auth.admin.deleteUser(nuevo);
+        throw e;
       }
-      const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-      await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0, mercado }), "miembros_proyecto");
-      perfilId = data.user.id;
+      perfilId = nuevo;
     }
     const { error } = await db().from("miembros_equipo").insert(nombres.map((nombre) => ({ proyecto_id: proyecto.id, perfil_id: perfilId, nombre, email, area_id: a.area_id, puesto_id: puestoId, comision, lider: a.lider })));
-    if (error) throw new ErrorUsuario(error.message);
+    if (error) {
+      if (perfilId) await db().auth.admin.deleteUser(perfilId); // C9: sin usuario huérfano
+      throw new ErrorUsuario(error.message);
+    }
     refrescar();
     return { creados: nombres.length };
   });
@@ -166,14 +173,17 @@ export async function darAccesoMiembro(id: string, emailTxt: string, password: s
     const { mercado, telefono } = paisYTelefono(mercadoTxt, telefonoTxt);
     const { data, error } = await db().auth.admin.createUser({ email, password, email_confirm: true });
     if (error) throw new ErrorUsuario(error.message.includes("already") ? "Ya existe un usuario con ese email." : error.message);
-    const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: m.nombre, email, rol, telefono });
-    if (e2) {
+    // C9: si falla algo después de crear el usuario, se borra (su perfil y su sitio en el proyecto van con él)
+    try {
+      const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: m.nombre, email, rol, telefono });
+      if (e2) throw new ErrorUsuario(e2.message);
+      const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
+      await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0, mercado }), "miembros_proyecto");
+      await escribir(db().from("miembros_equipo").update({ perfil_id: data.user.id, email }).eq("id", id), "miembros_equipo");
+    } catch (e) {
       await db().auth.admin.deleteUser(data.user.id);
-      throw new ErrorUsuario(e2.message);
+      throw e;
     }
-    const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-    await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0, mercado }), "miembros_proyecto");
-    await escribir(db().from("miembros_equipo").update({ perfil_id: data.user.id, email }).eq("id", id), "miembros_equipo");
     refrescar();
   });
 }

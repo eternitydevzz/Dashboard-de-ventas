@@ -58,6 +58,7 @@ export async function registrarDevolucion(ventaId: string, importeTxt: string, f
     const { data: pagos } = await db().from("pagos").select("importe").eq("venta_id", ventaId);
     const cobrado = Number(venta.cash_collected) + (pagos ?? []).reduce((s, p) => s + Number(p.importe), 0);
     if (importe > cobrado + 0.001) throw new ErrorUsuario(`No se puede devolver más de lo cobrado (${cobrado}).`);
+    if (fechaTxt && !/^\d{4}-\d{2}-\d{2}$/.test(fechaTxt)) throw new ErrorUsuario("Fecha no válida."); // C9
     const fecha = fechaTxt ? localAIso(`${fechaTxt}T12:00`, proyecto.zona_horaria) : new Date().toISOString();
     await escribir(db().from("ventas").update({ devuelto: importe, devuelto_en: fecha, devolucion_nota: nota.trim() || null }).eq("id", ventaId), "ventas");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: "devolucion", nota: `Devolución: ${importe}${nota.trim() ? ` · ${nota.trim()}` : ""}` });

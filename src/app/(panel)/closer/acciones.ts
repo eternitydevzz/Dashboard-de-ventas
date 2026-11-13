@@ -86,7 +86,9 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
         throw new ErrorUsuario(`No está libre a esa hora: ${TEXTO_MOTIVO[libre.motivo].toLowerCase()}. Elige otra hora.`);
       }
     }
-    await escribir(db().from("citas").update({ estado: "reagendada" }).eq("id", citaId), "citas");
+    // C9: solo si la cita sigue como se leyó (2 reagendados a la vez creaban 2 citas nuevas)
+    const { data: cambiada } = await escribir(db().from("citas").update({ estado: "reagendada" }).eq("id", citaId).eq("estado", cita.estado).select("id"), "citas");
+    if (cambiada?.length !== 1) throw new ErrorUsuario("Esta cita acaba de cambiar. Recarga la página y vuelve a intentarlo.");
     const { error: errNueva } = await db().from("citas").insert({
       proyecto_id: proyecto.id,
       lead_id: cita.lead_id,

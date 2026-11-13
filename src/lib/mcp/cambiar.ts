@@ -1,6 +1,6 @@
 import "server-only";
 import { getSesion } from "@/lib/sesion";
-import { db } from "@/lib/datos";
+import { db, porTrozos } from "@/lib/datos";
 import { ErrorUsuario, esError, type ConError } from "@/lib/resultado";
 import { fechaHora, localAIso } from "@/lib/formato";
 import { elegir } from "@/lib/mcp/lectura";
@@ -98,13 +98,14 @@ export async function herramientaBorrar(a: { leadIds: string[]; confirmar?: bool
   const ids = leads.map((l) => l.id);
   if (!a.confirmar) {
     const { proyecto } = await getSesion();
-    const [{ data: citas }, { data: ventas }, { data: webinar }] = await Promise.all([
-      db().from("citas").select("lead_id, ghl_cita_id").in("lead_id", ids),
-      db().from("ventas").select("lead_id").in("lead_id", ids),
+    // Ola 3 (C9): como el CRM, todas las citas y ventas (en trozos y paginadas); si una lectura falla, error
+    const [citas, ventas, { data: webinar }] = await Promise.all([
+      porTrozos<{ lead_id: string; ghl_cita_id: string | null }>(ids, (t, d, h) => db().from("citas").select("lead_id, ghl_cita_id").in("lead_id", t).order("id").range(d, h)),
+      porTrozos<{ lead_id: string }>(ids, (t, d, h) => db().from("ventas").select("lead_id").in("lead_id", t).order("id").range(d, h)),
       db().from("pipelines").select("id").eq("proyecto_id", proyecto.id).ilike("nombre", "%webinar 1%"),
     ]);
-    const protegidos = new Set([...(citas ?? []), ...(ventas ?? [])].map((x) => x.lead_id as string));
-    const conGhl = new Set((citas ?? []).filter((c) => c.ghl_cita_id).map((c) => c.lead_id as string));
+    const protegidos = new Set([...citas, ...ventas].map((x) => x.lead_id));
+    const conGhl = new Set(citas.filter((c) => c.ghl_cita_id).map((c) => c.lead_id));
     const espejo = new Set((webinar ?? []).map((p) => p.id as string));
     const vuelven = leads.filter((l) => conGhl.has(l.id) || (l.pipeline_id && espejo.has(l.pipeline_id)));
     const avisos = [
@@ -151,10 +152,10 @@ export async function herramientaNota(a: { leadId: string; nota: string }) {
 export async function herramientaAgendar(a: { leadId: string; closer: string; fecha: string; nota?: string; estrellas?: number; confirmar?: boolean }) {
   const { perfil, proyecto } = await getSesion();
   const [lead] = await leadsDe([a.leadId]);
-  const { data } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(nombre, rol, tambien_closer)").eq("proyecto_id", proyecto.id);
+  const { data } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(nombre, rol, tambien_closer, activo)").eq("proyecto_id", proyecto.id);
   const closers = (data ?? [])
-    .map((m) => ({ id: m.perfil_id as string, ...(m.perfiles as unknown as { nombre: string; rol: string; tambien_closer: boolean | null }) }))
-    .filter((p) => p.rol === "closer" || p.tambien_closer);
+    .map((m) => ({ id: m.perfil_id as string, ...(m.perfiles as unknown as { nombre: string; rol: string; tambien_closer: boolean | null; activo: boolean }) }))
+    .filter((p) => p.activo && (p.rol === "closer" || p.tambien_closer)); // C9: un closer desactivado no se agenda
   const closer = elegir(closers, a.closer, "closer");
   const cuando = fechaHora(localAIso(a.fecha, proyecto.zona_horaria), proyecto); // valida el formato AAAA-MM-DDTHH:MM
   if (!a.confirmar)
