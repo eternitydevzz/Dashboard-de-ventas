@@ -72,7 +72,13 @@ function cambiarTemaAlInstante() {
   document.cookie = `eternity_tema=${oscuro ? "oscuro" : "claro"}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax${location.protocol === "https:" ? "; secure" : ""}`;
 }
 
-export type ItemMenu = { href: string; texto: string; icono: keyof typeof ICONOS; exacto?: boolean; insignia?: number };
+// seccion: rutas que también la marcan (Agendas va a /closer/llamadas y se marca en todo /closer)
+export type ItemMenu = { href: string; texto: string; icono: keyof typeof ICONOS; exacto?: boolean; insignia?: number; seccion?: string };
+
+export function itemActivo(it: ItemMenu, ruta: string) {
+  const dentro = (base: string) => ruta === base || (!it.exacto && ruta.startsWith(base + "/"));
+  return dentro(it.href) || (!!it.seccion && dentro(it.seccion));
+}
 
 export function BarraLateral({
   perfil,
@@ -159,9 +165,7 @@ export function BarraLateral({
             <ul className="space-y-0.5">
               {g.items.map((it) => {
                 const Icono = ICONOS[it.icono];
-                const activo = destino
-                  ? destino === it.href
-                  : ruta === it.href || (!it.exacto && ruta.startsWith(it.href + "/"));
+                const activo = destino ? destino === it.href : itemActivo(it, ruta);
                 return (
                   <li key={it.href}>
                     <Link
