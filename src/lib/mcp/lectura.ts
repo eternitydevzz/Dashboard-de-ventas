@@ -4,7 +4,8 @@ import { exigirSeccion, soloLoSuyo } from "@/lib/permisos";
 import { cargarObjetivos, calcularAvances, avancesDelEquipo, type Avance } from "@/lib/objetivos";
 import { agruparDuplicados } from "@/lib/duplicados";
 import { cargarBase, calcularFunnel } from "@/lib/metricas";
-import { calcularKpis } from "@/lib/kpis";
+import { calcularRanking } from "@/lib/kpis";
+import { mercadosDelProyecto } from "@/lib/mercado-datos";
 import { rangoNav, type PeriodoNav } from "@/lib/periodos";
 import { rangoDe, fechaHora, hoyEnZona, inicioDia, nombrePais, ETIQUETA_ESTADO_CALLER, ETIQUETA_ESTADO_CITA, SIN_PAIS, type Periodo } from "@/lib/formato";
 import { cargarFinanzas } from "@/lib/finanzas-datos";
@@ -52,20 +53,22 @@ export async function herramientaFunnel(a: ArgsFunnel) {
 }
 
 // ---------- ranking (src/app/(panel)/ranking/page.tsx) ----------
-type ArgsRanking = { periodo?: Periodo; desde?: string; hasta?: string };
+// mercado: solo para jefes («es» / «latam»; sin él, todos). El resto ve el suyo, como en la pantalla (Fase 3).
+type ArgsRanking = { periodo?: Periodo; desde?: string; hasta?: string; mercado?: string };
 
 export async function herramientaRanking(a: ArgsRanking) {
-  const { proyecto } = await exigirSeccion("ranking");
+  const { perfil, proyecto } = await exigirSeccion("ranking");
   const rango = rangoDe(a.periodo ?? "semana", proyecto.zona_horaria, a.desde, a.hasta);
-  const { callers, closers } = calcularKpis(await cargarBase(proyecto), rango, proyecto.zona_horaria);
-  const rCallers = [...callers].sort((x, y) => y.agendados - x.agendados || y.cerrados - x.cerrados || y.llamadas - x.llamadas);
-  const rClosers = [...closers].sort((x, y) => y.facturacion - x.facturacion || (y.cierreSobreAsistencia ?? 0) - (x.cierreSobreAsistencia ?? 0));
+  const [base, mercados] = await Promise.all([cargarBase(proyecto), mercadosDelProyecto(proyecto.id)]);
+  const r = calcularRanking(base, rango, proyecto.zona_horaria, { perfil, jefe: esJefe(perfil), mercados, pedido: a.mercado, proyecto });
   return {
     pantalla: "Ranking",
     proyecto: proyecto.nombre,
     periodo: rango.etiqueta,
-    callers: rCallers.map((c, i) => ({ puesto: i + 1, nombre: c.perfil.nombre, agendados: c.agendados, llamadas: c.llamadas, contactados: c.contactados, cerrados: c.cerrados, lowTicketVentas: c.lowTicketVentas })),
-    closers: rClosers.map((c, i) => ({ puesto: i + 1, nombre: c.perfil.nombre, facturacion: c.facturacion, cerradas: c.cerradas, cierreSobreAsistencia: c.cierreSobreAsistencia, asistidas: c.asistidas, noShow: c.noShow })),
+    mercado: r.mercado === "es" ? "España" : r.mercado === "latam" ? "Latam" : "Todos",
+    callers: r.callers.map((c, i) => ({ puesto: i + 1, nombre: c.perfil.nombre, agendados: c.agendados, llamadas: c.llamadas, contactados: c.contactados, cerrados: c.cerrados, lowTicketVentas: c.lowTicketVentas })),
+    // null = este caller no ve el ranking de closers (interruptor en Administración)
+    closers: r.closers && r.closers.map((c, i) => ({ puesto: i + 1, nombre: c.perfil.nombre, facturacion: c.facturacion, cerradas: c.cerradas, cierreSobreAsistencia: c.cierreSobreAsistencia, asistidas: c.asistidas, noShow: c.noShow })),
   };
 }
 
