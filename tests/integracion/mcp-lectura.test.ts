@@ -65,10 +65,17 @@ describe("MCP: ranking", () => {
   it("mismo orden y cifras que Ranking (semana)", async () => {
     const r = await como(e.p.director, () => herramientaRanking({}));
     const { callers } = calcularKpis(await cargarBase(e.proyecto), rangoDe("semana", zona), zona);
-    const orden = [...callers].sort((x, y) => y.agendados - x.agendados || y.cerrados - x.cerrados || y.llamadas - x.llamadas);
+    const orden = callers.filter((c) => !("baja" in c.perfil && c.perfil.baja)).sort((x, y) => y.agendados - x.agendados || y.cerrados - x.cerrados || y.llamadas - x.llamadas);
     expect(r.periodo).toBe("Esta semana");
     expect(r.callers.map((c) => [c.nombre, c.agendados, c.llamadas])).toEqual(orden.map((c) => [c.perfil.nombre, c.agendados, c.llamadas]));
     expect(r.callers[0].puesto).toBe(1);
+    expect(r.mercado).toBe("Todos");
+  });
+
+  it("un caller ve solo su mercado y, por defecto, sin ranking de closers (Fase 3)", async () => {
+    const r = await como(e.p.callerA, () => herramientaRanking({ mercado: "es" }));
+    expect(r.mercado).not.toBe("Todos");
+    expect(r.closers).toBeNull();
   });
 });
 
