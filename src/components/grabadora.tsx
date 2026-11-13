@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Square } from "lucide-react";
 import { useToast } from "@/components/toasts";
 import { exigirOk } from "@/lib/resultado-cliente";
-import { duracionTexto, extDeTipo } from "@/lib/grabaciones";
+import { AVISO_FIN_SEG, duracionTexto, extDeTipo, quedanAviso } from "@/lib/grabaciones";
 import { guardarGrabacion, prepararSubidaGrabacion } from "@/app/(panel)/grabaciones/acciones";
 
 // C10 (plan Callers, 7 nov; 7b.3 punto 4): la grabadora vive en el marco de la app, no en la ventana del guion: cerrar
@@ -17,6 +17,7 @@ type Grabadora = {
   subiendo: boolean;
   empezar: (leadId: string, nombre: string) => Promise<void>;
   parar: () => void;
+  avisarFin: () => void; // al pulsar un resultado o «Siguiente»: aviso de 30 s y, sin «Saltar aviso», se para
 };
 const Contexto = createContext<Grabadora | null>(null);
 export const useGrabadora = () => useContext(Contexto);
@@ -30,6 +31,20 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   const [subiendo, setSubiendo] = useState(false);
   const rec = useRef<MediaRecorder | null>(null);
   const trozos = useRef<Blob[]>([]);
+  const [finAviso, setFinAviso] = useState<number | null>(null);
+  const [quedan, setQuedan] = useState(AVISO_FIN_SEG);
+
+  useEffect(() => {
+    if (finAviso === null) return;
+    const t = setInterval(() => {
+      const q = quedanAviso(finAviso, Date.now());
+      setQuedan(q);
+      if (q > 0) return;
+      setFinAviso(null);
+      rec.current?.stop();
+    }, 500);
+    return () => clearInterval(t);
+  }, [finAviso]);
 
   useEffect(() => {
     if (!grabando) return;
@@ -86,6 +101,7 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
         const real = m.mimeType || tipo || "audio/webm";
         const blob = new Blob(trozos.current, { type: real.split(";")[0] });
         rec.current = null;
+        setFinAviso(null);
         setGrabando(null);
         void subir(blob, real, leadId, Math.round((Date.now() - desde) / 1000));
       };
@@ -98,9 +114,14 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   );
 
   const parar = useCallback(() => rec.current?.stop(), []);
+  const avisarFin = useCallback(() => {
+    if (!rec.current) return;
+    setQuedan(AVISO_FIN_SEG);
+    setFinAviso((f) => f ?? Date.now() + AVISO_FIN_SEG * 1000);
+  }, []);
 
   return (
-    <Contexto.Provider value={{ grabando, segundos, subiendo, empezar, parar }}>
+    <Contexto.Provider value={{ grabando, segundos, subiendo, empezar, parar, avisarFin }}>
       {children}
       {/* Mientras graba, siempre a la vista (también con el guion cerrado o en otra sección) */}
       {grabando && (
@@ -108,6 +129,12 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-mal" />
           Grabando a {grabando.nombre} · <span className="tabular-nums">{duracionTexto(segundos)}</span>
           <button type="button" onClick={parar} className="inline-flex items-center gap-1 rounded-full bg-mal px-3 py-1 text-xs text-white"><Square className="h-3 w-3" /> Parar y guardar</button>
+          {finAviso !== null && (
+            <span role="alert" className="flex items-center gap-2 border-l border-mal/40 pl-3">
+              Se para en <span className="tabular-nums">{quedan} s</span>
+              <button type="button" onClick={() => setFinAviso(null)} className="rounded-full border border-mal px-3 py-1 text-xs">Saltar aviso</button>
+            </span>
+          )}
         </div>
       )}
     </Contexto.Provider>
