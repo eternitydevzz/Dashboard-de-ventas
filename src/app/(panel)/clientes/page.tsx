@@ -106,7 +106,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
                         <td className="tabular-nums">{pct(progresoOnboarding(f.ficha.onboarding, d.pasos))}</td>
                         <td className="whitespace-nowrap">{f.ficha.proximo_contacto ? f.ficha.proximo_contacto.split("-").reverse().join("/") : "—"}</td>
                         <td><Insignia tono={TONO_ESTADO[f.ficha.estado]}>{ESTADOS_CLIENTE.find((x) => x.v === f.ficha.estado)?.t}</Insignia></td>
-                        <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} /></td>
+                        <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -134,7 +134,7 @@ function Tarjeta({ f, d, moneda }: { f: ClienteVista; d: DatosClientes; moneda: 
       </div>
       <div className="flex items-center justify-between border-t border-borde pt-3 text-xs text-texto-3">
         <span>Próximo contacto: {f.ficha.proximo_contacto ? f.ficha.proximo_contacto.split("-").reverse().join("/") : "—"}</span>
-        <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} />
+        <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} />
       </div>
     </article>
   );
@@ -158,7 +158,7 @@ function Seguimiento({ d, hoy }: { d: DatosClientes; hoy: string }) {
             {fs.length === 0 && <p className="py-4 text-center text-xs text-texto-3">Nadie</p>}
             {fs.map((f) => (
               <div key={f.lead_id} className="rounded-lg bg-panel-2 p-3 text-sm">
-                <div className="flex items-center justify-between gap-2"><Link href={`/leads/${f.lead_id}`} className="font-medium hover:text-primario">{f.lead.nombre}</Link><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} texto="Apuntar" /></div>
+                <div className="flex items-center justify-between gap-2"><Link href={`/leads/${f.lead_id}`} className="font-medium hover:text-primario">{f.lead.nombre}</Link><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} texto="Apuntar" /></div>
                 {f.ficha.proximo_contacto && <div className="text-xs text-texto-3">{f.ficha.proximo_contacto.split("-").reverse().join("/")}</div>}
                 {f.notas[0] && <p className="mt-1 line-clamp-2 text-xs text-texto-2">{f.notas[0].nota}</p>}
               </div>
@@ -212,7 +212,7 @@ function Casos({ d }: { d: DatosClientes }) {
                 <span>{f.ficha.caso_fecha ? f.ficha.caso_fecha.split("-").reverse().join("/") : ""}</span>
                 {f.ficha.caso_enlace && <a href={f.ficha.caso_enlace} target="_blank" rel="noopener noreferrer" className="text-primario hover:underline">Ver testimonio</a>}
               </div>
-              <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} pestana="caso" texto="Editar" />
+              <GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} pestana="caso" texto="Editar" />
             </article>
           ))}
         </div>
@@ -234,7 +234,7 @@ function Onboardings({ d, editarPasos }: { d: DatosClientes; editarPasos: boolea
               <td><Link href={`/leads/${f.lead_id}`} className="hover:text-primario">{f.lead.nombre}</Link></td>
               {d.pasos.map((p) => <td key={p.id} className="text-center">{f.ficha.onboarding[p.id] ? <span className="text-ok" aria-label="Hecho">✓</span> : <span className="text-texto-3" aria-label="Pendiente">·</span>}</td>)}
               <td className="text-right tabular-nums">{pct(progresoOnboarding(f.ficha.onboarding, d.pasos))}</td>
-              <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} pestana="onboarding" texto="Marcar" /></td>
+              <td className="text-right"><GestionarCliente leadId={f.lead_id} nombre={f.lead.nombre} ficha={f.ficha} pasos={d.pasos} notas={f.notas} zona={d.zona} pestana="onboarding" texto="Marcar" /></td>
             </tr>
           ))}
         </tbody>

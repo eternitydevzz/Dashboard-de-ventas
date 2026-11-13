@@ -12,7 +12,7 @@ export async function kpisHoyCola(proyectoId: string, personaId: string, desdeIs
     ),
     db().from("citas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyectoId).eq("agendada_por", personaId).gte("creado_en", desdeIso),
   ]);
-  // 13 nov: si falla, error (pantalla «Esta sección no ha cargado», como los leads) en vez de enseñar 0 sin avisar; todas() ya lanza si fallan las actividades
+  // 13 nov: si falla, error (pantalla «Esta sección no ha cargado», como los leads) en vez de enseñar 0 sin avisar; la lectura paginada ya lanza si fallan las actividades
   if (citas.error) throw new Error(`KPIs de hoy: ${citas.error.message}`);
   return { acts, citas: citas.count ?? 0 };
 }

@@ -57,6 +57,7 @@ export async function cargarClientes(proyecto: Proyecto) {
     pasos: (pasos.data ?? []) as { id: string; nombre: string; orden: number }[],
     productos: new Map((productos.data ?? []).map((p) => [p.id, p as { id: string; nombre: string; color: string }])),
     productosLista: (productos.data ?? []) as { id: string; nombre: string; color: string }[],
+    zona: proyecto.zona_horaria, // fechas de notas y pasos en la zona del proyecto (D43)
   };
 }
 export type DatosClientes = Awaited<ReturnType<typeof cargarClientes>>;
