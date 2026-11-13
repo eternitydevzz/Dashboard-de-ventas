@@ -28,7 +28,8 @@ export type ResumenLead = {
 export async function resumenLead(leadId: string) {
   return seguro(async (): Promise<ResumenLead> => {
     const { perfil, proyecto } = await getSesion();
-    const { data: lead } = await db().from("leads").select("*").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle<Lead>();
+    const { data: lead, error } = await db().from("leads").select("*").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle<Lead>();
+    if (error) throw new Error(`Popup del lead: ${error.message}`); // D43: un fallo de la base es error genérico, no «No puedes ver»
     if (!lead || (!esJefe(perfil) && lead.caller_id !== perfil.id && lead.closer_id !== perfil.id)) throw new ErrorUsuario("No puedes ver este lead.");
     const [gente, { data: extra }] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), db().from("tarjetas_extra").select("pipeline_id, etapa_id").eq("lead_id", lead.id)]);
     const tarjetas = [{ pipeline_id: lead.pipeline_id, etapa_id: lead.etapa_id }, ...(extra ?? [])].filter((t) => t.pipeline_id);

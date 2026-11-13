@@ -86,10 +86,10 @@ describe("Límites de intentos", () => {
 describe("Webhook", () => {
   const enviar = (clave: string, cuerpo = "{}", cabeceras: Record<string, string> = {}) =>
     POST(
-      new NextRequest(`http://localhost/api/webhooks/ghl/${e.proyecto.id}?secreto=${clave}`, {
+      new NextRequest(`http://localhost/api/webhooks/ghl/${e.proyecto.id}`, {
         method: "POST",
         body: cuerpo,
-        headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.7", ...cabeceras },
+        headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.7", "x-eternity-secreto": clave, ...cabeceras },
       }),
       { params: Promise.resolve({ proyectoId: e.proyecto.id }) } as never
     );
@@ -100,6 +100,13 @@ describe("Webhook", () => {
     await reiniciarLimites();
     for (let i = 0; i < 30; i++) expect((await enviar("mala")).status).toBe(401);
     expect((await enviar("mala")).status).toBe(429);
+  });
+  it("D43: sin la clave buena no se gasta el cupo de 300/min del proyecto", async () => {
+    await reiniciarLimites();
+    for (let i = 0; i < 3; i++) expect((await enviar("mala")).status).toBe(401);
+    const { data, error } = await db.from("limite_intentos").select("id").eq("clave", `webhook:${e.proyecto.id}`);
+    expect(error).toBeNull();
+    expect(data ?? []).toHaveLength(0);
   });
 });
 

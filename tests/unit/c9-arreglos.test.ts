@@ -144,19 +144,19 @@ describe("2 · Escrituras que no podían fallar en silencio (altos)", () => {
     expect(await registrarVenta("l1", venta())).toBeUndefined();
   });
 
-  it("comisiones: si falla guardar las nuevas, las pendientes de antes no se borran", async () => {
+  // D43: guardar las nuevas y borrar las que sobran va junto en recalcular_liquidaciones (un solo paso en la base)
+  it("comisiones: si falla guardar, error y no se borra nada a mano", async () => {
     base["citas:select"] = { data: [], error: null };
-    base["liquidaciones:upsert"] = fallo;
+    base["rpc:recalcular_liquidaciones"] = fallo;
     expect(await fin.calcularLiquidaciones("2026-11")).toMatchObject({ error: expect.any(String) });
-    expect(de("liquidaciones", "upsert")).toHaveLength(1); // falló al guardar, no antes
     expect(de("liquidaciones", "delete")).toHaveLength(0);
   });
-  it("comisiones: sin fallo, guarda las nuevas y borra solo las pendientes de quien ya no sale", async () => {
+  it("comisiones: sin fallo, una sola llamada con las calculadas", async () => {
     base["citas:select"] = { data: [], error: null }; // citas cerradas del mes (aquí, ninguna)
+    base["rpc:recalcular_liquidaciones"] = { data: [], error: null };
     expect(await fin.calcularLiquidaciones("2026-11")).toMatchObject({ personas: 1 });
-    const borrado = de("liquidaciones", "delete")[0];
-    expect(arg(borrado, "not")).toEqual(["perfil_id", "in", "(ana)"]);
-    expect(borrado.ops).toContainEqual(["eq", ["estado", "pendiente"]]);
+    expect(rpcs.filter((r) => r.nombre === "recalcular_liquidaciones")).toHaveLength(1);
+    expect(de("liquidaciones", "delete")).toHaveLength(0);
   });
 
   it("importar movimientos: si falla, no dice «importados N»", async () => {

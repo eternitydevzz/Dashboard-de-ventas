@@ -1,13 +1,18 @@
 import "server-only";
 import { db, todas, equipo, conBajas, idsDePrueba, deVerdad } from "@/lib/datos";
 import { esJefe } from "@/lib/auth";
+import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import type { CitaM, LeadM, PagoM, VentaM } from "@/lib/metricas-agendas";
 import { esCloser, type Perfil, type Proyecto } from "@/lib/tipos";
 
 // Todo lo que necesitan las métricas de Agendas, de una vez.
 // `conPrueba`: un closer de prueba que mira lo suyo (sin él, lo de los perfiles de prueba no cuenta; 1.0)
-export async function cargarAgendas(proyecto: Proyecto, conPrueba = false) {
-  const pid = proyecto.id;
+// D43: compartido 1 minuto (lib/memoria.ts). Solo depende del proyecto y de `conPrueba`; lo de cada persona se filtra después.
+export function cargarAgendas(proyecto: Proyecto, conPrueba = false) {
+  return enMemoria(`agendas:${proyecto.id}:${conPrueba}`, UN_MINUTO, () => cargarDeLaBase(proyecto.id, conPrueba));
+}
+
+async function cargarDeLaBase(pid: string, conPrueba: boolean) {
   const [citasT, ventasT, pagosT, leads, pipelines, productos, gente, prueba] = await Promise.all([
     todas<CitaM>((a, b) => db().from("citas").select("id, lead_id, closer_id, agendada_por, fecha, estado, estrellas_caller, estrellas_closer, canal").eq("proyecto_id", pid).order("id").range(a, b)),
     todas<VentaM>((a, b) => db().from("ventas").select("id, lead_id, vendedor_id, producto_id, facturacion, cash_collected, fecha, devuelto, devuelto_en").eq("proyecto_id", pid).order("id").range(a, b)),
@@ -18,6 +23,9 @@ export async function cargarAgendas(proyecto: Proyecto, conPrueba = false) {
     equipo(pid, conPrueba),
     conPrueba ? Promise.resolve(new Set<string>()) : idsDePrueba(),
   ]);
+  // Con memoria, un fallo no puede quedarse 1 minuto como «sin pipelines» o «sin productos»
+  if (pipelines.error) throw new Error(`No se pudieron leer los pipelines: ${pipelines.error.message}`);
+  if (productos.error) throw new Error(`No se pudieron leer los productos: ${productos.error.message}`);
   const ok = deVerdad(prueba);
   const citas = citasT.filter((c) => ok(c.closer_id) && ok(c.agendada_por));
   const ventas = ventasT.filter((v) => ok(v.vendedor_id));

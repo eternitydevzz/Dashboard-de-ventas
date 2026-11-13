@@ -10,8 +10,11 @@ const PASOS = ["Bienvenida enviada", "Acceso dado", "Llamada de inicio hecha"];
 // La primera vez, unos pasos de onboarding de ejemplo (se pueden cambiar). Si dos páginas
 // lo hacen a la vez, el nombre único hace que el segundo intento falle sin repetir nada.
 async function asegurarPasos(proyectoId: string) {
-  const { count } = await db().from("pasos_onboarding").select("id", { count: "exact", head: true }).eq("proyecto_id", proyectoId);
-  if (!count) await db().from("pasos_onboarding").insert(PASOS.map((nombre, orden) => ({ proyecto_id: proyectoId, nombre, orden })));
+  const { count, error } = await db().from("pasos_onboarding").select("id", { count: "exact", head: true }).eq("proyecto_id", proyectoId);
+  if (error) throw new Error(`No se pudieron leer los pasos de onboarding: ${error.message}`); // D43: si no, un fallo los volvía a crear
+  if (count) return;
+  const { error: e } = await db().from("pasos_onboarding").insert(PASOS.map((nombre, orden) => ({ proyecto_id: proyectoId, nombre, orden })));
+  if (e && e.code !== "23505") throw new Error(`No se pudieron crear los pasos de onboarding: ${e.message}`); // 23505: otra página los creó a la vez
 }
 
 export async function cargarClientes(proyecto: Proyecto) {
@@ -54,6 +57,7 @@ export async function cargarClientes(proyecto: Proyecto) {
     pasos: (pasos.data ?? []) as { id: string; nombre: string; orden: number }[],
     productos: new Map((productos.data ?? []).map((p) => [p.id, p as { id: string; nombre: string; color: string }])),
     productosLista: (productos.data ?? []) as { id: string; nombre: string; color: string }[],
+    zona: proyecto.zona_horaria, // fechas de notas y pasos en la zona del proyecto (D43)
   };
 }
 export type DatosClientes = Awaited<ReturnType<typeof cargarClientes>>;

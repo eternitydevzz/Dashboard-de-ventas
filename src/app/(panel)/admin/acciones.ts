@@ -344,7 +344,7 @@ export async function crearEntrada(_prev: Res, fd: FormData): Promise<Res> {
     const landing = datosLandingValidos({ landing: fd.get("landing"), formulario: fd.get("formulario"), envia_desde: fd.get("envia_desde") });
     const { data: ultima } = await db().from("entradas").select("orden").eq("proyecto_id", proyecto.id).order("orden", { ascending: false }).limit(1).maybeSingle();
     const { error } = await db().from("entradas").insert({ proyecto_id: proyecto.id, nombre, ...destino, ...landing, orden: ultima ? Number(ultima.orden) + 1 : 0 });
-    if (error) throw new ErrorUsuario(error.message);
+    if (error) throw new Error(error.message); // D43: el detalle de la base, solo al registro
     refrescar();
     return { ok: "Entrada creada. Su dirección está en la lista: cópiala y pásasela al programador de la landing." };
   });
@@ -793,7 +793,7 @@ export async function guardarPermisoSeccion(rol: RolPermiso, seccion: string, pe
     if (perfil.rol !== "ceo" && rol === "director") throw new ErrorUsuario("Los permisos de los directores solo los cambia el CEO.");
     const s = comprobar(rol, seccion, permitido);
     const { error } = await db().from("permisos_seccion").upsert({ proyecto_id: proyecto.id, rol, seccion: s, permitido: !!permitido });
-    if (error) throw new ErrorUsuario(error.message);
+    if (error) throw new Error(error.message); // D43: el detalle de la base, solo al registro
     refrescar();
   });
 }
@@ -806,12 +806,13 @@ export async function guardarPermisoPersona(perfilId: string, seccion: string, p
     const { data: m } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).maybeSingle();
     const rol = (m as unknown as { perfiles: { rol: string } } | null)?.perfiles.rol;
     if (!m || !ROLES_PERMISO.includes(rol as RolPermiso)) throw new ErrorUsuario("Esa persona no es caller, closer ni director de este proyecto (el CEO lo tiene todo siempre).");
+    if (perfil.rol !== "ceo" && rol === "director") throw new ErrorUsuario("Los permisos de los directores solo los cambia el CEO."); // D43
     const s = comprobar(rol as RolPermiso, seccion, permitido);
     const r =
       permitido === null
         ? await db().from("permisos_persona").delete().eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).eq("seccion", s)
         : await db().from("permisos_persona").upsert({ proyecto_id: proyecto.id, perfil_id: perfilId, seccion: s, permitido });
-    if (r.error) throw new ErrorUsuario(r.error.message);
+    if (r.error) throw new Error(r.error.message);
     refrescar();
   });
 }
@@ -837,7 +838,7 @@ export async function guardarCalendario(perfilId: string | null, ajustes: { dura
       const { data: quien } = await db().from("perfiles").select("rol, tambien_closer").eq("id", perfilId).maybeSingle();
       if (!quien || !esCloser(quien as { rol: Rol; tambien_closer: boolean })) throw new ErrorUsuario("Estos ajustes son para closers."); // también Facu (9 nov)
       const { data, error } = await db().from("miembros_proyecto").update({ calendario: valor }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).select("perfil_id");
-      if (error) throw new ErrorUsuario(error.message);
+      if (error) throw new Error(error.message); // D43: el detalle de la base, solo al registro
       if (!data?.length) throw new ErrorUsuario("Esa persona no está en este proyecto.");
     }
     refrescar();

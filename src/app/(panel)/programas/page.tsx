@@ -67,11 +67,11 @@ export default async function ProgramasPage({ searchParams }: PageProps<"/progra
         <div className="flex flex-wrap items-center gap-2">
           <BuscadorUrl placeholder="Buscar programa…" />
           <div className="flex rounded-lg border border-borde bg-panel p-0.5">
-            {[["", "Todos"], ["activos", "Activos"], ["inactivos", "Inactivos"]].map(([v, t]) => <Link prefetch={true} key={v} href={url({ estado: v || null })} className={`rounded-md px-3 py-1.5 text-sm ${estado === v ? "bg-primario text-white" : "text-texto-2"}`}>{t}</Link>)}
+            {[["", "Todos"], ["activos", "Activos"], ["inactivos", "Inactivos"]].map(([v, t]) => <Link key={v} href={url({ estado: v || null })} className={`rounded-md px-3 py-1.5 text-sm ${estado === v ? "bg-primario text-white" : "text-texto-2"}`}>{t}</Link>)}
           </div>
           <div className="ml-auto flex rounded-lg border border-borde bg-panel p-0.5">
-            <Link prefetch={true} href={url({ vista: null })} className={`rounded-md p-1.5 ${!lista ? "bg-primario text-white" : "text-texto-2"}`} aria-label="Tarjetas"><LayoutGrid className="h-4 w-4" /></Link>
-            <Link prefetch={true} href={url({ vista: "lista" })} className={`rounded-md p-1.5 ${lista ? "bg-primario text-white" : "text-texto-2"}`} aria-label="Lista"><List className="h-4 w-4" /></Link>
+            <Link href={url({ vista: null })} className={`rounded-md p-1.5 ${!lista ? "bg-primario text-white" : "text-texto-2"}`} aria-label="Tarjetas"><LayoutGrid className="h-4 w-4" /></Link>
+            <Link href={url({ vista: "lista" })} className={`rounded-md p-1.5 ${lista ? "bg-primario text-white" : "text-texto-2"}`} aria-label="Lista"><List className="h-4 w-4" /></Link>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { enMemoria, UN_MINUTO } from "@/lib/memoria";
+import { alInstante, UN_MINUTO } from "@/lib/memoria";
 import { db, todas, equipo, conBajas } from "@/lib/datos";
 import { ASISTIDAS, cargarBase } from "@/lib/metricas";
 import { CAMPOS_LEAD, compactarLeads, marcasEmbudo, type LeadDeLaBase, type Tarjeta } from "@/lib/leads-vista";
@@ -12,8 +12,9 @@ import { recalcularOfertas } from "@/lib/biblioteca-datos";
 // Solo se pide al abrir la pestaña (no con la precarga del menú) y se guarda 1 minuto compartido entre CEO y directores
 // (lib/memoria.ts, como «Por persona»). Medido el 26 oct: leer los 4.688 leads, ~1,5 s; las 822 tarjetas 🔗, ~0,6 s.
 // Llamadas, citas y ventas salen de cargarBase, que ya usan «Por persona» y el Funnel (sin consultas nuevas si está en memoria).
+// D41 (13 nov 2026): «al instante»: pasado el minuto sale lo último calculado y se pone al día por detrás (lib/memoria.ts)
 export function cargarLeadsKpis(proyecto: Proyecto) {
-  return enMemoria(`leads-kpis:${proyecto.id}`, UN_MINUTO, () => cargarDeLaBase(proyecto));
+  return alInstante(`leads-kpis:${proyecto.id}`, UN_MINUTO, () => cargarDeLaBase(proyecto));
 }
 
 async function cargarDeLaBase(proyecto: Proyecto) {
