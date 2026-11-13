@@ -383,3 +383,10 @@ input[type="checkbox"]:disabled {
   background: var(--panel-2);
   padding: 0.25rem;
 }
+
+/* ---------- Animaciones (C7, plan 2.7; lógica en components/animaciones). Solo piezas de paso: se quitan al acabar ---------- */
+/* Onda al hacer clic en un botón (maqueta: .onda), con el azul de la marca para que se vea en claro y en oscuro */
+.anim-onda { position: fixed; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--primario); pointer-events: none; z-index: 999; }
+/* Pestaña u opción del menú mientras su fondo viaja desde la anterior: el fondo de verdad se esconde y la copia va debajo del texto */
+.anim-desliza { position: relative; isolation: isolate; background: none !important; box-shadow: none !important; transition: none !important; }
+.anim-resalte { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
