@@ -29,7 +29,7 @@ const datosMiembro = (m: Awaited<ReturnType<typeof miembroDe>>, comision: { pct_
 describe("Accesos: solo con tu rol o uno inferior", () => {
   it("un closer no entra en Equipo aunque se abra a su rol (H5); el director da accesos de su rol o inferior", async () => {
     const alta = (rol: "director" | "closer" | "caller", n: string) =>
-      crearMiembro({ nombres: [n], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email: `${e.pref}-${n}@eternity.test`, password: "Clave-temporal-1", rol }, lider: false });
+      crearMiembro({ nombres: [n], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email: `${e.pref}-${n}@eternity.test`, password: "Clave-temporal-1", rol, mercado: "latam", telefono: "+54 11 0000 0000" }, lider: false });
     como(e, e.p.closerA);
     await falla(alta("director", "dir1"), /No tienes acceso a esta sección/);
     await falla(alta("caller", "cal0"), /No tienes acceso a esta sección/);

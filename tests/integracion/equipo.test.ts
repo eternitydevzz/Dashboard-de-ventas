@@ -46,17 +46,21 @@ describe("Equipo", () => {
   it("varios a la vez (sin cuenta) y validaciones", async () => {
     como(e, e.p.ceo);
     expect(await ok(crearMiembro({ nombres: ["Uno", " ", "Dos"], area_id: null, puesto_id: null, comision: null, acceso: { modo: "organigrama" }, lider: false }))).toEqual({ creados: 2 });
-    await falla(crearMiembro({ nombres: ["A", "B"], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email: "x@y.z", password: "12345678", rol: "closer" }, lider: false }), /de una en una/);
+    await falla(crearMiembro({ nombres: ["A", "B"], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email: "x@y.z", password: "12345678", rol: "closer", mercado: "es", telefono: "+34 600 000 000" }, lider: false }), /de una en una/);
     await falla(crearMiembro({ nombres: ["A"], area_id: null, puesto_id: null, comision: { pct_venta: 150 }, acceso: { modo: "organigrama" }, lider: false }), /entre 0 y 100/);
   });
 
   it("alta con acceso: crea el usuario, que puede entrar; un director no puede crear un CEO", async () => {
     como(e, e.p.ceo);
     const email = `${e.pref}-nuevo@eternity.test`;
-    await ok(crearMiembro({ nombres: ["Nuevo Closer"], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email, password: "Clave-temporal-1", rol: "closer" }, lider: false }));
-    const { data: perfil } = await db.from("perfiles").select("id, rol").eq("email", email).single();
-    expect(perfil!.rol).toBe("closer");
-    expect((await db.from("miembros_proyecto").select("perfil_id").eq("proyecto_id", e.proyecto.id).eq("perfil_id", perfil!.id)).data).toHaveLength(1);
+    await ok(crearMiembro({ nombres: ["Nuevo Closer"], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email, password: "Clave-temporal-1", rol: "closer", mercado: "es", telefono: "+34 600 000 000" }, lider: false }));
+    const { data: perfil } = await db.from("perfiles").select("id, rol, telefono").eq("email", email).single();
+    expect(perfil).toMatchObject({ rol: "closer", telefono: "+34 600 000 000" });
+    expect((await db.from("miembros_proyecto").select("mercado").eq("proyecto_id", e.proyecto.id).eq("perfil_id", perfil!.id)).data).toEqual([{ mercado: "es" }]);
+    // País y teléfono son obligatorios al crear cuenta (13 nov)
+    const sin = (mercado: string, telefono: string) => crearMiembro({ nombres: ["Sin datos"], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email: `${e.pref}-sin@eternity.test`, password: "Clave-temporal-1", rol: "closer", mercado: mercado as "es", telefono }, lider: false });
+    await falla(sin("", "+34 600 000 000"), /España o de Latam/);
+    await falla(sin("es", "12"), /teléfono válido/);
     const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
     expect((await anon.auth.signInWithPassword({ email, password: "Clave-temporal-1" })).error).toBeNull();
     // Dar acceso más tarde a alguien del organigrama

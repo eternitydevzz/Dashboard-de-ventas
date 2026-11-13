@@ -8,6 +8,7 @@ import { exigirSeccion } from "@/lib/permisos";
 import type { ComisionPersona } from "@/lib/comisiones";
 import type { Rol } from "@/lib/tipos";
 import { leerNumero } from "@/lib/numero";
+import { mercadoValido, type Mercado } from "@/lib/mercado";
 import { exigirCambiarComisionPersona, exigirCambiarComisionRol, exigirPuedeDarRol } from "@/lib/auth";
 
 // 25 oct 2026: también borra la memoria compartida (lib/memoria.ts), para que lo guardado se vea al momento
@@ -59,7 +60,7 @@ export type AltaMiembro = {
   puesto_id: string | null;
   puesto_nuevo?: { nombre: string; rol_base: Rol | "otro" } | null;
   comision: ComisionPersona; // null = la de su rol
-  acceso: { modo: "crear"; email: string; password: string; rol: Rol } | { modo: "organigrama" };
+  acceso: { modo: "crear"; email: string; password: string; rol: Rol; mercado: Mercado; telefono: string } | { modo: "organigrama" };
   lider: boolean;
 };
 
@@ -92,15 +93,20 @@ export async function crearMiembro(a: AltaMiembro) {
       if (!ROLES.includes(a.acceso.rol)) throw new ErrorUsuario("Rol no válido.");
       if (a.acceso.rol === "ceo" && perfil.rol !== "ceo") throw new ErrorUsuario("Solo el CEO puede crear otro CEO.");
       exigirPuedeDarRol(perfil, a.acceso.rol);
+      // 13 nov (Cristian): país y teléfono obligatorios al crear cuenta; sin mercado salía en Latam hasta que entraba
+      const mercado = mercadoValido(a.acceso.mercado);
+      if (!mercado) throw new ErrorUsuario("Elige si es de España o de Latam.");
+      const telefono = a.acceso.telefono.trim();
+      if (!/^\+?[\d\s().-]{7,20}$/.test(telefono) || telefono.replace(/\D/g, "").length < 7) throw new ErrorUsuario("Pon un teléfono válido (con prefijo, ej. +34 600 000 000).");
       const { data, error } = await db().auth.admin.createUser({ email, password: a.acceso.password, email_confirm: true });
       if (error) throw new ErrorUsuario(error.message.includes("already") ? "Ya existe un usuario con ese email." : error.message);
-      const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: nombres[0], email, rol: a.acceso.rol });
+      const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: nombres[0], email, rol: a.acceso.rol, telefono });
       if (e2) {
         await db().auth.admin.deleteUser(data.user.id);
         throw new ErrorUsuario(e2.message);
       }
       const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-      await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0 }), "miembros_proyecto");
+      await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0, mercado }), "miembros_proyecto");
       perfilId = data.user.id;
     }
     const { error } = await db().from("miembros_equipo").insert(nombres.map((nombre) => ({ proyecto_id: proyecto.id, perfil_id: perfilId, nombre, email, area_id: a.area_id, puesto_id: puestoId, comision, lider: a.lider })));
