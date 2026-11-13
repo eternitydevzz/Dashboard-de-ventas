@@ -52,12 +52,16 @@ export function pct(n: number | string | null | undefined, decimales = 1) {
   return `${v.toLocaleString("es-ES", { maximumFractionDigits: decimales })}\u00a0%`;
 }
 
+// Primera letra entera: con letras «especiales» o emojis (2 unidades UTF-16), `p[0]` se queda con media letra
+// y el servidor y el navegador la pintan distinto (error #418 de React, 13 nov).
+export const primeraLetra = (p: string) => Array.from(p)[0] ?? "";
+
 export function iniciales(nombre: string) {
   return nombre
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
+    .map((p) => primeraLetra(p).toUpperCase())
     .join("");
 }
 

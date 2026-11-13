@@ -1,5 +1,6 @@
 "use client";
 
+import { iniciales as inicialesDe } from "@/lib/formato";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition, type ChangeEvent } from "react";
 import { ArrowRight, Check, Download, Pause, Play, Search, Upload } from "lucide-react";
@@ -17,7 +18,7 @@ export type GrabacionFila = { id: string; leadId: string | null; lead: string; c
 // así que el total sale de duracion_seg de la base de datos.
 const COLORES = ["#e8590c", "#0ca678", "#7048e8", "#1971c2", "#c2255c", "#2b8a3e", "#e67700", "#5f3dc4"];
 const colorDe = (id: string) => COLORES[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORES.length];
-const iniciales = (n: string) => n.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+const iniciales = (n: string) => inicialesDe(n);
 const BARRAS = Array.from({ length: 64 }, (_, i) => 20 + Math.abs(Math.sin(i * 1.7) * 60 + Math.cos(i * 0.6) * 20)); // decorativas, no es la onda real
 const FILTROS = [["todas", "Todas"], ["sin", "Sin transcripción"], ["largas", "Más de 3 min"]] as const;
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
-import { pct } from "@/lib/formato";
+import { iniciales, pct } from "@/lib/formato";
 
 export function Cabecera({ titulo, subtitulo, acciones }: { titulo: string; subtitulo?: ReactNode; acciones?: ReactNode }) {
   return (
@@ -208,12 +208,7 @@ export function Insignia({ children, tono = "neutro" }: { children: ReactNode; t
 }
 
 export function Avatar({ nombre, tamano = "h-8 w-8 text-[11px]" }: { nombre: string; tamano?: string }) {
-  const ini = nombre
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
+  const ini = iniciales(nombre);
   return (
     <span className={`flex shrink-0 items-center justify-center rounded-full bg-primario-suave font-semibold text-primario ${tamano}`}>
       {ini}

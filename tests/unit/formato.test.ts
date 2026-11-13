@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dinero, hoyEnZona, inicioDia, localAIso, mismoNombre, porcentaje, proyectoParaMenu, rangoDe } from "@/lib/formato";
+import { dinero, hoyEnZona, iniciales, inicioDia, localAIso, mismoNombre, porcentaje, primeraLetra, proyectoParaMenu, rangoDe } from "@/lib/formato";
 
 const NY = "America/New_York";
 const MAD = "Europe/Madrid";
@@ -116,5 +116,14 @@ describe("mismoNombre (pipelines como en GHL)", () => {
   it("no confunde nombres distintos", () => {
     expect(mismoNombre("2. Webinar 1", "Webinar 2")).toBe(false);
     expect(mismoNombre("Nuevos", "")).toBe(false);
+  });
+});
+
+describe("Iniciales con letras especiales (13 nov, error #418)", () => {
+  it("no corta una letra de 2 unidades UTF-16 por la mitad", () => {
+    expect(iniciales("𝙹-𝚊𝚗𝚍𝚛𝚢 𝚁𝚎𝚢𝚎𝚜")).toBe("𝙹𝚁");
+    expect(iniciales("😀 Ana")).toBe("😀A");
+    expect(iniciales("Ariel Gómez")).toBe("AG");
+    expect(primeraLetra("")).toBe("");
   });
 });
