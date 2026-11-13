@@ -24,7 +24,7 @@ vi.mock("@/lib/finanzas-datos", () => ({
 }));
 vi.mock("@/lib/clientes", () => ({ resumenClientes: () => [{ lead_id: "lead-1" }] }));
 
-const proyecto = { id: "proy-1", zona_horaria: "America/Bogota" } as Proyecto;
+const proyecto = { id: "proy-1", zona_horaria: "America/Bogota" } as unknown as Proyecto;
 const caller = { id: "per-1", rol: "caller", tambien_closer: false } as Perfil;
 
 afterEach(() => fallan.clear());
