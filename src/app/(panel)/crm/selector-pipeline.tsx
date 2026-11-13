@@ -15,6 +15,7 @@ export function SelectorPipeline({
   pipelines,
   actual,
   marcado,
+  numeros = {},
   admin,
   editar,
   precargar,
@@ -28,6 +29,7 @@ export function SelectorPipeline({
   pipelines: Pipeline[];
   actual: Pipeline | null;
   marcado: string | undefined; // el que se ve elegido (también mientras carga)
+  numeros?: Record<string, number>; // N11: el número junto al nombre (hoy solo «Closers», con su tablero abierto)
   admin: boolean;
   editar: boolean;
   precargar: Set<string>;
@@ -88,7 +90,10 @@ export function SelectorPipeline({
         onDoubleClick={() => elegido && editar && alRenombrar(elegido)}
         className="campo flex w-auto min-w-56 max-w-80 cursor-pointer items-center justify-between gap-2 text-left"
       >
-        <span className="truncate">{elegido?.nombre ?? "Sin pipelines"}</span>
+        <span className="truncate">
+          {elegido?.nombre ?? "Sin pipelines"}
+          {elegido && numeros[elegido.id] !== undefined && <span className="text-texto-3"> · {numeros[elegido.id]}</span>}
+        </span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-texto-3 transition-transform ${abierto ? "rotate-180" : ""}`} />
       </button>
       {abierto && (
@@ -138,6 +143,7 @@ export function SelectorPipeline({
                   >
                     <span className="truncate">{p.nombre}</span>
                     <span className="flex shrink-0 items-center gap-1">
+                      {numeros[p.id] !== undefined && <span className="text-xs text-texto-3">{numeros[p.id]}</span>}
                       {es && <Check className="h-4 w-4" />}
                       {admin && p.tipo === "normal" && (
                         <button

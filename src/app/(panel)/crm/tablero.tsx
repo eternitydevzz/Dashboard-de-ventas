@@ -57,6 +57,8 @@ import { ARRASTRE_COLUMNA, reordenar } from "@/lib/orden";
 import { BarraMasiva, type DestinoMasivo } from "./barra-masiva";
 import { TarjetaCrm, haceDias } from "@/components/tarjeta-crm";
 import { SelectorPipeline } from "./selector-pipeline";
+import { descompactarCrm, type LeadsCrm } from "./compacto";
+import { FILTROS_CITA, pasaFiltroCita } from "./estado-cita";
 import { PIPELINE_GENERAL, PREFIJO_ETIQUETA, SIN_CANAL, opcionesCanal, type TablaCanales } from "@/lib/canal";
 
 export type LeadTarjeta = {
@@ -93,7 +95,7 @@ export function TableroCrm({
   pipelines: pipelinesServidor,
   pipeline,
   etapas: etapasServidor,
-  leads: leadsIniciales,
+  leads: leadsCompactos,
   callers,
   closers,
   admin,
@@ -113,8 +115,7 @@ export function TableroCrm({
   pipelines: Pipeline[];
   pipeline: Pipeline | null;
   etapas: Etapa[];
-  leads: LeadTarjeta[];
-  conteos?: Record<string, number>; // 13 oct: el selector como GHL ya no enseña el número de cada pipeline
+  leads: LeadsCrm; // C5: llegan compactos (compacto.ts)
   callers: Persona[];
   closers: Persona[];
   admin: boolean; // crear pipelines y sus permisos (CEO y director con Administración)
@@ -160,6 +161,7 @@ export function TableroCrm({
     [ordenPipes, pipelinesServidor]
   );
 
+  const leadsIniciales = useMemo(() => descompactarCrm(leadsCompactos), [leadsCompactos]);
   const nombrePorId = useMemo(() => Object.fromEntries([...callers, ...closers].map((p) => [p.id, p.nombre])), [callers, closers]);
 
   // Fase 4 (plan GHL): filtro por canal con la etiqueta «Canal: …» que pone la app a cada lead con cita de GHL
@@ -178,6 +180,17 @@ export function TableroCrm({
     for (const l of leadsIniciales) n.set(l.pais ?? SIN_PAIS, (n.get(l.pais ?? SIN_PAIS) ?? 0) + 1);
     return [...n].sort((a, b) => (a[0] === SIN_PAIS ? 1 : b[0] === SIN_PAIS ? -1 : b[1] - a[1] || nombrePais(a[0]).localeCompare(nombrePais(b[0]))));
   }, [leadsIniciales]);
+  // N11 (Cristian, 13 nov): «Closers» con todas las citas y filtro por estado; el número junto a «Closers» en el
+  // selector son las citas que se ven en el tablero (cambia al filtrar). Las tarjetas de venta no son citas: se quedan.
+  const [estadoCita, setEstadoCita] = useState("");
+  const columnasClosers = useMemo(
+    () => tableroClosers?.columnas.map((c) => (estadoCita ? { ...c, citas: c.citas.filter((x) => pasaFiltroCita(x.estado, estadoCita)) } : c)) ?? [],
+    [tableroClosers, estadoCita]
+  );
+  const numeros = useMemo(
+    () => (pipeline?.tipo === "closers" && tableroClosers ? { [pipeline.id]: columnasClosers.reduce((n, c) => n + c.citas.length, 0) } : {}),
+    [pipeline, tableroClosers, columnasClosers]
+  );
   const leads = useMemo(() => {
     const t = q.trim().toLowerCase();
     return leadsIniciales
@@ -354,6 +367,7 @@ export function TableroCrm({
           pipelines={pipelines}
           actual={pipeline}
           marcado={marcado}
+          numeros={numeros}
           admin={admin}
           editar={editar}
           precargar={precargar}
@@ -391,6 +405,11 @@ export function TableroCrm({
             <option value="">Todos los canales</option>
             {canales.map((c) => <option key={c} value={c}>{c.slice(PREFIJO_ETIQUETA.length)}</option>)}
             {esGeneral && <option value={SIN_CANAL}>Sin canal</option>}
+          </Desplegable>
+        )}
+        {tipo === "closers" && tableroClosers && (
+          <Desplegable aria-label="Estado de la cita" value={estadoCita} onChange={(e) => setEstadoCita(e.target.value)} className="campo w-auto min-w-40" title="Estado de la cita (como en Agendas)">
+            {FILTROS_CITA.map((f) => <option key={f.v} value={f.v}>{f.t}</option>)}
           </Desplegable>
         )}
         {tipo !== "closers" && (paises.length > 0 || pais) && (
@@ -449,7 +468,7 @@ export function TableroCrm({
         <div className="tarjeta p-10 text-center text-sm text-texto-3">{admin ? "No hay pipelines. Crea el primero con «+ Pipeline»." : "Todavía no hay pipelines."}</div>
       ) : tipo === "closers" && tableroClosers ? (
         <TableroClosers
-          columnas={tableroClosers.columnas}
+          columnas={columnasClosers}
           productos={productos}
           moneda={moneda}
           jefe={jefe}
