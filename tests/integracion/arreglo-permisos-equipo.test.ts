@@ -43,9 +43,9 @@ describe("Accesos: solo con tu rol o uno inferior", () => {
     await ok(crearMiembro({ nombres: ["Sin cuenta"], area_id: null, puesto_id: null, comision: null, acceso: sinAcceso, lider: false }));
     const { data: m } = await db.from("miembros_equipo").select("id").eq("proyecto_id", e.proyecto.id).eq("nombre", "Sin cuenta").single();
     como(e, e.p.closerA);
-    await falla(darAccesoMiembro(m!.id, `${e.pref}-sc@eternity.test`, "Clave-temporal-1", "director"), /No tienes acceso a esta sección/);
+    await falla(darAccesoMiembro(m!.id, `${e.pref}-sc@eternity.test`, "Clave-temporal-1", "director", "es", "+34 600 000 000"), /No tienes acceso a esta sección/);
     como(e, e.p.director);
-    await ok(darAccesoMiembro(m!.id, `${e.pref}-sc@eternity.test`, "Clave-temporal-1", "director")); // igual a su rol: sí
+    await ok(darAccesoMiembro(m!.id, `${e.pref}-sc@eternity.test`, "Clave-temporal-1", "director", "es", "+34 600 000 000")); // igual a su rol: sí
   });
 });
 

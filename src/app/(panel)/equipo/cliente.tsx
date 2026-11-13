@@ -9,6 +9,7 @@ import type { Rol } from "@/lib/tipos";
 import { leerNumero } from "@/lib/numero";
 import { confirmar } from "@/components/dialogos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
+import { MERCADOS, type Mercado } from "@/lib/mercado";
 
 export type Area = { id: string; nombre: string; color: string };
 export type Puesto = { id: string; area_id: string | null; nombre: string };
@@ -29,6 +30,7 @@ export function DatosYComision({ m, areas, puestos, productos, rolesQuePuedoDar,
   const [agenda, setAgenda] = useState(String(m.comision?.pct_agenda ?? ""));
   const [pp, setPp] = useState<Record<string, string>>(Object.fromEntries(Object.entries(m.comision?.por_producto ?? {}).map(([k, v]) => [k, String(v)])));
   const [acceso, setAcceso] = useState(false);
+  const [mercado, setMercado] = useState<Mercado | null>(null); // sin valor por defecto: que nadie salga en Latam por error
   // Bloque 4: callers y closers van por tramos salvo que se elija su % propio
   const conTramos = m.rol === "caller" || m.rol === "closer";
   const [modo, setModo] = useState<"tramos" | "propio">(conTramos ? (m.comision_modo ?? "tramos") : "propio");
@@ -90,11 +92,17 @@ export function DatosYComision({ m, areas, puestos, productos, rolesQuePuedoDar,
           {!acceso ? (
             <button className="btn-secundario w-full" onClick={() => setAcceso(true)}><KeyRound className="h-4 w-4" /> Darle acceso a la app</button>
           ) : (
-            <form className="space-y-2" action={(fd) => ejecutar(() => darAccesoMiembro(m.id, String(fd.get("email")), String(fd.get("password")), String(fd.get("rol")) as Rol), "Acceso creado")}>
+            <form className="space-y-2" action={(fd) => ejecutar(() => darAccesoMiembro(m.id, String(fd.get("email")), String(fd.get("password")), String(fd.get("rol")) as Rol, mercado ?? "", String(fd.get("telefono"))), "Acceso creado")}>
               <input name="email" type="email" required className="campo" placeholder="Email de acceso" />
+              <div role="radiogroup" aria-label="País" className="flex gap-2">
+                {MERCADOS.map((x) => (
+                  <button key={x.v} type="button" role="radio" aria-checked={mercado === x.v} onClick={() => setMercado(x.v)} className={`flex-1 rounded-full border px-4 py-2 text-sm ${mercado === x.v ? "border-oro bg-oro-suave" : "border-borde"}`}>{x.t}</button>
+                ))}
+              </div>
+              <input name="telefono" type="tel" inputMode="tel" required minLength={7} className="campo" placeholder="Teléfono con prefijo (ej. +34 600 000 000)" autoComplete="off" />
               <input name="password" type="text" minLength={8} required className="campo" placeholder="Contraseña temporal (mín. 8)" autoComplete="off" />
               <Pastillas name="rol" className="campo" defaultValue={rolesQuePuedoDar[0]}>{rolesQuePuedoDar.map((r) => <option key={r} value={r}>{ROL_TXT[r]}</option>)}</Pastillas>
-              <button className="btn-primario w-full" disabled={pendiente}>Crear acceso</button>
+              <button className="btn-primario w-full" disabled={pendiente || !mercado}>{mercado ? "Crear acceso" : "Elige España o Latam"}</button>
             </form>
           )}
         </div>
