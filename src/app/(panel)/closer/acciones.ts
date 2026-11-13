@@ -41,7 +41,9 @@ export async function cambiarEstadoCita(citaId: string, estado: EstadoCita, nota
     if (!PERMITIDOS.includes(estado)) throw new ErrorUsuario("Estado no válido.");
     const { cita, perfil, proyecto } = await citaPermitida(citaId);
     const n = estado === "no_califica" ? 1 : PIDEN_ESTRELLAS.includes(estado) ? estrellasEntre(estrellas, 1, 5) : null;
-    await escribir(db().from("citas").update({ estado, nota: nota || cita.nota, ...(n ? { estrellas_closer: n } : {}) }).eq("id", citaId), "citas");
+    // Ola 6 (C6): una cerrada tiene su venta y no vuelve a otro estado (ni con la IA ni si se cerró a la vez)
+    const { data: cambiada } = await escribir(db().from("citas").update({ estado, nota: nota || cita.nota, ...(n ? { estrellas_closer: n } : {}) }).eq("id", citaId).neq("estado", "cerrada").select("id"), "citas");
+    if (cambiada?.length !== 1) throw new ErrorUsuario("Esta cita acaba de cambiar. Recarga la página y vuelve a intentarlo.");
     await registrarActividad({
       proyecto_id: proyecto.id,
       lead_id: cita.lead_id,
@@ -99,7 +101,7 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
     });
     if (errNueva) {
       // Si la nueva no entra (otro cogió ese hueco a la vez), la de antes vuelve a como estaba: ninguna cita se pierde
-      await db().from("citas").update({ estado: cita.estado }).eq("id", citaId);
+      await escribir(db().from("citas").update({ estado: cita.estado }).eq("id", citaId), "citas");
       if (chocaHora(errNueva)) throw new ErrorUsuario("Ese hueco acaba de ocuparse, elige otro.");
       throw new Error(`No se pudo guardar en «citas»: ${errNueva.message}`);
     }
