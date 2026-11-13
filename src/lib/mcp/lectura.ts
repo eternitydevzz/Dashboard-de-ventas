@@ -250,7 +250,7 @@ export async function herramientaAgenda(a: ArgsAgenda) {
   const gente = await equipo(proyecto.id, !!perfil.es_prueba);
   const elegido = a.closer && jefe ? elegir(closersVisibles(perfil, gente, null).todos, a.closer, "closer").id : null;
   const vis = closersVisibles(perfil, gente, elegido);
-  const { citas: todasCitas } = await cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !elegido);
+  const { citas: todasCitas, gente: conBaja } = await cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !elegido, gente); // N5: con las de closers de baja
   const rango = rangoNav(a.periodo ?? "mes", Math.trunc(a.n ?? 0), zona, a.desde, a.hasta);
   const ahora = Date.now();
   const abierta = (e: string) => (ABIERTAS as readonly string[]).includes(e);
@@ -278,7 +278,7 @@ export async function herramientaAgenda(a: ArgsAgenda) {
       fecha: fechaHora(c.fecha, proyecto),
       lead: c.leads ? `${c.leads.nombre} ${c.leads.apellido ?? ""}`.trim() : "(sin lead)",
       leadId: c.lead_id,
-      closer: c.closer_id ? gente.find((g) => g.id === c.closer_id)?.nombre ?? "—" : "Sin closer", // como Agendas: quien ya no está, «—»
+      closer: c.closer_id ? conBaja.find((g) => g.id === c.closer_id)?.nombre ?? "—" : "Sin closer", // como Agendas: quien ya no está, «Ana (baja)»
       estado: ETIQUETA_ESTADO_CITA[c.estado] ?? c.estado,
       canal: c.canal ?? null,
     })),

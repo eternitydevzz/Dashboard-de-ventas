@@ -69,10 +69,9 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   // 13 nov: los jefes filtran por mercado (Todos / España / Latam) los closers y, con ellos, sus citas
   const filtroM = jefe ? mercadoValido(sp.mercado) : null;
   const vis = closersVisibles(perfil, filtroM ? gente.filter((g) => entraEnMercado(mercados, g.id, filtroM)) : gente, str("closer") || null);
-  const nombrePersona = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
   // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM
-  const [{ citas: citasTodas, ventas: ventasTodas }, productos, { etapas: etapasCl }, canales] = await Promise.all([
-    cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer") && !filtroM), // con mercado, sin las citas sin closer
+  const [{ citas: citasTodas, ventas: ventasTodas, gente: conBaja }, productos, { etapas: etapasCl }, canales] = await Promise.all([
+    cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer") && !filtroM, gente), // con mercado, sin las citas sin closer; N5: con las de closers de baja
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     etapasCloser(proyecto.id),
     canalesDe(proyecto.id), // B2b
@@ -82,6 +81,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     db().from("proyectos").select("ghl_token, ghl_location_id, ghl_sincronizado_en").eq("id", proyecto.id).single(),
     db().from("citas_sin_lead").select("id, titulo, fecha, closer_id, estado").eq("proyecto_id", proyecto.id).in("estado", ["pendiente", "invalida"]).order("fecha"),
   ]);
+  const nombrePersona = (id: string | null) => conBaja.find((g) => g.id === id)?.nombre ?? "—"; // N5: «Ana (baja)»
   const ghlConectado = !!(pg?.ghl_token && pg?.ghl_location_id);
   const pendientesUnir = (sinUnir ?? []).filter((x) => x.estado === "pendiente");
   const invalidas = (sinUnir ?? []).filter((x) => x.estado === "invalida");

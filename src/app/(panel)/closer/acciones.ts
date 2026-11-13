@@ -13,6 +13,7 @@ import { localAIso, ETIQUETA_ESTADO_CITA } from "@/lib/formato";
 import { estrellasEntre } from "@/lib/estrellas";
 import type { Cita, EstadoCita } from "@/lib/tipos";
 import { datosAgendaGhl, telefonoClave } from "@/lib/leads";
+import { ABIERTAS } from "@/lib/llamadas";
 
 // Arreglo 31: «cerrada» no se puede poner a mano: una cita se cierra registrando su venta
 const PERMITIDOS: EstadoCita[] = ["pendiente", "confirmacion_pendiente", "confirmada", "no_califica", "seguimiento", "no_show", "cancelada", "perdida"];
@@ -21,6 +22,8 @@ const PERMITIDOS: EstadoCita[] = ["pendiente", "confirmacion_pendiente", "confir
 const NO_REAGENDABLES: EstadoCita[] = ["cerrada"];
 // Después de la llamada el closer dice qué tal prospecto era (1 a 5); «No califica» = 1.
 const PIDEN_ESTRELLAS: EstadoCita[] = ["seguimiento", "perdida"];
+// Índice citas_closer_hora_unica (Ola 1 · C2): otra cita abierta de la app con el mismo closer a la misma hora
+const chocaHora = (e: { code?: string; message: string } | null) => e?.code === "23505" && e.message.includes("citas_closer_hora_unica");
 
 async function citaPermitida(citaId: string) {
   const { perfil, proyecto } = await getSesion();
@@ -83,14 +86,20 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
       }
     }
     await escribir(db().from("citas").update({ estado: "reagendada" }).eq("id", citaId), "citas");
-    await escribir(db().from("citas").insert({
+    const { error: errNueva } = await db().from("citas").insert({
       proyecto_id: proyecto.id,
       lead_id: cita.lead_id,
       closer_id: cita.closer_id,
       agendada_por: cita.agendada_por ?? perfil.id, // la agenda sigue siendo mérito de quien la consiguió
       fecha,
       nota: cita.nota,
-    }), "citas");
+    });
+    if (errNueva) {
+      // Si la nueva no entra (otro cogió ese hueco a la vez), la de antes vuelve a como estaba: ninguna cita se pierde
+      await db().from("citas").update({ estado: cita.estado }).eq("id", citaId);
+      if (chocaHora(errNueva)) throw new ErrorUsuario("Ese hueco acaba de ocuparse, elige otro.");
+      throw new Error(`No se pudo guardar en «citas»: ${errNueva.message}`);
+    }
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "reagendada", nota: "Cita reagendada" });
     revalidatePath("/", "layout");
   });
@@ -120,6 +129,11 @@ export async function cambiarCloserCita(citaId: string, closerId: string) {
     const { data: m } = await db().from("miembros_proyecto").select("ghl_user_id, ghl_calendar_id, perfiles!inner(nombre, rol, tambien_closer)").eq("proyecto_id", proyecto.id).eq("perfil_id", closerId).maybeSingle();
     const nuevo = m as unknown as { ghl_user_id: string | null; ghl_calendar_id: string | null; perfiles: { nombre: string; rol: string; tambien_closer: boolean } } | null;
     if (!nuevo || (nuevo.perfiles.rol !== "closer" && !nuevo.perfiles.tambien_closer)) throw new ErrorUsuario("Elige un closer de este proyecto.");
+    // Antes de tocar GHL: si la base no la dejaría (citas_closer_hora_unica), GHL y la app quedarían distintos
+    if (cita.origen !== "ghl" && (ABIERTAS as readonly string[]).includes(cita.estado)) {
+      const { data: choca } = await db().from("citas").select("id").eq("closer_id", closerId).eq("fecha", cita.fecha).neq("origen", "ghl").in("estado", [...ABIERTAS]).limit(1);
+      if (choca?.length) throw new ErrorUsuario(`${nuevo.perfiles.nombre} ya tiene otra cita a esa hora: elige otro closer o reagenda la cita.`);
+    }
     if (cita.ghl_cita_id) {
       if (!nuevo.ghl_user_id) throw new ErrorUsuario(`${nuevo.perfiles.nombre} no tiene usuario de GHL: ponlo en su ficha antes de pasarle citas de GHL.`);
       try { await cambiarUsuarioCitaGhl({ token: token(), citaId: cita.ghl_cita_id, usuarioId: nuevo.ghl_user_id, calendarId: nuevo.ghl_calendar_id }); } catch (e) { throw errorGhl(e); }
@@ -201,7 +215,9 @@ export async function importarCitas(texto: string) {
       if (!leadId) { fallos.push(`Fila ${n}: no hay ningún lead con ese ${email ? "email" : "teléfono"}`); continue; }
       if (yaHay.has(claveCita(leadId, closerId, fecha))) { fallos.push(`Fila ${n}: esa cita ya existe (mismo lead, closer y hora); no se duplica`); continue; }
       yaHay.add(claveCita(leadId, closerId, fecha));
-      await escribir(db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: (fila.nota ?? "").trim() || null }), "citas");
+      const { error: errFila } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: (fila.nota ?? "").trim() || null });
+      if (chocaHora(errFila)) { fallos.push(`Fila ${n}: ese closer ya tiene otra cita a esa hora`); continue; }
+      if (errFila) throw new Error(`No se pudo guardar en «citas»: ${errFila.message}`);
       await escribir(db().from("leads").update({ estado_caller: "agendado", closer_id: closerId }).eq("id", leadId), "leads");
       creadas++;
     }

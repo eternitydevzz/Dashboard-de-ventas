@@ -1,9 +1,9 @@
 import "server-only";
-import { db, todas } from "@/lib/datos";
+import { db, todas, conBajas } from "@/lib/datos";
 import { dinero, fechaHora, fecha as soloFecha, ahoraMs, hoyEnZona, inicioDia } from "@/lib/formato";
 import { CLAVES_CLOSER, SUB_POSTCALL, claveNatural, porRecuperar, quienLlevaba, repartirCloser } from "@/lib/llamadas";
 import type { ColumnaC } from "@/app/(panel)/closer/llamadas/tablero-closers";
-import type { Cita, Etapa, Lead, Proyecto } from "@/lib/tipos";
+import type { Cita, Etapa, Lead, Perfil, Proyecto } from "@/lib/tipos";
 import { origenCitaGhl, type TablaCanales } from "@/lib/canal";
 
 // Datos del tablero «Closers» (Paso 0): lo usan el CRM y Agendas → Llamadas (Pre-call y Post-call).
@@ -14,22 +14,30 @@ const NADIE = "00000000-0000-0000-0000-000000000000";
 
 // Citas de esos closers (o solo las que agendó el caller, si mira un caller) y sus ventas, con lo que falta por cobrar.
 // `conSinCloser` (3 nov, el jefe mirando a todos): también las que no tienen closer del equipo.
-export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null, conSinCloser = false) {
+// N5 (13 nov): con `equipoActivo`, el jefe mirando a todos ve también las de closers de baja (desactivados o fuera del
+// proyecto); `gente` = el equipo más ellos, con «(baja)» en el nombre. Las de perfiles de prueba siguen fuera.
+export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null, conSinCloser = false, equipoActivo: Perfil[] = []) {
   const ids = closerIds.length ? closerIds : [NADIE];
-  const [citas, ventasTodas] = await Promise.all([
+  const conBaja = conSinCloser && equipoActivo.length > 0;
+  const [citasTodas, ventasTodas] = await Promise.all([
     todas<CitaFila>((a, b) => {
       const base = db().from("citas").select("*, leads(id, nombre, apellido, telefono, pais, email, seguimiento)").eq("proyecto_id", proyectoId);
-      const q = conSinCloser ? base.or(`closer_id.in.(${ids.join(",")}),closer_id.is.null`) : base.in("closer_id", ids);
+      const deBaja = conBaja ? `,closer_id.not.in.(${equipoActivo.map((g) => g.id).join(",")})` : "";
+      const q = conSinCloser ? base.or(`closer_id.in.(${ids.join(",")}),closer_id.is.null${deBaja}`) : base.in("closer_id", ids);
       return (agendadasPor ? q.eq("agendada_por", agendadasPor) : q).order("fecha").order("id").range(a, b);
     }),
     todas<VentaFila>((a, b) => db().from("ventas").select("*, pagos(importe), leads(nombre, apellido), productos(nombre)").eq("proyecto_id", proyectoId).in("vendedor_id", ids).order("id").range(a, b)),
   ]);
+  const gente = await conBajas(equipoActivo, conBaja ? citasTodas.map((c) => c.closer_id) : []);
+  const bajas = new Set(gente.filter((g) => g.baja).map((g) => g.id));
+  const delEquipo = new Set(ids);
+  const citas = conBaja ? citasTodas.filter((c) => !c.closer_id || delEquipo.has(c.closer_id) || bajas.has(c.closer_id)) : citasTodas;
   // H5: al caller, solo las ventas de los leads que agendó
   const leadsSuyos = new Set(citas.map((c) => c.lead_id));
   const ventas = ventasTodas
     .filter((v) => !agendadasPor || leadsSuyos.has(v.lead_id))
     .map((v) => ({ ...v, pendiente: Math.max(0, Number(v.facturacion) - Number(v.cash_collected) - v.pagos.reduce((s, p) => s + Number(p.importe), 0)) }));
-  return { citas, ventas };
+  return { citas, ventas, gente };
 }
 
 export const nombreDe = (l: { nombre: string; apellido: string } | null) => (l ? `${l.nombre} ${l.apellido}`.trim() || "Sin nombre" : "Lead");

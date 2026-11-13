@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, ShoppingCart, ListChecks, UserX, CalendarClock, XCircle, Ban, ThumbsDown, UserCog, Trash2 } from "lucide-react";
 import { borrarCita, cambiarCloserCita, cambiarEstadoCita, reagendarCita } from "./acciones";
 import { confirmar } from "@/components/dialogos";
@@ -30,6 +30,8 @@ export function AccionesCita({
   const b = "btn-secundario px-2.5 py-1.5 text-xs";
   const abierta = cita.estado === "pendiente" || cita.estado === "confirmada" || cita.estado === "confirmacion_pendiente";
   const estado = (e: EstadoCita, msg: string) => ejecutar(() => cambiarEstadoCita(cita.id, e, ""), msg);
+  // Doble clic en «Registrar venta» = dos ventas: la ventana no se cierra hasta que responde el servidor (como en acciones-lead)
+  const ventaEnCurso = useRef(false);
 
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
@@ -67,7 +69,9 @@ export function AccionesCita({
             moneda={moneda}
             desdeCita
             onEnviar={(fd) => {
-              ejecutar(() => registrarVenta(cita.lead_id, fd), "Venta registrada");
+              if (ventaEnCurso.current) return;
+              ventaEnCurso.current = true;
+              ejecutar(() => registrarVenta(cita.lead_id, fd).finally(() => (ventaEnCurso.current = false)), "Venta registrada");
               setModal(null);
             }}
           />
