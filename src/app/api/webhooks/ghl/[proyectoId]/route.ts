@@ -77,19 +77,19 @@ async function buscarOCrearLead(proyecto: Proyecto, b: Json, conCita = false, pi
 
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhooks/ghl/[proyectoId]">) {
   const { proyectoId } = await ctx.params;
-  // La clave va en la cabecera x-eternity-secreto (recomendado por GHL) o, si no, en la URL
-  const secreto = request.headers.get("x-eternity-secreto") ?? request.nextUrl.searchParams.get("secreto") ?? "";
+  // D43: la clave solo en la cabecera x-eternity-secreto (en la URL acaba en los registros)
+  const secreto = request.headers.get("x-eternity-secreto") ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(proyectoId)) return NextResponse.json({ ok: false }, { status: 404 });
   // Tamaño: se corta antes de leer el cuerpo si el remitente ya dice que es enorme
   if (Number(request.headers.get("content-length") ?? 0) > 500_000) return NextResponse.json({ ok: false, error: "Demasiado grande" }, { status: 413 });
-  // Ritmo: como mucho 300 eventos por minuto y proyecto (y 30 intentos fallidos por conexión)
-  if (!(await dentroDelLimite(`webhook:${proyectoId}`, 300, 60_000))) return NextResponse.json({ ok: false, error: "Demasiadas peticiones" }, { status: 429 });
   const { data: proyecto } = await db().from("proyectos").select("*").eq("id", proyectoId).maybeSingle<Proyecto>();
   if (!proyecto || !secreto || !igual(secreto, proyecto.webhook_secreto)) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
     if (!(await dentroDelLimite(`webhook-fallo:${ip}`, 30, 15 * 60_000))) return NextResponse.json({ ok: false, error: "Demasiados intentos" }, { status: 429 });
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
   }
+  // Ritmo: 300 eventos por minuto y proyecto, contados tras la clave (D43: sin clave no se gasta el cupo del proyecto)
+  if (!(await dentroDelLimite(`webhook:${proyectoId}`, 300, 60_000))) return NextResponse.json({ ok: false, error: "Demasiadas peticiones" }, { status: 429 });
 
   const texto = await request.text();
   if (texto.length > 500_000) return NextResponse.json({ ok: false, error: "Demasiado grande" }, { status: 413 });
