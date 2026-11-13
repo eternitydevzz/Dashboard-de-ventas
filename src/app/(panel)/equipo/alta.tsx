@@ -11,6 +11,7 @@ import type { Rol } from "@/lib/tipos";
 import { leerNumero } from "@/lib/numero";
 import { pct, primeraLetra } from "@/lib/formato";
 import { Desplegable } from "@/components/eleccion";
+import { MERCADOS, type Mercado } from "@/lib/mercado";
 
 type Area = { id: string; nombre: string; color: string };
 type Puesto = { id: string; area_id: string | null; nombre: string; rol_base: Rol | "otro" };
@@ -52,6 +53,8 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
   const [porProducto, setPorProducto] = useState(false);
   const [pp, setPp] = useState<Record<string, string>>({});
   const [acceso, setAcceso] = useState<"crear" | "organigrama">("crear");
+  const [mercado, setMercado] = useState<Mercado | null>(null); // sin valor por defecto: que nadie salga en Latam por error
+  const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [lider, setLider] = useState(false);
@@ -73,6 +76,8 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
 
   const faltaPaso = (i: number): string | null => {
     if (i === 0 && !nombres.length) return "Pon el nombre.";
+    if (i === 0 && accesoReal === "crear" && !mercado) return "Elige si es de España o de Latam.";
+    if (i === 0 && accesoReal === "crear" && telefono.replace(/\D/g, "").length < 7) return "Pon su teléfono con prefijo.";
     if (i === 3 && accesoReal === "crear" && (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || password.length < 8)) return "Pon un email válido y una contraseña de 8 caracteres o más.";
     return null;
   };
@@ -81,7 +86,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
     : null;
   const crear = () =>
     ejecutar(async () => {
-      const r = await crearMiembro({ nombres, area_id: area, puesto_id: puestoNuevo ? null : puesto, puesto_nuevo: puestoNuevo, comision, acceso: accesoReal === "crear" ? { modo: "crear", email, password, rol: rolFinal } : { modo: "organigrama" }, lider });
+      const r = await crearMiembro({ nombres, area_id: area, puesto_id: puestoNuevo ? null : puesto, puesto_nuevo: puestoNuevo, comision, acceso: accesoReal === "crear" ? { modo: "crear", email, password, rol: rolFinal, mercado: mercado ?? "latam", telefono } : { modo: "organigrama" }, lider });
       if (!(r && typeof r === "object" && "error" in r)) onCerrar();
       return r;
     }, nombres.length > 1 ? `${nombres.length} personas dadas de alta` : "Miembro creado");
@@ -115,7 +120,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
             {paso === 0 && (
               <>
                 <h3 className="text-2xl font-semibold">¿Quién entra en el equipo?</h3>
-                <p className="text-sm text-texto-2">Solo el nombre y el área. El email se pide después, si le creas una cuenta.</p>
+                <p className="text-sm text-texto-2">Nombre, área, país y teléfono. El email se pide después, si le creas una cuenta.</p>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setVarios(false)} className={`btn-secundario ${!varios ? "border-oro text-oro" : ""}`}><User className="h-4 w-4" /> Uno</button>
                   <button type="button" onClick={() => setVarios(true)} className={`btn-secundario ${varios ? "border-oro text-oro" : ""}`}><Users className="h-4 w-4" /> Varios a la vez</button>
@@ -123,7 +128,18 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
                 {varios ? (
                   <div><label className="etiqueta-campo" htmlFor="alta-lista">Un nombre por línea</label><textarea id="alta-lista" rows={5} className="campo" value={lista} onChange={(e) => setLista(e.target.value)} placeholder={"Camila Ríos\nJorge Pérez"} /><p className="mt-1 text-xs text-texto-3">Varios a la vez entran sin cuenta (solo en el organigrama); el acceso se les da luego desde su ficha.</p></div>
                 ) : (
-                  <label className="block"><span className="etiqueta-campo">Nombre completo</span><input className="campo" autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Camila Ríos" /></label>
+                  <>
+                    <label className="block"><span className="etiqueta-campo">Nombre completo</span><input className="campo" autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Camila Ríos" /></label>
+                    <div>
+                      <div className="etiqueta-campo">País</div>
+                      <div className="flex flex-wrap gap-2">
+                        {MERCADOS.map((m) => (
+                          <button key={m.v} type="button" aria-pressed={mercado === m.v} onClick={() => setMercado(m.v)} className={`rounded-full border px-4 py-2 text-sm ${mercado === m.v ? "border-oro bg-oro-suave" : "border-borde"}`}>{m.t}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <label className="block"><span className="etiqueta-campo">Teléfono</span><input className="campo" type="tel" inputMode="tel" autoComplete="off" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej. +34 600 000 000" /></label>
+                  </>
                 )}
                 <div>
                   <div className="etiqueta-campo">Área</div>
@@ -244,7 +260,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
                 <h3 className="text-2xl font-semibold">Revisa y confirma</h3>
                 <ul className="divide-y divide-borde rounded-xl border border-borde text-sm">
                   {[
-                    ["Miembro", nombres.length > 1 ? `${nombres.length} personas` : nombres[0], areaObj?.nombre ?? "Sin área", 0],
+                    ["Miembro", nombres.length > 1 ? `${nombres.length} personas` : nombres[0], [areaObj?.nombre ?? "Sin área", accesoReal === "crear" ? MERCADOS.find((m) => m.v === mercado)?.t : null, accesoReal === "crear" ? telefono.trim() : null].filter(Boolean).join(" · "), 0],
                     ["Puesto", puestoTxt, ROL_TXT[rolBase] ?? "", 1],
                     ["Compensación", propia ? `${pct(pctMostrado)} por venta${rolFinal === "caller" && pctAgenda ? ` · ${pct(pctAgenda)} por agenda` : ""}` : `La de su rol (${pct(deRol.pct_venta)})`, porProducto && propia ? "Distinta por producto" : "Igual en todos", 2],
                     ["Cuenta", accesoReal === "crear" ? email : "Sin cuenta por ahora", accesoReal === "crear" ? "Acceso nuevo" : "Se la das más tarde", 3],
@@ -293,6 +309,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
             <dl className="mt-3 space-y-3 text-sm">
               <div><dt className="titulo-seccion">Compensación</dt><dd className="font-medium">{pct(pctMostrado)} por venta{rolFinal === "caller" ? ` · ${pct(propia && pctAgenda ? pctAgenda : deRol.pct_agenda)} por agenda` : ""}</dd></div>
               <div><dt className="titulo-seccion">Acceso</dt><dd className="font-medium">{accesoReal === "crear" ? "Cuenta nueva" : "Sin cuenta (por ahora)"}</dd></div>
+              {accesoReal === "crear" && <div><dt className="titulo-seccion">País</dt><dd className="font-medium">{MERCADOS.find((m) => m.v === mercado)?.t ?? "—"}</dd></div>}
               <div><dt className="titulo-seccion">Rol</dt><dd className="font-medium">{accesoReal === "crear" ? ROL_TXT[rolFinal] : "—"}</dd></div>
             </dl>
           </div>
