@@ -59,7 +59,12 @@ export async function crearUsuario(_prev: Res, fd: FormData): Promise<Res> {
       return { error: e2.message };
     }
     const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-    await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0 }), "miembros_proyecto");
+    // C9: si no entra en el proyecto, se borra el usuario (y su perfil con él): sin cuentas huérfanas
+    const { error: e3 } = await db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0 });
+    if (e3) {
+      await db().auth.admin.deleteUser(data.user.id);
+      throw new Error(`No se pudo guardar en «miembros_proyecto»: ${e3.message}`);
+    }
     refrescar();
     return { ok: `Usuario creado. Pásale su email y la contraseña temporal; la primera vez verá el onboarding.` };
   });

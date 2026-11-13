@@ -20,11 +20,18 @@ describe("Lecturas paginadas con orden fijo", () => {
       const s = readFileSync(p, "utf8");
       for (const m of s.matchAll(/todas(<[^(]*?>)?\(/g)) {
         if (s.slice(Math.max(0, m.index! - 16), m.index).endsWith("async function ")) continue;
+        // porTrozos (lib/datos) solo envuelve todas(); la consulta la ponen sus llamadas, revisadas abajo
+        if (s.startsWith("todas<T>((d, h) => consulta(", m.index)) continue;
         const fin = s.indexOf(".range(", m.index);
         const trozo = s.slice(m.index, fin);
         total++;
         // Hace falta desempatar por una columna única (id; en clientes, lead_id; en scoring_ia, proyecto_id)
         if (fin < 0 || !/\.order\("(id|lead_id|proyecto_id)"/.test(trozo)) sinOrden.push(`${p}: ${trozo.slice(0, 90).replace(/\s+/g, " ")}`);
+      }
+      for (const m of s.matchAll(/porTrozos(<[^(]*?>)?\([^,]+, \(t, d, h\) =>/g)) {
+        const trozo = s.slice(m.index, s.indexOf(".range(", m.index));
+        total++;
+        if (!/\.order\("(id|lead_id|proyecto_id)"/.test(trozo)) sinOrden.push(`${p}: ${trozo.slice(0, 90).replace(/\s+/g, " ")}`);
       }
     }
     expect(total).toBeGreaterThan(35);

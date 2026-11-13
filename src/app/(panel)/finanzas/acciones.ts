@@ -94,6 +94,16 @@ export async function guardarCategoria(id: string | null, tipo: "ingreso" | "egr
   });
 }
 
+// C9: un update condicionado al estado leído. Si no cambió ninguna fila (otro lo hizo a la vez) o falló, se borra el
+// movimiento que se acababa de crear para él, y se avisa
+async function soloSiSigue(peticion: PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>, movimiento: string | null | undefined, aviso: string) {
+  const { data, error } = await peticion;
+  if (!error && data?.length) return;
+  if (movimiento) await db().from("movimientos").delete().eq("id", movimiento);
+  if (error) throw new Error(`No se pudo guardar: ${error.message}`);
+  throw new ErrorUsuario(aviso);
+}
+
 // ---------- Gastos programados ----------
 export async function crearProgramado(p: { descripcion: string; importe: string; categoria_id: string | null; cuenta_id: string | null; cada: "semana" | "mes" | "anio"; proxima: string }) {
   return seguro(async () => {
@@ -114,12 +124,13 @@ export async function registrarProgramado(id: string) {
     const { perfil, proyecto } = await exigirSeccion("finanzas");
     await delProyecto("egresos_programados", id, proyecto.id);
     const { data: p } = await db().from("egresos_programados").select("*").eq("id", id).single();
-    await escribir(db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "egreso", importe: p.importe, fecha: localAIso(`${p.proxima}T12:00`, proyecto.zona_horaria), categoria_id: p.categoria_id, cuenta_id: p.cuenta_id, descripcion: p.descripcion, origen: "programado", creado_por: perfil.id }), "movimientos");
+    const { data: mov } = await escribir(db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "egreso", importe: p.importe, fecha: localAIso(`${p.proxima}T12:00`, proyecto.zona_horaria), categoria_id: p.categoria_id, cuenta_id: p.cuenta_id, descripcion: p.descripcion, origen: "programado", creado_por: perfil.id }).select("id").single(), "movimientos");
     const d = new Date(`${p.proxima}T12:00:00Z`);
     if (p.cada === "semana") d.setUTCDate(d.getUTCDate() + 7);
     else if (p.cada === "anio") d.setUTCFullYear(d.getUTCFullYear() + 1);
     else d.setUTCMonth(d.getUTCMonth() + 1);
-    await escribir(db().from("egresos_programados").update({ proxima: d.toISOString().slice(0, 10) }).eq("id", id), "egresos_programados");
+    // C9: solo si nadie lo registró a la vez (doble clic); si no, se quita el gasto que se acaba de crear
+    await soloSiSigue(db().from("egresos_programados").update({ proxima: d.toISOString().slice(0, 10) }).eq("id", id).eq("proxima", p.proxima).select("id"), mov?.id, "Ese pago ya se registró. Recarga la página.");
     refrescar();
   });
 }
@@ -158,7 +169,8 @@ export async function marcarVencimiento(id: string, estado: "pendiente" | "pagad
       refrescar();
       return;
     }
-    await escribir(db().from("vencimientos").update({ estado, pagado_en: estado === "pagado" ? new Date().toISOString() : null }).eq("id", id), "vencimientos");
+    // C9: solo si sigue como se leyó (un doble clic en «Cobrado» creaba 2 ingresos)
+    await soloSiSigue(db().from("vencimientos").update({ estado, pagado_en: estado === "pagado" ? new Date().toISOString() : null }).eq("id", id).eq("estado", v.estado).select("id"), null, "Este pago acaba de cambiar. Recarga la página.");
     // Un deudor puesto a mano que paga: entra como ingreso (y se guarda cuál, para poder deshacerlo)
     if (estado === "pagado" && v.estado !== "pagado") {
       const { data: cat } = await db().from("categorias_finanzas").select("id").eq("proyecto_id", proyecto.id).eq("tipo", "ingreso").order("nombre").limit(1).maybeSingle();
@@ -202,7 +214,7 @@ export async function importarMovimientos(texto: string, cuentaId: string | null
       }
       filas.push({ proyecto_id: proyecto.id, tipo: v > 0 ? "ingreso" : "egreso", importe: Math.abs(Math.round(v * 100) / 100), fecha: localAIso(`${ymd}T12:00`, proyecto.zona_horaria), descripcion: (f.descripcion ?? f.concepto ?? "").trim() || null, cuenta_id: cuentaId, origen: "importado", conciliado: false, creado_por: perfil.id });
     });
-    if (filas.length) await db().from("movimientos").insert(filas);
+    if (filas.length) await escribir(db().from("movimientos").insert(filas), "movimientos");
     refrescar();
     return { importados: filas.length, fallos };
   });
@@ -245,9 +257,13 @@ export async function calcularLiquidaciones(mes: string) {
     const res = liquidacionesMes({ ventas: f.ventas, pagos: f.pagos, citas, personas, comisionesRol: eq.comisionesRol, productos, mes: rango, tramos: tramosDe(proyecto.tramos_comision), sinComision, zona: proyecto.zona_horaria });
     const { data: yaPagadas } = await db().from("liquidaciones").select("perfil_id").eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pagada");
     const pagadas = new Set((yaPagadas ?? []).map((x) => x.perfil_id));
-    await escribir(db().from("liquidaciones").delete().eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pendiente"), "liquidaciones");
     const filas = res.filter((r) => !pagadas.has(r.perfil_id)).map((r) => ({ proyecto_id: proyecto.id, mes, ...r, estado: "pendiente", calculada_en: new Date().toISOString() }));
-    if (filas.length) await db().from("liquidaciones").insert(filas);
+    // C9: primero se guardan las nuevas (encima de las pendientes, misma persona y mes) y después se borran las
+    // pendientes de quien ya no sale; antes se borraban primero y, si fallaba guardar, el mes se quedaba sin ninguna
+    if (filas.length) await escribir(db().from("liquidaciones").upsert(filas, { onConflict: "proyecto_id,perfil_id,mes" }), "liquidaciones");
+    let sobran = db().from("liquidaciones").delete().eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pendiente");
+    if (filas.length) sobran = sobran.not("perfil_id", "in", `(${filas.map((f) => f.perfil_id).join(",")})`);
+    await escribir(sobran, "liquidaciones");
     refrescar();
     return { personas: filas.length, total: filas.reduce((s, r) => s + r.comision_cobrado, 0), yaPagadas: pagadas.size };
   });
@@ -264,10 +280,11 @@ export async function pagarLiquidacion(id: string, cuentaId: string | null) {
     let movimiento: string | null = null;
     if (Number(l.comision_cobrado) > 0) {
       const { data: cat } = await db().from("categorias_finanzas").select("id").eq("proyecto_id", proyecto.id).eq("tipo", "egreso").eq("nombre", "Comisiones").maybeSingle();
-      const { data: m } = await db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "egreso", importe: l.comision_cobrado, categoria_id: cat?.id ?? null, cuenta_id: cuentaId, descripcion: `Comisiones ${l.mes} · ${(l.perfiles as { nombre: string } | null)?.nombre ?? ""}`, origen: "liquidacion", creado_por: perfil.id }).select("id").single();
+      const { data: m } = await escribir(db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "egreso", importe: l.comision_cobrado, categoria_id: cat?.id ?? null, cuenta_id: cuentaId, descripcion: `Comisiones ${l.mes} · ${(l.perfiles as { nombre: string } | null)?.nombre ?? ""}`, origen: "liquidacion", creado_por: perfil.id }).select("id").single(), "movimientos");
       movimiento = m?.id ?? null;
     }
-    await escribir(db().from("liquidaciones").update({ estado: "pagada", pagada_en: new Date().toISOString(), movimiento_id: movimiento }).eq("id", id), "liquidaciones");
+    // C9: solo si sigue pendiente (otra persona pudo pagarla a la vez)
+    await soloSiSigue(db().from("liquidaciones").update({ estado: "pagada", pagada_en: new Date().toISOString(), movimiento_id: movimiento }).eq("id", id).eq("estado", "pendiente").select("id"), movimiento, "Ya está pagada.");
     refrescar();
   });
 }

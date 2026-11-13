@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let escritos: { op: string; valor: unknown }[];
 let errorInsert: { code: string; message: string } | null;
+let filasReagendadas: { id: string }[];
 const CITA = { id: "c1", proyecto_id: "p", lead_id: "l1", closer_id: "luis", agendada_por: "dani", estado: "confirmada", nota: null, fecha: "2026-11-14T15:00:00Z", origen: "manual" };
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/permisos", () => ({ exigirSeccion: async () => undefined }));
@@ -18,7 +19,13 @@ vi.mock("@/lib/datos", () => {
     const c: Record<string, unknown> = {};
     for (const m of ["select", "eq"]) c[m] = () => c;
     c.maybeSingle = async () => ({ data: CITA, error: null });
-    c.update = (v: unknown) => ({ eq: async () => (escritos.push({ op: "update", valor: v }), { error: null }) });
+    // C9: el update de «reagendada» va condicionado al estado y devuelve las filas cambiadas
+    c.update = (v: unknown) => {
+      escritos.push({ op: "update", valor: v });
+      const u: Record<string, unknown> = { eq: () => u, select: async () => ({ data: filasReagendadas, error: null }) };
+      u.then = (r: (x: unknown) => unknown) => Promise.resolve({ error: null }).then(r);
+      return u;
+    };
     c.insert = async (v: unknown) => (escritos.push({ op: "insert", valor: v }), { error: errorInsert });
     return c;
   };
@@ -30,6 +37,14 @@ describe("reagendar con el hueco ocupado a la vez", () => {
   beforeEach(() => {
     escritos = [];
     errorInsert = null;
+    filasReagendadas = [{ id: "c1" }];
+  });
+
+  it("C9: si otro la reagendó a la vez (0 filas), avisa y no crea otra cita", async () => {
+    filasReagendadas = [];
+    const r = await reagendarCita("c1", "2026-11-15T10:00");
+    expect(r).toEqual({ error: "Esta cita acaba de cambiar. Recarga la página y vuelve a intentarlo." });
+    expect(escritos.map((e) => e.op)).toEqual(["update"]);
   });
 
   it("choca con el índice: la cita vuelve a su estado y el aviso es claro", async () => {

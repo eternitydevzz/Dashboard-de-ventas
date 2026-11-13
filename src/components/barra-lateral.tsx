@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   BookOpen,
   Mic,
@@ -38,6 +38,7 @@ import { Avatar } from "@/components/ui";
 import { Desplegable } from "@/components/eleccion";
 import { CampanaAvisos } from "@/components/campana-avisos";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
+import { useResalteMenu } from "@/components/animaciones/animaciones";
 
 const ICONOS = {
   funnel: BarChart3,
@@ -111,6 +112,8 @@ export function BarraLateral({
   const destino = yendo && yendo.desde === ruta ? yendo.a : null;
   const [abierto, setAbierto] = useState(false);
   const [pendiente, iniciar] = useTransition();
+  const menuRef = useRef<HTMLElement>(null);
+  useResalteMenu(menuRef, destino ?? ruta); // C7: el resalte se desliza a la opción nueva
 
   const contenido = (
     <div className="flex h-full flex-col">
@@ -152,7 +155,7 @@ export function BarraLateral({
         </div>
       </div>
 
-      <nav className="mt-5 flex-1 space-y-5 overflow-y-auto px-3">
+      <nav ref={menuRef} className="mt-5 flex-1 space-y-5 overflow-y-auto px-3">
         {menu.map((g) => (
           <div key={g.grupo}>
             <div className="titulo-seccion mb-1.5 px-3">{g.grupo}</div>
@@ -166,6 +169,7 @@ export function BarraLateral({
                   <li key={it.href}>
                     <Link
                       href={it.href}
+                      data-activo={activo || undefined}
                       prefetch={ruta !== it.href && conPrecarga(it.href)} // la sección en la que ya estás no se vuelve a precargar en cada guardado
                       onMouseEnter={() => precargar(it.href)}
                       onFocus={() => precargar(it.href)}

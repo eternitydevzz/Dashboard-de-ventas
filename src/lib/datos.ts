@@ -37,6 +37,19 @@ export async function todas<T>(
   }
 }
 
+// Ola 3 (C9): un `.in()` con hasta 2.000 ids no cabe en la dirección de la petición: se parte en trozos de 200
+export const trozos = <T>(lista: T[], n = 200): T[][] => Array.from({ length: Math.ceil(lista.length / n) }, (_, i) => lista.slice(i * n, (i + 1) * n));
+
+// Todas las filas de esos ids (trozos de 200, cada uno paginado con `todas`); si una lectura falla, lanza
+export async function porTrozos<T>(
+  ids: string[],
+  consulta: (trozo: string[], desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
+): Promise<T[]> {
+  const out: T[] = [];
+  for (const t of trozos(ids)) out.push(...(await todas<T>((d, h) => consulta(t, d, h))));
+  return out;
+}
+
 // 1.0 (Cristian, 11 oct): los perfiles de prueba no salen en el equipo (cifras, reparto, liquidaciones,
 // Equipo y filtros); `conPrueba` los incluye, para que un perfil de prueba vea a los otros de prueba.
 // 25 oct 2026: el equipo se guarda 1 minuto en memoria (lib/memoria.ts); se borra al guardar en Equipo o Administración

@@ -137,6 +137,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
       .eq("proyecto_id", proyecto.id)
       .eq("perfil_id", closerId)
       .or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }) // E1: también closer (Facu)
+      .eq("perfiles.activo", true) // C9: a un closer desactivado no se le agenda
       .maybeSingle();
     if (!closer) throw new ErrorUsuario("Elige un closer del proyecto.");
     // Paso H6: un doble clic creaba dos citas iguales; la base ya no deja repetir lead, closer y hora
@@ -238,7 +239,7 @@ export async function registrarVenta(leadId: string, formData: FormData) {
     if (error) throw new ErrorUsuario(error.message);
     // Reserva o cuotas: lo que falta queda en «Pagos pendientes» con sus fechas (se pueden cambiar en Finanzas)
     const plazos = planDePagos({ facturacion, cobradoHoy: cash, tipo, numCuotas: cuotas, fecha });
-    if (plazos.length) await db().from("vencimientos").insert(plazos.map((x) => ({ ...x, proyecto_id: proyecto.id, venta_id: nueva.id, lead_id: leadId })));
+    if (plazos.length) await escribir(db().from("vencimientos").insert(plazos.map((x) => ({ ...x, proyecto_id: proyecto.id, venta_id: nueva.id, lead_id: leadId }))), "vencimientos");
   
     await escribir(db().from("leads").update({ estado_caller: "vendido" }).eq("id", leadId), "leads");
     if (cita) {
@@ -246,7 +247,7 @@ export async function registrarVenta(leadId: string, formData: FormData) {
       // (como si se hubiera adelantado), para que cuente como asistida hoy; en el historial queda la que tenía.
       const ahora = new Date();
       const adelantada = cita.fecha && new Date(cita.fecha).getTime() > ahora.getTime();
-      await db().from("citas").update({ estado: "cerrada", ...(adelantada ? { fecha: ahora.toISOString() } : {}), ...(estrellasCloser ? { estrellas_closer: estrellasCloser } : {}) }).eq("id", cita.id);
+      await escribir(db().from("citas").update({ estado: "cerrada", ...(adelantada ? { fecha: ahora.toISOString() } : {}), ...(estrellasCloser ? { estrellas_closer: estrellasCloser } : {}) }).eq("id", cita.id), "citas");
       if (adelantada) await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", nota: `Cita adelantada: era el ${fechaHora(cita.fecha, proyecto)}` });
     }
     await registrarActividad({
