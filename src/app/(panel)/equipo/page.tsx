@@ -11,6 +11,9 @@ import { ComisionRolForm, EditorAreas } from "./cliente";
 import { FichaPersona } from "./ficha";
 import type { Rol } from "@/lib/tipos";
 import { pct } from "@/lib/formato";
+import { MERCADOS, entraEnMercado, mercadoDe, mercadoValido } from "@/lib/mercado";
+import { mercadosDelProyecto } from "@/lib/mercado-datos";
+import { EtiquetaMercado, FiltroMercado } from "@/components/mercado-equipo";
 
 const ROL_TXT: Record<string, string> = { ceo: "CEO", director: "Director", closer: "Closer", caller: "Caller" };
 
@@ -19,8 +22,12 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
   if (!(await puedeSeccion(perfil, proyecto.id, "equipo"))) redirect("/");
   const sp = await searchParams;
   const verInactivos = sp.inactivos === "1";
-  const [eq, { data: productos }] = await Promise.all([cargarEquipo(proyecto.id), db().from("productos").select("id, nombre, precio").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")]);
-  const miembros = eq.miembros.filter((m) => m.activo !== verInactivos);
+  const [eq, mercados, { data: productos }] = await Promise.all([cargarEquipo(proyecto.id), mercadosDelProyecto(proyecto.id), db().from("productos").select("id, nombre, precio").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")]);
+  // 13 nov: callers y closers se filtran y agrupan por mercado (España / Latam); el resto sale siempre
+  const filtroM = mercadoValido(sp.mercado);
+  const vende = (m: { rol: Rol | null }) => m.rol === "caller" || m.rol === "closer";
+  const mercadoDeM = (m: { perfil_id: string | null }) => mercadoDe(m.perfil_id ? mercados[m.perfil_id] : null);
+  const miembros = eq.miembros.filter((m) => m.activo !== verInactivos && (!vende(m) || entraEnMercado(mercados, m.perfil_id, filtroM)));
   const sinArea = miembros.filter((m) => !m.area_id || !eq.areas.some((a) => a.id === m.area_id));
   // Mismas reglas que el servidor (lib/auth.ts, arreglo 2): accesos de tu rol o inferior;
   // comisiones solo CEO y director, nunca la propia (salvo el CEO)
@@ -43,6 +50,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
         <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
           {m.nombre}
           {m.lider && <span title="Líder del área"><Crown className="h-3.5 w-3.5 text-oro" /></span>}
+          {vende(m) && <EtiquetaMercado m={mercadoDeM(m)} />}
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-texto-3">
           {puesto(m.puesto_id) && <span>{puesto(m.puesto_id)}</span>}
@@ -77,6 +85,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
             datos={{ areas: eq.areas, puestos: eq.puestos, productos: (productos ?? []).map((p) => ({ id: p.id, nombre: p.nombre })), rolesQuePuedoDar, puedeComision: puedeComisionDe(m.perfil_id) }}
           />
           {m.lider && <span title="Líder del área"><Crown className="h-3.5 w-3.5 shrink-0 text-oro" /></span>}
+          {vende(m) && <EtiquetaMercado m={mercadoDeM(m)} />}
         </div>
         <div className="truncate text-xs text-texto-3">{puesto(m.puesto_id) ?? (m.rol ? ROL_TXT[m.rol] : "Sin acceso")}</div>
       </div>
@@ -100,14 +109,25 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
         </>
       )}
       {linea}
-      <div className="grid gap-4 md:grid-cols-2">
-        {([["closer", "Closers"], ["caller", "Callers"]] as const).map(([r, t]) => (
-          <div key={r} className="rounded-2xl border border-borde bg-panel-2/50 p-3">
-            <div className="mb-2 flex items-center justify-between text-sm font-semibold">
-              {t}
-              <span className="rounded-full bg-panel px-2 text-xs tabular-nums text-texto-2">{delRol(r).length}</span>
+      {/* 13 nov (Cristian): closers y callers en dos grupos, España y Latam */}
+      <div className="space-y-4">
+        {MERCADOS.filter((x) => !filtroM || x.v === filtroM).reverse().map(({ v: mk, t: titulo }) => (
+          <div key={mk} className="rounded-2xl border border-dashed border-borde p-3">
+            <div className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-texto-3">{titulo}</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {([["closer", "Closers"], ["caller", "Callers"]] as const).map(([r, t]) => {
+                const de = delRol(r).filter((m) => mercadoDeM(m) === mk);
+                return (
+                  <div key={r} className="rounded-2xl border border-borde bg-panel-2/50 p-3">
+                    <div className="mb-2 flex items-center justify-between text-sm font-semibold">
+                      {t}
+                      <span className="rounded-full bg-panel px-2 text-xs tabular-nums text-texto-2">{de.length}</span>
+                    </div>
+                    {de.length === 0 ? <p className="py-3 text-center text-xs text-texto-3">Nadie todavía.</p> : <div className="grid gap-2">{de.map(nodo)}</div>}
+                  </div>
+                );
+              })}
             </div>
-            {delRol(r).length === 0 ? <p className="py-3 text-center text-xs text-texto-3">Nadie todavía.</p> : <div className="grid gap-2">{delRol(r).map(nodo)}</div>}
           </div>
         ))}
       </div>
@@ -127,6 +147,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
         subtitulo={`${proyecto.nombre} · ${eq.miembros.filter((m) => m.activo).length} personas activas`}
         acciones={
           <>
+            <FiltroMercado />
             <Link href={verInactivos ? "/equipo" : "/equipo?inactivos=1"} className="btn-secundario">{verInactivos ? "Ver activos" : "Ver inactivos"}</Link>
             <AltaMiembro areas={eq.areas} puestos={eq.puestos} productos={(productos ?? []).map((p) => ({ id: p.id, nombre: p.nombre, precio: p.precio === null ? null : Number(p.precio) }))} comisionesRol={eq.comisionesRol} rolesQuePuedoDar={rolesQuePuedoDar} puedeComision={jefe} codigoMoneda={proyecto.moneda} />
           </>

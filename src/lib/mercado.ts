@@ -40,3 +40,13 @@ export function contenidoMercado(m: Mercado | null, { crudo = false } = {}) {
     guion: <T extends ConMercado>(filas: T[]): T | null => (es ? deEspana(filas)[0] : undefined) ?? deLatam(filas)[0] ?? null,
   };
 }
+
+// Cristian (13 nov): los jefes filtran y agrupan a callers y closers por mercado. Sin elegir (null) = Latam.
+export const mercadoDe = (m: unknown): Mercado => (m === "es" ? "es" : "latam");
+export const OPCIONES_FILTRO_MERCADO = [
+  { v: "es", t: "España" },
+  { v: "latam", t: "Latam" },
+];
+// ¿Entra esta persona con el filtro «Todos / España / Latam»? (filtro null = todos)
+export const entraEnMercado = (mercados: Record<string, Mercado>, perfilId: string | null | undefined, filtro: Mercado | null) =>
+  !filtro || mercadoDe(perfilId ? mercados[perfilId] : null) === filtro;

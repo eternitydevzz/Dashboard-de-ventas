@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { db } from "@/lib/datos";
-import { contenidoMercado, mercadoValido, type Mercado } from "@/lib/mercado";
+import { contenidoMercado, mercadoDe, mercadoValido, type Mercado } from "@/lib/mercado";
 import type { Proyecto } from "@/lib/tipos";
 
 // El mercado que eligió la persona en este proyecto. `undefined` = no es miembro o la base aún no tiene la
@@ -10,6 +10,13 @@ export const leerMercado = cache(async (proyectoId: string, perfilId: string): P
   const { data, error } = await db().from("miembros_proyecto").select("mercado").eq("proyecto_id", proyectoId).eq("perfil_id", perfilId).maybeSingle();
   if (error || !data) return undefined;
   return mercadoValido(data.mercado);
+});
+
+// El mercado de cada persona del proyecto (perfil_id → «es» / «latam»). Si la base aún no tiene la columna, vacío = todos Latam.
+export const mercadosDelProyecto = cache(async (proyectoId: string): Promise<Record<string, Mercado>> => {
+  const { data, error } = await db().from("miembros_proyecto").select("perfil_id, mercado").eq("proyecto_id", proyectoId);
+  if (error) return {};
+  return Object.fromEntries((data ?? []).map((m) => [m.perfil_id as string, mercadoDe(m.mercado)]));
 });
 
 export const miMercado = async (proyectoId: string, perfilId: string) => (await leerMercado(proyectoId, perfilId)) ?? null;

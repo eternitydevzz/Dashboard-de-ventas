@@ -21,7 +21,9 @@ import { BuscadorUrl, CrearLlamada, FilaSinUnir, ImportarCitas, SincronizarGhl }
 import type { Producto } from "@/lib/tipos";
 import { SIN_CANAL, opcionesCanal, origenCitaGhl } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
-import { miMoneda } from "@/lib/mercado-datos";
+import { mercadosDelProyecto, miMoneda } from "@/lib/mercado-datos";
+import { entraEnMercado, mercadoValido, type Mercado } from "@/lib/mercado";
+import { EtiquetaMercado, FiltroMercado } from "@/components/mercado-equipo";
 
 const TABS = [
   { v: "agendas", t: "Agendas" },
@@ -63,12 +65,14 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const zona = proyecto.zona_horaria;
   const ahora = ahoraMs();
 
-  const gente = await equipo(proyecto.id, !!perfil.es_prueba);
-  const vis = closersVisibles(perfil, gente, str("closer") || null);
+  const [gente, mercados] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), jefe ? mercadosDelProyecto(proyecto.id) : ({} as Record<string, Mercado>)]);
+  // 13 nov: los jefes filtran por mercado (Todos / España / Latam) los closers y, con ellos, sus citas
+  const filtroM = jefe ? mercadoValido(sp.mercado) : null;
+  const vis = closersVisibles(perfil, filtroM ? gente.filter((g) => entraEnMercado(mercados, g.id, filtroM)) : gente, str("closer") || null);
   const nombrePersona = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
   // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM
   const [{ citas: citasTodas, ventas: ventasTodas }, productos, { etapas: etapasCl }, canales] = await Promise.all([
-    cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer")),
+    cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer") && !filtroM), // con mercado, sin las citas sin closer
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     etapasCloser(proyecto.id),
     canalesDe(proyecto.id), // B2b
@@ -136,6 +140,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
 
         <div className="tarjeta flex flex-wrap items-center gap-2 p-2.5">
           <BuscadorUrl placeholder="Buscar por nombre, email o teléfono…" />
+          {jefe && <FiltroMercado />}
           {jefe && <FiltroUrl nombre="closer" etiqueta="Closer" todos="Todos los closers" opciones={vis.todos.map((c) => ({ v: c.id, t: c.nombre }))} />}
           {/* Fase 4 (plan GHL): canal de la cita, por el UTM de la página donde reservó */}
           <FiltroUrl nombre="canal" etiqueta="Canal" todos="Todos los canales" opciones={[...opcionesCanal(canales).map((c) => ({ v: c.clave as string, t: c.nombre })), { v: SIN_CANAL, t: "Sin canal" }]} />
@@ -391,7 +396,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
           <li key={c.id} className={`flex flex-wrap items-center gap-4 px-4 py-3 ${porRecuperar(c) ? "bg-mal-suave" : ""}`}>
             <div className="w-36 shrink-0">
               <div className="text-sm font-semibold">{fechaHora(c.fecha, proyecto)}</div>
-              <div className="text-xs text-texto-3">{c.origen === "ghl" ? origenCitaGhl(c, canales) : `Agendó ${nombrePersona(c.agendada_por)}`}</div>
+              <div className="flex flex-wrap items-center gap-1 text-xs text-texto-3">{c.origen === "ghl" ? origenCitaGhl(c, canales) : `Agendó ${nombrePersona(c.agendada_por)}`}{jefe && c.origen !== "ghl" && c.agendada_por && <EtiquetaMercado m={mercados[c.agendada_por]} />}</div>
             </div>
             <div className="min-w-48 flex-1">
               <a href={`/leads/${c.lead_id}`} className="font-medium hover:text-primario">{nombreDe(c.leads)}</a>
@@ -403,6 +408,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {jefe && <Insignia tono={porRecuperar(c) ? "mal" : "neutro"}>{porRecuperar(c) ? `Recuperar · ${quienLlevaba(c, nombrePersona)}` : quienLlevaba(c, nombrePersona)}</Insignia>}
+              {jefe && c.closer_id && <EtiquetaMercado m={mercados[c.closer_id]} />}
               <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
             </div>
             {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={monedaVenta} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} />}
