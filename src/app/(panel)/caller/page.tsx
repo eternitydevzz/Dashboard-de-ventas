@@ -72,7 +72,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
     deMemoria(`pipelines-nombres:${proyecto.id}`, () => db().from("pipelines").select("id, nombre").eq("proyecto_id", proyecto.id)), // C5: nombre del pipeline de origen
   ]);
   const nombresPipeline = Object.fromEntries((pipelines ?? []).map((x) => [x.id, x.nombre.replace(/^\d+\.\s*/, "")]));
-  const pesos = (scoring?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
+  const pesos = ((scoring as { pesos?: unknown } | null)?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
   // KPIs de hoy (7c.1): Llamadas («Link de agenda» y «Wsp enviado», 10 nov) · Contactos (los que avanzan, punto 16) · Agendas (% de los
   // contactos) · WhatsApps (botón «Wsp enviado») · Confirmadas («Confirma Agenda»). Fuera «No contestan» y «Ventas» (F6).
   const { acts, citas: agendasHoy } = kpis;
