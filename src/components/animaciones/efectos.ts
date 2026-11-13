@@ -11,7 +11,7 @@ const BARRAS = '[role=tablist], nav[aria-label^="Secciones"]';
 const NUMEROS = ".font-semibold.tabular-nums:is(.text-xl,.text-2xl,.text-3xl)";
 
 // ---------- 1, 2 y 6: entrada en cascada, título y números/gráficas/anillos/barras ----------
-export function entrada(raiz: HTMLElement, { base = 0, titulo = false, barra = null as Element | null } = {}) {
+export function entrada(raiz: HTMLElement, { base = 0, titulo = false, barra = null as Element | null, conteo = true } = {}) {
   if (quieto()) return;
   if (titulo)
     raiz.querySelector("h1")?.animate(
@@ -39,7 +39,7 @@ export function entrada(raiz: HTMLElement, { base = 0, titulo = false, barra = n
       );
   });
   const dentro = (sel: string) => paneles.flatMap((p) => [...p.querySelectorAll(sel)]);
-  dentro(NUMEROS).forEach((el) => contar(el as HTMLElement));
+  if (conteo) dentro(NUMEROS).forEach((el) => contar(el as HTMLElement));
   // gráficas de línea: se descubren de izquierda a derecha
   dentro('svg:has(path[fill="none"])').forEach((g) =>
     g.animate([{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 500, delay: base + 250, easing: "ease-out", fill: "backwards" }),

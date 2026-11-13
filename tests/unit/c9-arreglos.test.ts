@@ -7,6 +7,8 @@ type Consulta = { tabla: string; ops: [string, unknown[]][] };
 let consultas: Consulta[];
 let base: Record<string, Resp>;
 let contestar: (c: Consulta) => Resp | undefined;
+let rpcs: { nombre: string; args: unknown }[];
+let rpcRespuesta: Resp;
 const borrarUsuario = vi.fn(async () => ({ error: null }));
 const tipo = (c: Consulta) => ["delete", "upsert", "update", "insert"].find((o) => c.ops.some(([x]) => x === o)) ?? "select";
 const arg = (c: Consulta, op: string) => c.ops.find(([x]) => x === op)?.[1];
@@ -14,6 +16,8 @@ const arg = (c: Consulta, op: string) => c.ops.find(([x]) => x === op)?.[1];
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     auth: { admin: { createUser: async () => ({ data: { user: { id: "nuevo" } }, error: null }), deleteUser: borrarUsuario } },
+    // 6V responde por nombre (base["rpc:..."]); 6B guarda las llamadas y responde rpcRespuesta
+    rpc: async (nombre: string, args: unknown) => (rpcs.push({ nombre, args }), base[`rpc:${nombre}`] ?? rpcRespuesta),
     from: (tabla: string) => {
       const c: Consulta = { tabla, ops: [] };
       consultas.push(c);
@@ -58,6 +62,8 @@ beforeEach(() => {
   consultas = [];
   base = {};
   contestar = () => undefined;
+  rpcs = [];
+  rpcRespuesta = { data: 0, error: null };
   borrarUsuario.mockClear();
   vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "ceo", rol: "ceo" }, proyecto: { id: "p1", nombre: "Eternity", zona_horaria: "Europe/Madrid" } } as never);
 });
@@ -71,28 +77,25 @@ describe("1 · Borrar en masa (crítico)", () => {
     if (c.tabla === "leads" && tipo(c) === "select") return leadsPedidos(c);
   };
 
-  it("con más de 1.000 citas, el lead con cita en la 2.ª página y el lead con venta no se borran", async () => {
-    contestar = responder;
-    expect(await crm.borrarLeads(["x", "y", "z", "otro"])).toEqual({ borrados: 1, saltados: 3 });
-    expect(de("leads", "delete").map((c) => arg(c, "in")?.[1])).toEqual([["z"]]);
+  // Ola 6 · C6: un solo paso en la base (borrar_leads, todo o nada); la app ya no lee ni borra por trozos
+  it("borra con una sola llamada a borrar_leads y cuenta los saltados", async () => {
+    rpcRespuesta = { data: 1, error: null };
+    expect(await crm.borrarLeads(["x", "y", "z", "x", ""])).toEqual({ borrados: 1, saltados: 2 });
+    expect(rpcs).toEqual([{ nombre: "borrar_leads", args: { p_proyecto: "p1", p_ids: ["x", "y", "z"] } }]);
+    expect(consultas.filter((c) => c.tabla === "leads" || c.tabla === "citas" || c.tabla === "ventas")).toHaveLength(0);
   });
 
-  it("si falla leer las citas o las ventas, no se borra nada y avisa", async () => {
-    for (const tabla of ["citas", "ventas"]) {
-      consultas = [];
-      contestar = (c) => (c.tabla === tabla ? fallo : responder(c));
-      expect(await crm.borrarLeads(["x", "z"])).toMatchObject({ error: expect.any(String) });
-      expect(de("leads", "delete")).toHaveLength(0);
-    }
+  it("si la base falla, avisa con error (y no dice cuántos borró)", async () => {
+    rpcRespuesta = fallo;
+    expect(await crm.borrarLeads(["x", "z"])).toMatchObject({ error: expect.any(String) });
   });
 
-  it("450 leads: las lecturas y el borrado van en trozos de 200", async () => {
-    contestar = responder;
+  it("450 leads: una sola llamada con los 450", async () => {
+    rpcRespuesta = { data: 450, error: null };
     const ids = Array.from({ length: 450 }, (_, i) => `n${i}`);
     expect(await crm.borrarLeads(ids)).toEqual({ borrados: 450, saltados: 0 });
-    const tamanos = (cs: Consulta[]) => cs.map((c) => (arg(c, "in")?.[1] as string[]).length);
-    expect(tamanos(de("leads", "delete"))).toEqual([200, 200, 50]);
-    expect(tamanos(de("citas", "select"))).toEqual([200, 200, 50]);
+    expect(rpcs).toHaveLength(1);
+    expect((rpcs[0].args as { p_ids: string[] }).p_ids).toHaveLength(450);
   });
 
   it("MCP: la vista previa cuenta la cita de la 2.ª página; si falla la lectura, error (no dice «borrar todos»)", async () => {
@@ -132,15 +135,12 @@ describe("2 · Escrituras que no podían fallar en silencio (altos)", () => {
     base["leads:select"] = { data: { id: "l1", caller_id: null, closer_id: null, pipeline_id: null }, error: null };
     base["productos:select"] = { data: { id: "pr1", nombre: "VIP" }, error: null };
     base["citas:select"] = { data: { id: "c1", closer_id: "luis", fecha: "2026-01-01T10:00:00Z" }, error: null };
-    base["ventas:insert"] = { data: { id: "v1" }, error: null };
   });
+  // Ola 6 (C1): venta, plazos y cierre de la cita van juntos en registrar_venta (tests/unit/venta-cobros.test.ts)
   it("venta: si fallan los plazos pendientes o el cierre de la cita, avisa del error", async () => {
-    base["vencimientos:insert"] = fallo;
+    base["rpc:registrar_venta"] = fallo;
     expect(await registrarVenta("l1", venta())).toMatchObject({ error: expect.any(String) });
-    delete base["vencimientos:insert"];
-    base["citas:update"] = fallo;
-    expect(await registrarVenta("l1", venta())).toMatchObject({ error: expect.any(String) });
-    delete base["citas:update"];
+    delete base["rpc:registrar_venta"];
     expect(await registrarVenta("l1", venta())).toBeUndefined();
   });
 

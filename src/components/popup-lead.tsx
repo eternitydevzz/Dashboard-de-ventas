@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Copy, ArrowRight } from "lucide-react";
+import { Copy, ArrowRight, RotateCw } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { OfertaChip } from "@/components/oferta-chip";
 import { VerEstrellas } from "@/components/estrellas";
@@ -15,22 +15,34 @@ import { nombrePais } from "@/lib/formato";
 export function PopupLead({ leadId, nombre, onCerrar }: { leadId: string; nombre: string; onCerrar: () => void }) {
   const [datos, setDatos] = useState<ResumenLead | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fallo, setFallo] = useState(false); // falló la red: «Reintentar» en vez de «Cargando…» para siempre
+  const [intento, setIntento] = useState(0);
   useEffect(() => {
     let vivo = true;
-    resumenLead(leadId).then((r) => {
-      if (!vivo) return;
-      if ("error" in r) setError(r.error as string);
-      else setDatos(r);
-    });
+    resumenLead(leadId).then(
+      (r) => {
+        if (!vivo) return;
+        if (!r || typeof r !== "object") return void setFallo(true);
+        if ("error" in r) setError(r.error as string);
+        else setDatos(r);
+      },
+      () => vivo && setFallo(true),
+    );
     return () => {
       vivo = false;
     };
-  }, [leadId]);
+  }, [leadId, intento]);
 
   return (
     <Modal titulo={datos?.nombre || nombre || "Sin nombre"} onCerrar={onCerrar} ancho="max-w-xl">
       {error ? (
         <p className="text-sm text-mal">{error}</p>
+      ) : fallo ? (
+        <p className="py-6 text-center text-sm">
+          <button type="button" className="inline-flex items-center gap-1 font-medium text-mal hover:underline" onClick={() => (setFallo(false), setIntento((n) => n + 1))}>
+            <RotateCw className="h-3.5 w-3.5" /> No se pudo cargar · Reintentar
+          </button>
+        </p>
       ) : !datos ? (
         <p className="py-6 text-center text-sm text-texto-3">Cargando…</p>
       ) : (

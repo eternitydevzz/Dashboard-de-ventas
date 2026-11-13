@@ -1,5 +1,6 @@
 import "server-only";
-import { db, todas, idsDePrueba, deVerdad } from "@/lib/datos";
+import { db, todas, porTrozos, idsDePrueba, deVerdad } from "@/lib/datos";
+import { hoyEnZona } from "@/lib/formato";
 import { plazosMensualesQueFaltan } from "@/lib/finanzas";
 import type { CatF, CuentaF, MovF, PagoF, VentaF, VencF } from "@/lib/finanzas";
 
@@ -56,16 +57,22 @@ export async function cargarFinanzas(proyectoId: string) {
 }
 
 // Membresía mensual sin fin (bloque A): mientras no se dé de baja, siempre queda el cobro del mes siguiente
-export async function asegurarPlazosMensuales(proyectoId: string, hoy = new Date().toISOString().slice(0, 10)) {
-  const { data: ventas, error } = await db().from("ventas").select("id, lead_id, facturacion, fecha, tipo_pago, baja_en").eq("proyecto_id", proyectoId).eq("tipo_pago", "mensual").is("baja_en", null);
-  if (error) throw new Error(error.message);
-  if (!ventas?.length) return 0;
-  const { data: plazos } = await db().from("vencimientos").select("venta_id, numero, vence_el").in("venta_id", ventas.map((v) => v.id));
-  const nuevos = plazosMensualesQueFaltan(ventas.map((v) => ({ ...v, facturacion: Number(v.facturacion) })), plazos ?? [], hoy);
+export async function asegurarPlazosMensuales(proyectoId: string, hoy?: string) {
+  const ventas = await todas<{ id: string; lead_id: string; facturacion: number; fecha: string; tipo_pago: string; baja_en: string | null }>((a, b) => db().from("ventas").select("id, lead_id, facturacion, fecha, tipo_pago, baja_en").eq("proyecto_id", proyectoId).eq("tipo_pago", "mensual").is("baja_en", null).order("id").range(a, b));
+  if (!ventas.length) return 0;
+  // Ola 6 (C3): «hoy» en la zona del proyecto, no en UTC (de noche en América el UTC ya es mañana)
+  if (!hoy) {
+    const { data: p, error } = await db().from("proyectos").select("zona_horaria").eq("id", proyectoId).single();
+    if (error) throw new Error(error.message);
+    hoy = hoyEnZona(p.zona_horaria);
+  }
+  // Ola 6 (C3): si la lectura falla, se corta (antes creía que no había plazos y los creaba todos otra vez)
+  const plazos = await porTrozos<{ venta_id: string | null; numero: number; vence_el: string }>(ventas.map((v) => v.id), (t, a, b) => db().from("vencimientos").select("venta_id, numero, vence_el").in("venta_id", t).order("id").range(a, b));
+  const nuevos = plazosMensualesQueFaltan(ventas.map((v) => ({ ...v, facturacion: Number(v.facturacion) })), plazos, hoy);
   if (nuevos.length) {
-    const { error: e2 } = await db().from("vencimientos").insert(nuevos.map((n) => ({ ...n, proyecto_id: proyectoId })));
+    // Dos cargas a la vez calculan el mismo plazo: el índice único (venta_id, numero) deja solo uno
+    const { error: e2 } = await db().from("vencimientos").upsert(nuevos.map((n) => ({ ...n, proyecto_id: proyectoId })), { onConflict: "venta_id,numero", ignoreDuplicates: true });
     if (e2) throw new Error(`No se pudieron crear los cobros de la membresía: ${e2.message}`);
   }
   return nuevos.length;
 }
-

@@ -38,7 +38,9 @@ describe("Acceso", () => {
     expect(data).toEqual({ telefono: "+1 555 0101", whatsapp: null });
   });
   it("cambiar el email: no repetido; luego entra con el nuevo", async () => {
-    como(e, e.p.directorAdmin);
+    como(e, e.p.directorAdmin); // B1 (13 nov): el de otra persona, solo el CEO
+    await falla(cambiarEmailPersona(e.p.callerA.id, `${e.pref}-otro@eternity.test`), /Solo el CEO/);
+    como(e, e.p.ceo);
     await falla(cambiarEmailPersona(e.p.callerA.id, "no-es-email"), /email válido/);
     await falla(cambiarEmailPersona(e.p.callerA.id, e.p.callerB.email), /otra persona/);
     const nuevo = `${e.pref}-nuevo@eternity.test`;

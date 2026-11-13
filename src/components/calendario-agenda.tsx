@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCw, User } from "lucide-react";
 import { huecosAgendaRotacion } from "@/app/(panel)/leads/agenda";
 import { nombreZona } from "@/lib/zona-persona";
 
@@ -19,19 +19,25 @@ export function CalendarioAgenda({ leadId }: { leadId?: string }) {
   const [dia, setDia] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null); // el valor en hora del proyecto
   const [mes, setMes] = useState<string | null>(null); // «AAAA-MM» que se ve
+  const [fallo, setFallo] = useState(false); // falló la red: «Reintentar» en vez de buscar para siempre
+  const [intento, setIntento] = useState(0);
 
   useEffect(() => {
     let vivo = true;
-    void huecosAgendaRotacion(leadId).then((r) => {
-      if (!vivo) return;
-      if (r && typeof r === "object" && "error" in r) return setError(String(r.error));
-      setDatos(r);
-      setMes(r.dias[0]?.ymd.slice(0, 7) ?? null);
-    });
+    void huecosAgendaRotacion(leadId).then(
+      (r) => {
+        if (!vivo) return;
+        if (!r || typeof r !== "object") return void setFallo(true);
+        if ("error" in r) return setError(String(r.error));
+        setDatos(r);
+        setMes(r.dias[0]?.ymd.slice(0, 7) ?? null);
+      },
+      () => vivo && setFallo(true),
+    );
     return () => {
       vivo = false;
     };
-  }, [leadId]);
+  }, [leadId, intento]);
 
   const conHueco = useMemo(() => new Map((datos?.dias ?? []).map((d) => [d.ymd, d.horas])), [datos]);
   const meses = useMemo(() => [...new Set((datos?.dias ?? []).map((d) => d.ymd.slice(0, 7)))], [datos]);
@@ -39,6 +45,14 @@ export function CalendarioAgenda({ leadId }: { leadId?: string }) {
   const hoy = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: zona }).format(new Date()), [zona]);
 
   if (error) return <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{error}</p>;
+  if (fallo)
+    return (
+      <p className="py-6 text-center text-sm">
+        <button type="button" className="inline-flex items-center gap-1 font-medium text-mal hover:underline" onClick={() => (setFallo(false), setIntento((n) => n + 1))}>
+          <RotateCw className="h-3.5 w-3.5" /> No se pudo cargar · Reintentar
+        </button>
+      </p>
+    );
   if (!datos) return <p className="py-6 text-center text-sm text-texto-3">Buscando las horas libres…</p>;
   if (!datos.dias.length)
     return <p className="rounded-lg bg-aviso-suave px-3 py-2 text-sm text-aviso-texto">{datos.sinHorario ? `${datos.closer} no tiene horario puesto: pídele que lo ponga en «Mi perfil».` : `${datos.closer} no tiene horas libres en las próximas 3 semanas.`}</p>;

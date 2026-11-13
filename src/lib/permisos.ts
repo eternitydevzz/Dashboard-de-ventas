@@ -29,10 +29,16 @@ export function calcularPermisos(rol: Perfil["rol"], deRol: Fila[], dePersona: F
 // Una vez por petición (el menú y la página la piden a la vez)
 export const seccionesPermitidas = cache(async (perfil: Perfil, proyectoId: string): Promise<Set<Seccion>> => {
   if (perfil.rol === "ceo") return calcularPermisos("ceo", [], []);
-  // 25 oct 2026: las filas de permisos se guardan 1 minuto en memoria (lib/memoria.ts); se borra al guardar permisos
+  // 25 oct 2026: las filas de permisos se guardan 1 minuto en memoria (lib/memoria.ts); se borra al guardar permisos.
+  // Si la lectura falla, se lanza (enMemoria no guarda el fallo): antes guardaba null 1 minuto e ignoraba los permisos
+  const leer = async (r: PromiseLike<{ data: Fila[] | null; error: { message: string } | null }>) => {
+    const { data, error } = await r;
+    if (error) throw new Error(`No se pudieron leer los permisos: ${error.message}`);
+    return data;
+  };
   const [deRol, dePersona] = await Promise.all([
-    enMemoria(`permisos-rol:${proyectoId}:${perfil.rol}`, UN_MINUTO, async () => (await db().from("permisos_seccion").select("seccion, permitido").eq("proyecto_id", proyectoId).eq("rol", perfil.rol)).data),
-    enMemoria(`permisos-persona:${proyectoId}:${perfil.id}`, UN_MINUTO, async () => (await db().from("permisos_persona").select("seccion, permitido").eq("proyecto_id", proyectoId).eq("perfil_id", perfil.id)).data),
+    enMemoria(`permisos-rol:${proyectoId}:${perfil.rol}`, UN_MINUTO, () => leer(db().from("permisos_seccion").select("seccion, permitido").eq("proyecto_id", proyectoId).eq("rol", perfil.rol))),
+    enMemoria(`permisos-persona:${proyectoId}:${perfil.id}`, UN_MINUTO, () => leer(db().from("permisos_persona").select("seccion, permitido").eq("proyecto_id", proyectoId).eq("perfil_id", perfil.id))),
   ]);
   return calcularPermisos(perfil.rol, deRol ?? [], dePersona ?? [], !!perfil.tambien_closer); // E2: el caller que también es closer suma lo de un closer
 });

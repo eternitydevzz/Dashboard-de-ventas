@@ -17,7 +17,7 @@ export function PestanasAgendas({ activa, mostrarAnalisis = true }: { activa: "/
       {PESTANAS.filter((p) => mostrarAnalisis || p.href !== "/closer/analisis").map((p) => {
         const Icono = p.icono;
         return (
-          <Link prefetch={true} key={p.href} href={p.href} className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm ${activa === p.href ? "bg-primario font-medium text-white" : "text-texto-2 hover:bg-panel-2"}`}>
+          <Link key={p.href} href={p.href} className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm ${activa === p.href ? "bg-primario font-medium text-white" : "text-texto-2 hover:bg-panel-2"}`}>
             <Icono className="h-4 w-4" /> {p.t}
           </Link>
         );

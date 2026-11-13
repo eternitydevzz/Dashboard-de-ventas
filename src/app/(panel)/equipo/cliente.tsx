@@ -18,7 +18,7 @@ export type Miembro = { id: string; nombre: string; area_id: string | null; pues
 const ROL_TXT: Record<string, string> = { ceo: "CEO", director: "Director de ventas", closer: "Closer", caller: "Caller" };
 
 // Datos y comisión de una persona (organigrama). Es la primera pestaña de su ficha (bloque 5 de 1.0).
-export function DatosYComision({ m, areas, puestos, productos, rolesQuePuedoDar, puedeComision }: { m: Miembro; areas: Area[]; puestos: Puesto[]; productos: Producto[]; rolesQuePuedoDar: Rol[]; puedeComision: boolean }) {
+export function DatosYComision({ m, areas, puestos, productos, rolesQuePuedoDar, puedeComision, admin }: { m: Miembro; areas: Area[]; puestos: Puesto[]; productos: Producto[]; rolesQuePuedoDar: Rol[]; puedeComision: boolean; admin: boolean }) {
   const { pendiente, error, ejecutar } = useAccion();
   const [nombre, setNombre] = useState(m.nombre);
   const [area, setArea] = useState(m.area_id ?? "");
@@ -87,7 +87,7 @@ export function DatosYComision({ m, areas, puestos, productos, rolesQuePuedoDar,
       >
         <Save className="h-4 w-4" /> Guardar
       </button>
-      {!m.perfil_id && (
+      {!m.perfil_id && admin && (
         <div className="border-t border-borde pt-3">
           {!acceso ? (
             <button className="btn-secundario w-full" onClick={() => setAcceso(true)}><KeyRound className="h-4 w-4" /> Darle acceso a la app</button>

@@ -150,7 +150,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
           <>
             <FiltroMercado />
             <Link href={verInactivos ? "/equipo" : "/equipo?inactivos=1"} className="btn-secundario">{verInactivos ? "Ver activos" : "Ver inactivos"}</Link>
-            <AltaMiembro areas={eq.areas} puestos={eq.puestos} productos={(productos ?? []).map((p) => ({ id: p.id, nombre: p.nombre, precio: p.precio === null ? null : Number(p.precio) }))} comisionesRol={eq.comisionesRol} rolesQuePuedoDar={rolesQuePuedoDar} puedeComision={jefe} codigoMoneda={proyecto.moneda} />
+            <AltaMiembro areas={eq.areas} puestos={eq.puestos} productos={(productos ?? []).map((p) => ({ id: p.id, nombre: p.nombre, precio: p.precio === null ? null : Number(p.precio) }))} comisionesRol={eq.comisionesRol} rolesQuePuedoDar={rolesQuePuedoDar} puedeComision={jefe} codigoMoneda={proyecto.moneda} admin={puedeAdmin(perfil)} />
           </>
         }
       />

@@ -138,7 +138,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
         <PestanasAgendas activa="/closer/llamadas" />
         <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
           {tabsVisibles.map((t, i) => (
-            <Link prefetch={true} key={t.v} href={baseQs({ tab: t.v, sub: null, vista: null, conc: null, cual: null })} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${tab === t.v ? "bg-primario-suave font-medium text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
+            <Link key={t.v} href={baseQs({ tab: t.v, sub: null, vista: null, conc: null, cual: null })} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${tab === t.v ? "bg-primario-suave font-medium text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
               <span className="font-mono text-[10px] text-oro">0{i + 1}</span> {t.t}
               {t.v === "precall" && <span className="rounded-full bg-panel-2 px-1.5 text-[11px] tabular-nums">{citasTodas.filter((c) => esPrecall(c, ahora)).length}</span>}
             </Link>
@@ -222,11 +222,11 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
       <div className="tarjeta overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b border-borde p-2">
           {FILTROS_ESTADO.map((f) => (
-            <Link prefetch={true} key={f.v} href={baseQs({ estado: f.v || null })} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.t}</Link>
+            <Link key={f.v} href={baseQs({ estado: f.v || null })} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.t}</Link>
           ))}
           <div className="ml-auto flex rounded-lg border border-borde bg-panel-2 p-0.5">
             {vistas.map((v) => (
-              <Link prefetch={true} key={v.v} href={baseQs({ vista: v.v })} className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs ${vista === v.v ? "bg-primario text-white" : "text-texto-2"}`}><v.i className="h-3.5 w-3.5" />{v.t}</Link>
+              <Link key={v.v} href={baseQs({ vista: v.v })} className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs ${vista === v.v ? "bg-primario text-white" : "text-texto-2"}`}><v.i className="h-3.5 w-3.5" />{v.t}</Link>
             ))}
           </div>
         </div>
@@ -320,8 +320,8 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
           <span className="text-texto-3">{pre.length} llamadas por hacer</span>
           <FiltroUrl nombre="orden" etiqueta="Orden" todos="Orden: fecha de llamada" opciones={[{ v: "agendada", t: "Orden: agendada el (más reciente)" }]} />
           <div className="ml-auto flex rounded-lg border border-borde bg-panel-2 p-0.5">
-            <Link prefetch={true} href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
-            <Link prefetch={true} href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
+            <Link href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
+            <Link href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
           </div>
         </div>
         {tabla ? (
@@ -344,8 +344,8 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     const interruptor = (
       <div className="flex items-center justify-end">
         <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-          <Link prefetch={true} href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
-          <Link prefetch={true} href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
+          <Link href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
+          <Link href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
         </div>
       </div>
     );

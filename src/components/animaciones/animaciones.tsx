@@ -6,6 +6,8 @@ import { alCoger, alSoltar, deslizarPestanas, deslizarResalte, entrada, fotoPest
 
 let ultimaSalida = 0; // si la sección anterior acaba de irse, la nueva espera 90 ms (como la maqueta)
 const CARGANDO = '[aria-busy="true"]'; // el esqueleto de (panel)/loading.tsx
+// #418: en la primera carga React aún no ha hidratado las cifras y el conteo les cambia el texto; solo se cuenta al navegar
+let primeraCarga = true;
 
 // Envuelve cada sección (template.tsx: se vuelve a montar al cambiar de sección, no con las pestañas ni los filtros)
 export function Animaciones({ children }: { children: ReactNode }) {
@@ -16,8 +18,10 @@ export function Animaciones({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     const raiz = ref.current!;
+    const conteo = !primeraCarga;
+    primeraCarga = false;
     const entrar = (base: number) => {
-      entrada(raiz, { base, titulo: true });
+      entrada(raiz, { base, titulo: true, conteo });
       foto.current = fotoPestanas(raiz);
     };
     // con esqueleto, la entrada espera a que llegue la sección de verdad

@@ -665,7 +665,8 @@ function Tarjeta({
       arriba={
         <span className="flex shrink-0 items-center gap-1 text-[11px] text-texto-3">
           {lead.otroPipeline && <span title="También está en otro pipeline (su pipeline principal es otro)">🔗</span>}
-          <span title={`Entró el ${lead.creado_en.slice(0, 10)}`}>{haceDias(lead.creado_en)}</span>
+          {/* Date.now() distinto en servidor y navegador si cambia el día entre medias: se queda el del servidor (sin #418) */}
+          <span title={`Entró el ${lead.creado_en.slice(0, 10)}`} suppressHydrationWarning>{haceDias(lead.creado_en)}</span>
         </span>
       }
       arrastrable

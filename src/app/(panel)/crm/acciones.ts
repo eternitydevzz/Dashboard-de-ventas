@@ -472,14 +472,12 @@ export async function borrarLeads(leadIds: string[]) {
     await exigirSeccion("crm");
     const { proyecto } = await exigir((p) => p.rol === "ceo"); // borrar en masa, solo el CEO (Cristian, 12 oct)
     const ids = idsValidos(leadIds);
-    // Ola 3 (C9): todas las citas y ventas (en trozos y paginadas); si una lectura falla, lanza y no se borra nada
-    const leer = (tabla: "citas" | "ventas") => porTrozos<{ lead_id: string }>(ids, (t, d, h) => db().from(tabla).select("lead_id").in("lead_id", t).order("id").range(d, h));
-    const [conCita, conVenta] = await Promise.all([leer("citas"), leer("ventas")]);
-    const protegidos = new Set([...conCita, ...conVenta].map((x) => x.lead_id));
-    const borrar = ids.filter((id) => !protegidos.has(id));
-    for (const t of trozos(borrar)) await escribir(db().from("leads").delete().in("id", t).eq("proyecto_id", proyecto.id), "leads");
+    // Ola 6 (C6): comprobar y borrar en un solo paso en la base (todo o nada; una venta nueva a la vez no se borra)
+    const { data: borrados, error } = await db().rpc("borrar_leads", { p_proyecto: proyecto.id, p_ids: ids });
+    if (error) throw new Error(`No se pudo borrar: ${error.message}`);
     refrescar();
-    return { borrados: borrar.length, saltados: protegidos.size };
+    // Saltados = con citas o ventas (y los que ya no existían)
+    return { borrados: borrados as number, saltados: ids.length - (borrados as number) };
   });
 }
 

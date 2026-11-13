@@ -36,7 +36,7 @@ export function BarraPeriodo({ etiqueta, porDefecto = "mes", conActualizar = tru
     <div className={`flex flex-wrap items-center gap-2 ${cargando ? "opacity-70" : ""}`}>
       <BarraCarga activa={cargando} />
       <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-        {/* Velocidad (17 oct 2026): enlaces con precarga completa (antes, botones que esperaban al servidor al pulsar);
+        {/* Enlaces (17 oct 2026). Precarga por defecto (solo el esqueleto): la completa hacía demasiadas lecturas (D1, 13 nov);
             «Personalizado» sigue siendo un botón: abre las fechas */}
         {PERIODOS_NAV.map((x) => {
           const clase = `rounded-md px-3 py-1.5 text-sm transition-colors ${periodo === x.v ? "bg-primario text-white shadow-sm" : "text-texto-2 hover:text-texto"}`;
@@ -50,7 +50,6 @@ export function BarraPeriodo({ etiqueta, porDefecto = "mes", conActualizar = tru
             <Link
               key={x.v}
               href={conCambios({ p: x.v, n: null, desde: null, hasta: null })}
-              prefetch={true}
               replace
               scroll={false}
               onClick={() => {
@@ -66,11 +65,11 @@ export function BarraPeriodo({ etiqueta, porDefecto = "mes", conActualizar = tru
       </div>
       {periodo !== "rango" && (
         <div className="flex items-center rounded-lg border border-borde bg-panel">
-          <Link href={conCambios({ n: String(n - 1) })} prefetch={true} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo anterior">
+          <Link href={conCambios({ n: String(n - 1) })} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo anterior">
             <ChevronLeft className="h-4 w-4" />
           </Link>
           <span className="min-w-32 px-1 text-center text-sm font-medium">{etiqueta}</span>
-          <Link href={conCambios({ n: String(n + 1) })} prefetch={true} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo siguiente">
+          <Link href={conCambios({ n: String(n + 1) })} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo siguiente">
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
