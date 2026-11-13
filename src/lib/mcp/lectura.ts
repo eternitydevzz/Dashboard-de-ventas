@@ -6,7 +6,7 @@ import { agruparDuplicados } from "@/lib/duplicados";
 import { cargarBase, calcularFunnel } from "@/lib/metricas";
 import { calcularKpis } from "@/lib/kpis";
 import { rangoNav, type PeriodoNav } from "@/lib/periodos";
-import { rangoDe, fechaHora, hoyEnZona, inicioDia, nombrePais, ETIQUETA_ESTADO_CITA, SIN_PAIS, type Periodo } from "@/lib/formato";
+import { rangoDe, fechaHora, hoyEnZona, inicioDia, nombrePais, ETIQUETA_ESTADO_CALLER, ETIQUETA_ESTADO_CITA, SIN_PAIS, type Periodo } from "@/lib/formato";
 import { cargarFinanzas } from "@/lib/finanzas-datos";
 import { resumenFinanzas, cambio } from "@/lib/finanzas";
 import { db, todas, equipo } from "@/lib/datos";
@@ -222,12 +222,15 @@ export async function herramientaFichaLead(a: { leadId: string }) {
   const quien = (pid: string | null) => (pid ? gente.find((g) => g.id === pid)?.nombre ?? "—" : null);
   const cuando = (iso: string | null) => (iso ? fechaHora(iso, proyecto) : null);
   type Analisis = { resumen?: string; objeciones?: unknown; siguiente_paso?: string } | null;
+  // N12 (13 nov): tipo y resultado del historial como en la ficha («cambio etapa» · «Llamar luego»), no el código.
+  // Copia de RESULTADO de leads/[id]/page.tsx (ese archivo no es de este carril): si cambia allí, cambiar aquí.
+  const RESULTADO: Record<string, string> = { ...ETIQUETA_ESTADO_CALLER, contestado: "Contestó", agendada: "Agendada", completo: "Pago completo", reserva: "Reserva", cuotas: "Cuotas", cobro: "Cobro", devolucion: "Devolución" };
   return {
     pantalla: "Ficha del lead",
     proyecto: proyecto.nombre,
     ...r,
     pais: nombrePais(r.pais), // la ficha enseña el nombre («Argentina»), no el código
-    historial: (acts.data ?? []).map((x) => ({ cuando: cuando(x.creado_en), quien: x.perfil_id ? quien(x.perfil_id) : "Sistema", tipo: x.tipo, resultado: x.resultado, nota: x.nota })),
+    historial: (acts.data ?? []).map((x) => ({ cuando: cuando(x.creado_en), quien: x.perfil_id ? quien(x.perfil_id) : "Sistema", tipo: x.tipo.replace("_", " "), resultado: x.resultado && (RESULTADO[x.resultado] ?? x.resultado), nota: x.nota })),
     citas: (citas.data ?? []).map((x) => ({ fecha: cuando(x.fecha), estado: ETIQUETA_ESTADO_CITA[x.estado] ?? x.estado, closer: quien(x.closer_id), canal: x.canal })),
     ventas: (ventas.data ?? []).map((x) => ({ fecha: cuando(x.fecha), producto: (x.productos as unknown as { nombre: string } | null)?.nombre ?? null, facturacion: Number(x.facturacion), cobradoAlVender: Number(x.cash_collected), devuelto: x.devuelto === null ? null : Number(x.devuelto) })),
     llamadasGhl: (ghl.data ?? []).map((x) => {

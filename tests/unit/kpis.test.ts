@@ -92,6 +92,17 @@ describe("KPIs de callers (H2)", () => {
     expect(k.totalCallers.agendados).toBe(5);
     expect(k.totalCallers.cerrados).toBe(2);
   });
+
+  // N8 (13 nov): desde el 7 nov los botones apuntan «cambio_etapa» y no «llamada»; salía «contestan 66 > contactados 6»
+  it("los botones del caller cuentan como contactado: contestan nunca supera a contactados", () => {
+    const b = base();
+    const boton = (lead: string, resultado: string) => ({ lead_id: lead, perfil_id: "luis", tipo: "cambio_etapa", resultado, creado_en: "2026-10-03T15:00:00Z" });
+    b.gente.push(persona("luis", "caller"));
+    b.actividades.push(boton("m1", "seguimiento"), boton("m2", "llamar_luego"), boton("m3", "no_responde"), boton("m4", "nuevo"));
+    const luis = calcularKpis(b, octubre, NY).callers.find((c) => c.perfil.id === "luis")!;
+    expect(luis.contestan).toBe(2); // m1 y m2
+    expect(luis.contactados).toBe(3); // + m3 (le llamó y no respondió); «Leads» (m4) no es una llamada
+  });
 });
 
 describe("KPIs de closers (H2)", () => {
