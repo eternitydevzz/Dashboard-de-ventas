@@ -1,6 +1,6 @@
 # Guía · GoHighLevel y el dashboard
 
-> Reescrita el 9 nov 2026 (A4 del plan GHL). Cómo están conectados hoy GHL y el dashboard (dashboard.eternity.llc). Estado y pendientes: [`plan.md`](plan.md) y [`plan-GHL.md`](plan-GHL.md). Otra guía: [`GUIA-PUBLICAR.md`](GUIA-PUBLICAR.md).
+> Reescrita el 9 nov 2026 (A4 del plan GHL). Cómo están conectados hoy GHL y el dashboard (dashboard.eternity.llc). Estado y pendientes: [`plan.md`](plan.md). Otra guía: [`GUIA-PUBLICAR.md`](GUIA-PUBLICAR.md).
 > **Conectar una web:** [`../Team/Template-landing.md`](../Team/Template-landing.md) (manual del equipo, JSON v1 y paso de 1 minuto).
 
 ## Cómo funciona (en 3 líneas)
