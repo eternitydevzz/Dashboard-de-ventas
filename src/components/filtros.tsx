@@ -90,11 +90,10 @@ export function Filtros({
       </div>
       <div className={ligero ? "flex gap-0.5" : "flex rounded-lg border border-borde bg-panel-2 p-0.5"}>
         {PERIODOS.map((p) => (
-          // Velocidad (17 oct 2026): enlaces con precarga completa (antes, botones que esperaban al servidor al pulsar)
+          // Enlaces (17 oct 2026). Precarga por defecto (solo el esqueleto): la completa hacía demasiadas lecturas (D1, 13 nov)
           <Link
             key={p.v}
             href={conCambios({ periodo: p.v, desde: null, hasta: null })}
-            prefetch={true}
             replace
             scroll={false}
             onClick={() => {

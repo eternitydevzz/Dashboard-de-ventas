@@ -34,7 +34,9 @@ describe("Accesos: solo con tu rol o uno inferior", () => {
     await falla(alta("director", "dir1"), /No tienes acceso a esta sección/);
     await falla(alta("caller", "cal0"), /No tienes acceso a esta sección/);
     expect((await db.from("perfiles").select("id").eq("email", `${e.pref}-dir1@eternity.test`)).data).toHaveLength(0);
-    como(e, e.p.director);
+    como(e, e.p.director); // B2 (13 nov): con Equipo pero sin Administración, no crea cuentas
+    await falla(alta("caller", "cal2"), /Administración/);
+    como(e, e.p.directorAdmin);
     await ok(alta("closer", "clo1"));
     await ok(alta("caller", "cal1"));
   });
@@ -45,6 +47,8 @@ describe("Accesos: solo con tu rol o uno inferior", () => {
     como(e, e.p.closerA);
     await falla(darAccesoMiembro(m!.id, `${e.pref}-sc@eternity.test`, "Clave-temporal-1", "director", "es", "+34 600 000 000"), /No tienes acceso a esta sección/);
     como(e, e.p.director);
+    await falla(darAccesoMiembro(m!.id, `${e.pref}-sc@eternity.test`, "Clave-temporal-1", "caller", "es", "+34 600 000 000"), /Administración/);
+    como(e, e.p.directorAdmin);
     await ok(darAccesoMiembro(m!.id, `${e.pref}-sc@eternity.test`, "Clave-temporal-1", "director", "es", "+34 600 000 000")); // igual a su rol: sí
   });
 });

@@ -72,7 +72,9 @@ export async function guardarContactoPersona(perfilId: string, c: { telefono: st
 // Cambiar el email de acceso: lo hace el administrador directamente, sin pedir confirmación (criterio apuntado en el plan)
 export async function cambiarEmailPersona(perfilId: string, emailTxt: string) {
   return seguro(async () => {
-    const { proyecto } = await personaDelProyecto(perfilId);
+    const { perfil, proyecto } = await personaDelProyecto(perfilId);
+    // B1 (Cristian, 13 nov): con el email de otro se puede entrar en su cuenta → solo el CEO
+    if (perfil.rol !== "ceo" && perfilId !== perfil.id) throw new ErrorUsuario("Solo el CEO puede cambiar el email de otra persona.");
     const email = emailTxt.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new ErrorUsuario("Pon un email válido.");
     const { data: otro } = await db().from("perfiles").select("id").eq("email", email).neq("id", perfilId).maybeSingle();

@@ -99,10 +99,10 @@ export async function cambiarPassword(perfilId: string, password: string) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigir(puedeAdmin);
     if (password.length < 8) throw new ErrorUsuario("Mínimo 8 caracteres.");
+    // B1 (Cristian, 13 nov): con la contraseña de otro se entra en su cuenta → solo el CEO
+    if (perfil.rol !== "ceo" && perfilId !== perfil.id) throw new ErrorUsuario("Solo el CEO puede cambiar la contraseña de otra persona.");
     const { data: miembro } = await db().from("miembros_proyecto").select("perfil_id").eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).maybeSingle();
     if (!miembro) throw new ErrorUsuario("Esa persona no está en este proyecto.");
-    const { data: objetivo } = await db().from("perfiles").select("rol").eq("id", perfilId).single();
-    if (perfil.rol !== "ceo" && objetivo?.rol === "ceo") throw new ErrorUsuario("Solo el CEO puede tocar a otro CEO.");
     const { error } = await db().auth.admin.updateUserById(perfilId, { password });
     if (error) throw new ErrorUsuario(error.message);
   });
