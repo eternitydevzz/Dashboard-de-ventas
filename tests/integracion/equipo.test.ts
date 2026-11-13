@@ -67,10 +67,15 @@ describe("Equipo", () => {
     const { data: uno } = await db.from("miembros_equipo").select("id").eq("proyecto_id", e.proyecto.id).eq("nombre", "Uno").single();
     await db.from("permisos_seccion").insert({ proyecto_id: e.proyecto.id, rol: "director", seccion: "equipo", permitido: true });
     como(e, e.p.director);
-    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "ceo"), /Rol no válido/);
-    await ok(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller"));
+    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "ceo", "es", "+34 600 000 000"), /Rol no válido/);
+    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "", "+34 600 000 000"), /España o de Latam/);
+    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "es", "12"), /teléfono válido/);
+    await ok(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "es", "+34 600 000 000"));
+    const { data: pUno } = await db.from("perfiles").select("id, telefono").eq("email", `${e.pref}-uno@eternity.test`).single();
+    expect(pUno!.telefono).toBe("+34 600 000 000");
+    expect((await db.from("miembros_proyecto").select("mercado").eq("proyecto_id", e.proyecto.id).eq("perfil_id", pUno!.id)).data).toEqual([{ mercado: "es" }]);
     expect((await db.from("miembros_equipo").select("perfil_id").eq("id", uno!.id).single()).data!.perfil_id).not.toBeNull();
-    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno2@eternity.test`, "Clave-temporal-1", "caller"), /ya tiene acceso/);
+    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno2@eternity.test`, "Clave-temporal-1", "caller", "es", "+34 600 000 000"), /ya tiene acceso/);
   });
 
   it("editar comisión del rol y de la persona; áreas: crear, no borrar con gente dentro", async () => {

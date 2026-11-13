@@ -64,6 +64,15 @@ export type AltaMiembro = {
   lider: boolean;
 };
 
+// 13 nov (Cristian): país y teléfono obligatorios al crear cuenta; sin mercado salía en Latam hasta que entraba
+function paisYTelefono(mercadoTxt: unknown, telefonoTxt: string) {
+  const mercado = mercadoValido(mercadoTxt);
+  if (!mercado) throw new ErrorUsuario("Elige si es de España o de Latam.");
+  const telefono = telefonoTxt.trim();
+  if (!/^\+?[\d\s().-]{7,20}$/.test(telefono) || telefono.replace(/\D/g, "").length < 7) throw new ErrorUsuario("Pon un teléfono válido (con prefijo, ej. +34 600 000 000).");
+  return { mercado, telefono };
+}
+
 // Alta de miembro en 6 pasos (persona, puesto, comisión, acceso, rol, revisión)
 export async function crearMiembro(a: AltaMiembro) {
   return seguro(async () => {
@@ -93,11 +102,7 @@ export async function crearMiembro(a: AltaMiembro) {
       if (!ROLES.includes(a.acceso.rol)) throw new ErrorUsuario("Rol no válido.");
       if (a.acceso.rol === "ceo" && perfil.rol !== "ceo") throw new ErrorUsuario("Solo el CEO puede crear otro CEO.");
       exigirPuedeDarRol(perfil, a.acceso.rol);
-      // 13 nov (Cristian): país y teléfono obligatorios al crear cuenta; sin mercado salía en Latam hasta que entraba
-      const mercado = mercadoValido(a.acceso.mercado);
-      if (!mercado) throw new ErrorUsuario("Elige si es de España o de Latam.");
-      const telefono = a.acceso.telefono.trim();
-      if (!/^\+?[\d\s().-]{7,20}$/.test(telefono) || telefono.replace(/\D/g, "").length < 7) throw new ErrorUsuario("Pon un teléfono válido (con prefijo, ej. +34 600 000 000).");
+      const { mercado, telefono } = paisYTelefono(a.acceso.mercado, a.acceso.telefono);
       const { data, error } = await db().auth.admin.createUser({ email, password: a.acceso.password, email_confirm: true });
       if (error) throw new ErrorUsuario(error.message.includes("already") ? "Ya existe un usuario con ese email." : error.message);
       const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: nombres[0], email, rol: a.acceso.rol, telefono });
@@ -147,7 +152,7 @@ export async function cambiarModoComision(id: string, modo: "tramos" | "propio")
 }
 
 // A quien estaba «solo en el organigrama», darle acceso más tarde
-export async function darAccesoMiembro(id: string, emailTxt: string, password: string, rol: Rol) {
+export async function darAccesoMiembro(id: string, emailTxt: string, password: string, rol: Rol, mercadoTxt: string, telefonoTxt: string) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigirSeccion("equipo");
     const { data: m } = await db().from("miembros_equipo").select("*").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
@@ -158,15 +163,16 @@ export async function darAccesoMiembro(id: string, emailTxt: string, password: s
     if (password.length < 8) throw new ErrorUsuario("La contraseña temporal necesita al menos 8 caracteres.");
     if (!ROLES.includes(rol) || (rol === "ceo" && perfil.rol !== "ceo")) throw new ErrorUsuario("Rol no válido.");
     exigirPuedeDarRol(perfil, rol);
+    const { mercado, telefono } = paisYTelefono(mercadoTxt, telefonoTxt);
     const { data, error } = await db().auth.admin.createUser({ email, password, email_confirm: true });
     if (error) throw new ErrorUsuario(error.message.includes("already") ? "Ya existe un usuario con ese email." : error.message);
-    const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: m.nombre, email, rol });
+    const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: m.nombre, email, rol, telefono });
     if (e2) {
       await db().auth.admin.deleteUser(data.user.id);
       throw new ErrorUsuario(e2.message);
     }
     const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-    await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0 }), "miembros_proyecto");
+    await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0, mercado }), "miembros_proyecto");
     await escribir(db().from("miembros_equipo").update({ perfil_id: data.user.id, email }).eq("id", id), "miembros_equipo");
     refrescar();
   });
