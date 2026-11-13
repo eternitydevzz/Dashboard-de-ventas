@@ -3,19 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, User } from "lucide-react";
 import { huecosAgendaRotacion } from "@/app/(panel)/leads/agenda";
+import { nombreZona } from "@/lib/zona-persona";
 
-type Dia = { ymd: string; horas: string[] };
+type Dia = { ymd: string; horas: { t: string; v: string }[] }; // t: lo que se ve; v: lo que se envía
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const DIAS = ["L", "M", "X", "J", "V", "S", "D"];
 
 // «Agendado» del caller como la maqueta (plan Callers 7c.3; Cristian, 7 nov): un calendario con los días que tienen
 // hueco y, al elegir uno, las horas libres del closer de la rotación (su horario y sus citas). Deja en el formulario
 // `fecha` = «AAAA-MM-DDTHH:MM» en la hora del proyecto; el servidor vuelve a comprobar que sigue libre al guardar.
+// N2: días y horas se ven en la zona de quien agenda (su «Mi perfil»).
 export function CalendarioAgenda({ leadId }: { leadId?: string }) {
   const [datos, setDatos] = useState<{ closer: string; sinHorario: boolean; dias: Dia[]; zona: string } | null>(null);
   const [error, setError] = useState("");
   const [dia, setDia] = useState<string | null>(null);
-  const [hora, setHora] = useState<string | null>(null);
+  const [hora, setHora] = useState<string | null>(null); // el valor en hora del proyecto
   const [mes, setMes] = useState<string | null>(null); // «AAAA-MM» que se ve
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export function CalendarioAgenda({ leadId }: { leadId?: string }) {
 
   return (
     <div className="space-y-3">
-      <input type="hidden" name="fecha" value={dia && hora ? `${dia}T${hora}` : ""} required />
+      <input type="hidden" name="fecha" value={dia && hora ? hora : ""} required />
       <div className="flex items-center justify-between">
         <b>{MESES[m - 1]} {y}</b>
         <div className="flex gap-1">
@@ -81,13 +83,13 @@ export function CalendarioAgenda({ leadId }: { leadId?: string }) {
         })}
       </div>
       <div>
-        <span className="etiqueta-campo">Hora ({zona.split("/").pop()?.replace(/_/g, " ")})</span>
+        <span className="etiqueta-campo">Hora de {nombreZona(zona)}</span>
         {!dia ? (
           <p className="text-xs text-texto-3">Elige un día para ver sus horas libres.</p>
         ) : (
           <div className="grid grid-cols-4 gap-1.5">
             {(conHueco.get(dia) ?? []).map((h) => (
-              <button key={h} type="button" aria-pressed={hora === h} onClick={() => setHora(h)} className={`rounded-lg border py-2 text-[12.5px] font-semibold tabular-nums ${hora === h ? "border-transparent bg-primario-boton text-white" : "border-borde bg-panel-2 hover:border-primario"}`}>{h}</button>
+              <button key={h.v} type="button" aria-pressed={hora === h.v} onClick={() => setHora(h.v)} className={`rounded-lg border py-2 text-[12.5px] font-semibold tabular-nums ${hora === h.v ? "border-transparent bg-primario-boton text-white" : "border-borde bg-panel-2 hover:border-primario"}`}>{h.t}</button>
             ))}
           </div>
         )}

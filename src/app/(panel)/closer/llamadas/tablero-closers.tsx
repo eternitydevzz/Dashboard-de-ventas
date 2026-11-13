@@ -57,6 +57,7 @@ export function TableroClosers({
   menuColumna,
   alFinal,
   reordenarColumna,
+  horaDe,
 }: {
   columnas: ColumnaC[];
   productos: Producto[];
@@ -66,6 +67,7 @@ export function TableroClosers({
   menuColumna?: (col: ColumnaC, i: number) => ReactNode; // CRM: «⋯» de la columna (quien puede editar)
   alFinal?: ReactNode; // CRM: «Añadir columna» y avisos
   reordenarColumna?: (desde: string, hasta: string) => void; // CRM (Fase 4): columnas que se arrastran, quien puede editar
+  horaDe?: string; // N2: «España» si quien mira ve las horas en otra zona que la del proyecto
 }) {
   const { pendiente, error, ejecutar } = useAccion();
   const toast = useToast();
@@ -262,7 +264,7 @@ export function TableroClosers({
             }}
           >
             {avisoBorrar(ventana.item)}
-            <label className="block"><span className="etiqueta-campo">Nueva fecha y hora</span><input type="datetime-local" name="fecha" required className="campo" /></label>
+            <label className="block"><span className="etiqueta-campo">Nueva fecha y hora{horaDe ? ` (hora de ${horaDe})` : ""}</span><input type="datetime-local" name="fecha" required className="campo" /></label>
             <button className="btn-primario w-full">Reagendar</button>
           </form>
         </Modal>
