@@ -11,6 +11,7 @@ import { Anillo, Avatar } from "@/components/ui";
 export function TarjetaObjetivos({
   id,
   nombre,
+  foto,
   rol,
   medio,
   cumplidos,
@@ -20,6 +21,7 @@ export function TarjetaObjetivos({
 }: {
   id: string;
   nombre: string;
+  foto?: string | null; // N3: ruta de su foto (sin ella, sus iniciales)
   rol: string;
   medio: number | null; // % medio de sus objetivos (null = sin objetivos)
   cumplidos: number;
@@ -34,7 +36,7 @@ export function TarjetaObjetivos({
         <Anillo valor={Math.round(medio ?? 0)} tamano={64} color={medio !== null && medio >= 100 ? "var(--ok)" : "var(--primario)"} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Avatar nombre={nombre} tamano="h-6 w-6 text-[9px]" />
+            <Avatar nombre={nombre} foto={foto} tamano="h-6 w-6 text-[9px]" />
             <span className="truncate font-semibold">{nombre}</span>
           </div>
           <div className="mt-0.5 text-xs text-texto-3">{rol}</div>

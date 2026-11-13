@@ -49,10 +49,10 @@ function Cabeceras({ primera, cols }: { primera: string; cols: { t: string; d: s
   );
 }
 
-function Persona({ nombre, mercado }: { nombre: string; mercado?: Mercado }) {
+function Persona({ nombre, foto, mercado }: { nombre: string; foto?: string | null; mercado?: Mercado }) {
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
-      <Avatar nombre={nombre} tamano="h-7 w-7 text-[10px]" />
+      <Avatar nombre={nombre} foto={foto} tamano="h-7 w-7 text-[10px]" />
       {nombre}
       {mercado && <EtiquetaMercado m={mercado} />}
     </div>
@@ -115,7 +115,7 @@ export function TablasKpis({ kpis, dinero, sinTotales, mercados }: { kpis: Kpis;
             <tbody>
               {kpis.callers.map((c) => (
                 <tr key={c.perfil.id}>
-                  <td><Persona nombre={c.perfil.nombre} mercado={mercados && mercadoDe(mercados[c.perfil.id])} /></td>
+                  <td><Persona nombre={c.perfil.nombre} foto={c.perfil.foto} mercado={mercados && mercadoDe(mercados[c.perfil.id])} /></td>
                   <CeldasCaller c={c} dinero={dinero} />
                 </tr>
               ))}
@@ -139,7 +139,7 @@ export function TablasKpis({ kpis, dinero, sinTotales, mercados }: { kpis: Kpis;
             <tbody>
               {kpis.closers.map((c) => (
                 <tr key={c.perfil.id}>
-                  <td><Persona nombre={c.perfil.nombre} mercado={mercados && mercadoDe(mercados[c.perfil.id])} /></td>
+                  <td><Persona nombre={c.perfil.nombre} foto={c.perfil.foto} mercado={mercados && mercadoDe(mercados[c.perfil.id])} /></td>
                   <CeldasCloser c={c} dinero={dinero} />
                 </tr>
               ))}

@@ -16,7 +16,7 @@ async function elegir(formData: FormData) {
 export default async function ZonaPage({ searchParams }: PageProps<"/onboarding/zona">) {
   const { perfil } = await getSesion();
   if (!perfil.onboarding_completo) redirect("/onboarding");
-  if (!conZona(perfil.rol) || (perfil as { zona_horaria?: string | null }).zona_horaria !== null) redirect("/"); // ya elegida (o no aplica)
+  if (!conZona(perfil.rol) || perfil.zona_horaria !== null) redirect("/"); // ya elegida (o no aplica)
   const { error } = await searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center p-4">

@@ -17,6 +17,8 @@ export type Perfil = {
   es_prueba?: boolean; // 1.0: perfil de prueba (no cuenta en cifras, reparto ni liquidaciones)
   tambien_closer?: boolean; // Plan GHL E1: un caller que también es closer (Facu)
   activo: boolean;
+  foto?: string | null; // N3: ruta en el espacio «fotos» (null = sin foto; undefined = la base aún no tiene la columna)
+  zona_horaria?: string | null; // N2: zona de cada caller y closer (mismo criterio)
 };
 
 export type Proyecto = {

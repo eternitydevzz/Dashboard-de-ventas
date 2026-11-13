@@ -32,8 +32,9 @@ import {
 } from "lucide-react";
 import { cambiarProyecto } from "@/app/(panel)/acciones-globales";
 import { cerrarSesion } from "@/app/login/acciones";
-import { iniciales, ETIQUETA_ROL, type ProyectoMenu } from "@/lib/formato";
+import { ETIQUETA_ROL, type ProyectoMenu } from "@/lib/formato";
 import type { Perfil } from "@/lib/tipos";
+import { Avatar } from "@/components/ui";
 import { Desplegable } from "@/components/eleccion";
 import { CampanaAvisos } from "@/components/campana-avisos";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
@@ -199,9 +200,7 @@ export function BarraLateral({
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
           {/* Bloque 1 de 1.0: tocar tu nombre abre «Mi perfil» */}
           <Link href="/perfil" prefetch={precargadas.has("/perfil")} onMouseEnter={() => precargar("/perfil")} onClick={() => setAbierto(false)} className={`-m-1 flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 hover:bg-panel-2 ${ruta === "/perfil" ? "bg-panel-2" : ""}`} title="Mi perfil" aria-label="Mi perfil">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primario-suave text-xs font-semibold text-primario">
-              {iniciales(perfil.nombre)}
-            </div>
+            <Avatar nombre={perfil.nombre} foto={perfil.foto} tamano="h-9 w-9 text-xs" />
             <div className="min-w-0 flex-1 leading-tight">
               <div className="truncate text-sm font-medium">{perfil.nombre}</div>
               <div className="text-[11px] text-texto-3">{ETIQUETA_ROL[perfil.rol]} · Mi perfil</div>
