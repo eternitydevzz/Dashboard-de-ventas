@@ -24,6 +24,7 @@ import { canalesDe } from "@/lib/canales-datos";
 import { mercadosDelProyecto, miMoneda } from "@/lib/mercado-datos";
 import { entraEnMercado, mercadoValido, type Mercado } from "@/lib/mercado";
 import { EtiquetaMercado, FiltroMercado } from "@/components/mercado-equipo";
+import { nombreZona, zonaPersona } from "@/lib/zona-persona";
 
 const TABS = [
   { v: "agendas", t: "Agendas" },
@@ -62,7 +63,11 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const tabsVisibles = TABS.filter((t) => (!("soloJefe" in t) || jefe) && (!mirar || ["agendas", "precall", "postcall"].includes(t.v)));
   const tab = (tabsVisibles.some((t) => t.v === str("tab")) ? str("tab") : "agendas") as (typeof TABS)[number]["v"];
   const q = str("q");
-  const zona = proyecto.zona_horaria;
+  const zona = proyecto.zona_horaria; // periodos y contadores
+  // N2: las horas (y el día de cada cita en el calendario) se ven en la zona de quien mira
+  const zonaVer = zonaPersona(perfil, proyecto);
+  const verHora = { zona_horaria: zonaVer };
+  const horaDe = zonaVer !== zona ? nombreZona(zonaVer) : undefined;
   const ahora = ahoraMs();
 
   const [gente, mercados] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), jefe ? mercadosDelProyecto(proyecto.id) : ({} as Record<string, Mercado>)]);
@@ -97,7 +102,9 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   // Tablero «Closers» (Pre-call o Post-call): las columnas de esa parte, con las citas que pasan el buscador
   const tablero = (lista: typeof etapasCl) => {
     const { columnas } = columnasCloser(lista, citas, ventas, { proyecto, jefe, nombrePersona, canales });
-    return <TableroClosers columnas={columnas} productos={prods} moneda={monedaVenta} jefe={jefe} soloMirar={mirar} />;
+    const fechaDe = new Map(citas.map((c) => [c.id, c.fecha]));
+    const enSuHora = horaDe ? columnas.map((col) => ({ ...col, citas: col.citas.map((x) => ({ ...x, fechaTxt: fechaHora(fechaDe.get(x.id)!, verHora) })) })) : columnas;
+    return <TableroClosers columnas={enSuHora} productos={prods} moneda={monedaVenta} jefe={jefe} soloMirar={mirar} horaDe={horaDe} />;
   };
 
   // Contadores de arriba (este mes)
@@ -117,13 +124,13 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     <>
       <Cabecera
         titulo="Agendas"
-        subtitulo={`${proyecto.nombre} · ${jefe ? (str("closer") ? nombrePersona(str("closer")) : "todos los closers") : mirar ? `citas que agendó ${perfil.nombre} (solo mirar)` : perfil.nombre}`}
+        subtitulo={`${proyecto.nombre} · ${jefe ? (str("closer") ? nombrePersona(str("closer")) : "todos los closers") : mirar ? `citas que agendó ${perfil.nombre} (solo mirar)` : perfil.nombre}${horaDe ? ` · horas de ${horaDe}` : ""}`}
         acciones={
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span><b className="text-aviso">{contadores.pendientes}</b> pendientes</span>
             <span><b className="text-ok">{contadores.cerradas}</b> cerradas</span>
             <span><b className="text-mal">{contadores.perdidas}</b> perdidas <span className="text-xs text-texto-3">(este mes)</span></span>
-            {!mirar && <SincronizarGhl conectado={ghlConectado} ultima={pg?.ghl_sincronizado_en ? fechaHora(pg.ghl_sincronizado_en, proyecto) : null} haceSegundos={pg?.ghl_sincronizado_en ? Math.max(0, Math.round((ahora - new Date(pg.ghl_sincronizado_en).getTime()) / 1000)) : null} />}
+            {!mirar && <SincronizarGhl conectado={ghlConectado} ultima={pg?.ghl_sincronizado_en ? fechaHora(pg.ghl_sincronizado_en, verHora) : null} haceSegundos={pg?.ghl_sincronizado_en ? Math.max(0, Math.round((ahora - new Date(pg.ghl_sincronizado_en).getTime()) / 1000)) : null} />}
           </div>
         }
       />
@@ -190,12 +197,12 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     const vista = ["mes", "semana", "dia", "lista"].includes(str("vista")) ? str("vista") : "mes";
     const estado = str("estado");
     const filtradas = citas.filter((c) => !estado || (estado === "abiertas" ? (ABIERTAS as readonly string[]).includes(c.estado) : c.estado === estado));
-    const hoy = hoyEnZona(zona);
+    const hoy = hoyEnZona(zonaVer);
     const dia = /^\d{4}-\d{2}-\d{2}$/.test(str("d")) ? str("d") : hoy;
     const ym = /^\d{4}-\d{2}$/.test(str("m")) ? str("m") : dia.slice(0, 7);
     const porDia = new Map<string, CitaFila[]>();
     for (const c of filtradas) {
-      const d = diaEnZona(c.fecha, zona);
+      const d = diaEnZona(c.fecha, zonaVer);
       porDia.set(d, [...(porDia.get(d) ?? []), c]);
     }
     const vistas = [
@@ -227,7 +234,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
         {vista === "mes" && (
           <div className="p-3">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{MESES[Number(ym.slice(5)) - 1].replace(/^./, (x) => x.toUpperCase())} de {ym.slice(0, 4)} <span className="ml-2 rounded-full bg-oro-suave px-2 py-0.5 text-xs font-medium text-oro">{(() => { const n = filtradas.filter((c) => diaEnZona(c.fecha, zona).startsWith(ym)).length; return `${n} ${n === 1 ? "llamada" : "llamadas"}`; })()}</span></h2>
+              <h2 className="text-lg font-semibold">{MESES[Number(ym.slice(5)) - 1].replace(/^./, (x) => x.toUpperCase())} de {ym.slice(0, 4)} <span className="ml-2 rounded-full bg-oro-suave px-2 py-0.5 text-xs font-medium text-oro">{(() => { const n = filtradas.filter((c) => diaEnZona(c.fecha, zonaVer).startsWith(ym)).length; return `${n} ${n === 1 ? "llamada" : "llamadas"}`; })()}</span></h2>
               <div className="flex gap-1">
                 <Link href={baseQs({ m: sumarMes(ym, -1) })} className="btn-secundario p-2" aria-label="Mes anterior"><ChevronLeft className="h-4 w-4" /></Link>
                 <Link href={baseQs({ m: sumarMes(ym, 1) })} className="btn-secundario p-2" aria-label="Mes siguiente"><ChevronRight className="h-4 w-4" /></Link>
@@ -273,7 +280,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
                   <ul className="mt-1 space-y-1">
                     {(porDia.get(d) ?? []).map((c) => (
                       <li key={c.id} className={`rounded-md px-2 py-1 text-xs ${porRecuperar(c) ? "bg-mal-suave" : "bg-panel"}`}>
-                        <div className="font-medium">{new Intl.DateTimeFormat("es-ES", { timeZone: zona, hour: "2-digit", minute: "2-digit" }).format(new Date(c.fecha))}</div>
+                        <div className="font-medium">{new Intl.DateTimeFormat("es-ES", { timeZone: zonaVer, hour: "2-digit", minute: "2-digit" }).format(new Date(c.fecha))}</div>
                         <a href={`/leads/${c.lead_id}`} className="block truncate hover:text-primario">{nombreDe(c.leads)}</a>
                         <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
                       </li>
@@ -395,7 +402,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
         {filas.map((c) => (
           <li key={c.id} className={`flex flex-wrap items-center gap-4 px-4 py-3 ${porRecuperar(c) ? "bg-mal-suave" : ""}`}>
             <div className="w-36 shrink-0">
-              <div className="text-sm font-semibold">{fechaHora(c.fecha, proyecto)}</div>
+              <div className="text-sm font-semibold">{fechaHora(c.fecha, verHora)}</div>
               <div className="flex flex-wrap items-center gap-1 text-xs text-texto-3">{c.origen === "ghl" ? origenCitaGhl(c, canales) : `Agendó ${nombrePersona(c.agendada_por)}`}{jefe && c.origen !== "ghl" && c.agendada_por && <EtiquetaMercado m={mercados[c.agendada_por]} />}</div>
             </div>
             <div className="min-w-48 flex-1">
@@ -411,7 +418,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
               {jefe && c.closer_id && <EtiquetaMercado m={mercados[c.closer_id]} />}
               <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
             </div>
-            {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={monedaVenta} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} />}
+            {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={monedaVenta} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} horaDe={horaDe} />}
           </li>
         ))}
       </ul>

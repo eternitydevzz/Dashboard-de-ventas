@@ -5,7 +5,7 @@ import { getSesion, puedeAdmin } from "@/lib/auth";
 import { db } from "@/lib/datos";
 import { puedeSeccion } from "@/lib/permisos";
 import { cargarEquipo } from "@/lib/equipo";
-import { Cabecera, Contenido, Seccion, Insignia } from "@/components/ui";
+import { Avatar, Cabecera, Contenido, Seccion, Insignia } from "@/components/ui";
 import { AltaMiembro } from "./alta";
 import { ComisionRolForm, EditorAreas } from "./cliente";
 import { FichaPersona } from "./ficha";
@@ -45,7 +45,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
   };
   const tarjeta = (m: (typeof miembros)[number]) => (
     <li key={m.id} className="flex items-center gap-3 rounded-lg border border-borde bg-panel px-3 py-2">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel-2 text-sm font-semibold">{primeraLetra(m.nombre).toUpperCase()}</span>
+      {m.foto ? <Avatar nombre={m.nombre} foto={m.foto} tamano="h-9 w-9" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel-2 text-sm font-semibold">{primeraLetra(m.nombre).toUpperCase()}</span>}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
           {m.nombre}
@@ -73,7 +73,7 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
   // Fase 5: organigrama en árbol (CEO → directores → closers y callers). Pulsar el nombre abre su ficha.
   const nodo = (m: (typeof miembros)[number]) => (
     <div key={m.id} className="vidrio flex min-w-0 items-center gap-2.5 rounded-xl border border-borde px-3 py-2 shadow-sm">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primario-suave text-sm font-semibold text-primario">{primeraLetra(m.nombre).toUpperCase()}</span>
+      {m.foto ? <Avatar nombre={m.nombre} foto={m.foto} tamano="h-9 w-9" /> : <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primario-suave text-sm font-semibold text-primario">{primeraLetra(m.nombre).toUpperCase()}</span>}
       <div className="min-w-0">
         <div className="flex items-center gap-1 text-sm">
           <FichaPersona

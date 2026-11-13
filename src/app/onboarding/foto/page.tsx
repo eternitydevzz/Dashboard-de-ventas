@@ -7,7 +7,7 @@ import { FormMiFoto } from "@/app/(panel)/perfil/cliente";
 export default async function FotoPage() {
   const { perfil } = await getSesion();
   if (!perfil.onboarding_completo) redirect("/onboarding");
-  const foto = (perfil as { foto?: string | null }).foto;
+  const foto = perfil.foto;
   if (foto !== null) redirect("/"); // ya tiene (o la base aún no tiene la columna)
   return (
     <main className="flex min-h-screen items-center justify-center p-4">

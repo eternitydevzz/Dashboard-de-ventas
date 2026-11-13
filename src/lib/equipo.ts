@@ -18,6 +18,7 @@ export type MiembroEquipo = {
   comision_modo?: "tramos" | "propio" | null; // 1.0 bloque 4: null = lo de su rol
   rol: Rol | null; // el de su cuenta, si tiene acceso
   tambien_closer?: boolean; // «También closer» (p. ej. Facu): sale también entre los closers del organigrama
+  foto?: string | null; // N3: la de su cuenta (null = sin foto o sin cuenta)
 };
 
 const AREAS_INICIALES = [
@@ -55,14 +56,14 @@ export async function cargarEquipo(proyectoId: string) {
   const [{ data: areas }, { data: puestos }, { data: miembros }, { data: roles }] = await Promise.all([
     db().from("areas").select("id, nombre, color, orden").eq("proyecto_id", proyectoId).order("orden"),
     db().from("puestos").select("id, area_id, nombre, rol_base").eq("proyecto_id", proyectoId).order("nombre"),
-    db().from("miembros_equipo").select("*, perfiles(rol, es_prueba, tambien_closer)").eq("proyecto_id", proyectoId).order("nombre"),
+    db().from("miembros_equipo").select("*, perfiles(rol, es_prueba, tambien_closer, foto)").eq("proyecto_id", proyectoId).order("nombre"),
     db().from("comisiones_rol").select("rol, pct_venta, pct_agenda").eq("proyecto_id", proyectoId),
   ]);
   const comisionesRol = Object.fromEntries((roles ?? []).map((r) => [r.rol, { pct_venta: Number(r.pct_venta), pct_agenda: Number(r.pct_agenda) }])) as Record<Rol, ComisionRol>;
   return {
     areas: (areas ?? []) as Area[],
     puestos: (puestos ?? []) as Puesto[],
-    miembros: ((miembros ?? []) as (MiembroEquipo & { perfiles: { rol: Rol; es_prueba: boolean; tambien_closer: boolean | null } | null })[]).filter((m) => !m.perfiles?.es_prueba).map(({ perfiles, ...m }) => ({ ...m, rol: perfiles?.rol ?? null, tambien_closer: !!perfiles?.tambien_closer })) as MiembroEquipo[],
+    miembros: ((miembros ?? []) as (MiembroEquipo & { perfiles: { rol: Rol; es_prueba: boolean; tambien_closer: boolean | null; foto?: string | null } | null })[]).filter((m) => !m.perfiles?.es_prueba).map(({ perfiles, ...m }) => ({ ...m, rol: perfiles?.rol ?? null, tambien_closer: !!perfiles?.tambien_closer, foto: perfiles?.foto ?? null })) as MiembroEquipo[],
     comisionesRol,
   };
 }

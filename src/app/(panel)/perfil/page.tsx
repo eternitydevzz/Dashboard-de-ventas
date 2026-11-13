@@ -17,7 +17,7 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
   const conHorario = perfil.rol === "caller" || perfil.rol === "closer";
   const { data: miembro } = conHorario ? await db().from("miembros_proyecto").select("horario, calendario").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).maybeSingle() : { data: null };
   const mercado = await leerMercado(proyecto.id, perfil.id); // undefined = no es miembro o falta la migración
-  const { foto, zona_horaria: zona } = perfil as { foto?: string | null; zona_horaria?: string | null }; // N3 y N2 (aún no en el tipo Perfil)
+  const { foto, zona_horaria: zona } = perfil; // N3 y N2
   const ajustes = esCloser(perfil) ? ajustesDe(proyecto.calendario, miembro?.calendario) : null;
   return (
     <>
@@ -50,7 +50,7 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
         )}
         {conHorario && (
           <Seccion titulo={perfil.rol === "closer" ? `Mi horario para recibir llamadas · ${proyecto.nombre}` : `Mi horario de trabajo · ${proyecto.nombre}`}>
-            <EditorHorario inicial={horarioValido(miembro?.horario)} zona={proyecto.zona_horaria} perfilId={perfil.id} plantillas />
+            <EditorHorario inicial={horarioValido(miembro?.horario)} zona={proyecto.zona_horaria} zonaVer={zonaValida(perfil.zona_horaria) ?? undefined} perfilId={perfil.id} plantillas />
           </Seccion>
         )}
         {ajustes && (

@@ -17,6 +17,7 @@ export function AccionesCita({
   productos,
   moneda,
   ceo,
+  horaDe,
 }: {
   cita: { id: string; estado: EstadoCita; lead_id: string; closer_id?: string | null };
   pasada: boolean;
@@ -24,6 +25,7 @@ export function AccionesCita({
   moneda: string;
   // Solo el CEO: cambiar el closer o borrar la cita (también en GHL)
   ceo?: { closers: { id: string; nombre: string }[] };
+  horaDe?: string; // N2: «España» si quien mira ve las horas en otra zona que la del proyecto
 }) {
   const { pendiente, error, ok, ejecutar } = useAccion();
   const [modal, setModal] = useState<null | "venta" | "reagendar" | "seguimiento" | "perdida" | "closer">(null);
@@ -121,7 +123,7 @@ export function AccionesCita({
               setModal(null);
             }}
           >
-            <label className="block"><span className="etiqueta-campo">Nueva fecha y hora</span><input type="datetime-local" name="fecha" required className="campo" /></label>
+            <label className="block"><span className="etiqueta-campo">Nueva fecha y hora{horaDe ? ` (hora de ${horaDe})` : ""}</span><input type="datetime-local" name="fecha" required className="campo" /></label>
             <button className="btn-primario w-full">Reagendar</button>
           </form>
         </Modal>

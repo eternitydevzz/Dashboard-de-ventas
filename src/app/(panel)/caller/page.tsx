@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { zonaPersona } from "@/lib/zona-persona";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
 import { mercadosDelProyecto, miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
 import { entraEnMercado, mercadoValido, type Mercado } from "@/lib/mercado";
@@ -108,7 +109,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
               <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
                 {callers.map((c) => (
                   <Link prefetch={false} key={c.id} href={`/caller?caller=${c.id}${filtroM ? `&mercado=${filtroM}` : ""}`} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
-                    <Avatar nombre={c.nombre} tamano="h-6 w-6 text-[9px]" />{cortos.get(c.id)}<EtiquetaMercado m={mercados[c.id]} />
+                    <Avatar nombre={c.nombre} foto={c.foto} tamano="h-6 w-6 text-[9px]" />{cortos.get(c.id)}<EtiquetaMercado m={mercados[c.id]} />
                   </Link>
                 ))}
               </div>
@@ -146,7 +147,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           callerId={jefe ? caller.id : null}
           pestana={filtro}
           orden={orden}
-          zona={proyecto.zona_horaria}
+          zona={zonaPersona(perfil, proyecto)}
           conIA={!!pesos}
           closers={closers}
           productos={(productos ?? []) as Producto[]}

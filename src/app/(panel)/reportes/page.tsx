@@ -22,7 +22,8 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
   const reportes = (data ?? []) as Reporte[];
   // Los nombres, también de los perfiles de prueba y de quien ya no está en el proyecto (salía «—», 11 oct 2026)
   const conNombre = await conBajas(await equipo(proyecto.id, true), reportes.map((r) => r.perfil_id));
-  const nombre = (id: string) => (id === perfil.id ? perfil.nombre : conNombre.find((g) => g.id === id)?.nombre) ?? "—";
+  const quien = (id: string) => (id === perfil.id ? perfil : conNombre.find((g) => g.id === id));
+  const nombre = (id: string) => quien(id)?.nombre ?? "—";
 
   // Datos del sistema de hoy, para pre-rellenar el reporte
   const rol = rolDeReporte(perfil.rol);
@@ -85,7 +86,7 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
               return (
                 <Seccion key={r.id}>
                   <div className="mb-3 flex items-center gap-3">
-                    <Avatar nombre={nombre(r.perfil_id)} />
+                    <Avatar nombre={nombre(r.perfil_id)} foto={quien(r.perfil_id)?.foto} />
                     <div className="flex-1">
                       <div className="font-medium">{nombre(r.perfil_id)}</div>
                       <div className="text-xs text-texto-3">{ETIQUETA_ROL[r.rol]} · {fmtFecha(`${r.fecha}T12:00:00Z`, proyecto)}</div>

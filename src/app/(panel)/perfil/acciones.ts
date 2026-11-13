@@ -86,7 +86,7 @@ export async function guardarMiFoto(datos: FormData) {
       throw new ErrorUsuario(/foto/.test(errGuardar.message) ? "Falta aplicar la migración de la base (fotos)." : errGuardar.message);
     }
     // La anterior ya no la usa nadie; si no se borra, solo ocupa sitio
-    const anterior = (perfil as { foto?: string | null }).foto;
+    const anterior = perfil.foto;
     if (anterior) await fotos.remove([anterior]).catch((e) => console.error("[foto] no se pudo borrar la anterior:", e));
     refrescar();
   });

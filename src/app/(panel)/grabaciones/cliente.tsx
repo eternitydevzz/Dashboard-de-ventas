@@ -3,13 +3,15 @@
 import { iniciales as inicialesDe } from "@/lib/formato";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition, type ChangeEvent } from "react";
-import { ArrowRight, Check, Download, Pause, Play, Search, Upload } from "lucide-react";
+import { ArrowRight, Check, Download, Pause, Play, Search, Upload, X } from "lucide-react";
 import { useToast } from "@/components/toasts";
+import { useAccion } from "@/components/acciones-lead";
+import { confirmar } from "@/components/dialogos";
 import { PopupLead } from "@/components/popup-lead";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { duracionTexto } from "@/lib/grabaciones";
 import type { Proyecto } from "@/lib/tipos";
-import { guardarTranscripcion } from "./acciones";
+import { borrarGrabacion, guardarTranscripcion } from "./acciones";
 
 export type GrabacionFila = { id: string; leadId: string | null; lead: string; callerId: string; caller: string; duracion: number; transcripcion: string | null; creado_en: string };
 
@@ -148,6 +150,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
                     <div className="flex items-center gap-2">
                       {f.transcripcion ? <span className="chip hidden bg-ok-suave text-ok-texto sm:inline-flex"><Check className="h-3 w-3" /> Transcrita</span> : <span className="chip hidden bg-aviso-suave text-aviso-texto sm:inline-flex">Pendiente</span>}
                       <a href={`/api/grabaciones/${f.id}?descargar=1`} onClick={(e) => e.stopPropagation()} aria-label={`Descargar ${f.lead}`} title="Descargar" className="grid h-8 w-8 place-items-center rounded-lg border border-borde bg-panel text-texto-2 hover:text-texto"><Download className="h-4 w-4" /></a>
+                      {jefe && <BorrarGrabacion id={f.id} lead={f.lead} />}
                     </div>
                   </li>,
                 ];
@@ -206,6 +209,21 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
       </div>
       {popup?.leadId && <PopupLead leadId={popup.leadId} nombre={popup.lead} onCerrar={() => setPopup(null)} />}
     </div>
+  );
+}
+
+// N9 (Cristian, 13 nov): la «×» de cada grabación. Pregunta 2 veces, como BorrarWorkflow (admin/entradas-workflow.tsx)
+function BorrarGrabacion({ id, lead }: { id: string; lead: string }) {
+  const { pendiente, ejecutar } = useAccion();
+  const borrar = async () => {
+    if (!(await confirmar(`¿Borrar la grabación de «${lead}»? Se quita el audio y su transcripción.`, { boton: "Sí, borrar" }))) return;
+    if (!(await confirmar(`¿Borrar para siempre? No se puede deshacer: el audio de «${lead}» se borra.`, { boton: "Borrar para siempre" }))) return;
+    ejecutar(() => borrarGrabacion(id), "Grabación borrada");
+  };
+  return (
+    <button type="button" onClick={(e) => (e.stopPropagation(), void borrar())} disabled={pendiente} aria-label={`Borrar ${lead}`} title="Borrar la grabación" className="grid h-8 w-8 place-items-center rounded-lg border border-borde bg-panel text-texto-2 hover:text-mal">
+      <X className="h-4 w-4" />
+    </button>
   );
 }
 

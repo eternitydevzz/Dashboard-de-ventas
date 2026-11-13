@@ -11,6 +11,7 @@ import { horarioValido } from "@/lib/horarios";
 import { huecosLibres } from "@/lib/huecos";
 import { closerDeLaRotacion } from "@/lib/rotacion";
 import { miMercado } from "@/lib/mercado-datos";
+import { huecosEnZona, zonaPersona } from "@/lib/zona-persona";
 
 // Al elegir la hora en una ventana de agendar a mano: si el closer elegido está libre (si no, se avisa y se puede
 // agendar igual). La rotación de closers se quitó el 11 oct (4.4): el closer de las citas por link lo pone GHL.
@@ -52,6 +53,8 @@ export async function huecosAgendaRotacion(leadId?: string) {
     if (error) throw new Error(`No se pudieron leer las citas: ${error.message}`);
     const horario = horarioValido(m?.horario);
     const dias = huecosLibres({ horario, ajustes: ajustesDe(proyecto.calendario, m?.calendario), citas: (citas ?? []).map((c) => c.fecha as string), ahora, zona: proyecto.zona_horaria, dias: 21 });
-    return { closer: (m?.perfiles as unknown as { nombre: string } | null)?.nombre ?? "El closer", sinHorario: !horario, dias, zona: proyecto.zona_horaria };
+    // N2: se ven en la zona de quien agenda; el valor que se envía sigue en hora del proyecto
+    const zona = zonaPersona(perfil, proyecto);
+    return { closer: (m?.perfiles as unknown as { nombre: string } | null)?.nombre ?? "El closer", sinHorario: !horario, dias: huecosEnZona(dias, proyecto.zona_horaria, zona), zona };
   });
 }

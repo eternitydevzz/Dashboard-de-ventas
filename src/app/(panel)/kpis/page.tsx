@@ -198,6 +198,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const tarjetasCallers: PersonaKpi[] = kpis.callers.map((c) => ({
       id: c.perfil.id,
       nombre: c.perfil.nombre,
+      foto: c.perfil.foto,
       rol: "Caller",
       mercado: mercadoDe(mercados[c.perfil.id]),
       grandes: [
@@ -229,6 +230,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const tarjetasClosers: PersonaKpi[] = kpis.closers.map((c) => ({
       id: c.perfil.id,
       nombre: c.perfil.nombre,
+      foto: c.perfil.foto,
       rol: "Closer",
       mercado: mercadoDe(mercados[c.perfil.id]),
       grandes: [
@@ -415,6 +417,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
                       key={p.id}
                       id={p.id}
                       nombre={p.nombre}
+                      foto={p.foto}
                       rol={`${ETIQUETA_ROL[p.rol]}${p.rol === "director" ? " (equipo entero)" : ""}`}
                       medio={medio}
                       cumplidos={suyos.filter((a) => a.hecho >= a.meta).length}

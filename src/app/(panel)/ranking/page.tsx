@@ -44,7 +44,7 @@ export default async function RankingPage({ searchParams }: PageProps<"/ranking"
                 {rCallers.map((c, i) => (
                   <li key={c.perfil.id} className={`flex items-center gap-3 rounded-lg border p-3 ${c.perfil.id === perfil.id ? "border-primario bg-primario-suave/40" : "border-borde bg-panel-2"}`}>
                     <Puesto i={i} />
-                    <Avatar nombre={c.perfil.nombre} />
+                    <Avatar nombre={c.perfil.nombre} foto={c.perfil.foto} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-1.5 font-medium">{c.perfil.nombre}{c.perfil.id === perfil.id && <span className="text-primario"> (tú)</span>}<EtiquetaMercado m={mercados[c.perfil.id]} /></span>
@@ -64,7 +64,7 @@ export default async function RankingPage({ searchParams }: PageProps<"/ranking"
                 {rClosers.map((c, i) => (
                   <li key={c.perfil.id} className={`flex items-center gap-3 rounded-lg border p-3 ${c.perfil.id === perfil.id ? "border-primario bg-primario-suave/40" : "border-borde bg-panel-2"}`}>
                     <Puesto i={i} />
-                    <Avatar nombre={c.perfil.nombre} />
+                    <Avatar nombre={c.perfil.nombre} foto={c.perfil.foto} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center gap-1.5 font-medium">{c.perfil.nombre}{c.perfil.id === perfil.id && <span className="text-primario"> (tú)</span>}<EtiquetaMercado m={mercados[c.perfil.id]} /></span>

@@ -11,7 +11,7 @@ import type { Mercado } from "@/lib/mercado";
 // KPIs en tarjetas (Fase 5, estilo glass): una por persona con sus números clave y sus tasas en barras.
 // Al pulsarla, una ventana con todo el detalle de esa sección y el botón para ir a su ficha (Equipo).
 export type CifraKpi = { t: string; v: string; d?: string; tasa?: number | null };
-export type PersonaKpi = { id: string; nombre: string; rol: string; mercado?: Mercado; grandes: CifraKpi[]; tasas: CifraKpi[]; detalle: CifraKpi[] };
+export type PersonaKpi = { id: string; nombre: string; foto?: string | null; rol: string; mercado?: Mercado; grandes: CifraKpi[]; tasas: CifraKpi[]; detalle: CifraKpi[] };
 
 export function TarjetasKpis({ personas, vacio, conFicha }: { personas: PersonaKpi[]; vacio: string; conFicha: boolean }) {
   const [abierta, setAbierta] = useState<PersonaKpi | null>(null);
@@ -26,7 +26,7 @@ export function TarjetasKpis({ personas, vacio, conFicha }: { personas: PersonaK
             className="vidrio group rounded-2xl border border-borde p-4 text-left transition hover:-translate-y-0.5 hover:border-primario/60 hover:shadow-md"
           >
             <div className="flex items-center gap-2.5">
-              <Avatar nombre={p.nombre} tamano="h-9 w-9 text-xs" />
+              <Avatar nombre={p.nombre} foto={p.foto} tamano="h-9 w-9 text-xs" />
               <div className="min-w-0">
                 <div className="truncate font-semibold">{p.nombre}</div>
                 <div className="flex items-center gap-1.5 text-xs text-texto-3">{p.rol}{p.mercado && <EtiquetaMercado m={p.mercado} />}</div>
