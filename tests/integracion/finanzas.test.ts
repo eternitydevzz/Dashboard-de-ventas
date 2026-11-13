@@ -160,5 +160,20 @@ describe("Finanzas", () => {
     await ok(desmarcarLiquidacion(l.id));
     expect((await liq(e.p.closerA.id))!.estado).toBe("pendiente");
     expect((await db.from("movimientos").select("id").eq("id", gasto.id)).data).toHaveLength(0);
+    // Ola 6: desmarcar otra vez (doble clic) avisa y no toca nada
+    await falla(desmarcarLiquidacion(l.id), /Ya no está pagada/);
+  });
+
+  it("Ola 6 (C2): recalcular no pisa una pagada aunque no esté en la lista de «ya pagadas» (pagada mientras se calcula)", async () => {
+    como(e, e.p.ceo);
+    const mes = hoyEnZona(e.proyecto.zona_horaria).slice(0, 7);
+    await ok(calcularLiquidaciones(mes));
+    const { data: l } = await db.from("liquidaciones").select("id").eq("proyecto_id", e.proyecto.id).eq("mes", mes).eq("perfil_id", e.p.closerB.id).single();
+    await ok(pagarLiquidacion(l!.id, null));
+    // Simula la carrera: la lectura de pagadas ya pasó; se llama al guardado como lo hace calcularLiquidaciones
+    await db.from("liquidaciones").upsert([{ proyecto_id: e.proyecto.id, perfil_id: e.p.closerB.id, mes, comision_cobrado: 1, estado: "pendiente" }], { onConflict: "proyecto_id,perfil_id,mes", ignoreDuplicates: true });
+    await db.from("liquidaciones").update({ comision_cobrado: 1, estado: "pendiente" }).eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.closerB.id).eq("mes", mes).eq("estado", "pendiente");
+    const { data: sigue } = await db.from("liquidaciones").select("estado, comision_cobrado").eq("id", l!.id).single();
+    expect(sigue).toMatchObject({ estado: "pagada", comision_cobrado: 49.7 });
   });
 });

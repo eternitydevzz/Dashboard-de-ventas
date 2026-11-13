@@ -73,7 +73,7 @@ export async function guardarCuenta(id: string | null, nombre: string, metodos: 
     if (id) {
       await delProyecto("cuentas", id, proyecto.id);
       await escribir(db().from("cuentas").update({ nombre: nombre.trim(), metodos: ms }).eq("id", id), "cuentas");
-    } else await db().from("cuentas").insert({ proyecto_id: proyecto.id, nombre: nombre.trim(), metodos: ms });
+    } else await escribir(db().from("cuentas").insert({ proyecto_id: proyecto.id, nombre: nombre.trim(), metodos: ms }), "cuentas");
     refrescar();
   });
 }
@@ -255,12 +255,19 @@ export async function calcularLiquidaciones(mes: string) {
     const productos = new Map(f.productos.map((p) => [p.id, (p.comisiones ?? null) as ComisionProducto]));
     const sinComision = new Set(f.productos.filter((p) => p.cuenta_comision === false).map((p) => p.id));
     const res = liquidacionesMes({ ventas: f.ventas, pagos: f.pagos, citas, personas, comisionesRol: eq.comisionesRol, productos, mes: rango, tramos: tramosDe(proyecto.tramos_comision), sinComision, zona: proyecto.zona_horaria });
-    const { data: yaPagadas } = await db().from("liquidaciones").select("perfil_id").eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pagada");
+    // Ola 6 (C2): si no se pueden leer las pagadas, se corta; si no, se recalcularían como pendientes (pago doble)
+    const { data: yaPagadas, error } = await db().from("liquidaciones").select("perfil_id").eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pagada");
+    if (error) throw new Error(error.message);
     const pagadas = new Set((yaPagadas ?? []).map((x) => x.perfil_id));
     const filas = res.filter((r) => !pagadas.has(r.perfil_id)).map((r) => ({ proyecto_id: proyecto.id, mes, ...r, estado: "pendiente", calculada_en: new Date().toISOString() }));
     // C9: primero se guardan las nuevas (encima de las pendientes, misma persona y mes) y después se borran las
     // pendientes de quien ya no sale; antes se borraban primero y, si fallaba guardar, el mes se quedaba sin ninguna
-    if (filas.length) await escribir(db().from("liquidaciones").upsert(filas, { onConflict: "proyecto_id,perfil_id,mes" }), "liquidaciones");
+    // Ola 6 (C2): sin pisar una pagada aunque la paguen mientras se calcula: se crean las que faltan (sin tocar las
+    // que ya hay) y se rehacen solo las que siguen «pendiente»
+    if (filas.length) {
+      await escribir(db().from("liquidaciones").upsert(filas, { onConflict: "proyecto_id,perfil_id,mes", ignoreDuplicates: true }), "liquidaciones");
+      await Promise.all(filas.map((f) => escribir(db().from("liquidaciones").update(f).eq("proyecto_id", f.proyecto_id).eq("perfil_id", f.perfil_id).eq("mes", mes).eq("estado", "pendiente"), "liquidaciones")));
+    }
     let sobran = db().from("liquidaciones").delete().eq("proyecto_id", proyecto.id).eq("mes", mes).eq("estado", "pendiente");
     if (filas.length) sobran = sobran.not("perfil_id", "in", `(${filas.map((f) => f.perfil_id).join(",")})`);
     await escribir(sobran, "liquidaciones");
@@ -293,10 +300,12 @@ export async function desmarcarLiquidacion(id: string) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigirSeccion("finanzas");
     await delProyecto("liquidaciones", id, proyecto.id);
-    const { data: l } = await db().from("liquidaciones").select("movimiento_id, perfil_id").eq("id", id).single();
-    exigirNoEsPropia(perfil, l?.perfil_id ?? null, "desmarcar");
-    await escribir(db().from("liquidaciones").update({ estado: "pendiente", pagada_en: null, movimiento_id: null }).eq("id", id), "liquidaciones");
-    if (l?.movimiento_id) await db().from("movimientos").delete().eq("id", l.movimiento_id);
+    const { data: l, error } = await db().from("liquidaciones").select("movimiento_id, perfil_id").eq("id", id).single();
+    if (error) throw new Error(error.message);
+    exigirNoEsPropia(perfil, l.perfil_id, "desmarcar");
+    // Ola 6: solo si sigue pagada (otro pudo desmarcarla a la vez); el gasto se borra después y sin callarse el fallo
+    await soloSiSigue(db().from("liquidaciones").update({ estado: "pendiente", pagada_en: null, movimiento_id: null }).eq("id", id).eq("estado", "pagada").select("id"), null, "Ya no está pagada.");
+    if (l.movimiento_id) await escribir(db().from("movimientos").delete().eq("id", l.movimiento_id), "movimientos");
     refrescar();
   });
 }
