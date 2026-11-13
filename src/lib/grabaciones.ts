@@ -20,6 +20,13 @@ export function duracionTexto(seg: number) {
   return h ? `${h}:${dos(Math.floor((s % 3600) / 60))}:${dos(s % 60)}` : `${dos(Math.floor(s / 60))}:${dos(s % 60)}`;
 }
 
+// Cristian (13 nov): al pulsar un resultado o «Siguiente» la grabación avisa y, si en 30 s no se pulsa
+// «Saltar aviso», se para sola (la app no ve cuándo se cuelga el móvil y seguía grabando la vida privada del caller).
+export const AVISO_FIN_SEG = 30;
+export function quedanAviso(fin: number, ahora: number) {
+  return Math.max(0, Math.ceil((fin - ahora) / 1000));
+}
+
 export function transcripcionValida(t: unknown) {
   const s = String(t ?? "").trim();
   if (!s) throw new ErrorUsuario("La transcripción está vacía.");

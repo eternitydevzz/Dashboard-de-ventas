@@ -1,6 +1,6 @@
 // C10 (plan Callers, 7 nov): grabar la llamada desde el guion y la sección «Grabaciones».
 import { describe, expect, it } from "vitest";
-import { duracionTexto, extDeTipo, tipoGrabacion, transcripcionValida } from "@/lib/grabaciones";
+import { AVISO_FIN_SEG, duracionTexto, extDeTipo, quedanAviso, tipoGrabacion, transcripcionValida } from "@/lib/grabaciones";
 import { rutaDeSubidaValida } from "@/lib/subidas";
 import { politicaCsp } from "@/lib/csp";
 import { DEFECTO } from "@/lib/permisos-constantes";
@@ -42,5 +42,16 @@ describe("C10 · seguridad y permisos", () => {
   });
   it("la sección la tienen por defecto callers, closers y directores (cada uno ve las suyas; los jefes, todas)", () => {
     for (const rol of ["director", "closer", "caller"] as const) expect(DEFECTO[rol].has("grabaciones")).toBe(true);
+  });
+});
+
+describe("Aviso de fin de grabación (13 nov)", () => {
+  it("cuenta atrás de 30 s, redondea hacia arriba y no baja de 0", () => {
+    const fin = 1_000_000 + AVISO_FIN_SEG * 1000;
+    expect(AVISO_FIN_SEG).toBe(30);
+    expect(quedanAviso(fin, 1_000_000)).toBe(30);
+    expect(quedanAviso(fin, fin - 1500)).toBe(2);
+    expect(quedanAviso(fin, fin)).toBe(0);
+    expect(quedanAviso(fin, fin + 5000)).toBe(0);
   });
 });

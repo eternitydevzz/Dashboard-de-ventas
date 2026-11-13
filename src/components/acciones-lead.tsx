@@ -148,6 +148,7 @@ export function AccionesLead({
   const abrirGuion = (b: boolean) => (controlado ? onGuionAbierto?.(b) : setModal(b ? "guion" : null));
 
   function resultado(clave: string, desdeMoverA = false) {
+    grabadora?.avisarFin(); // 13 nov: un resultado = fin de la llamada (la app no ve cuándo se cuelga el móvil)
     if (CON_VENTANA.includes(clave)) return setVentana(clave as DestinoConVentana);
     // «Link de agenda» (Cristian, 10 nov): copia el link de GHL y lo apunta (lead a «Link enviado», cuenta como llamada)
     if (clave === "link_enviado" && !desdeMoverA) {
@@ -176,7 +177,7 @@ export function AccionesLead({
             return { clave: k, texto: textoBoton(k), icono: <Icono className="h-4 w-4 shrink-0" style={{ color: colorEstado(k) }} /> };
           })}
           onResultado={resultado}
-          onSiguiente={onSiguiente}
+          onSiguiente={onSiguiente && (() => { grabadora?.avisarFin(); onSiguiente(); })}
           onCerrar={() => abrirGuion(false)}
         />
       )}
