@@ -6,7 +6,7 @@ import { exigirSeccion } from "@/lib/permisos";
 import { db, escribir } from "@/lib/datos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { borrarSubida, leerSubida, prepararSubida, rutaDeSubidaValida } from "@/lib/subidas";
-import { mercadosValidos, tituloManual } from "@/lib/manuales";
+import { mercadosValidos, ordenCompleto, tituloManual } from "@/lib/manuales";
 
 // C9 (plan Callers, 7 nov): los manuales los ve todo el mundo; los suben o cambian el CEO y los directores.
 async function exigirEditor() {
@@ -43,6 +43,18 @@ export async function guardarManual(formData: FormData) {
       const mercado = formData.get("mercado") === "es" ? "es" : "latam"; // 13 nov: subido mirando España, es de España
       await escribir(db().from("manuales").insert({ proyecto_id: proyecto.id, titulo, archivo_path: ruta, orden: count ?? 0, actualizado_por: perfil.id, actualizado_en: ahora, mercado, mercados: [mercado] }), "manuales");
     }
+    revalidatePath("/manuales");
+  });
+}
+
+// Cristian, 14 nov: orden nuevo al soltar un manual arrastrándolo (o «Mover antes/después»). Llegan los que se ven,
+// en su orden; solo cambia `orden` y solo en manuales del proyecto abierto.
+export async function ordenarManuales(ids: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigirEditor();
+    const { data } = await escribir(db().from("manuales").select("id").eq("proyecto_id", proyecto.id).order("orden"), "manuales");
+    const orden = ordenCompleto((data ?? []).map((m) => m.id), Array.isArray(ids) ? ids.map(String) : []);
+    await Promise.all(orden.map((id, k) => escribir(db().from("manuales").update({ orden: k }).eq("id", id).eq("proyecto_id", proyecto.id), "manuales")));
     revalidatePath("/manuales");
   });
 }

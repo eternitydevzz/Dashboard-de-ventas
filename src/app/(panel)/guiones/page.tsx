@@ -12,6 +12,8 @@ import type { RolGuion } from "@/lib/guiones";
 import { EditorGuion } from "./editor";
 import { mercadoValido } from "@/lib/mercado";
 import { SelectorMercado } from "@/components/selector-mercado";
+import { puedeSeccion } from "@/lib/permisos";
+import { PestanasManuales } from "../manuales/pestanas";
 
 // Fase 6 · Guiones de llamada (Cristian, 12 oct 2026): el CEO y los directores editan el guion del caller y el del
 // closer y revisan lo que marcó cada uno en sus llamadas.
@@ -24,7 +26,7 @@ export default async function GuionesPage({ searchParams }: PageProps<"/guiones"
   const sp = await searchParams;
   const rol: RolGuion = sp.rol === "closer" ? "closer" : "caller";
   const mercado = mercadoValido(sp.mercado) ?? "latam"; // 13 nov: el guion de Latam o el de España
-  const [{ guion, deEjemplo, propio }, marcas, gente] = await Promise.all([cargarGuion(proyecto.id, rol, mercado), ultimasMarcas(proyecto.id), equipo(proyecto.id)]);
+  const [{ guion, deEjemplo, propio }, marcas, gente, conManuales] = await Promise.all([cargarGuion(proyecto.id, rol, mercado), ultimasMarcas(proyecto.id), equipo(proyecto.id), puedeSeccion(perfil, proyecto.id, "manuales")]);
   const persona = typeof sp.persona === "string" ? sp.persona : "";
   const filas = marcas.filas.filter((m) => !persona || m.perfil_id === persona);
   const nombre = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
@@ -36,6 +38,7 @@ export default async function GuionesPage({ searchParams }: PageProps<"/guiones"
     <>
       <Cabecera titulo="Guiones" subtitulo={`${proyecto.nombre} · lo que sale al pulsar «Llamar»`} />
       <Contenido>
+        <PestanasManuales activa="guiones" manuales={conManuales} guiones />
         <div className="tarjeta flex gap-1 p-1.5" role="tablist">
           {(["caller", "closer"] as const).map((r) => (
             <Link key={r} href={`/guiones?rol=${r}${mercado === "es" ? "&mercado=es" : ""}`} role="tab" aria-selected={rol === r} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${rol === r ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
