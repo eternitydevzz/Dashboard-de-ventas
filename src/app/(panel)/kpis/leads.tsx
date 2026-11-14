@@ -184,7 +184,7 @@ function Contenido({ barra, vista, desde, hasta, zona, ofertas, csv }: { barra: 
             </button>
           ))}
         </div>
-        <TablaLeads leads={visibles} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} />
+        <TablaLeads leads={visibles} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} zona={zona} />
       </Seccion>
       {paisVentana && (
         <VentanaPais
@@ -212,7 +212,7 @@ const ORDEN_OFERTA = Object.fromEntries(OFERTAS.map((o) => [o.v, o.orden])) as R
 const TONO_INV: Record<string, string> = { "Sí, ahora": "bg-ok", "En los próximos meses": "bg-aviso", "No por ahora": "bg-mal" };
 const pesoEtiquetas = (t: string[]) => (t.includes("agendado dfy") ? 0 : t.includes("agenda llamada") ? 1 : t.includes("webinar1") ? 2 : 3);
 
-function TablaLeads({ leads, pipelines, etapas, gente, fuente }: { leads: LeadVista[]; pipelines: Vista["pipelines"]; etapas: Vista["etapas"]; gente: Vista["gente"]; fuente: string | null }) {
+function TablaLeads({ leads, pipelines, etapas, gente, fuente, zona }: { leads: LeadVista[]; pipelines: Vista["pipelines"]; etapas: Vista["etapas"]; gente: Vista["gente"]; fuente: string | null; zona: string }) {
   const nombre = useMemo(() => {
     const m = new Map<string, string>([...pipelines, ...etapas, ...gente].map((x) => [x.id, x.nombre]));
     return (id: string | null) => (id ? m.get(id) ?? "—" : "—");
@@ -316,7 +316,8 @@ function TablaLeads({ leads, pipelines, etapas, gente, fuente }: { leads: LeadVi
                 <td className="whitespace-nowrap">{l.telefono ?? "—"}</td>
                 <td className="whitespace-nowrap">{nombrePais(l.pais)}</td>
                 <td>{l.email ? <a href={`mailto:${l.email}`} className="text-primario hover:underline">{l.email}</a> : "—"}</td>
-                <td className="whitespace-nowrap tabular-nums">{new Date(l.alta).toLocaleDateString("es-ES")}</td>
+                {/* Cristian, 14 nov (#418): el día en la zona del proyecto, igual en el servidor (UTC) y en el navegador */}
+                <td className="whitespace-nowrap tabular-nums">{new Date(l.alta).toLocaleDateString("es-ES", { timeZone: zona })}</td>
                 <td className="whitespace-nowrap text-texto-2">{l.callerId ? nombre(l.callerId) : "—"}</td>
                 {PREGUNTAS_COLUMNAS.map((p) => (
                   <td key={p.clave} className="whitespace-nowrap">
@@ -353,7 +354,7 @@ function VentanaPais({ pais, leads, pipelines, etapas, gente, fuente, zona, onCe
         <AccionesLeads leads={leads} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} zona={zona} callers={gente.filter((g) => g.rol === "caller" && !g.baja)} repartir={`Repartir ${nombrePais(pais)}`} />
       </div>
       <div className="-mx-5 max-h-[65vh] overflow-y-auto px-5">
-        <TablaLeads leads={leads} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} />
+        <TablaLeads leads={leads} pipelines={pipelines} etapas={etapas} gente={gente} fuente={fuente} zona={zona} />
       </div>
     </Modal>
   );
