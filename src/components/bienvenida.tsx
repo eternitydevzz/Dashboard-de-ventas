@@ -24,7 +24,8 @@ export function precargaConDatos(e: PerformanceResourceTiming) {
 // en cuanto no tiene datos por llegar (lib/pantalla-lista.ts: el contador de cargandoDatos() y la marca
 // data-datos-pendientes, que lleva también la pantalla de carga, (panel)/loading.tsx). Se mira cada 100 ms: el aviso de
 // «ya llegaron» puede llegar antes de que la marca se quite del HTML. Las precargas empiezan al quitarse (barra-lateral.tsx).
-export function esperarPantalla(salir: () => void, pendientes = hayDatosPendientes, [minimo, maximo] = [800, 4000]) {
+// Cristian, 14 nov (noche): sin el mínimo de 0,8 s (se ganaba hasta 0,8 s al abrir la app); se quita en cuanto hay datos
+export function esperarPantalla(salir: () => void, pendientes = hayDatosPendientes, [minimo, maximo] = [0, 4000]) {
   const t0 = Date.now();
   let hecho = false;
   const fin = () => {
