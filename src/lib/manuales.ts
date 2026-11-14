@@ -1,4 +1,5 @@
 import { ErrorUsuario } from "@/lib/resultado";
+import { MERCADOS, mercadoDe, type Mercado } from "@/lib/mercado";
 
 export { CSP_VISOR } from "@/lib/csp"; // vive en csp.ts para que proxy.ts la use sin cargar nada más
 
@@ -19,4 +20,24 @@ export function tituloManual(t: unknown) {
   if (!s) throw new ErrorUsuario("Pon un título al manual.");
   if (s.length > 80) throw new ErrorUsuario("El título puede tener como mucho 80 caracteres.");
   return s;
+}
+
+// Cristian, 14 nov: cada manual lo ven los mercados marcados en su ajuste ⚙ (España, Latam o los 2). España ya no cae
+// en los de Latam (contenidoMercado().filas sí lo hace; lo siguen usando Recursos y Programas).
+type ConMercados = { mercados?: string[] | null; mercado?: string | null };
+export const mercadosDe =(m: ConMercados): Mercado[] => (m.mercados?.length ? m.mercados.map(mercadoDe) : [mercadoDe(m.mercado)]); // sin la columna nueva, la vieja
+export const veManual = (m: ConMercados, mercado: Mercado | null) => mercadosDe(m).includes(mercadoDe(mercado));
+export const manualesDeMercado = <T extends ConMercados>(filas: T[], mercado: Mercado | null) => filas.filter((f) => veManual(f, mercado));
+
+export function mercadosValidos(v: unknown): Mercado[] {
+  const lista = Array.isArray(v) ? v : [];
+  const r = MERCADOS.map((m) => m.v).filter((m) => lista.includes(m));
+  if (!r.length) throw new ErrorUsuario("Marca al menos un mercado.");
+  return r;
+}
+
+// «Quién lo ha visto»: cada persona de esos mercados, con la última vez que lo abrió (null = sin ver)
+export function quienLoHaVisto(mercados: Mercado[], personas: { id: string; nombre: string }[], mercadoDePersona: Record<string, Mercado>, vistos: { perfil_id: string; visto_en: string }[]) {
+  const cuando = new Map(vistos.map((v) => [v.perfil_id, v.visto_en]));
+  return personas.filter((p) => mercados.includes(mercadoDe(mercadoDePersona[p.id]))).map((p) => ({ id: p.id, nombre: p.nombre, visto_en: cuando.get(p.id) ?? null }));
 }
