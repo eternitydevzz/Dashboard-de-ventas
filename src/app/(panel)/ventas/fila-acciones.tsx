@@ -37,6 +37,7 @@ export function FilaVentaAcciones({ ventaId, pendiente, cobrado, devuelta, jefe,
           className="rounded-md p-1.5 text-texto-3 hover:bg-mal-suave hover:text-mal"
           disabled={cargando}
           title="Borrar venta"
+          aria-label="Borrar venta"
           onClick={() =>
             void confirmar("¿Borrar esta venta? No se puede deshacer. Su cita volverá a «En seguimiento».").then((ok) => ok && ejecutar(async () => {
               const r = (await exigirOk(borrarVenta(ventaId))) as { aviso: string | null };

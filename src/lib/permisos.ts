@@ -61,8 +61,9 @@ export function soloLoSuyo(perfil: Perfil, seccion: Seccion) {
 }
 
 // Página de inicio: la de su rol si la tiene; si no, la primera sección que tenga permitida
+// Cristian, 14 nov: agendas → /closer/llamadas (/closer es «Métricas», oculta con METRICAS_VISIBLE)
 const RUTA: Record<Seccion, string> = {
-  funnel: "/kpis?vista=funnel", mi_funnel: "/mi-funnel", kpis: "/kpis", crm: "/crm", cola: "/caller", agendas: "/closer", grabadas: "/caller/grabadas",
+  funnel: "/kpis?vista=funnel", mi_funnel: "/mi-funnel", kpis: "/kpis", crm: "/crm", cola: "/caller", agendas: "/closer/llamadas", grabadas: "/caller/grabadas",
   ventas: "/ventas", ranking: "/ranking", recursos: "/recursos", reportes: "/reportes", manuales: "/manuales", grabaciones: "/grabaciones", equipo: "/equipo", programas: "/programas", finanzas: "/finanzas", clientes: "/clientes",
 };
 // 26 oct 2026 (Cristian): el CEO y los directores entran en KPIs → Leads (antes, en el Funnel)

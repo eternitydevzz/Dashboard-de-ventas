@@ -49,7 +49,7 @@ export async function cambiarMiPassword(actual: string, nueva: string, repetida:
     }
     await prueba.auth.signOut({ scope: "local" }).catch(() => {}); // cierra solo esa sesión de comprobación
     const { error } = await db().auth.admin.updateUserById(perfil.id, { password: nueva });
-    if (error) throw new ErrorUsuario(error.message); // de Auth (p. ej. contraseña débil), no de la base
+    if (error) throw error.code === "weak_password" ? new ErrorUsuario("Esa contraseña es demasiado débil: prueba con una más larga o menos común.") : new Error(error.message); // Cristian, 14 nov: el detalle de Auth va al registro (seguro), el usuario ve el mensaje genérico
   });
 }
 
@@ -77,7 +77,7 @@ export async function guardarMiMercado(mercado: string) {
     const m = mercadoValido(mercado);
     if (!m) throw new ErrorUsuario("Elige Latam o España.");
     const { data, error } = await db().from("miembros_proyecto").update({ mercado: m }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).select("perfil_id");
-    if (error) throw new ErrorUsuario(/mercado/.test(error.message) ? "Falta aplicar la migración de la base (España)." : error.message);
+    if (error) throw /mercado/.test(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (España).") : new Error(error.message);
     if (!data?.length) throw new ErrorUsuario("No estás en este proyecto.");
     refrescar();
   });
@@ -99,7 +99,7 @@ export async function guardarMiFoto(datos: FormData) {
     const { error: errGuardar } = await db().from("perfiles").update({ foto: ruta }).eq("id", perfil.id);
     if (errGuardar) {
       await fotos.remove([ruta]); // que no quede un archivo suelto
-      throw new ErrorUsuario(/foto/.test(errGuardar.message) ? "Falta aplicar la migración de la base (fotos)." : errGuardar.message);
+      throw /foto/.test(errGuardar.message) ? new ErrorUsuario("Falta aplicar la migración de la base (fotos).") : new Error(errGuardar.message);
     }
     // La anterior ya no la usa nadie; si no se borra, solo ocupa sitio
     const anterior = perfil.foto;
@@ -116,7 +116,7 @@ export async function guardarMiZona(zona: string) {
     const z = zonaValida(zona);
     if (!z) throw new ErrorUsuario("Elige una de las zonas de la lista.");
     const { error } = await db().from("perfiles").update({ zona_horaria: z }).eq("id", perfil.id);
-    if (error) throw new ErrorUsuario(/zona_horaria/.test(error.message) ? "Falta aplicar la migración de la base (zona horaria)." : error.message);
+    if (error) throw /zona_horaria/.test(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (zona horaria).") : new Error(error.message);
     refrescar();
   });
 }

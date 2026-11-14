@@ -8,6 +8,8 @@ import { cashDelPeriodo } from "@/lib/metricas";
 import { Cabecera, Contenido, Kpi, Seccion, Insignia, Vacio } from "@/components/ui";
 import { Filtros } from "@/components/filtros";
 import { FilaVentaAcciones } from "./fila-acciones";
+import { mercadosDelProyecto } from "@/lib/mercado-datos";
+import { contenidoMercado } from "@/lib/mercado";
 
 type VentaFila = {
   id: string;
@@ -36,7 +38,7 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
   const periodo = (typeof sp.periodo === "string" ? sp.periodo : "mes") as Periodo;
   const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string, sp.hasta as string);
   const vendedorId = jefe ? (typeof sp.vendedor === "string" ? sp.vendedor : "") : perfil.id;
-  const [gente, prueba] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), perfil.es_prueba ? Promise.resolve(new Set<string>()) : idsDePrueba()]);
+  const [gente, prueba, mercados] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), perfil.es_prueba ? Promise.resolve(new Set<string>()) : idsDePrueba(), mercadosDelProyecto(proyecto.id)]);
   const ok = deVerdad(prueba); // 1.0: las ventas de los perfiles de prueba no cuentan
 
   const ventas = (
@@ -80,6 +82,8 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
   ).sort((a, b) => b[1].f - a[1].f);
   const nombre = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
   const $ = (n: number) => dinero(n, proyecto);
+  // Moneda (Cristian, 14 nov): cada venta en la de su vendedor (€ si es de España, $ si de Latam o EE. UU.), mire quien mire
+  const $v = (vendedor: string | null) => (n: number) => dinero(n, { moneda: contenidoMercado(vendedor ? mercados[vendedor] ?? null : null).moneda(proyecto) });
 
   return (
     <>
@@ -93,7 +97,8 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
           <Kpi titulo="Ventas" valor={ventas.length} icono={ShoppingCart} detalle={ventas.length ? `Ticket medio ${$(facturacion / ventas.length)}` : undefined} />
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        {/* Cristian, 14 nov: grid-cols-1 (= minmax(0,1fr)) para que en móvil la tabla se desplace dentro de su caja y no la página */}
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
           <Seccion titulo="Ventas registradas">
             {ventas.length === 0 ? (
               <Vacio icono={Receipt} texto="No hay ventas en este periodo." />
@@ -111,12 +116,12 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
                         <td>{v.productos?.nombre ?? "—"}</td>
                         <td className="text-texto-2">{nombre(v.vendedor_id)}</td>
                         <td><Insignia tono={v.tipo_pago === "completo" ? "ok" : "aviso"}>{TIPO[v.tipo_pago]}{v.num_cuotas ? ` · ${v.num_cuotas}` : ""}</Insignia> <span className="text-xs text-texto-3">{v.metodo}</span></td>
-                        <td className="text-right tabular-nums">{$(v.facturacion)}</td>
+                        <td className="text-right tabular-nums">{$v(v.vendedor_id)(v.facturacion)}</td>
                         <td className="text-right tabular-nums text-ok">
-                          {$(v.cobrado)}
-                          {v.devuelto && <div className="text-xs text-mal" title={v.devuelto_en ? `Devuelto el ${fechaHora(v.devuelto_en, proyecto)}` : ""}>Devuelto {$(Number(v.devuelto))}</div>}
+                          {$v(v.vendedor_id)(v.cobrado)}
+                          {v.devuelto && <div className="text-xs text-mal" title={v.devuelto_en ? `Devuelto el ${fechaHora(v.devuelto_en, proyecto)}` : ""}>Devuelto {$v(v.vendedor_id)(Number(v.devuelto))}</div>}
                         </td>
-                        <td className="text-right tabular-nums text-aviso">{v.pendiente ? $(v.pendiente) : "—"}</td>
+                        <td className="text-right tabular-nums text-aviso">{v.pendiente ? $v(v.vendedor_id)(v.pendiente) : "—"}</td>
                         <td><FilaVentaAcciones ventaId={v.id} pendiente={v.pendiente} cobrado={v.cobrado} devuelta={!!v.devuelto} jefe={jefe} membresiaActiva={v.tipo_pago === "mensual" && !v.baja_en} /></td>
                       </tr>
                     ))}

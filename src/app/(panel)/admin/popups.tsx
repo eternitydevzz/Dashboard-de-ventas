@@ -140,7 +140,7 @@ function FormPopup({ inicial, personas, onCerrar }: { inicial: { id: string | nu
             <summary className="cursor-pointer text-texto-2">Personas sueltas ({d.personas.length})</summary>
             <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
               {personas.map((p) => (
-                <label key={p.id} className="flex items-center gap-1.5"><input type="checkbox" checked={d.personas.includes(p.id)} onChange={() => pon({ personas: alterna(d.personas, p.id) })} />{p.nombre}<span className="text-xs text-texto-3">{ETIQUETA_ROL[p.rol]}</span></label>
+                <label key={p.id} className="flex items-center gap-1.5"><input type="checkbox" aria-label={`${p.nombre} (${ETIQUETA_ROL[p.rol]})`} checked={d.personas.includes(p.id)} onChange={() => pon({ personas: alterna(d.personas, p.id) })} />{p.nombre}<span className="text-xs text-texto-3">{ETIQUETA_ROL[p.rol]}</span></label>
               ))}
             </div>
           </details>

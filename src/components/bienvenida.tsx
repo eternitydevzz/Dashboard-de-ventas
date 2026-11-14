@@ -11,6 +11,14 @@ import { hayDatosPendientes } from "@/lib/pantalla-lista";
 // saturó la base (25 oct); ahora son 3. Al quitarse avisa con «bienvenida-fin» (la ventana de mensajes espera).
 export const FIN_BIENVENIDA = "bienvenida-fin";
 
+// Cristian, 14 nov: la primera petición «_rsc» de una sección puede ser solo el árbol de rutas (sin datos), una
+// redirección o un fallo; esas no la dan por cargada. Solo cuenta una respuesta buena con cuerpo.
+// shortcut: «con datos» = más de 2 KB sin comprimir (el árbol pesa menos); si Next cambia sus precargas, revisar la cifra.
+export function precargaConDatos(e: PerformanceResourceTiming) {
+  const estado = e.responseStatus ?? 200; // Safari no da el estado: se da por bueno
+  return e.name.includes("_rsc=") && estado >= 200 && estado < 300 && e.decodedBodySize > 2048;
+}
+
 export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secciones: string[]; rutas: string[] }) {
   const [fase, setFase] = useState<"cargando" | "saliendo" | "fuera">("cargando");
   const capa = useRef<HTMLDivElement>(null);
@@ -42,7 +50,7 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
     // Cada precarga de sección llega como una petición «…?_rsc=» a su ruta
     const observador = new PerformanceObserver((l) => {
       for (const e of l.getEntries()) {
-        if (!e.name.includes("_rsc=")) continue;
+        if (!precargaConDatos(e as PerformanceResourceTiming)) continue;
         faltan.delete(new URL(e.name).pathname);
       }
     });
