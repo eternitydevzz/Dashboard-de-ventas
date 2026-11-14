@@ -36,7 +36,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@/lib/cifrado", () => ({ descifrar: () => "token" }));
 vi.mock("@/lib/leads", () => ({
   columnaCitasGhl: async () => null,
+  contactosPrincipales: async () => new Map(), // Fase 3: ningún contacto unido
   datosAgendaGhl: async () => ({}),
+  CAMPOS_CITA: "*",
+  juntarConCitaAbierta: async () => null, // Fase 3: sin cita abierta (se prueba en ghl-sync-agenda-unica)
   guardarLeads: async () => undefined,
   moverAAgendadosOrganico: async () => undefined,
   pipelineCitaGhl: async () => null,

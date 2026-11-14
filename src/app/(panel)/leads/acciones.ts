@@ -17,6 +17,8 @@ import { CON_ESTRELLAS, etiquetaEstado } from "@/lib/estados-caller";
 import { closerDeLaRotacion, sumarRotacion } from "@/lib/rotacion";
 import { closerLibreA } from "@/lib/agenda-libre";
 import { miMercado } from "@/lib/mercado-datos";
+import { juntarConCitaAbierta } from "@/lib/leads";
+import { avisarCloserAgenda } from "@/lib/aviso-closer";
 
 // Cristian (13 nov): al guardar, solo se recarga la pantalla actual (antes, unas 4 enteras por guardado).
 // Lo demás (CRM, Mi Funnel) puede ir hasta 5 min por detrás para ese lead.
@@ -137,9 +139,13 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
       .maybeSingle();
     if (!closer) throw new ErrorUsuario("Elige un closer del proyecto.");
     // Paso H6: un doble clic creaba dos citas iguales; la base ya no deja repetir lead, closer y hora
-    const { data: citaNueva, error: errCita } = await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: nota || null, estrellas_caller: n }).select("id").single();
+    // Fase 3: si el lead ya tiene una cita abierta, se junta con ella (manda esta); su evento de GHL se borra y abajo
+    // se crea el de la hora nueva, así en GHL queda uno solo
+    const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId, ghlCitaId: null, origen: "manual", agendadaPor: perfil.id, extra: { ...(nota ? { nota } : {}), ...(n !== null ? { estrellas_caller: n } : {}) } }, { perfilId: perfil.id, noRepetir: true });
+    const { data: citaNueva, error: errCita } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: nota || null, estrellas_caller: n }).select("id").single());
     if (errCita?.code === "23505") throw new ErrorUsuario(errCita.message.includes("citas_closer_hora_unica") ? "Ese hueco acaba de ocuparse, elige otro." : "Ese lead ya tiene una cita con ese closer a esa hora.");
     if (errCita) throw new Error(`No se pudo guardar en «citas»: ${errCita.message}`);
+    if (!junta && citaNueva && new Date(fecha).getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId, citaId: citaNueva.id, motivo: "nueva" });
     if (esCaller) await sumarRotacion(proyecto.id, closerId);
     // Arreglo 9: si agenda un jefe o un closer sin estrellas, no se borran las que puso el caller
     await escribir(db().from("leads").update({ estado_caller: "agendado", closer_id: closerId, llamar_en: null, ...(n !== null ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");

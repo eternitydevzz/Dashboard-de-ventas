@@ -40,6 +40,9 @@ export type Proyecto = {
   etapa_citas_ghl?: string | null; // Fase 4: columna donde van los leads con cita de GHL (antes, «Orgánico → Agendados» por nombre)
   ghl_leads_hasta?: string | null; // leads por API (16 oct): fecha de la oportunidad de GHL más nueva ya leída; null = aún sin activar
   ghl_calendarios?: string[]; // plan GHL (16 oct): ids de los calendarios de GHL que lee la app; vacío = por closer, como antes
+  textos_entrada?: unknown; // Fase 3: textos cambiados de la bienvenida y del reporte del CEO (lib/mensajes-entrada)
+  ranking_mostrar_bajas?: boolean; // Fase 3: el ranking enseña a los de baja (apagado por defecto)
+  ranking_closers_para_callers?: boolean; // Fase 3: los callers ven el ranking de closers (apagado por defecto)
   color: string;
 };
 

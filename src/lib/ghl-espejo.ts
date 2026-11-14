@@ -7,7 +7,7 @@ import "server-only";
 // Se decidió así porque la etiqueta no basta: los de «Regalo 1» llegaban solo con la etiqueta «regalo 1».
 // Solo «2. Webinar 1» (en Biblioteca las columnas de GHL no son las de la app).
 import { db } from "@/lib/datos";
-import { guardarLeads } from "@/lib/leads";
+import { contactosPrincipales, guardarLeads } from "@/lib/leads";
 import { anadirTarjetas, moverTarjeta } from "@/lib/tarjetas";
 import { contactoGhl, oportunidadesDePipelineGhl, pipelinesGhl } from "@/lib/ghl";
 import { leadDeContactoGhl } from "@/lib/ghl-lead";
@@ -79,7 +79,10 @@ export async function espejoGhl(
     if (!cambiadas.length) continue;
 
     // Dónde está cada lead hoy (pipeline principal o tarjeta 🔗 en este pipeline)
-    const contactos = [...new Set(cambiadas.map((o) => o.contactId as string))];
+    // Fase 3: el contacto de un lead que sobró al «Unir» cuenta como el del lead que se quedó
+    const principal = await contactosPrincipales(proyecto.id, cambiadas.map((o) => o.contactId));
+    const cid = (c: string) => principal.get(c) ?? c;
+    const contactos = [...new Set(cambiadas.map((o) => cid(o.contactId as string)))];
     const leads = new Map<string, { id: string; pipeline_id: string | null; etapa_id: string | null }>();
     for (let i = 0; i < contactos.length; i += 200) {
       const { data } = await db().from("leads").select("id, ghl_contact_id, pipeline_id, etapa_id").eq("proyecto_id", proyecto.id).in("ghl_contact_id", contactos.slice(i, i + 200));
@@ -97,7 +100,7 @@ export async function espejoGhl(
       const etapa = columna.get(o.pipelineStageId!)!;
       const nota = `GHL (API): ${pApp.nombre} → ${nombreColumna.get(o.pipelineStageId!)}`;
       try {
-        const lead = leads.get(o.contactId!);
+        const lead = leads.get(cid(o.contactId!));
         if (!lead) {
           // Aún no está en la app: se trae su contacto y entra en esa columna (con reparto, como los demás nuevos)
           if (r.nuevos >= MAX_NUEVOS) continue;

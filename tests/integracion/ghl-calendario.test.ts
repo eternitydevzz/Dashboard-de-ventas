@@ -87,8 +87,8 @@ describe("Sincronizar calendarios de GHL", () => {
     expect(u.searchParams.get("startTime")).toBe(String(AHORA.getTime() - 30 * 86_400_000));
     expect(llamadas.find((l) => l.url.includes("/contacts/"))!.headers.Version).toBe("2021-07-28");
 
-    // La agenda es del caller del lead (nadie marcó «Link enviado»; 11 oct)
-    expect(await cita(`${e.pref}-e1`)).toMatchObject({ lead_id: e.leads.LeadA, closer_id: e.p.closerA.id, estado: "pendiente", origen: "ghl", agendada_por: e.p.callerA.id });
+    // Fase 3 (Cristian, 13 nov): sin el canal «callers» (aquí, por closer, no se lee) la agenda no es de ningún caller
+    expect(await cita(`${e.pref}-e1`)).toMatchObject({ lead_id: e.leads.LeadA, closer_id: e.p.closerA.id, estado: "pendiente", origen: "ghl", agendada_por: null });
     expect((await cita(`${e.pref}-e2`))!.estado).toBe("confirmada");
     const { data: nuevo } = await db.from("leads").select("id, nombre, email, ghl_contact_id").eq("proyecto_id", e.proyecto.id).eq("ghl_contact_id", `${e.pref}-cNuevo`).single();
     expect(nuevo).toMatchObject({ nombre: "Nuevo", email: `${e.pref}-nuevo@x.test` });

@@ -12,7 +12,8 @@ export function politicaCsp(nonce: string, desarrollo = process.env.NODE_ENV ===
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${desarrollo ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    // Fase 3: la imagen opcional de los popups de Administración es una URL https de otra web
+    "img-src 'self' https: blob: data:",
     // C10: escuchar una grabación (enlace firmado de Supabase) y la que se acaba de grabar (blob:)
     `media-src 'self' blob:${supabase ? ` ${supabase}` : ""}`,
     "font-src 'self'",

@@ -75,11 +75,13 @@ describe("«Agendado» a mano por el caller (punto 13)", () => {
 });
 
 describe("Cita que llega de GHL", () => {
-  it("la agenda es del caller del lead (punto 10); sin caller, de nadie", async () => {
+  // Fase 3 (Cristian, 13 nov): la agenda solo cuenta para el caller si entra por su link (canal «callers») o la agenda
+  // él a mano. Una cita del webhook no trae canal: ya no es de nadie, aunque el lead tenga caller.
+  it("una cita del webhook sin canal «callers» no cuenta para el caller del lead (antes, punto 10)", async () => {
     como(e, e.p.callerB);
     await ok(registrarLlamada(e.leads.LeadB, "seguimiento", "", 3));
     expect((await enviar({ tipo: "cita_agendada", email: `${e.pref}-lb@x.test`, fecha: "2026-12-03T15:00:00Z" })).status).toBe(200);
-    expect(await citaDe(e.leads.LeadB)).toMatchObject({ agendada_por: e.p.callerB.id, estrellas_caller: 3 });
+    expect(await citaDe(e.leads.LeadB)).toMatchObject({ agendada_por: null, estrellas_caller: 3 });
     expect((await enviar({ tipo: "cita_agendada", email: `${e.pref}-ll@x.test`, fecha: "2026-12-04T15:00:00Z" })).status).toBe(200);
     expect((await citaDe(e.leads.LeadLibre)).agendada_por).toBeNull();
   });

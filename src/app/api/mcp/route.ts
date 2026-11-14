@@ -124,7 +124,7 @@ function servidor(perfilId: string) {
     "ranking",
     {
       description: "Ranking del equipo, igual que la pantalla Ranking: callers por agendados y closers por facturación. Por defecto, esta semana.",
-      inputSchema: { proyecto: PROYECTO, periodo: periodoDe.describe("Por defecto «semana»."), desde: fecha("desde"), hasta: fecha("hasta, incluido") },
+      inputSchema: { proyecto: PROYECTO, periodo: periodoDe.describe("Por defecto «semana»."), desde: fecha("desde"), hasta: fecha("hasta, incluido"), mercado: z.enum(["es", "latam"]).optional().describe("Solo CEO y directores: España o Latam; sin poner, todos. Callers y closers ven siempre el suyo.") },
     },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaRanking(a))
   );

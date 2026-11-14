@@ -3,6 +3,7 @@ import { esContacto } from "@/lib/estados-caller";
 import { porcentaje, type Rango } from "@/lib/formato";
 import { ASISTIDAS, enRango, cashNeto, type Base } from "@/lib/metricas";
 import { esCloser, type Perfil } from "@/lib/tipos";
+import { mercadoDe, mercadoValido, type Mercado } from "@/lib/mercado";
 
 // KPIs de callers y closers (Paso H2, decisiones de Cristian del 10 oct 2026).
 // Todo por persona y para el periodo elegido; se cuentan personas (leads distintos), no llamadas.
@@ -169,5 +170,27 @@ export function calcularKpis(base: Base, rango: Rango, zona: string) {
     totalCallers: kpiCaller(ix, new Set(gCallers.map((g) => g.id))),
     closers: closersSin.map((c) => ({ ...c, ...parte(c) })),
     totalClosers: { ...totalCloser, ...parte(totalCloser) },
+  };
+}
+
+// Fase 3 (Cristian, 13 nov 2026): quién ve qué en el Ranking. Solo lo usa el Ranking: KPIs y comisiones siguen contando a todos.
+type VistaRanking = {
+  perfil: Perfil;
+  jefe: boolean;
+  mercados: Record<string, Mercado>;
+  pedido: unknown; // ?mercado= (solo cuenta para los jefes)
+  proyecto: { ranking_mostrar_bajas?: boolean | null; ranking_closers_para_callers?: boolean | null };
+};
+export function calcularRanking(base: Base, rango: Rango, zona: string, v: VistaRanking) {
+  // Los jefes eligen (null = Todos); el resto ve solo el suyo aunque toque la dirección (sin elegir = Latam)
+  const mercado = v.jefe ? mercadoValido(v.pedido) : mercadoDe(v.mercados[v.perfil.id]);
+  // Quien ya no está en el proyecto no tiene fila en miembros_proyecto: no es de ningún mercado (antes caía en Latam)
+  const entra = (g: Perfil) => (!mercado || v.mercados[g.id] === mercado) && (!!v.proyecto.ranking_mostrar_bajas || !("baja" in g && g.baja));
+  const { callers, closers } = calcularKpis({ ...base, gente: base.gente.filter(entra) }, rango, zona);
+  const verClosers = v.perfil.rol !== "caller" || esCloser(v.perfil) || !!v.proyecto.ranking_closers_para_callers;
+  return {
+    mercado,
+    callers: [...callers].sort((a, b) => b.agendados - a.agendados || b.cerrados - a.cerrados || b.llamadas - a.llamadas),
+    closers: verClosers ? [...closers].sort((a, b) => b.facturacion - a.facturacion || (b.cierreSobreAsistencia ?? 0) - (a.cierreSobreAsistencia ?? 0)) : null,
   };
 }

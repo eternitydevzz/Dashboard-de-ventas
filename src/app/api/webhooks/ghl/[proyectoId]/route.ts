@@ -2,7 +2,8 @@ import { escribir } from "@/lib/datos";
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { columnaCitasGhl, datosAgendaGhl, guardarLeads, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave, type LeadEntrada } from "@/lib/leads";
+import { columnaCitasGhl, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave, type LeadEntrada } from "@/lib/leads";
+import { avisarCloserAgenda } from "@/lib/aviso-closer";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { ponerEtiqueta } from "@/lib/ghl-sync";
 import { dentroDelLimite } from "@/lib/limite";
@@ -144,8 +145,16 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
         ? await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ghlCitaId).maybeSingle()
         : await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("lead_id", lead.id).eq("fecha", fecha.toISOString()).neq("estado", "reagendada").limit(1).maybeSingle();
       if (yaExiste) await db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id);
-      else
-        await escribir(db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: lead.id, closer_id: closerId, ...(await datosAgendaGhl(lead.id)), fecha: fecha.toISOString(), origen: "ghl", ghl_cita_id: ghlCitaId }), "citas");
+      else {
+        // Fase 3: el aviso del workflow no trae el canal, así que no hay crédito de caller; con una cita abierta, se junta
+        const agenda = await datosAgendaGhl(lead.id, null);
+        const junta = await juntarConCitaAbierta(proyecto.id, lead.id, { fecha: fecha.toISOString(), closerId, ghlCitaId, origen: "ghl", agendadaPor: agenda.agendada_por });
+        if (junta?.error) throw new Error(`No se pudo guardar en «citas»: ${junta.error.message}`);
+        if (!junta) {
+          const { data: nueva } = await escribir(db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: lead.id, closer_id: closerId, ...agenda, fecha: fecha.toISOString(), origen: "ghl", ghl_cita_id: ghlCitaId }).select("id").single(), "citas");
+          if (nueva && closerId && fecha.getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId, citaId: nueva.id, motivo: "nueva" });
+        }
+      }
       // F21 y C11 punto 15 (Callers, 7 nov): la misma regla que la lectura de cada minuto. Vendido no se toca;
       // confirma agenda o descartado → «reagendado» con su etiqueta; el resto → «agendado».
       const { data: actual } = await db().from("leads").select("estado_caller").eq("id", lead.id).maybeSingle();

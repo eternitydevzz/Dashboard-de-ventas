@@ -7,9 +7,13 @@ import { calcularOferta, normalizarRespuestas } from "@/lib/oferta";
 import { anadirTarjetas } from "@/lib/tarjetas";
 import { mismoNombre } from "@/lib/formato";
 import { descifrar } from "@/lib/cifrado";
-import { pipelinesAgendanGhl } from "@/lib/ghl";
+import { borrarCitaGhl, borrarContactoGhl, pipelinesAgendanGhl } from "@/lib/ghl";
 import { conPais } from "@/lib/pais";
 import { unirEtiquetas } from "@/lib/etiquetas";
+import { ABIERTAS } from "@/lib/llamadas";
+import { fechaHora } from "@/lib/formato";
+import { guardarError } from "@/lib/errores-app";
+import { avisarCloserAgenda } from "@/lib/aviso-closer";
 
 // «+34 600-11-22-33», «34600112233» y «600 11 22 33» son el mismo teléfono: con 9 cifras o más
 // se comparan las últimas 9 (así el prefijo del país no cuenta). Decisión de Cristian, 9 oct 2026 (V2-12).
@@ -96,6 +100,19 @@ async function buscarExistentes(proyectoId: string, entradas: LeadEntrada[]) {
   return m;
 }
 
+// Fase 3 «Unir»: contacto de GHL de un lead que sobró → contacto del lead que se quedó (tabla ghl_contactos_unidos).
+// Así la lectura de GHL no vuelve a crear el lead que sobra.
+export async function contactosPrincipales(proyectoId: string, ids: (string | null | undefined)[]): Promise<Map<string, string>> {
+  const unicos = [...new Set(ids.filter((x): x is string => !!x))];
+  const m = new Map<string, string>();
+  for (let i = 0; i < unicos.length; i += 200) {
+    const { data, error } = await db().from("ghl_contactos_unidos").select("contact_id, leads(ghl_contact_id)").eq("proyecto_id", proyectoId).in("contact_id", unicos.slice(i, i + 200));
+    if (error) throw new Error(`No se pudo leer «ghl_contactos_unidos»: ${error.message}`);
+    for (const f of (data ?? []) as unknown as { contact_id: string; leads: { ghl_contact_id: string | null } | null }[]) if (f.leads?.ghl_contact_id) m.set(f.contact_id, f.leads.ghl_contact_id);
+  }
+  return m;
+}
+
 // Inserta o actualiza leads (por Contact Id de GHL, por email o, si no hay email, por teléfono).
 export async function guardarLeads(
   proyecto: Proyecto,
@@ -110,6 +127,10 @@ export async function guardarLeads(
   }
 ) {
   const etapaId = opciones.etapaId !== undefined && opciones.etapaId !== null ? opciones.etapaId : opciones.pipelineId ? await primeraEtapa(opciones.pipelineId) : null;
+
+  // Fase 3: un contacto unido a otro lead entra en ese lead (y no le cambia su contacto de GHL)
+  const principal = await contactosPrincipales(proyecto.id, entradas.map((e) => e.ghl_contact_id));
+  if (principal.size) entradas = entradas.map((e) => (e.ghl_contact_id && principal.has(e.ghl_contact_id) ? { ...e, ghl_contact_id: principal.get(e.ghl_contact_id)! } : e));
 
   // Leads ya existentes del proyecto que pueden coincidir
   const existentes = await buscarExistentes(proyecto.id, entradas);
@@ -347,8 +368,108 @@ export async function moverLeadDashboard(proyectoId: string, leadId: string, pip
   if (!creadas) await escribir(db().from("tarjetas_extra").update({ etapa_id: destino.id }).eq("lead_id", leadId).eq("pipeline_id", pipelineId), "tarjetas_extra");
 }
 
-export async function datosAgendaGhl(leadId: string): Promise<{ agendada_por: string | null; estrellas_caller: number | null }> {
+export async function datosAgendaGhl(leadId: string, canal: string | null): Promise<{ agendada_por: string | null; estrellas_caller: number | null }> {
   // C11 (Cristian, 7 nov, punto 10): la agenda de GHL es del caller del lead (ya no de quien mandó el link)
+  // Fase 3 (Cristian, 13 nov): y solo si entró por el link de callers (utm_source=callers); si no, de nadie
   const { data } = await db().from("leads").select("caller_id, estrellas_caller").eq("id", leadId).maybeSingle();
-  return { agendada_por: data?.caller_id ?? null, estrellas_caller: data?.estrellas_caller ?? null };
+  return { agendada_por: canal === "callers" ? data?.caller_id ?? null : null, estrellas_caller: data?.estrellas_caller ?? null };
+}
+
+// Fase 3 (Cristian, 13 nov): una sola agenda por lead, «manda la última». Si el lead ya tiene una cita abierta, esa
+// fila se queda (con su creado_en: cuenta 1 agenda) con la hora, el closer y el evento de GHL de la que entra; el
+// crédito, el de la nueva si lo tiene. En GHL queda un solo evento: el viejo se borra. null = no había abierta (se
+// crea como siempre). `error` es el de la base (p. ej. citas_closer_hora_unica), para que quien llama lo trate igual
+// que el de un insert. Avisa al closer si cambian hora o closer y la cita es futura.
+export const CAMPOS_CITA = "id, ghl_cita_id, estado, fecha, closer_id, canal, ghl_calendario, creado_en, lead_id, agendada_por";
+export type CitaEntrante = { fecha: string; closerId: string | null; ghlCitaId: string | null; origen: "manual" | "ghl"; agendadaPor: string | null; extra?: Record<string, unknown> };
+export async function juntarConCitaAbierta(proyectoId: string, leadId: string, e: CitaEntrante, o: { perfilId?: string | null; ahora?: Date; sinAviso?: boolean; noRepetir?: boolean } = {}) {
+  const { data: vieja, error: errLeer } = await db().from("citas").select("id, fecha, closer_id, agendada_por, ghl_cita_id").eq("proyecto_id", proyectoId).eq("lead_id", leadId).in("estado", [...ABIERTAS]).order("fecha", { ascending: false }).limit(1).maybeSingle();
+  if (errLeer) throw new Error(`No se pudo leer «citas»: ${errLeer.message}`);
+  if (!vieja) return null;
+  const closerId = e.closerId ?? vieja.closer_id;
+  // Agendar a mano: la misma cita otra vez (doble clic) da el aviso de siempre, sin tocar GHL
+  if (o.noRepetir && closerId === vieja.closer_id && new Date(e.fecha).getTime() === new Date(vieja.fecha).getTime()) return { data: null, error: { code: "23505", message: "citas_app_unica: misma cita" }, ghlViejo: null };
+  const { data, error } = await db()
+    .from("citas")
+    .update({ ...e.extra, fecha: e.fecha, closer_id: closerId, ghl_cita_id: e.ghlCitaId, origen: e.origen, agendada_por: e.agendadaPor ?? vieja.agendada_por })
+    .eq("id", vieja.id)
+    .in("estado", [...ABIERTAS]) // una que se cerró mientras tanto no se toca
+    .select(CAMPOS_CITA)
+    .single();
+  if (error || !data) return { data: null, error: error ?? { code: "", message: "la cita acaba de cambiar" }, ghlViejo: null };
+
+  const { data: proy } = await db().from("proyectos").select("zona_horaria, ghl_token").eq("id", proyectoId).single();
+  const ghlViejo = vieja.ghl_cita_id && vieja.ghl_cita_id !== e.ghlCitaId ? (vieja.ghl_cita_id as string) : null;
+  let notaGhl = "";
+  if (ghlViejo) {
+    try {
+      if (!proy?.ghl_token) throw new Error("el proyecto no tiene GHL conectado");
+      await borrarCitaGhl({ token: descifrar(proy.ghl_token, "el token de GHL"), citaId: ghlViejo });
+    } catch (err) {
+      // Si se queda en GHL, la lectura la traería otra vez: que se vea en el historial y en los avisos del CEO
+      const msg = err instanceof Error ? err.message : String(err);
+      notaGhl = ` · no se pudo borrar en GHL la cita vieja (bórrala a mano): ${msg.slice(0, 150)}`;
+      await guardarError("juntar citas: borrar la vieja en GHL", msg, proyectoId);
+    }
+  }
+  const antes = proy ? fechaHora(vieja.fecha, proy) : vieja.fecha;
+  const { error: errHist } = await db().from("actividades").insert({ proyecto_id: proyectoId, lead_id: leadId, perfil_id: o.perfilId ?? null, tipo: "cita", resultado: "juntada", nota: `Agenda juntada con la que ya tenía (era el ${antes}): queda una sola con la hora nueva${notaGhl}` });
+  if (errHist) console.error("[actividad] no se pudo guardar la cita juntada:", errHist.message);
+
+  const cambia = closerId !== vieja.closer_id || new Date(e.fecha).getTime() !== new Date(vieja.fecha).getTime();
+  if (!o.sinAviso && closerId && cambia && new Date(e.fecha).getTime() > (o.ahora ?? new Date()).getTime()) await avisarCloserAgenda({ proyectoId, closerId, citaId: vieja.id, motivo: "cambio" });
+  return { data, error: null, ghlViejo };
+}
+
+// Fase 3 (Cristian, 13 nov): tras «Unir» en la app, GHL queda igual. La API v2 de GHL no tiene «unir contactos»
+// (apps/contacts.json, comprobado el 14 nov): se borran allí los eventos de las citas que se juntaron y el contacto que
+// sobra. Las etiquetas del que sobra NO se copian al principal: en GHL, poner una etiqueta puede lanzar workflows
+// (emails y SMS) a la persona otra vez; la app ya las tiene juntas. Si GHL falla, la unión de la app no se deshace:
+// queda en el historial del lead y en los avisos del CEO, con el id para hacerlo a mano. Devuelve lo que falló.
+export type UnionLeads = { ghl_sobra: string | null; ghl_citas_sobran: string[]; citas_juntadas: number; cita_en_sobra: boolean };
+export async function igualarGhlTrasUnir(proyectoId: string, leadId: string, u: UnionLeads, perfilId: string | null = null): Promise<string[]> {
+  const fallos: string[] = [];
+  const hecho: string[] = [];
+  if (u.citas_juntadas) hecho.push("agendas juntadas: queda una sola, con la hora y el closer de la última");
+  if (u.ghl_sobra || u.ghl_citas_sobran.length) {
+    let token: string | null = null;
+    try {
+      const { data: proy, error } = await db().from("proyectos").select("ghl_token").eq("id", proyectoId).single();
+      if (error) throw new Error(error.message);
+      if (!proy?.ghl_token) throw new Error("el proyecto no tiene GHL conectado");
+      token = descifrar(proy.ghl_token, "el token de GHL");
+    } catch (e) {
+      fallos.push(`no se pudo conectar con GHL (${e instanceof Error ? e.message : String(e)})`);
+    }
+    for (const citaId of u.ghl_citas_sobran) {
+      if (!token) {
+        fallos.push(`borra a mano en GHL la cita ${citaId}`);
+        continue;
+      }
+      try {
+        await borrarCitaGhl({ token, citaId });
+        hecho.push(`cita ${citaId} borrada en GHL`);
+      } catch (e) {
+        fallos.push(`no se pudo borrar en GHL la cita ${citaId} (bórrala a mano): ${(e instanceof Error ? e.message : String(e)).slice(0, 150)}`);
+      }
+    }
+    if (u.ghl_sobra) {
+      // La cita que queda es un evento de ese contacto y GHL no deja pasarlo a otro: borrarlo podría llevársela
+      if (u.cita_en_sobra) fallos.push(`el contacto ${u.ghl_sobra} tiene la cita que se queda y GHL no deja pasarla a otro contacto: únelo a mano en GHL`);
+      else if (!token) fallos.push(`une o borra a mano en GHL el contacto ${u.ghl_sobra}`);
+      else {
+        try {
+          await borrarContactoGhl({ token, contactId: u.ghl_sobra });
+          hecho.push(`contacto ${u.ghl_sobra} borrado en GHL`);
+        } catch (e) {
+          fallos.push(`no se pudo borrar en GHL el contacto ${u.ghl_sobra} (únelo o bórralo a mano): ${(e instanceof Error ? e.message : String(e)).slice(0, 150)}`);
+        }
+      }
+    }
+  }
+  const nota = ["Unido con un lead duplicado", ...hecho, ...fallos.map((f) => `GHL: ${f}`)].join(" · ");
+  const { error: errHist } = await db().from("actividades").insert({ proyecto_id: proyectoId, lead_id: leadId, perfil_id: perfilId, tipo: "nota", nota });
+  if (errHist) console.error("[actividad] no se pudo guardar la unión:", errHist.message);
+  if (fallos.length) await guardarError("unir leads: GHL", fallos.join(" · "), proyectoId);
+  return fallos;
 }

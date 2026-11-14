@@ -272,6 +272,20 @@ export async function borrarCitaGhl(o: { token: string; citaId: string; fetchImp
   }
 }
 
+// Fase 3 «Unir» (comprobado el 14 nov en la especificación oficial, GoHighLevel/highlevel-api-docs apps/contacts.json):
+// DELETE /contacts/{contactId}, Version 2021-07-28, permiso contacts.write, sin cuerpo → { succeded }. La API v2 no
+// tiene «unir contactos». Devuelve false si GHL ya no lo tiene (no se ha visto qué contesta entonces: 404 o 400).
+export async function borrarContactoGhl(o: { token: string; contactId: string; fetchImpl?: Fetch }): Promise<boolean> {
+  try {
+    await escribir(o.fetchImpl ?? fetch, o.token, "DELETE", `/contacts/${encodeURIComponent(o.contactId)}`, {}, "Edit Contacts (contacts.write)");
+    return true;
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "";
+    if (m.startsWith("GHL respondió 404") || (m.startsWith("GHL respondió 400") && /not found|does not exist/i.test(m))) return false;
+    throw e;
+  }
+}
+
 export async function anadirEtiquetasGhl(o: { token: string; contactId: string; etiquetas: string[]; fetchImpl?: Fetch }) {
   if (!o.etiquetas.length) return;
   await escribir(o.fetchImpl ?? fetch, o.token, "POST", `/contacts/${encodeURIComponent(o.contactId)}/tags`, { tags: o.etiquetas }, "Edit Contacts (contacts.write)");

@@ -12,7 +12,7 @@ import { CLAVES_CLOSER } from "@/lib/llamadas";
 import { exigirNivel } from "@/lib/pipelines";
 import type { EstadoCaller, TipoPipeline } from "@/lib/tipos";
 import { db, registrarActividad, escribir, porTrozos, trozos } from "@/lib/datos";
-import { guardarLeads, primeraEtapa } from "@/lib/leads";
+import { guardarLeads, igualarGhlTrasUnir, primeraEtapa, type UnionLeads } from "@/lib/leads";
 import { conPais } from "@/lib/pais";
 import { filaALead, mapaValido } from "@/lib/csv";
 import { borrarSubida, leerSubida, prepararSubida } from "@/lib/subidas";
@@ -482,18 +482,20 @@ export async function borrarLeads(leadIds: string[]) {
 }
 
 // D2 · Unir dos leads duplicados (solo jefes). Se queda el más antiguo; el otro se borra y todo lo suyo pasa al
-// antiguo (función `unir_leads`, D1: todo o nada). Devuelve el contacto de GHL que sobra, para unirlo o borrarlo en GHL.
+// antiguo (función `unir_leads`, D1: todo o nada). Fase 3: después se deja GHL igual (igualarGhlTrasUnir); si GHL
+// falla, la unión de la app se queda y se devuelve qué hacer a mano.
 export async function unirLeads(queda: string, sobra: string) {
   return seguro(async () => {
     await exigirSeccion("crm");
-    const { proyecto } = await exigir(esJefe);
+    const { perfil, proyecto } = await exigir(esJefe);
     // Los dos, de este proyecto (la función también lo comprueba, pero así el mensaje es claro)
     const { data } = await db().from("leads").select("id, creado_en").eq("proyecto_id", proyecto.id).in("id", [queda, sobra]);
     if (queda === sobra || data?.length !== 2) throw new ErrorUsuario("Esos leads no son de este proyecto.");
     if (data.find((l) => l.id === queda)!.creado_en > data.find((l) => l.id === sobra)!.creado_en) throw new ErrorUsuario("Se queda el más antiguo.");
-    const { data: ghl, error } = await db().rpc("unir_leads", { p_proyecto: proyecto.id, p_queda: queda, p_sobra: sobra });
+    const { data: union, error } = await db().rpc("unir_leads", { p_proyecto: proyecto.id, p_queda: queda, p_sobra: sobra });
     if (error) throw new Error(`No se pudo unir: ${error.message}`);
+    const fallosGhl = await igualarGhlTrasUnir(proyecto.id, queda, union as UnionLeads, perfil.id);
     refrescar();
-    return { ok: true as const, ghlSobra: (ghl as string | null) ?? null };
+    return { ok: true as const, fallosGhl };
   });
 }
