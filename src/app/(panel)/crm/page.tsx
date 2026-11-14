@@ -4,7 +4,7 @@ import { esJefe, puedeAdmin } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { miMoneda } from "@/lib/mercado-datos";
 import { db, todas, equipo } from "@/lib/datos";
-import { calcularNivel, type FilaPermisoPipeline } from "@/lib/pipelines";
+import { nivelEnCrm, type FilaPermisoPipeline } from "@/lib/pipelines";
 import { columnaCitasGhl, columnaCitasPorNombre } from "@/lib/leads";
 import { cargarCitasVentas, columnasCloser } from "@/lib/tablero-closers";
 import { canalesDe } from "@/lib/canales-datos";
@@ -49,10 +49,12 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
     canalesDe(proyecto.id), // B2b: los canales del proyecto (filtro de canal y origen de las citas)
   ]);
   const persona = jefe ? gente.find((g) => g.id === sp.persona && (g.rol === "caller" || g.rol === "closer")) ?? null : perfil;
-  // Los leads de una persona: los que tiene asignados como caller o como closer
-  const deLaPersona = <Q extends { or: (f: string) => Q }>(q: Q) => (persona ? q.or(`caller_id.eq.${persona.id},closer_id.eq.${persona.id}`) : q);
-  const esDeLaPersona = (l: { caller_id: string | null; closer_id: string | null }) => !persona || l.caller_id === persona.id || l.closer_id === persona.id;
-  const niveles = Object.fromEntries(todos.map((p) => [p.id, calcularNivel(perfil, p, filas)]));
+  // Los leads de una persona: los que tiene asignados como caller o como closer. Cristian, 14 nov (F7-B1): un caller,
+  // solo los suyos como caller (caller_id); si también es closer, además los suyos como closer.
+  const comoCloser = !!persona && (persona.rol !== "caller" || esCloser(persona));
+  const deLaPersona = <Q extends { or: (f: string) => Q }>(q: Q) => (persona ? q.or(`caller_id.eq.${persona.id}${comoCloser ? `,closer_id.eq.${persona.id}` : ""}`) : q);
+  const esDeLaPersona = (l: { caller_id: string | null; closer_id: string | null }) => !persona || l.caller_id === persona.id || (comoCloser && l.closer_id === persona.id);
+  const niveles = Object.fromEntries(todos.map((p) => [p.id, nivelEnCrm(perfil, p, filas)]));
   // C8: a un caller, «Callers» se le enseña como «<Su nombre> Caller»
   const pipelines = todos.filter((p) => niveles[p.id] !== "sin_acceso").map((p) => ({ ...p, nombre: nombreVisiblePipeline(p, perfil) }));
   const pipeline = pipelines.find((p) => p.id === sp.pipeline) ?? pipelines[0] ?? null;
