@@ -78,17 +78,32 @@ export function contar(el: HTMLElement) {
 // ---------- 3: salida ----------
 // Una copia de la pantalla que se va, encima y sin recibir clics, se desenfoca en 0,2 s mientras entra la nueva
 export function salida(raiz: HTMLElement) {
-  if (quieto() || !raiz.isConnected || !raiz.firstElementChild) return false;
+  if (quieto() || !raiz.isConnected || !raiz.firstElementChild) return null;
+  const g = copiaDe(raiz);
+  document.body.appendChild(g);
+  g.animate([{ opacity: 1, filter: "blur(0)" }, { opacity: 0, filter: "blur(10px)" }], { duration: 200, easing: "ease-in", fill: "forwards" });
+  setTimeout(() => g.remove(), 220);
+  return g;
+}
+
+// Copia de la pantalla, fija en su sitio, encima y sin recibir clics (para la salida y para el velo del esqueleto)
+export function copiaDe(raiz: HTMLElement) {
   const r = raiz.getBoundingClientRect();
   const g = raiz.cloneNode(true) as HTMLElement;
   g.querySelectorAll("[id]").forEach((x) => x.removeAttribute("id"));
   g.setAttribute("aria-hidden", "true");
   g.inert = true;
   g.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;margin:0;pointer-events:none;z-index:1`;
-  document.body.appendChild(g);
-  g.animate([{ opacity: 1, filter: "blur(0)" }, { opacity: 0, filter: "blur(10px)" }], { duration: 200, easing: "ease-in", fill: "forwards" });
-  setTimeout(() => g.remove(), 220);
-  return true;
+  return g;
+}
+
+// Cristian, 14 nov (noche): al quitarse el esqueleto, la cascada empieza con todo invisible y se veía un fotograma casi
+// vacío. Ahora una copia del esqueleto (hecha antes de que se vaya) se funde en 0,3 s encima mientras entra la sección.
+export function velo(copia: HTMLElement) {
+  if (quieto()) return;
+  document.body.appendChild(copia);
+  copia.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: "ease-out", fill: "forwards" });
+  setTimeout(() => copia.remove(), 320);
 }
 
 // ---------- 5: pestañas ----------
