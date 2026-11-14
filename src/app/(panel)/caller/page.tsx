@@ -79,7 +79,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   ]);
   const nombresPipeline = Object.fromEntries((pipelines ?? []).map((x) => [x.id, x.nombre.replace(/^\d+\.\s*/, "")]));
   const pesos = ((scoring as { pesos?: unknown } | null)?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
-  // KPIs de hoy (7c.1): Llamadas («Link de agenda» y «Wsp enviado», 10 nov) · Contactos (los que avanzan, punto 16) · Agendas (% de los
+  // KPIs de hoy (7c.1): Llamadas y Contactos (regla del 14 nov, abajo) · Agendas (% de los
   // contactos) · WhatsApps (botón «Wsp enviado») · Confirmadas («Confirma Agenda»). Fuera «No contestan» y «Ventas» (F6).
   const { acts, citas: agendasHoy } = kpis;
   // Cristian, 14 nov: cualquier botón de resultado cuenta (también WhatsApp), 1 por lead y día; contactos = llamadas (igual que KPIs)
@@ -126,7 +126,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
         <PanelObjetivos panel={panel} dinero={(n: number) => dinero(n, proyecto)} celebrar={jefe ? null : `${caller.id}-${hoyEnZona(proyecto.zona_horaria)}`} />
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" aria-label="Tus números de hoy">
           <KpiCola titulo="Llamadas hoy" valor={llamadas} nota="Cualquier botón cuenta; 1 por lead y día" color="#2b59d1" icono={Phone} />
-          <KpiCola titulo="Contactos hoy" valor={contactos} nota="los que avanzan" color="#7c4ddb" icono={UserCheck} />
+          <KpiCola titulo="Contactos hoy" valor={contactos} nota="leads distintos llamados hoy" color="#7c4ddb" icono={UserCheck} />
           <KpiCola titulo="Agendas hoy" valor={agendasHoy} nota={`${pct(porcentaje(agendasHoy, contactos))} de los contactos`} color="#15924a" icono={CalendarDays} />
           <KpiCola titulo="WhatsApps hoy" valor={whatsapps} nota="botón «Wsp enviado»" color="#16a34a" icono={MessageCircle} />
           <KpiCola titulo="Confirmadas hoy" valor={confirmadas} nota="«Confirma Agenda»" color="#0891b2" icono={CalendarCheck} ultimo />
