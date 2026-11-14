@@ -1,5 +1,5 @@
 import "server-only";
-import { enMemoria, UN_MINUTO } from "@/lib/memoria";
+import { renovadoPorDetras, UN_MINUTO } from "@/lib/memoria";
 import { db, todas, equipo, conBajas } from "@/lib/datos";
 import { ASISTIDAS, cargarBase } from "@/lib/metricas";
 import { CAMPOS_LEAD, compactarLeads, marcasEmbudo, type LeadDeLaBase, type Tarjeta } from "@/lib/leads-vista";
@@ -14,7 +14,9 @@ import { recalcularOfertas } from "@/lib/biblioteca-datos";
 // Llamadas, citas y ventas salen de cargarBase, que ya usan «Por persona» y el Funnel (sin consultas nuevas si está en memoria).
 // Cristian, 14 nov (Fase 9): se quita «al instante» (D41, 13 nov): medido después, sin mejora medible (plan.md, sección 1)
 export function cargarLeadsKpis(proyecto: Proyecto) {
-  return enMemoria(`leads-kpis:${proyecto.id}`, UN_MINUTO, () => cargarDeLaBase(proyecto));
+  // Cristian, 14 nov (noche): «memoria de 5 min». Hasta 1 min, lo guardado; de 1 a 5, lo guardado y se renueva por detrás
+  // (after(): después de responder); pasados 5, se espera a la base. Un cambio propio lo borra (olvidarTodo).
+  return renovadoPorDetras(`leads-kpis:${proyecto.id}`, UN_MINUTO, 5 * UN_MINUTO, () => cargarDeLaBase(proyecto), (f) => after(f));
 }
 
 // shortcut: medición temporal (Cristian, 14 nov, noche: «KPIs tarda muchísimo»); sale en los registros de Vercel como
