@@ -36,6 +36,9 @@ import { canalesDe } from "@/lib/canales-datos";
 import { FiltroMercado } from "@/components/mercado-equipo";
 import { entraEnMercado, mercadoDe, mercadoValido } from "@/lib/mercado";
 import { mercadosDelProyecto } from "@/lib/mercado-datos";
+import { cargarLeadsPestana, cargarUtmsPestana } from "./acciones";
+import { enMemoria, UN_MINUTO } from "@/lib/memoria";
+import { esError, type ConError } from "@/lib/resultado";
 
 // KPIs de cada caller y closer (Paso H2) y sus objetivos (Paso H3). Solo director y CEO (decisión de Cristian, 10 oct 2026).
 export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
@@ -83,14 +86,16 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
   const pestanas = <div className="tarjeta px-4">{listaPestanas()}</div>;
 
   if (vista === "leads") {
-    // Aquí no se lee nada pesado: la precarga del menú prepara esta página al pasar el ratón por «KPIs». Los leads los
-    // pide la pestaña después de pintar (PestanaLeads → cargarLeadsPestana). Periodo por la fecha de alta, «Todo» por defecto.
+    // Cristian, 14 nov (Fase 9, «Leads sin trozos»): los leads se leen aquí, en el servidor (1 min en memoria,
+    // lib/leads-kpis.ts), y todo sale de una vez tras la pantalla de carga. Antes los pedía la pestaña después de pintar.
+    // Por eso /kpis ya no se precarga al abrir la app (lib/mensajes-entrada.ts). Periodo por la fecha de alta, «Todo» por defecto.
     const periodo = (typeof sp.periodo === "string" ? sp.periodo : "todo") as Periodo;
     const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string | undefined, sp.hasta as string | undefined);
     // Lo que venía de la Biblioteca: precios de la escalera y los pipelines de «Actualizar con CSV» (dos lecturas pequeñas)
-    const [{ data: productos }, { data: pipes }] = await Promise.all([
+    const [{ data: productos }, { data: pipes }, datos] = await Promise.all([
       db().from("productos").select("*").eq("proyecto_id", proyecto.id).order("orden"),
       db().from("pipelines").select("*").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden"),
+      cargarLeadsPestana(),
     ]);
     const pipelines = (pipes ?? []) as Pipeline[];
     const ofertas: EscalonOferta[] = ESCALERA.map((e) => {
@@ -104,6 +109,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
         <Contenido>
           {/* Pestañas y periodo en una sola barra, dentro de la misma tarjeta que los filtros de la pestaña (Cristian, 26 oct) */}
           <PestanaLeads
+            datos={datos}
             barra={
               <div className="-mx-4 flex flex-wrap items-center justify-between gap-x-4 border-b border-borde px-4">
                 {listaPestanas()}
@@ -116,15 +122,22 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
       </>
     );
   }
-  // B1 (plan GHL): pestaña «UTMs», solo jefes. Como «Leads»: los datos los pide la pestaña después de pintar
+  // B1 (plan GHL): pestaña «UTMs», solo jefes. Como «Leads» (Cristian, 14 nov): las filas se leen aquí, en el servidor.
+  // 1 min en memoria por proyecto, para que cambiar el periodo no vuelva a leer los leads (el filtro es del navegador);
+  // si falla no se guarda (va como rechazo) y la pestaña enseña el mensaje genérico de seguro()
   if (vista === "utms") {
     const periodo = (typeof sp.periodo === "string" ? sp.periodo : "todo") as Periodo;
     const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string | undefined, sp.hasta as string | undefined);
+    const [filas, canales] = await Promise.all([
+      enMemoria(`utms-kpis:${proyecto.id}`, UN_MINUTO, () => cargarUtmsPestana().then((r) => (esError(r) ? Promise.reject(r) : r))).catch((e: ConError) => e),
+      canalesDe(proyecto.id),
+    ]);
     return (
       <>
         <Cabecera titulo="KPIs" subtitulo={`${proyecto.nombre} · UTMs · ${rango.etiqueta}`} />
         <Contenido>
           <PestanaUtms
+            filas={filas}
             barra={
               <div className="-mx-4 flex flex-wrap items-center justify-between gap-x-4 border-b border-borde px-4">
                 {listaPestanas()}
@@ -132,7 +145,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
                   <Filtros periodoPorDefecto="todo" ligero />
                 </div>
               </div>
-            } desde={rango.desde?.getTime() ?? null} hasta={rango.hasta?.getTime() ?? null} canales={await canalesDe(proyecto.id)} zona={proyecto.zona_horaria} />
+            } desde={rango.desde?.getTime() ?? null} hasta={rango.hasta?.getTime() ?? null} canales={canales} zona={proyecto.zona_horaria} />
         </Contenido>
       </>
     );

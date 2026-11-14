@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { cargandoDatos } from "@/lib/pantalla-lista";
-import { exigirOk } from "@/lib/resultado-cliente";
+import type { ConError } from "@/lib/resultado";
 import { Desplegable } from "@/components/eleccion";
 import { CalendarCheck, Euro, Link2, Link2Off, Users } from "lucide-react";
 import { Kpi, Seccion } from "@/components/ui";
@@ -13,7 +12,6 @@ import { Barras } from "@/components/barras";
 import { EmbudoVidrio } from "@/components/embudo-vidrio";
 import { embudo } from "@/lib/leads-cifras";
 import { CAMPOS_UTM, SIN_DATO, corteGrafico, etiquetasPico, filtrarUtms, porDiaUtm, rankingCampanas, totalesPor, type Clave, type FilaUtm, type FiltroUtm } from "@/lib/utms";
-import { cargarUtmsPestana } from "./acciones";
 import { GeneradorEnlaces } from "./generador-enlaces";
 import type { TablaCanales } from "@/lib/canal";
 
@@ -61,10 +59,10 @@ function LineaDias({ puntos }: { puntos: { d: string; n: number }[] }) {
 }
 const VACIO: FiltroUtm = { desde: null, hasta: null, landing: "", etiqueta: "", utm_source: "", utm_medium: "", utm_campaign: "", utm_content: "", utm_term: "" };
 
-// B1 (plan GHL): KPIs → «UTMs» (solo jefes). Carga como «Leads» (después de pintar) y todo lo demás se calcula aquí.
-export function PestanaUtms({ barra, desde, hasta, canales, zona }: { barra: React.ReactNode; desde: number | null; hasta: number | null; canales: TablaCanales; zona: string }) {
-  const [filas, setFilas] = useState<FilaUtm[] | null>(null);
-  const [error, setError] = useState("");
+// B1 (plan GHL): KPIs → «UTMs» (solo jefes). Como «Leads», las filas llegan desde el servidor (page.tsx; Cristian, 14 nov:
+// todo de una vez, sin esqueleto propio) y todo lo demás se calcula aquí.
+export function PestanaUtms({ filas: recibidas, barra, desde, hasta, canales, zona }: { filas: FilaUtm[] | ConError; barra: React.ReactNode; desde: number | null; hasta: number | null; canales: TablaCanales; zona: string }) {
+  const filas = "error" in recibidas ? null : recibidas;
   const etiquetaUrl = useSearchParams().get("etiqueta") ?? ""; // B4: cada etiqueta enlaza a /kpis?vista=utms&etiqueta=…
   const [f, setF] = useState({ ...VACIO, etiqueta: etiquetaUrl });
   const [vista, setVista] = useState(etiquetaUrl);
@@ -73,18 +71,6 @@ export function PestanaUtms({ barra, desde, hasta, canales, zona }: { barra: Rea
     setVista(etiquetaUrl);
     setF({ ...f, etiqueta: etiquetaUrl });
   }
-  useEffect(() => {
-    let vivo = true;
-    const listo = cargandoDatos();
-    exigirOk(cargarUtmsPestana())
-      .then((d) => vivo && setFilas(d as FilaUtm[]))
-      .catch((e) => vivo && setError(e instanceof Error ? e.message : "No se pudieron cargar los leads."))
-      .finally(listo);
-    return () => {
-      vivo = false;
-      listo();
-    };
-  }, []);
   const filtro = useMemo(() => ({ ...f, desde, hasta }), [f, desde, hasta]);
   const visibles = useMemo(() => (filas ? filtrarUtms(filas, filtro) : []), [filas, filtro]);
   const [fuenteEmbudo, setFuenteEmbudo] = useState("");
@@ -94,7 +80,7 @@ export function PestanaUtms({ barra, desde, hasta, canales, zona }: { barra: Rea
     return (
       <>
         <div className="tarjeta px-4">{barra}</div>
-        {error ? <p className="text-sm text-mal">{error}</p> : <p className="animate-pulse text-sm text-texto-3" role="status" data-datos-pendientes="">Cargando los leads…</p>}
+        <p className="text-sm text-mal">{"error" in recibidas ? recibidas.error : ""}</p>
       </>
     );
   // Rediseño (maqueta v1, Cristian 11 nov 2026): «Sin dato» aparte (casi ningún lead tiene UTM) y gráficos

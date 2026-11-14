@@ -8,8 +8,10 @@ import type { Rol } from "@/lib/tipos";
 export const PRECARGA_ROL: Record<Rol, string[]> = {
   caller: ["/caller", "/crm", "/mi-funnel"],
   closer: ["/closer/llamadas", "/crm", "/mi-funnel"], // el mismo href que el menú «Agendas» (layout.tsx)
-  director: ["/kpis", "/caller", "/closer/llamadas"],
-  ceo: ["/kpis", "/crm", "/closer/llamadas"],
+  // Cristian, 14 nov (Fase 9): sin /kpis. KPIs → Leads se carga en el servidor y la precarga completa (prefetch={true})
+  // ejecuta la página entera: leería todos los leads en cada apertura de la app
+  director: ["/crm", "/caller", "/closer/llamadas"],
+  ceo: ["/ventas", "/crm", "/closer/llamadas"],
 };
 
 export type ClaveMensaje =
