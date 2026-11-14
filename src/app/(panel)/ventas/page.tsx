@@ -4,6 +4,7 @@ import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { db, todas, equipo, idsDePrueba, deVerdad } from "@/lib/datos";
 import { dinero, fechaHora, rangoDe, type Periodo, ETIQUETA_ROL } from "@/lib/formato";
+import type { Proyecto } from "@/lib/tipos";
 import { cashDelPeriodo } from "@/lib/metricas";
 import { Cabecera, Contenido, Kpi, Seccion, Insignia, Vacio } from "@/components/ui";
 import { Filtros } from "@/components/filtros";
@@ -70,20 +71,35 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
       return q.order("id").range(a, b);
     }),
   ]);
-  const facturacion = ventas.reduce((s, v) => s + v.facturacion, 0);
-  const cobrado = cashDelPeriodo(todasLasVentas.filter((v) => ok(v.vendedor_id)), pagosPeriodo, rango);
-  const pendiente = ventas.reduce((s, v) => s + v.pendiente, 0);
+  const $ = (n: number) => dinero(n, proyecto);
+  // Moneda (Cristian, 14 nov): cada venta en la de su vendedor (€ si es de España, $ si de Latam o EE. UU.), mire quien mire
+  const monedaDe = (vendedor: string | null) => contenidoMercado(vendedor ? mercados[vendedor] ?? null : null).moneda(proyecto);
+  const $v = (vendedor: string | null) => (n: number) => dinero(n, { moneda: monedaDe(vendedor) });
+  // Totales (Cristian, 14 nov: «Separar € y $»): cada venta suma en su moneda, sin convertir; con las 2, «€ X · $ Y»
+  const total = (partes: [Proyecto["moneda"], number][]) => {
+    const suma = new Map<Proyecto["moneda"], number>();
+    for (const [m, n] of partes) suma.set(m, (suma.get(m) ?? 0) + n);
+    const texto = (["EUR", "USD"] as const).filter((m) => suma.has(m)).map((m) => dinero(suma.get(m)!, { moneda: m }));
+    return texto.length ? texto.join(" · ") : $(0);
+  };
+  const deVentas = (lista: typeof ventas, campo: "facturacion" | "pendiente") => total(lista.filter((v) => v[campo] > 0).map((v) => [monedaDe(v.vendedor_id), v[campo]]));
+
+  const facturacion = ventas.reduce((s, v) => s + v.facturacion, 0); // solo para el ancho de las barras
+  const ventasOk = todasLasVentas.filter((v) => ok(v.vendedor_id));
+  const cobrado = total((["EUR", "USD"] as const).map((m) => [m, cashDelPeriodo(ventasOk.filter((v) => monedaDe(v.vendedor_id) === m), pagosPeriodo, rango)] as [Proyecto["moneda"], number]).filter(([, n]) => n !== 0));
+  const pendiente = deVentas(ventas, "pendiente");
+  const ticket = total((["EUR", "USD"] as const).flatMap((m) => {
+    const suyas = ventas.filter((v) => monedaDe(v.vendedor_id) === m);
+    return suyas.length ? [[m, suyas.reduce((s, v) => s + v.facturacion, 0) / suyas.length] as [Proyecto["moneda"], number]] : [];
+  }));
   const porProducto = Object.entries(
-    ventas.reduce<Record<string, { n: number; f: number }>>((acc, v) => {
+    ventas.reduce<Record<string, { n: number; f: number; ventas: typeof ventas }>>((acc, v) => {
       const k = v.productos?.nombre ?? "Sin producto";
-      acc[k] = { n: (acc[k]?.n ?? 0) + 1, f: (acc[k]?.f ?? 0) + v.facturacion };
+      acc[k] = { n: (acc[k]?.n ?? 0) + 1, f: (acc[k]?.f ?? 0) + v.facturacion, ventas: [...(acc[k]?.ventas ?? []), v] };
       return acc;
     }, {})
   ).sort((a, b) => b[1].f - a[1].f);
   const nombre = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
-  const $ = (n: number) => dinero(n, proyecto);
-  // Moneda (Cristian, 14 nov): cada venta en la de su vendedor (€ si es de España, $ si de Latam o EE. UU.), mire quien mire
-  const $v = (vendedor: string | null) => (n: number) => dinero(n, { moneda: contenidoMercado(vendedor ? mercados[vendedor] ?? null : null).moneda(proyecto) });
 
   return (
     <>
@@ -91,10 +107,10 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
       <Contenido>
         <Filtros vendedores={jefe ? gente.filter((g) => g.rol !== "ceo" && g.rol !== "director").map((g) => ({ id: g.id, nombre: g.nombre, rol: ETIQUETA_ROL[g.rol] })) : undefined} />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-          <Kpi titulo="Facturación" valor={$(facturacion)} icono={DollarSign} tono="oro" destacado detalle="Valor de los contratos cerrados" />
-          <Kpi titulo="Cash collected" valor={$(cobrado)} icono={Wallet} tono="ok" detalle="Dinero que entró en el periodo, como Finanzas: al vender + cuotas − devoluciones" />
-          <Kpi titulo="Pendiente de cobro" valor={$(pendiente)} icono={Hourglass} tono="aviso" detalle="Reservas y cuotas por cobrar" />
-          <Kpi titulo="Ventas" valor={ventas.length} icono={ShoppingCart} detalle={ventas.length ? `Ticket medio ${$(facturacion / ventas.length)}` : undefined} />
+          <Kpi titulo="Facturación" valor={deVentas(ventas, "facturacion")} icono={DollarSign} tono="oro" destacado detalle="Valor de los contratos cerrados" />
+          <Kpi titulo="Cash collected" valor={cobrado} icono={Wallet} tono="ok" detalle="Dinero que entró en el periodo, como Finanzas: al vender + cuotas − devoluciones" />
+          <Kpi titulo="Pendiente de cobro" valor={pendiente} icono={Hourglass} tono="aviso" detalle="Reservas y cuotas por cobrar" />
+          <Kpi titulo="Ventas" valor={ventas.length} icono={ShoppingCart} detalle={ventas.length ? `Ticket medio ${ticket}` : undefined} />
         </div>
 
         {/* Cristian, 14 nov: grid-cols-1 (= minmax(0,1fr)) para que en móvil la tabla se desplace dentro de su caja y no la página */}
@@ -137,7 +153,7 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
               <ul className="space-y-3">
                 {porProducto.map(([n, d]) => (
                   <li key={n}>
-                    <div className="flex justify-between text-sm"><span className="font-medium">{n}</span><span className="tabular-nums">{$(d.f)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="font-medium">{n}</span><span className="tabular-nums">{deVentas(d.ventas, "facturacion")}</span></div>
                     <div className="mt-1 h-2 overflow-hidden rounded-full bg-panel-2">
                       <div className="h-full rounded-full bg-primario" style={{ width: `${facturacion ? (d.f / facturacion) * 100 : 0}%` }} />
                     </div>

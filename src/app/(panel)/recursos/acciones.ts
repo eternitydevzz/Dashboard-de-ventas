@@ -152,7 +152,7 @@ export async function guardarLinksPago(productoId: string, links: unknown, merca
     if (entraron > lista.length) throw new ErrorUsuario("Algún link no es válido o está repetido: tienen que empezar por https://");
     const campo = mercadoValido(mercado) === "es" ? "links_pago_es" : "links_pago";
     const { error } = await db().from("productos").update({ [campo]: lista }).eq("id", productoId).eq("proyecto_id", proyecto.id);
-    if (error) throw new ErrorUsuario(/links_pago/.test(error.message) ? "Falta aplicar la migración de la base (links de pago)." : error.message);
+    if (error) throw /links_pago/.test(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (links de pago).") : new Error(error.message);
     olvidarTodo(); // 25 oct 2026: borrar la memoria compartida (lib/memoria.ts)
     revalidatePath("/", "layout");
   });
@@ -165,7 +165,7 @@ export async function guardarLinkReserva(url: string, mercado: Mercado = "latam"
     if (limpio && !esHttps(limpio)) throw new ErrorUsuario("Pon un enlace válido que empiece por https://");
     const campo = mercadoValido(mercado) === "es" ? "link_reserva_es" : "link_reserva";
     const { error } = await db().from("proyectos").update({ [campo]: limpio || null }).eq("id", proyecto.id);
-    if (error) throw new ErrorUsuario(/link_reserva/.test(error.message) ? "Falta aplicar la migración de la base (links de pago)." : error.message);
+    if (error) throw /link_reserva/.test(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (links de pago).") : new Error(error.message);
     olvidarTodo(); // 25 oct 2026: borrar la memoria compartida (lib/memoria.ts)
     revalidatePath("/", "layout");
   });
