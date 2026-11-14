@@ -1,7 +1,8 @@
 // Ola única · carril B (Cristian, 14 nov): el caller ve en el CRM solo sus leads asignados (F7-B1) y un lead creado
 // sin pipeline entra en el primero, como el webhook (F8). Base simulada; sin nombres reales ("caller-1", "Lead A").
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { isValidElement, type ReactElement, type ReactNode } from "react";
+import { createElement, isValidElement, type ReactElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 type Fila = Record<string, unknown>;
 type Consulta = { tabla: string; ops: [string, unknown[]][] };
@@ -55,6 +56,7 @@ vi.mock("@/lib/leads", () => ({ columnaCitasGhl: async () => null, columnaCitasP
 vi.mock("@/components/ui", () => ({ Cabecera: () => null, Contenido: ({ children }: { children: ReactNode }) => children }));
 vi.mock("@/components/barra-periodo", () => ({ FiltroUrl: () => null }));
 vi.mock("@/app/(panel)/crm/tablero", () => ({ TableroCrm: () => null }));
+vi.mock("next/navigation", async (original) => ({ ...(await original<typeof import("next/navigation")>()), useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }), useSearchParams: () => new URLSearchParams(), usePathname: () => "/crm" }));
 
 const { getSesion } = await import("@/lib/sesion");
 const { default: CrmPage } = await import("@/app/(panel)/crm/page");
@@ -62,6 +64,7 @@ const { TableroCrm } = await import("@/app/(panel)/crm/tablero");
 const { descompactarCrm } = await import("@/app/(panel)/crm/compacto");
 const { crearLeadManual } = await import("@/app/(panel)/crm/acciones");
 const { calcularNivel, nivelEnCrm } = await import("@/lib/pipelines");
+const { ProveedorToasts } = await import("@/components/toasts");
 
 // Las props que la página le pasa al tablero
 function propsTablero(nodo: ReactNode): Record<string, unknown> | null {
@@ -166,6 +169,40 @@ describe("F7-B1 · pipelines con «Sin acceso» para el rol caller (Cristian, 14
   it("los jefes siguen viendo todos los leads de ese pipeline", async () => {
     sesion.perfil = { id: "jefe-1", nombre: "Director", rol: "director" };
     expect(descompactarCrm((await tablero("bib")).leads as never).map((l) => l.id).sort()).toEqual(["F", "G"]);
+  });
+});
+
+describe("F7-B1 · en un pipeline de solo mirar las tarjetas no se arrastran (Cristian, 14 nov: «Sí, bloquear»)", () => {
+  beforeEach(() => {
+    tablas.pipelines.push({ id: "bib", proyecto_id: "p1", nombre: "1. Biblioteca Recursos", tipo: "normal", orden: 2 });
+    tablas.etapas.push({ id: "bib-form", pipeline_id: "bib", nombre: "Form", orden: 0 });
+    tablas.permisos_pipeline = [{ pipeline_id: "bib", rol: "caller", perfil_id: null, nivel: "sin_acceso" }];
+    tablas.leads.push(lead("F", "caller-1", { pipeline_id: "bib", etapa_id: "bib-form" }));
+  });
+  const props = async (pipeline: string) => propsTablero(await CrmPage({ searchParams: Promise.resolve({ pipeline }) } as never))!;
+  // Pinta el tablero de verdad (no el simulado) con las props que da la página
+  async function arrastrables(p: Record<string, unknown>) {
+    const { TableroCrm: Real } = await vi.importActual<typeof import("@/app/(panel)/crm/tablero")>("@/app/(panel)/crm/tablero");
+    const html = renderToStaticMarkup(createElement(ProveedorToasts, null, createElement(Real, p as never)));
+    return { tarjetas: (html.match(/data-id="/g) ?? []).length, conArrastre: (html.match(/draggable="true" data-id="/g) ?? []).length };
+  }
+
+  it("con «ver» de solo mirar (su rol, «Sin acceso»), la tarjeta sale pero no se arrastra", async () => {
+    const p = await props("bib");
+    expect(p.soloMirar).toBe(true);
+    expect(await arrastrables(p)).toEqual({ tarjetas: 1, conArrastre: 0 });
+  });
+  it("con «ver» normal (su pipeline de origen) el caller sigue moviendo sus tarjetas, como en el Paso 0", async () => {
+    const p = await props("web");
+    expect(p.soloMirar).toBe(false);
+    expect(await arrastrables(p)).toEqual({ tarjetas: 1, conArrastre: 1 });
+  });
+  it("con «editar» (un jefe) se arrastra", async () => {
+    sesion.perfil = { id: "jefe-1", nombre: "Director", rol: "ceo" };
+    const p = await props("bib");
+    expect(p.editar).toBe(true);
+    expect(p.soloMirar).toBe(false);
+    expect((await arrastrables(p)).conArrastre).toBe(1);
   });
 });
 

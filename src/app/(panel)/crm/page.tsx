@@ -4,7 +4,7 @@ import { esJefe, puedeAdmin } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { miMoneda } from "@/lib/mercado-datos";
 import { db, todas, equipo } from "@/lib/datos";
-import { nivelEnCrm, type FilaPermisoPipeline } from "@/lib/pipelines";
+import { calcularNivel, nivelEnCrm, type FilaPermisoPipeline } from "@/lib/pipelines";
 import { columnaCitasGhl, columnaCitasPorNombre } from "@/lib/leads";
 import { cargarCitasVentas, columnasCloser } from "@/lib/tablero-closers";
 import { canalesDe } from "@/lib/canales-datos";
@@ -155,6 +155,8 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           paraReparto={jefe ? pipelines.filter((p) => p.tipo === "normal").map((p) => ({ id: p.id, nombre: p.nombre, etapas: todasEtapas.filter((e) => e.pipeline_id === p.id).map((e) => ({ id: e.id, nombre: e.nombre })) })) : undefined}
           ceo={perfil.rol === "ceo"}
           editar={nivel === "editar"}
+          // Cristian, 14 nov («Sí, bloquear»): donde solo mira (su rol tiene «Sin acceso»), las tarjetas no se arrastran
+          soloMirar={!!pipeline && calcularNivel(perfil, pipeline, filas) === "sin_acceso"}
           jefe={jefe}
           productos={(productos ?? []) as Producto[]}
           moneda={await miMoneda(proyecto, perfil.id)}
