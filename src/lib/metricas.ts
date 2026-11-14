@@ -47,10 +47,15 @@ export function cargarBase(proyecto: Proyecto, conPrueba = false, leidos?: () =>
   return enMemoria(`base:${proyecto.id}:${conPrueba}`, UN_MINUTO, () => cargarBaseDeLaBase(proyecto, conPrueba, leidos));
 }
 
+// Las actividades que cuentan (llamadas, WhatsApp, botones de resultado y «Agendado»); hay un índice para ellas
+// (20261118110000_indice_actividades.sql)
+const ACTS_CUENTAN = "tipo.in.(llamada,whatsapp),and(tipo.eq.cambio_etapa,resultado.not.is.null),and(tipo.eq.cita,resultado.eq.agendada)";
+
 async function cargarBaseDeLaBase(proyecto: Proyecto, conPrueba: boolean, leidos?: () => Promise<LeadMin[]>) {
   const pid = proyecto.id;
   const [leads, citasT, ventasT, actividadesT, pagosT, gente, prueba] = await Promise.all([
-    leidos ? leidos() : todas<LeadMin>((a, b) => db().from("leads").select("id, creado_en, caller_id, closer_id").eq("proyecto_id", pid).order("id").range(a, b)),
+    // Cristian, 14 nov (noche): leads y actividades (miles de filas) con su cuenta: las páginas van juntas (lib/datos.ts)
+    leidos ? leidos() : todas<LeadMin>((a, b) => db().from("leads").select("id, creado_en, caller_id, closer_id").eq("proyecto_id", pid).order("id").range(a, b), () => db().from("leads").select("id", { count: "exact", head: true }).eq("proyecto_id", pid)),
     todas<CitaMin>((a, b) =>
       db().from("citas").select("id, lead_id, closer_id, agendada_por, fecha, estado, creado_en").eq("proyecto_id", pid).order("id").range(a, b)
     ),
@@ -58,7 +63,8 @@ async function cargarBaseDeLaBase(proyecto: Proyecto, conPrueba: boolean, leidos
       db().from("ventas").select("id, lead_id, vendedor_id, facturacion, cash_collected, fecha, producto_id, devuelto, devuelto_en").eq("proyecto_id", pid).order("id").range(a, b)
     ),
     todas<ActMin>((a, b) =>
-      db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", pid).or("tipo.in.(llamada,whatsapp),and(tipo.eq.cambio_etapa,resultado.not.is.null),and(tipo.eq.cita,resultado.eq.agendada)").order("id").range(a, b) /* C11: también los resultados de los botones (contactos); 14 nov: y «Agendado» */
+      db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", pid).or(ACTS_CUENTAN).order("id").range(a, b) /* C11: también los resultados de los botones (contactos); 14 nov: y «Agendado» */,
+      () => db().from("actividades").select("id", { count: "exact", head: true }).eq("proyecto_id", pid).or(ACTS_CUENTAN)
     ),
     todas<PagoMin>((a, b) => db().from("pagos").select("importe, fecha, venta_id, ventas!inner(proyecto_id)").eq("ventas.proyecto_id", pid).order("id").range(a, b)),
     equipo(pid, conPrueba),

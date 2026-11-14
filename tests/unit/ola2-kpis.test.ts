@@ -123,9 +123,10 @@ describe("abrir KPIs → Leads lee menos la base", () => {
     const { default: KpisPage } = await import("@/app/(panel)/kpis/page");
     await KpisPage({ searchParams: Promise.resolve({}) } as never);
     const veces = (t: string) => tablas.filter((x) => x === t).length;
-    expect(veces("leads")).toBe(1);
+    // 14 nov (noche): leads, tarjetas y actividades llevan además su cuenta (petición sin filas) para pedir las páginas juntas
+    expect(veces("leads")).toBe(2);
     expect(veces("pipelines")).toBe(1);
-    expect(tablas.sort()).toEqual(["actividades", "citas", "etapas", "leads", "pagos", "pipelines", "productos", "tarjetas_extra", "ventas"]);
+    expect(tablas.sort()).toEqual(["actividades", "actividades", "citas", "etapas", "leads", "leads", "pagos", "pipelines", "productos", "tarjetas_extra", "tarjetas_extra", "ventas"]);
   });
 
   it("la base de «Por persona» usa los leads que ya lee KPIs → Leads (mismas filas, solo sus 4 campos)", async () => {

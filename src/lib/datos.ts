@@ -14,9 +14,32 @@ export async function escribir<T extends { error: { message: string } | null }>(
 }
 
 // Supabase devuelve como mucho 1000 filas por consulta: esto pagina.
+// Cristian, 14 nov (noche, «KPIs tarda muchísimo»): con `cuenta` (las filas que hay, pedida a la vez que la 1.ª página),
+// las páginas que faltan van todas juntas: 2 tandas en vez de 3-4, las mismas peticiones y ninguna vacía. Sin cuenta
+// (o si falla), como siempre.
 export async function todas<T>(
-  consulta: (desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
+  consulta: (desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  cuenta?: () => PromiseLike<{ count: number | null; error: { message: string } | null }>
 ): Promise<T[]> {
+  if (cuenta) {
+    const [primera, c] = await Promise.all([consulta(0, 999), cuenta()]);
+    if (primera.error) throw new Error(primera.error.message);
+    const out = [...(primera.data ?? [])];
+    if (out.length < 1000) return out;
+    if (!c.error && c.count !== null) {
+      const resto = await Promise.all(Array.from({ length: Math.ceil(c.count / 1000) - 1 }, (_, k) => consulta((k + 1) * 1000, (k + 2) * 1000 - 1)));
+      for (const { data, error } of resto) {
+        if (error) throw new Error(error.message);
+        out.push(...(data ?? []));
+      }
+      // si entraron filas entre la cuenta y la lectura, lo que falta se pide como siempre
+      if (out.length % 1000 !== 0 || out.length === 0) return out;
+      const mas = await todas<T>((d, h) => consulta(out.length + d, out.length + h));
+      return [...out, ...mas];
+    }
+    const mas = await todas<T>((d, h) => consulta(1000 + d, 1000 + h));
+    return [...out, ...mas];
+  }
   // 25 oct 2026 (Cristian, la base se saturó con el equipo trabajando): primero UNA página y, solo si viene llena,
   // las siguientes de 2 en 2. Antes se pedían 8 a la vez siempre (Paso G, 10 oct): casi todas volvían vacías y eran
   // la mayoría de las peticiones a Supabase. Mismas filas y en el mismo orden; se para en la primera incompleta.
