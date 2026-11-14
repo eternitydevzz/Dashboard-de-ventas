@@ -14,6 +14,12 @@ const filas: unknown[][] = [];
 vi.mock("@/lib/datos", async (orig) => ({
   ...(await orig<typeof import("@/lib/datos")>()),
   todas: async () => filas.shift() ?? [],
+  // Ola 2: Ventas lee también los productos (venta manual); sin esto el test iba a la base real (y en GitHub fallaba)
+  db: () => {
+    const c: Record<string, unknown> = { then: (r: (x: unknown) => unknown) => r({ data: [], error: null }) };
+    for (const m of ["from", "select", "eq", "order", "in", "gte", "lt", "range"]) c[m] = () => c;
+    return c;
+  },
   equipo: async () => [],
   idsDePrueba: async () => new Set<string>(),
 }));
