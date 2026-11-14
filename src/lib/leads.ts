@@ -108,7 +108,7 @@ export async function contactosPrincipales(proyectoId: string, ids: (string | nu
   for (let i = 0; i < unicos.length; i += 200) {
     const { data, error } = await db().from("ghl_contactos_unidos").select("contact_id, leads(ghl_contact_id)").eq("proyecto_id", proyectoId).in("contact_id", unicos.slice(i, i + 200));
     if (error) throw new Error(`No se pudo leer «ghl_contactos_unidos»: ${error.message}`);
-    for (const f of (data ?? []) as { contact_id: string; leads: { ghl_contact_id: string | null } | null }[]) if (f.leads?.ghl_contact_id) m.set(f.contact_id, f.leads.ghl_contact_id);
+    for (const f of (data ?? []) as unknown as { contact_id: string; leads: { ghl_contact_id: string | null } | null }[]) if (f.leads?.ghl_contact_id) m.set(f.contact_id, f.leads.ghl_contact_id);
   }
   return m;
 }
