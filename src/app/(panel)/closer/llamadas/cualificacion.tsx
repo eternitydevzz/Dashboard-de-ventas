@@ -25,8 +25,8 @@ export async function Cualificacion({ proyecto, sp, baseQs }: { proyecto: Proyec
   };
   const tabs = (
     <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-      <Link href={baseQs({ cual: null })} className={`rounded-md px-3 py-1.5 text-sm ${ver === "estudio" ? "bg-primario text-white" : "text-texto-2"}`}>Estudio</Link>
-      <Link href={baseQs({ cual: "scoring" })} className={`rounded-md px-3 py-1.5 text-sm ${ver === "scoring" ? "bg-primario text-white" : "text-texto-2"}`}>Scoring IA</Link>
+      <Link prefetch={false} href={baseQs({ cual: null })} className={`rounded-md px-3 py-1.5 text-sm ${ver === "estudio" ? "bg-primario text-white" : "text-texto-2"}`}>Estudio</Link>
+      <Link prefetch={false} href={baseQs({ cual: "scoring" })} className={`rounded-md px-3 py-1.5 text-sm ${ver === "scoring" ? "bg-primario text-white" : "text-texto-2"}`}>Scoring IA</Link>
     </div>
   );
   if (!preguntas.length) return <Seccion acciones={tabs}><Vacio icono={Microscope} texto="Aún no hay leads con respuestas del formulario (llegan con las landings o el CSV)." /></Seccion>;
@@ -50,7 +50,7 @@ export async function Cualificacion({ proyecto, sp, baseQs }: { proyecto: Proyec
         {sc && (
           <Seccion titulo="Leads sin comprar con mejor nota">
             {ranking.length === 0 ? <p className="text-sm text-texto-3">Ningún lead tiene respuestas que encajen con el scoring.</p> : (
-              <ul className="divide-y divide-borde text-sm">{ranking.map(({ l, nota }) => <li key={l.id} className="flex items-center justify-between py-2"><Link href={`/leads/${l.id}`} className="hover:text-primario">{`${l.nombre} ${l.apellido ?? ""}`.trim() || "Sin nombre"}</Link><span className="font-semibold tabular-nums text-oro">{nota}</span></li>)}</ul>
+              <ul className="divide-y divide-borde text-sm">{ranking.map(({ l, nota }) => <li key={l.id} className="flex items-center justify-between py-2"><Link prefetch={false} href={`/leads/${l.id}`} className="hover:text-primario">{`${l.nombre} ${l.apellido ?? ""}`.trim() || "Sin nombre"}</Link><span className="font-semibold tabular-nums text-oro">{nota}</span></li>)}</ul>
             )}
           </Seccion>
         )}
@@ -68,10 +68,10 @@ export async function Cualificacion({ proyecto, sp, baseQs }: { proyecto: Proyec
       <Seccion acciones={<div className="flex w-full flex-wrap items-center gap-2">{tabs}<a href={`/closer/llamadas/cualificacion?${qsCsv}`} className="btn-secundario ml-auto"><FileDown className="h-4 w-4" /> Exportar CSV</a></div>}>
         <div className="flex flex-wrap gap-1.5 text-xs">
           <span className="self-center text-texto-3">Preguntas:</span>
-          <Link href={conPreg([])} className={`chip ${!elegidas.length ? "bg-primario text-white" : "bg-panel-2 text-texto-2"}`}>Todas</Link>
+          <Link prefetch={false} href={conPreg([])} className={`chip ${!elegidas.length ? "bg-primario text-white" : "bg-panel-2 text-texto-2"}`}>Todas</Link>
           {preguntas.map((p) => {
             const on = elegidas.includes(p);
-            return <Link key={p} href={conPreg(on ? elegidas.filter((x) => x !== p) : [...elegidas, p])} className={`chip ${on ? "bg-primario text-white" : "bg-panel-2 text-texto-2"}`}>{p}</Link>;
+            return <Link prefetch={false} key={p} href={conPreg(on ? elegidas.filter((x) => x !== p) : [...elegidas, p])} className={`chip ${on ? "bg-primario text-white" : "bg-panel-2 text-texto-2"}`}>{p}</Link>;
           })}
         </div>
         <p className="mt-3 text-xs text-texto-3">Por cada respuesta: cuántos leads la dieron, cuántas llamadas hubo (asistidas), cuántos cerraron, % de cierre (de los que tuvieron llamada) y <b>cash por llamada</b> = cash cobrado de esos leads ÷ sus llamadas. Pocas llamadas = poco fiable.</p>

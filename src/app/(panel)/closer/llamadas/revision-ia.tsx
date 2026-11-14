@@ -23,7 +23,7 @@ export async function RevisionIa({ proyecto, closerIds, jefe, sinLead, baseQs }:
           <ul className="divide-y divide-borde">
             {autos.map((x) => (
               <li key={x.id} className="space-y-2 py-3 text-sm">
-                <div className="flex flex-wrap items-center gap-2"><Link href={`/closer/analisis/${x.id}`} className="font-medium hover:text-primario">{nombre(x)}</Link><span className="text-xs text-texto-3">{x.grabaciones?.inicio ? fechaHora(x.grabaciones.inicio, proyecto) : ""}</span></div>
+                <div className="flex flex-wrap items-center gap-2"><Link prefetch={false} href={`/closer/analisis/${x.id}`} className="font-medium hover:text-primario">{nombre(x)}</Link><span className="text-xs text-texto-3">{x.grabaciones?.inicio ? fechaHora(x.grabaciones.inicio, proyecto) : ""}</span></div>
                 {x.autocompletado && <p>La IA propone: <b>{ETIQUETA_ESTADO_CITA[x.autocompletado.estado] ?? x.autocompletado.estado}</b> · {x.autocompletado.estrellas}★ · <span className="text-texto-2">{x.autocompletado.nota}</span></p>}
                 <Autocompletado id={x.id} estado="pendiente" />
               </li>
@@ -33,13 +33,13 @@ export async function RevisionIa({ proyecto, closerIds, jefe, sinLead, baseQs }:
       </Seccion>
       <div className="grid gap-4 lg:grid-cols-2">
         <Seccion titulo={`Agendas sin lead asignado · ${sinLead}`}>
-          <p className="text-sm text-texto-2">{sinLead ? <>Citas de GHL que no se han podido unir a un lead. {jefe ? <Link href={baseQs({ tab: "agendas", revisar: "1" })} className="text-primario hover:underline">Revisar →</Link> : "Las revisa un director o el CEO."}</> : "Todas las citas de GHL tienen su lead."}</p>
+          <p className="text-sm text-texto-2">{sinLead ? <>Citas de GHL que no se han podido unir a un lead. {jefe ? <Link prefetch={false} href={baseQs({ tab: "agendas", revisar: "1" })} className="text-primario hover:underline">Revisar →</Link> : "Las revisa un director o el CEO."}</> : "Todas las citas de GHL tienen su lead."}</p>
         </Seccion>
         <Seccion titulo={`Conciliaciones dudosas · ${dudosas.length}`}>
           {dudosas.length === 0 ? <p className="text-sm text-texto-2">Todas las grabaciones están unidas a su cita (o descartadas).</p> : (
             <ul className="space-y-1 text-sm">
               {dudosas.slice(0, 8).map((g) => <li key={g.id}><b>{g.titulo ?? "Grabación"}</b> <span className="text-xs text-texto-3">· {g.inicio ? fechaHora(g.inicio, proyecto) : "sin fecha"} · {g.motivo ?? ""}</span></li>)}
-              <li><Link href={baseQs({ tab: "grabaciones", conc: "pendientes" })} className="text-primario hover:underline">Elegir la cita en Grabaciones →</Link></li>
+              <li><Link prefetch={false} href={baseQs({ tab: "grabaciones", conc: "pendientes" })} className="text-primario hover:underline">Elegir la cita en Grabaciones →</Link></li>
             </ul>
           )}
         </Seccion>
