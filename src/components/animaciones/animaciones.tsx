@@ -2,11 +2,12 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
-import { alCoger, alSoltar, deslizarPestanas, deslizarResalte, entrada, fotoPestanas, onda, salida, type FotoPestanas } from "./efectos";
+import { alCoger, alSoltar, deslizarPestanas, deslizarResalte, entrada, fotoPestanas, fundido, onda, salida, type FotoPestanas } from "./efectos";
+import { modoEntrada } from "./valores";
 
-let ultimaSalida = 0; // si la sección anterior acaba de irse, la nueva espera 90 ms (como la maqueta)
 const CARGANDO = '[aria-busy="true"]'; // el esqueleto de (panel)/loading.tsx
-// #418: en la primera carga React aún no ha hidratado las cifras y el conteo les cambia el texto; solo se cuenta al navegar
+// Cristian, 14 nov (noche): la cascada solo al abrir la app; al navegar, fundido corto. Las cifras ya no suben solas
+// (al cambiar de sección parecía que los datos cambiaban; en la primera carga ya no contaban, por el #418)
 let primeraCarga = true;
 
 // Envuelve cada sección (template.tsx: se vuelve a montar al cambiar de sección, no con las pestañas ni los filtros)
@@ -18,20 +19,21 @@ export function Animaciones({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     const raiz = ref.current!;
-    const conteo = !primeraCarga;
+    const primera = primeraCarga;
     primeraCarga = false;
-    const entrar = (base: number) => {
-      entrada(raiz, { base, titulo: true, conteo });
+    const entrar = (conEsqueleto: boolean) => {
+      if (modoEntrada(primera, conEsqueleto) === "cascada") entrada(raiz, { titulo: true, conteo: false });
+      else fundido(raiz);
       foto.current = fotoPestanas(raiz);
     };
     // con esqueleto, la entrada espera a que llegue la sección de verdad
     const obs = new MutationObserver(() => {
       if (raiz.querySelector(CARGANDO)) return;
       obs.disconnect();
-      entrar(0);
+      entrar(true);
     });
     if (raiz.querySelector(CARGANDO)) obs.observe(raiz, { childList: true, subtree: true });
-    else entrar(Date.now() - ultimaSalida < 400 ? 90 : 0);
+    else entrar(false);
     document.addEventListener("pointerdown", onda, { passive: true });
     document.addEventListener("dragstart", alCoger, true);
     document.addEventListener("drop", alSoltar, true);
@@ -40,7 +42,7 @@ export function Animaciones({ children }: { children: ReactNode }) {
       document.removeEventListener("pointerdown", onda);
       document.removeEventListener("dragstart", alCoger, true);
       document.removeEventListener("drop", alSoltar, true);
-      if (salida(raiz)) ultimaSalida = Date.now();
+      salida(raiz);
     };
   }, []);
 

@@ -2,10 +2,14 @@
 export const SUAVE = "cubic-bezier(.2,.7,.2,1)";
 export const DESLIZA = "cubic-bezier(.3,.8,.2,1)";
 
-// Tope: a partir del panel 11 entran todos a la vez; las filas dejan de escalonarse a partir de la 15
-export const retrasoPanel = (n: number, base = 0) => base + Math.min(n, 10) * 60;
-export const retrasoFila = (n: number, j: number, base = 0) => retrasoPanel(n, base) + 200 + Math.min(j, 14) * 22;
+// Cristian, 14 nov (noche): la cascada solo al abrir la app y como mucho 0,4 s (antes ~1,2 s con las filas una a una):
+// 30 ms entre paneles, tope en el 6.º, y 0,25 s cada uno. Las filas ya no se animan por separado.
+export const DURACION_PANEL = 250;
+export const retrasoPanel = (n: number, base = 0) => base + Math.min(n, 5) * 30;
 export const panelConDesenfoque = (n: number) => n < 12;
+// Al navegar o al quitarse el esqueleto, un fundido corto de todo a la vez (la cascada empezaba invisible y dejaba un
+// fotograma casi vacío); la cascada, solo al abrir la app
+export const modoEntrada = (primera: boolean, conEsqueleto: boolean) => (primera && !conEsqueleto ? "cascada" : "fundido");
 
 // Lee la primera cifra de un texto con el formato que traiga ("1.234 $", "$1,234", "12,5 %")
 function leerCifra(texto: string) {

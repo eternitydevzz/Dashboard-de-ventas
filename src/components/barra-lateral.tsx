@@ -182,7 +182,7 @@ export function BarraLateral({
                 return (
                   <li key={it.href}>
                     <Link
-                      key={deEntrada(it.href) ? "precarga" : "normal"}
+                      key={conPrecarga(it.href) ? "precarga" : "normal"} // también al pasar el ratón: si solo cambia el prop, Next no precarga (medido el 11 nov)
                       href={it.href}
                       data-activo={activo || undefined}
                       prefetch={ruta !== it.href && conPrecarga(it.href)} // la sección en la que ya estás no se vuelve a precargar en cada guardado
