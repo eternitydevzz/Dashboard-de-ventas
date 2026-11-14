@@ -7,6 +7,7 @@ import { rangoDe, fecha as fmtFecha, ETIQUETA_ROL } from "@/lib/formato";
 import { PREGUNTAS, preguntasDe, preguntasValidas, rolDeReporte, tasasCloser, type Pregunta } from "@/lib/reportes";
 import { Cabecera, Contenido, Seccion, Insignia, Vacio, Avatar } from "@/components/ui";
 import { NuevoReporte } from "./formulario";
+import { llamadasHoyCola } from "@/lib/kpis-cola";
 import type { Reporte } from "@/lib/tipos";
 
 export default async function ReportesPage({ searchParams }: PageProps<"/reportes">) {
@@ -34,8 +35,8 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
     // D43: las actividades de hoy pueden pasar de 1.000 filas: todas() pagina con orden fijo
     // Cristian, 14 nov (F8): solo el proyecto abierto; quien está en 2 proyectos veía la suma de los dos
     const [acts, { count: agendas }, { data: citas }, { count: ventas }] = await Promise.all([
-      todas<{ tipo: string; resultado: string | null }>((d, h) =>
-        db().from("actividades").select("tipo, resultado").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).gte("creado_en", desde).order("id").range(d, h)
+      todas<{ tipo: string; resultado: string | null; lead_id: string }>((d, h) =>
+        db().from("actividades").select("tipo, resultado, lead_id").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).gte("creado_en", desde).order("id").range(d, h)
       ),
       db().from("citas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).eq("agendada_por", perfil.id).gte("creado_en", desde),
       db().from("citas").select("estado, fecha").eq("proyecto_id", proyecto.id).eq("closer_id", perfil.id).gte("fecha", desde).lt("fecha", hoy.hasta!.toISOString()),
@@ -46,7 +47,7 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
     sugeridos =
       rol === "caller"
         ? {
-            llamadas: a.filter((x) => x.tipo === "llamada").length,
+            llamadas: llamadasHoyCola(a), // Cristian, 14 nov: cualquier botón, 1 por lead y día (igual que Mis leads y KPIs)
             // C11: «No responde» (y «No contesta» del historial de antes del 7 nov)
             no_responden: a.filter((x) => x.resultado === "no_responde" || (x.tipo === "llamada" && x.resultado === "no_contesta")).length,
             agendas: agendas ?? 0,

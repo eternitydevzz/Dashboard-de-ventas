@@ -61,6 +61,27 @@ describe("llamadas: 1 por lead y día, cualquier botón", () => {
   });
 });
 
+describe("Reportes y Mis leads dan el mismo número que KPIs (mismo caller, mismo día)", () => {
+  const acts = [
+    act("Lead A", "cambio_etapa", "no_responde", "2026-11-10T15:00:00Z"),
+    act("Lead A", "llamada", "wsp_enviado", "2026-11-10T16:00:00Z"),
+    act("Lead A", "whatsapp", "wsp_enviado", "2026-11-10T16:00:01Z"),
+    act("Lead B", "cambio_etapa", "descartado", "2026-11-10T17:00:00Z"),
+    act("Lead C", "cita", "agendada", "2026-11-10T18:00:00Z"),
+  ];
+  it("las dos pantallas cuentan con llamadasHoyCola, que da lo mismo que KPIs para ese día", () => {
+    const kpis = calcularKpis(base(acts), rangoDe("rango", NY, "2026-11-10", "2026-11-10"), NY).callers[0];
+    expect(llamadasHoyCola(acts)).toBe(3);
+    expect(llamadasHoyCola(acts)).toBe(kpis.llamadas);
+    expect(llamadasHoyCola(acts)).toBe(kpis.contactados);
+    const reportes = readFileSync("src/app/(panel)/reportes/page.tsx", "utf8");
+    expect(reportes).toContain("llamadas: llamadasHoyCola(a)");
+    const cola = readFileSync("src/app/(panel)/caller/page.tsx", "utf8");
+    expect(cola).toContain("const llamadas = llamadasHoyCola(acts);");
+    expect(cola).toContain("const contactos = llamadas;");
+  });
+});
+
 describe("Reportes «hoy»: solo el proyecto abierto", () => {
   it("cada lectura de actividades, citas y ventas filtra por proyecto_id", () => {
     const s = readFileSync("src/app/(panel)/reportes/page.tsx", "utf8");

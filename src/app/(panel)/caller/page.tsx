@@ -12,10 +12,10 @@ import { PanelObjetivos } from "@/components/barras-objetivos";
 import { db, todas, equipo } from "@/lib/datos";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { rangoDe, porcentaje, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
-import { kpisHoyCola } from "@/lib/kpis-cola";
+import { kpisHoyCola, llamadasHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
 import { colaCaller, cuentaPorEstado, leerOrden, ordenarCola } from "@/lib/cola";
-import { ESTADOS_CALLER, esContacto } from "@/lib/estados-caller";
+import { ESTADOS_CALLER } from "@/lib/estados-caller";
 import { Cabecera, Contenido, Vacio, Avatar } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
 import type { Lead, Producto } from "@/lib/tipos";
@@ -82,8 +82,9 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   // KPIs de hoy (7c.1): Llamadas («Link de agenda» y «Wsp enviado», 10 nov) · Contactos (los que avanzan, punto 16) · Agendas (% de los
   // contactos) · WhatsApps (botón «Wsp enviado») · Confirmadas («Confirma Agenda»). Fuera «No contestan» y «Ventas» (F6).
   const { acts, citas: agendasHoy } = kpis;
-  const llamadas = acts.filter((a) => a.tipo === "llamada").length;
-  const contactos = new Set(acts.filter(esContacto).map((a) => a.lead_id)).size;
+  // Cristian, 14 nov: cualquier botón de resultado cuenta (también WhatsApp), 1 por lead y día; contactos = llamadas (igual que KPIs)
+  const llamadas = llamadasHoyCola(acts);
+  const contactos = llamadas;
   const whatsapps = acts.filter((a) => a.tipo === "whatsapp").length;
   const confirmadas = acts.filter((a) => a.tipo === "cambio_etapa" && a.resultado === "confirma_agenda").length;
 
@@ -124,7 +125,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
             C11 (punto 11): sin aviso «Te tocan X llamadas»: ya no hay fechas */}
         <PanelObjetivos panel={panel} dinero={(n: number) => dinero(n, proyecto)} celebrar={jefe ? null : `${caller.id}-${hoyEnZona(proyecto.zona_horaria)}`} />
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" aria-label="Tus números de hoy">
-          <KpiCola titulo="Llamadas hoy" valor={llamadas} nota="«Link de agenda» y «Wsp enviado»" color="#2b59d1" icono={Phone} />
+          <KpiCola titulo="Llamadas hoy" valor={llamadas} nota="Cualquier botón cuenta; 1 por lead y día" color="#2b59d1" icono={Phone} />
           <KpiCola titulo="Contactos hoy" valor={contactos} nota="los que avanzan" color="#7c4ddb" icono={UserCheck} />
           <KpiCola titulo="Agendas hoy" valor={agendasHoy} nota={`${pct(porcentaje(agendasHoy, contactos))} de los contactos`} color="#15924a" icono={CalendarDays} />
           <KpiCola titulo="WhatsApps hoy" valor={whatsapps} nota="botón «Wsp enviado»" color="#16a34a" icono={MessageCircle} />
