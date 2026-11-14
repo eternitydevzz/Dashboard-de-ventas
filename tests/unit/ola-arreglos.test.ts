@@ -1,10 +1,29 @@
 // Ola única · carril D (Fase 8, Cristian 14 nov: «arregla todo»): errores de la base sin enseñar, enlaces a /closer,
 // moneda por mercado del vendedor, nombres accesibles, lecturas que miran su error y la migración de cambiar_forma_pago.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { contenidoMercado } from "@/lib/mercado";
 import { crearUnaVez, simboloVenta } from "@/components/acciones-lead";
 import { precargaConDatos } from "@/components/bienvenida";
+import VentasPage from "@/app/(panel)/ventas/page";
+
+// Ventas con la base simulada: `filas` = lo que devuelve cada `todas()` (ventas del periodo, ventas para el cash, pagos)
+const filas: unknown[][] = [];
+vi.mock("@/lib/datos", async (orig) => ({
+  ...(await orig<typeof import("@/lib/datos")>()),
+  todas: async () => filas.shift() ?? [],
+  equipo: async () => [],
+  idsDePrueba: async () => new Set<string>(),
+}));
+vi.mock("@/lib/permisos", async (orig) => ({
+  ...(await orig<typeof import("@/lib/permisos")>()),
+  exigirPagina: async () => ({ perfil: { id: "ceo-1", rol: "ceo", es_prueba: false }, proyecto: { id: "p1", nombre: "P", moneda: "USD", zona_horaria: "Europe/Madrid" } }),
+}));
+vi.mock("@/lib/mercado-datos", () => ({ mercadosDelProyecto: async () => ({ "closer-es": "es", "closer-latam": "latam" }) }));
+vi.mock("@/components/filtros", () => ({ Filtros: () => null }));
+vi.mock("@/app/(panel)/ventas/fila-acciones", () => ({ FilaVentaAcciones: () => null }));
 
 const leer = (r: string) => readFileSync(new URL(`../../${r}`, import.meta.url), "utf8");
 const panel = (r: string) => leer(`src/app/(panel)/${r}`);
@@ -12,7 +31,18 @@ const panel = (r: string) => leer(`src/app/(panel)/${r}`);
 // Los del carril D (crm/acciones.ts es del carril B)
 const ACCIONES = ["admin", "clientes", "equipo", "guiones", "onboarding-closers", "perfil", "closer/analisis"].map((c) => `src/app/(panel)/${c}/acciones.ts`);
 
+// Todo src (Cristian, 14 nov). crm/acciones.ts lo arregló el carril B en su rama: se mira al fusionarla (quitar esta excepción)
+const todoSrc = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? todoSrc(join(d, n)) : /\.tsx?$/.test(n) ? [join(d, n)] : []));
+const RAIZ = new URL("../../", import.meta.url).pathname;
+
 describe("errores de la base: mensaje genérico", () => {
+  it("0 en todo src", () => {
+    const malas = todoSrc(join(RAIZ, "src"))
+      .filter((r) => !r.endsWith("crm/acciones.ts"))
+      .flatMap((r) => readFileSync(r, "utf8").split("\n").filter((l) => /new ErrorUsuario\((?:(?!new Error\().)*\.message\);/.test(l)).map((l) => `${r.slice(RAIZ.length)}: ${l.trim()}`));
+    expect(malas).toEqual([]);
+  });
+
   it.each(ACCIONES)("%s no enseña error.message al usuario", (r) => {
     // Un «.message» que cierra el ErrorUsuario (también tras «? … :»); el de un `new Error(…)` va al registro y vale
     const malas = leer(r).split("\n").filter((l) => /new ErrorUsuario\((?:(?!new Error\().)*\.message\);/.test(l));
@@ -117,5 +147,43 @@ describe("botones de resultado de la cola: aviso al momento y un solo guardado",
 
   it("en la cola el mensaje final es «✓ Llamada registrada»", () => {
     expect(leer("src/components/acciones-lead.tsx")).toContain('variante === "cola" ? "✓ Llamada registrada"');
+  });
+});
+
+describe("Ventas: totales separados por moneda (Cristian, 14 nov: «Separar € y $»)", () => {
+  // Textos del árbol que devuelve la página (sin pintar): `valor` de cada Kpi y el texto suelto
+  const textos = (n: ReactNode, kpis: Record<string, string>, sueltos: string[]): void => {
+    if (Array.isArray(n)) return n.forEach((x) => textos(x, kpis, sueltos));
+    if (typeof n === "string") return void sueltos.push(n);
+    if (!isValidElement(n)) return;
+    const p = n.props as { titulo?: string; valor?: unknown; detalle?: unknown; children?: ReactNode };
+    if (p.titulo && p.valor !== undefined) kpis[p.titulo] = `${p.valor}|${p.detalle ?? ""}`;
+    textos(p.children, kpis, sueltos);
+  };
+  const ahora = new Date().toISOString();
+  const venta = (id: string, vendedor: string, facturacion: number, cash: number) => ({ id, lead_id: `lead-${id}`, vendedor_id: vendedor, facturacion, cash_collected: cash, tipo_pago: "reserva", num_cuotas: null, metodo: "stripe", fecha: ahora, nota: null, devuelto: null, devuelto_en: null, baja_en: null, productos: { nombre: "Grupal" }, leads: { nombre: "Lead", apellido: id }, pagos: [] });
+  const pintar = async (ventas: ReturnType<typeof venta>[]) => {
+    filas.length = 0;
+    filas.push(ventas, ventas.map(({ id, vendedor_id, fecha, cash_collected }) => ({ id, vendedor_id, fecha, cash_collected, devuelto: null, devuelto_en: null })), []);
+    const kpis: Record<string, string> = {};
+    const sueltos: string[] = [];
+    textos((await VentasPage({ searchParams: Promise.resolve({}), params: Promise.resolve({}) } as never)) as ReactNode, kpis, sueltos);
+    return { kpis, sueltos };
+  };
+  const solo = (t: string) => t.replace(/\s/g, " ");
+
+  it("con ventas de los 2 mercados, cada total sale como «€ X · $ Y» sin convertir", async () => {
+    const { kpis, sueltos } = await pintar([venta("a", "closer-es", 1997, 100), venta("b", "closer-latam", 4997, 4997)]);
+    expect(solo(kpis["Facturación"])).toMatch(/1\.?997 €.* · .*\$\s?4,?997/);
+    expect(solo(kpis["Cash collected"])).toMatch(/100 €.* · .*\$\s?4,?997/);
+    expect(solo(kpis["Pendiente de cobro"])).toMatch(/^1\.?897 €\|/); // la de Latam está cobrada: solo €
+    expect(sueltos.map(solo).find((t) => t.includes("·") && t.includes("€") && t.includes("$"))).toMatch(/1\.?997 €.* · .*\$\s?4,?997/); // Por producto
+  });
+
+  it("con ventas de una sola moneda, un único total como hoy", async () => {
+    const { kpis } = await pintar([venta("a", "closer-latam", 1997, 100), venta("b", "closer-latam", 4997, 4997)]);
+    expect(solo(kpis["Facturación"])).toMatch(/^\$\s?6,?994\|/);
+    expect(kpis["Facturación"]).not.toContain("·");
+    expect(kpis["Facturación"]).not.toContain("€");
   });
 });
