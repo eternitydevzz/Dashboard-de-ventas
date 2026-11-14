@@ -6,6 +6,9 @@ import { SIN_PAIS, nombrePais } from "@/lib/formato";
 import { colocarCuadros, type Sitio } from "@/lib/mapa-cuadros";
 
 type Forma = { alfa: string | null; d: string; x: number; y: number };
+// Cristian, 14 nov (noche, «sin flasheos raros»): el dibujo se calcula una vez por pestaña; al volver a KPIs el mapa sale
+// al momento (antes, un recuadro gris de 24-64 ms en cada visita)
+let formasGuardadas: Forma[] | null = null;
 const ANCHO = 800;
 const ALTO = 400;
 // Todos los puntos del mismo azul (Cristian, 27 oct; antes el 2.º iba en granate)
@@ -25,6 +28,32 @@ const CLASE_SITIO: Record<Sitio, string> = {
 // Ranking: azul Maestria, granate Eternity, oro y los tonos de la app (cambian solos en modo oscuro)
 const COLORES = ["var(--primario)", "var(--marca-eternity)", "var(--oro)", "var(--ok)", "var(--morado)", "var(--aviso)", "var(--primario-2)", "var(--mal)"];
 
+// Carga y calcula el dibujo una sola vez por pestaña (las siguientes visitas lo reutilizan)
+export async function cargarFormas(): Promise<Forma[]> {
+  if (formasGuardadas) return formasGuardadas;
+  const [geo, topo, mundo] = await Promise.all([import("d3-geo"), import("topojson-client"), import("world-atlas/countries-110m.json")]);
+  const datos = (mundo as { default?: unknown }).default ?? mundo;
+  const t = datos as unknown as Parameters<typeof topo.feature>[0] & { objects: { countries: Parameters<typeof topo.feature>[1] } };
+  const todas = topo.feature(t, t.objects.countries) as unknown as { features: { id?: string; geometry: { type: string; coordinates: unknown } }[] };
+  // Sin la Antártida (010): ocupa media altura y no tiene leads
+  const features = todas.features.filter((f) => f.id !== "010");
+  const proyeccion = geo.geoNaturalEarth1().fitSize([ANCHO, ALTO], { type: "FeatureCollection", features } as never);
+  const camino = geo.geoPath(proyeccion);
+  // El punto de luz va en el trozo más grande del país (si no, el de Francia caería en el mar por la Guayana
+  // Francesa y el de EE. UU. se iría hacia Alaska)
+  const centro = (f: (typeof features)[number]) => {
+    if (f.geometry.type !== "MultiPolygon") return camino.centroid(f as never);
+    const trozos = (f.geometry.coordinates as unknown[][]).map((c) => ({ type: "Polygon", coordinates: c }));
+    const mayor = trozos.reduce((a, b) => (geo.geoArea(b as never) > geo.geoArea(a as never) ? b : a));
+    return camino.centroid(mayor as never);
+  };
+  formasGuardadas = features.map((f) => {
+    const [x, y] = centro(f);
+    return { alfa: f.id ? ALFA2_DE_NUMERICO[f.id] ?? null : null, d: camino(f as never) ?? "", x, y };
+  });
+  return formasGuardadas;
+}
+
 // 1c · L5 (Cristian, 26 oct 2026: «haz el mapa visualmente más top», con sus referencias adaptadas a la marca):
 // vidrio con las luces de la app (azul Maestria y granate Eternity), un punto de luz por país (más grande cuantos más
 // leads; los 5 primeros laten), cifras flotando sobre 9 países elegidos (27 oct), 3 datos grandes, un ranking con barras y, al
@@ -33,7 +62,7 @@ const COLORES = ["var(--primario)", "var(--marca-eternity)", "var(--oro)", "var(
 // «Sin país» no salen en el mapa; la lista de debajo con ellos se quitó (Cristian, 26 oct).
 // alElegir (Cristian, 26 oct): clic en un país del mapa o del ranking abre la lista de sus personas
 export function MapaPaises({ paises, alElegir }: { paises: { pais: string; n: number }[]; alElegir?: (pais: string) => void }) {
-  const [formas, setFormas] = useState<Forma[] | null>(null);
+  const [formas, setFormas] = useState<Forma[] | null>(formasGuardadas);
   const [error, setError] = useState(false);
   const [sobre, setSobre] = useState<{ alfa: string; x: number; y: number; derecha: boolean } | null>(null);
   const caja = useRef<HTMLDivElement>(null);
@@ -46,32 +75,10 @@ export function MapaPaises({ paises, alElegir }: { paises: { pais: string; n: nu
     return () => o.disconnect();
   }, []);
   useEffect(() => {
+    if (formasGuardadas) return;
     let vivo = true;
-    Promise.all([import("d3-geo"), import("topojson-client"), import("world-atlas/countries-110m.json")])
-      .then(([geo, topo, mundo]) => {
-        const datos = (mundo as { default?: unknown }).default ?? mundo;
-        const t = datos as unknown as Parameters<typeof topo.feature>[0] & { objects: { countries: Parameters<typeof topo.feature>[1] } };
-        const todas = topo.feature(t, t.objects.countries) as unknown as { features: { id?: string; geometry: { type: string; coordinates: unknown } }[] };
-        // Sin la Antártida (010): ocupa media altura y no tiene leads
-        const features = todas.features.filter((f) => f.id !== "010");
-        const proyeccion = geo.geoNaturalEarth1().fitSize([ANCHO, ALTO], { type: "FeatureCollection", features } as never);
-        const camino = geo.geoPath(proyeccion);
-        // El punto de luz va en el trozo más grande del país (si no, el de Francia caería en el mar por la Guayana
-        // Francesa y el de EE. UU. se iría hacia Alaska)
-        const centro = (f: (typeof features)[number]) => {
-          if (f.geometry.type !== "MultiPolygon") return camino.centroid(f as never);
-          const trozos = (f.geometry.coordinates as unknown[][]).map((c) => ({ type: "Polygon", coordinates: c }));
-          const mayor = trozos.reduce((a, b) => (geo.geoArea(b as never) > geo.geoArea(a as never) ? b : a));
-          return camino.centroid(mayor as never);
-        };
-        if (vivo)
-          setFormas(
-            features.map((f) => {
-              const [x, y] = centro(f);
-              return { alfa: f.id ? ALFA2_DE_NUMERICO[f.id] ?? null : null, d: camino(f as never) ?? "", x, y };
-            })
-          );
-      })
+    cargarFormas()
+      .then((f) => vivo && setFormas(f))
       .catch(() => vivo && setError(true));
     return () => {
       vivo = false;
