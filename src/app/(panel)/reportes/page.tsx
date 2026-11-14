@@ -32,13 +32,14 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
     const hoy = rangoDe("hoy", proyecto.zona_horaria);
     const desde = hoy.desde!.toISOString();
     // D43: las actividades de hoy pueden pasar de 1.000 filas: todas() pagina con orden fijo
+    // Cristian, 14 nov (F8): solo el proyecto abierto; quien está en 2 proyectos veía la suma de los dos
     const [acts, { count: agendas }, { data: citas }, { count: ventas }] = await Promise.all([
       todas<{ tipo: string; resultado: string | null }>((d, h) =>
-        db().from("actividades").select("tipo, resultado").eq("perfil_id", perfil.id).gte("creado_en", desde).order("id").range(d, h)
+        db().from("actividades").select("tipo, resultado").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).gte("creado_en", desde).order("id").range(d, h)
       ),
-      db().from("citas").select("id", { count: "exact", head: true }).eq("agendada_por", perfil.id).gte("creado_en", desde),
-      db().from("citas").select("estado, fecha").eq("closer_id", perfil.id).gte("fecha", desde).lt("fecha", hoy.hasta!.toISOString()),
-      db().from("ventas").select("id", { count: "exact", head: true }).eq("vendedor_id", perfil.id).gte("fecha", desde),
+      db().from("citas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).eq("agendada_por", perfil.id).gte("creado_en", desde),
+      db().from("citas").select("estado, fecha").eq("proyecto_id", proyecto.id).eq("closer_id", perfil.id).gte("fecha", desde).lt("fecha", hoy.hasta!.toISOString()),
+      db().from("ventas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).eq("vendedor_id", perfil.id).gte("fecha", desde),
     ]);
     const a = acts;
     const c = citas ?? [];

@@ -1,7 +1,7 @@
 import "server-only";
 import { esContacto } from "@/lib/estados-caller";
 import { porcentaje, type Rango } from "@/lib/formato";
-import { ASISTIDAS, enRango, cashNeto, type Base } from "@/lib/metricas";
+import { ASISTIDAS, enRango, cashNeto, llamadasPorDia, leadsLlamados, type Base } from "@/lib/metricas";
 import { esCloser, type Perfil } from "@/lib/tipos";
 import { mercadoDe, mercadoValido, type Mercado } from "@/lib/mercado";
 
@@ -37,11 +37,11 @@ export type Indices = {
 export function kpiCaller(ix: Indices, ids: Set<string>) {
   const { base, rango, dia, ahora } = ix;
   const acts = base.actividades.filter((a) => a.perfil_id !== null && ids.has(a.perfil_id) && enRango(a.creado_en, rango));
-  const llamadas = acts.filter((a) => a.tipo === "llamada").length;
-  // Contactado = le llamó o le mandó un WhatsApp · contesta = el lead avanzó (C11, punto 16: No interesa, Seguimiento,
-  // Llamar luego, Agendado, Confirma Agenda, Reagendado o Cerrados; desde el 10 nov también Link de agenda y Wsp enviado)
-  // N8 (13 nov): desde el 7 nov los botones apuntan «cambio_etapa», no «llamada»; quien contesta o «No responde» también fue contactado
-  const contactados = new Set(acts.filter((a) => a.tipo === "llamada" || a.tipo === "whatsapp" || a.resultado === "no_responde" || esContacto(a)).map((a) => a.lead_id));
+  // Cristian, 14 nov: llamada = cualquier botón de resultado de la cola (también WhatsApp), máximo 1 por lead y día;
+  // contactado = lo mismo que llamada, en personas · contesta = el lead avanzó (C11, punto 16: No interesa, Seguimiento,
+  // Llamar luego, Agendado, Confirma Agenda, Reagendado o Cerrados)
+  const llamadas = llamadasPorDia(acts, dia);
+  const contactados = leadsLlamados(acts);
   const contestan = new Set(acts.filter(esContacto).map((a) => a.lead_id));
 
   // Agendados: leads con una cita creada por él en el periodo (también si luego se reagendó)
