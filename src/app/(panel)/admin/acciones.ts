@@ -866,7 +866,7 @@ export async function guardarUsuarioGhl(perfilId: string, userId: string) {
 export async function guardarRotacion(pcts: Record<string, number>) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
-    const closers = (await equipo(proyecto.id)).filter((p) => p.rol === "closer");
+    const closers = (await equipo(proyecto.id)).filter(esCloser); // Fase 10 (14 nov): también Facu; sin él, su 7 % hacía sumar 93 y no se podía guardar
     const limpio = validarRotacion(Object.fromEntries(closers.map((c) => [c.id, Number(pcts[c.id] ?? 0)])));
     const { data: antes } = await db().from("miembros_proyecto").select("perfil_id, rotacion_pct").eq("proyecto_id", proyecto.id).in("perfil_id", closers.map((c) => c.id));
     const cambian = (antes ?? []).some((a) => Number(a.rotacion_pct) !== limpio[a.perfil_id]);
