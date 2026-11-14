@@ -8,6 +8,7 @@ import { db, registrarActividad, escribir } from "@/lib/datos";
 import { hoyEnZona, localAIso } from "@/lib/formato";
 import { diaEnZona } from "@/lib/llamadas";
 import { leerNumero } from "@/lib/numero";
+import { esCloser } from "@/lib/tipos";
 
 async function ventaPermitida(ventaId: string) {
   const { perfil, proyecto } = await getSesion();
@@ -74,8 +75,8 @@ export async function borrarVenta(ventaId: string) {
     await exigirSeccion("ventas", "agendas"); // H5
     const { venta, perfil, proyecto } = await ventaPermitida(ventaId);
     // Paso H6 (Cristian, 10 oct 2026): el closer también puede borrar sus propias ventas (ventaPermitida ya
-    // comprueba que es suya); el caller no.
-    if (!esJefe(perfil) && perfil.rol !== "closer") throw new ErrorUsuario("Solo el director, el CEO o el closer de la venta pueden borrarla.");
+    // comprueba que es suya); el caller no. Fase 10 (Cristian, 14 nov): el caller «también closer» sí.
+    if (!esJefe(perfil) && !esCloser(perfil)) throw new ErrorUsuario("Solo el director, el CEO o el closer de la venta pueden borrarla.");
     await escribir(db().from("ventas").delete().eq("id", ventaId), "ventas"); // sus cobros y plazos se borran con ella
     // Arreglo 26 (decisión de Cristian): si al lead no le queda otra venta, la cita que se cerró vuelve a
     // «seguimiento» y el lead deja de estar «vendido» (vuelve a «agendado» si tiene cita; si no, a «nuevo»).

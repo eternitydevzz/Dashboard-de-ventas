@@ -48,7 +48,7 @@ export async function guardarConfigIa(productoId: string | null, contexto: strin
     const { data: ya } = await q.maybeSingle();
     const fila = { proyecto_id: proyecto.id, producto_id: productoId, contexto: contexto.trim() || null, agentes: limpio, actualizado_en: new Date().toISOString() };
     const { error } = ya ? await db().from("config_ia").update(fila).eq("id", ya.id) : await db().from("config_ia").insert(fila);
-    if (error) throw new ErrorUsuario(error.message);
+    if (error) throw new Error(error.message); // Cristian, 14 nov: el detalle de la base va al registro (seguro), el usuario ve el mensaje genérico
     refrescar();
   });
 }

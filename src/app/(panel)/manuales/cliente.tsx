@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
-import { BookOpen, Maximize2, Upload } from "lucide-react";
+import { BookOpen, Check, Maximize2, Settings2, Upload } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { BarraDeslizable } from "@/components/barra-deslizable";
 import { useToast } from "@/components/toasts";
@@ -10,9 +10,11 @@ import { subirDelFormulario } from "@/lib/subir-cliente";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
-import { guardarManual, prepararSubidaManual } from "./acciones";
+import { MERCADOS, type Mercado } from "@/lib/mercado";
+import { guardarManual, guardarMercadosManual, prepararSubidaManual } from "./acciones";
 
-export type ManualFila = { id: string; titulo: string; actualizado_en: string; por: string | null };
+// `vistos`: solo para jefes (ajuste ⚙). visto_en null = «Sin ver»
+export type ManualFila = { id: string; titulo: string; actualizado_en: string; por: string | null; mercados: Mercado[]; vistos?: { id: string; nombre: string; visto_en: string | null }[] };
 
 // Cristian (7 nov, tras verlo en la app): el manual ocupa todo el ancho y el alto; arriba, un botón por manual
 // para cambiar de uno a otro (antes, una lista a la izquierda que le quitaba sitio al .html)
@@ -25,9 +27,12 @@ export function VisorManuales({ manuales, elegido, editor, zona, mercado = "lata
           {manuales.map((m) => {
             const on = m.id === elegido.id;
             return (
-              <Link key={m.id} href={`/manuales?m=${m.id}${editor && mercado === "es" ? "&mercado=es" : ""}`} aria-current={on ? "page" : undefined} title={`Actualizado el ${fechaHora(m.actualizado_en, { zona_horaria: zona })}${m.por ? ` · por ${m.por}` : ""}`} className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${on ? "border-transparent bg-primario-boton text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)]" : "border-borde bg-panel-2 text-texto-2 hover:border-borde-fuerte hover:text-texto"}`}>
-                <BookOpen className="h-4 w-4" /> {m.titulo}
-              </Link>
+              <span key={m.id} className="inline-flex shrink-0 items-center gap-0.5">
+                <Link href={`/manuales?m=${m.id}${editor && mercado === "es" ? "&mercado=es" : ""}`} aria-current={on ? "page" : undefined} title={`Actualizado el ${fechaHora(m.actualizado_en, { zona_horaria: zona })}${m.por ? ` · por ${m.por}` : ""}`} className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${on ? "border-transparent bg-primario-boton text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)]" : "border-borde bg-panel-2 text-texto-2 hover:border-borde-fuerte hover:text-texto"}`}>
+                  <BookOpen className="h-4 w-4" /> {m.titulo}
+                </Link>
+                {editor && <AjustesManual manual={m} zona={zona} />}
+              </span>
             );
           })}
         </BarraDeslizable>
@@ -81,5 +86,72 @@ export function SubirManual({ cambiar, mercado = "latam" }: { cambiar?: ManualFi
         </Modal>
       )}
     </>
+  );
+}
+
+// Cristian, 14 nov: ajuste ⚙ de cada manual (CEO y directores): qué mercados lo ven y quién lo ha abierto
+function AjustesManual({ manual, zona }: { manual: ManualFila; zona: Proyecto["zona_horaria"] }) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setAbierto(true)} aria-label="Ajustes del manual" title="Ajustes del manual" className="rounded-lg p-1.5 text-texto-3 hover:bg-panel-2 hover:text-texto">
+        <Settings2 className="h-4 w-4" />
+      </button>
+      {abierto && <VentanaAjustes manual={manual} zona={zona} onCerrar={() => setAbierto(false)} />}
+    </>
+  );
+}
+
+function VentanaAjustes({ manual, zona, onCerrar }: { manual: ManualFila; zona: Proyecto["zona_horaria"]; onCerrar: () => void }) {
+  const [marcados, setMarcados] = useState<Mercado[]>(manual.mercados);
+  const [error, setError] = useState("");
+  const [enviando, iniciar] = useTransition();
+  const toast = useToast();
+  const vistos = manual.vistos ?? [];
+  const alterna = (m: Mercado) => setMarcados((a) => (a.includes(m) ? a.filter((x) => x !== m) : [...a, m]));
+  const guardar = () => {
+    setError("");
+    iniciar(async () => {
+      try {
+        await exigirOk(guardarMercadosManual(manual.id, marcados));
+        toast("Guardado");
+        onCerrar();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "No se pudo guardar.");
+      }
+    });
+  };
+  return (
+    <Modal titulo={`Ajustes · ${manual.titulo}`} onCerrar={onCerrar}>
+      <div className="space-y-5">
+        <section className="space-y-2">
+          <h3 className="etiqueta-campo">Quién lo ve</h3>
+          <div className="flex gap-4 text-sm">
+            {[...MERCADOS].reverse().map((m) => (
+              <label key={m.v} className="flex items-center gap-1.5"><input type="checkbox" checked={marcados.includes(m.v)} onChange={() => alterna(m.v)} />{m.t}</label>
+            ))}
+          </div>
+          {!marcados.length && <p className="text-xs text-mal">Marca al menos un mercado.</p>}
+          {error && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{error}</p>}
+          <button type="button" className="btn-primario w-full" disabled={enviando || !marcados.length} onClick={guardar}>{enviando ? "Guardando…" : "Guardar"}</button>
+        </section>
+        <section className="space-y-2">
+          <h3 className="etiqueta-campo">Quién lo ha visto</h3>
+          <p className="text-sm text-texto-2">{vistos.filter((v) => v.visto_en).length} de {vistos.length} lo han visto</p>
+          <ul className="divide-y divide-borde text-sm">
+            {vistos.map((v) => (
+              <li key={v.id} className="flex items-center justify-between gap-3 py-1.5">
+                <span>{v.nombre}</span>
+                {v.visto_en ? (
+                  <span className="inline-flex items-center gap-1 text-ok-texto"><Check className="h-4 w-4" /> {fechaHora(v.visto_en, { zona_horaria: zona })}</span>
+                ) : (
+                  <span className="text-texto-3">Sin ver</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </Modal>
   );
 }

@@ -88,7 +88,7 @@ export async function guardarCategoria(id: string | null, tipo: "ingreso" | "egr
       await escribir(db().from("categorias_finanzas").update({ nombre: nombre.trim(), en_profit: enProfit }).eq("id", id), "categorias_finanzas");
     } else {
       const { error } = await db().from("categorias_finanzas").insert({ proyecto_id: proyecto.id, tipo, nombre: nombre.trim(), en_profit: enProfit });
-      if (error) throw new ErrorUsuario(error.code === "23505" ? "Ya existe esa categoría." : error.message);
+      if (error) throw error.code === "23505" ? new ErrorUsuario("Ya existe esa categoría.") : new Error(error.message); // Cristian, 14 nov: el detalle, al registro
     }
     refrescar();
   });

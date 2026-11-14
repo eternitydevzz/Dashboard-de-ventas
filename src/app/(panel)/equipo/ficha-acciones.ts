@@ -80,7 +80,7 @@ export async function cambiarEmailPersona(perfilId: string, emailTxt: string) {
     const { data: otro } = await db().from("perfiles").select("id").eq("email", email).neq("id", perfilId).maybeSingle();
     if (otro) throw new ErrorUsuario("Ya hay otra persona con ese email.");
     const { error } = await db().auth.admin.updateUserById(perfilId, { email, email_confirm: true });
-    if (error) throw new ErrorUsuario(error.message.includes("already") ? "Ya hay otra persona con ese email." : error.message);
+    if (error) throw error.message.includes("already") ? new ErrorUsuario("Ya hay otra persona con ese email.") : new Error(error.message); // Cristian, 14 nov: el detalle, al registro
     await escribir(db().from("perfiles").update({ email }).eq("id", perfilId), "perfiles");
     await escribir(db().from("miembros_equipo").update({ email }).eq("perfil_id", perfilId).eq("proyecto_id", proyecto.id), "miembros_equipo");
     refrescar();

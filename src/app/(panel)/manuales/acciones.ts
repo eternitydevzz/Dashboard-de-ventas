@@ -6,7 +6,7 @@ import { exigirSeccion } from "@/lib/permisos";
 import { db, escribir } from "@/lib/datos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { borrarSubida, leerSubida, prepararSubida, rutaDeSubidaValida } from "@/lib/subidas";
-import { tituloManual } from "@/lib/manuales";
+import { mercadosValidos, tituloManual } from "@/lib/manuales";
 
 // C9 (plan Callers, 7 nov): los manuales los ve todo el mundo; los suben o cambian el CEO y los directores.
 async function exigirEditor() {
@@ -40,9 +40,19 @@ export async function guardarManual(formData: FormData) {
       if (viejo.archivo_path !== ruta) await borrarSubida("manuales", viejo.archivo_path);
     } else {
       const { count } = await db().from("manuales").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-      const deEspana = formData.get("mercado") === "es" ? { mercado: "es" } : {}; // 13 nov: subido mirando España
-      await escribir(db().from("manuales").insert({ proyecto_id: proyecto.id, titulo, archivo_path: ruta, orden: count ?? 0, actualizado_por: perfil.id, actualizado_en: ahora, ...deEspana }), "manuales");
+      const mercado = formData.get("mercado") === "es" ? "es" : "latam"; // 13 nov: subido mirando España, es de España
+      await escribir(db().from("manuales").insert({ proyecto_id: proyecto.id, titulo, archivo_path: ruta, orden: count ?? 0, actualizado_por: perfil.id, actualizado_en: ahora, mercado, mercados: [mercado] }), "manuales");
     }
+    revalidatePath("/manuales");
+  });
+}
+
+// Cristian, 14 nov: el ajuste ⚙ de cada manual, qué mercados lo ven (al menos uno)
+export async function guardarMercadosManual(id: string, mercados: unknown) {
+  return seguro(async () => {
+    const { proyecto } = await exigirEditor();
+    const { data } = await escribir(db().from("manuales").update({ mercados: mercadosValidos(mercados) }).eq("id", id).eq("proyecto_id", proyecto.id).select("id"), "manuales");
+    if (!data?.length) throw new ErrorUsuario("Manual no encontrado.");
     revalidatePath("/manuales");
   });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
 import { anadirNota, confirmarAgenda, registrarLlamada, registrarVenta, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
 import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado, type BotonResultado } from "@/lib/estados-caller";
@@ -15,7 +15,13 @@ import { GuionLlamada } from "@/components/guion-llamada";
 import { BotonGrabar, useGrabadora } from "@/components/grabadora";
 import type { Guion } from "@/lib/guiones";
 
-type Persona = { id: string; nombre: string };
+type Persona = { id: string; nombre: string; moneda?: string }; // moneda: la de su mercado (€ si es de España)
+
+// Moneda (Cristian, 14 nov): cada venta en la de quien la vende, mire quien mire. Sin vendedor elegido («Yo») o sin
+// su moneda, la de quien registra.
+export function simboloVenta(miMoneda: string, vendedor?: Persona) {
+  return (vendedor?.moneda ?? miMoneda) === "EUR" ? "€" : "$";
+}
 
 
 // Ejecuta una acción del servidor: muestra «guardado» en un aviso flotante
@@ -40,6 +46,17 @@ export function useAccion() {
     });
   }
   return { pendiente, error, ok: "", ejecutar };
+}
+
+// Una acción por clave a la vez: un doble clic durante el guardado no lanza otra. Con `guardando`, avisa al momento
+// («Guardando…», Cristian 14 nov: la respuesta tardaba y no se veía nada) y el mensaje final sale al terminar.
+export function crearUnaVez(enCurso: Set<string>, ejecutar: (fn: () => Promise<unknown>, mensaje?: string) => void, avisar: (texto: string) => void) {
+  return (clave: string, fn: () => Promise<unknown>, mensaje: string, guardando = false) => {
+    if (enCurso.has(clave)) return;
+    enCurso.add(clave);
+    if (guardando) avisar("Guardando…");
+    ejecutar(() => fn().finally(() => enCurso.delete(clave)), mensaje);
+  };
 }
 
 export function Mensajes({ error, ok }: { error: string; ok: string }) {
@@ -131,12 +148,8 @@ export function AccionesLead({
   }
   // Doble clic = dos guardados (historial y KPIs repetidos; dos ventas): los botones del guion no se desactivan y la
   // ventana de venta no se cierra hasta que responde el servidor. Mientras una va, la segunda igual no sale.
-  const enCurso = useRef(new Set<string>());
-  function unaVez(clave: string, fn: () => Promise<unknown>, mensaje: string) {
-    if (enCurso.current.has(clave)) return;
-    enCurso.current.add(clave);
-    ejecutar(() => fn().finally(() => enCurso.current.delete(clave)), mensaje);
-  }
+  const [enCurso] = useState(() => new Set<string>()); // el mismo Set en cada pintado
+  const unaVez = crearUnaVez(enCurso, ejecutar, aviso);
   const [modal, setModal] = useState<null | "guion" | "nota" | "venta">(null);
   const [ventana, setVentana] = useState<DestinoConVentana | null>(null);
   const [nota, setNota] = useState("");
@@ -154,10 +167,12 @@ export function AccionesLead({
     if (clave === "link_enviado" && !desdeMoverA) {
       if (!linkAgenda) return aviso("Este proyecto no tiene link de agenda: ponlo en Administración.", "error");
       void copiarLinkAgenda();
-      return unaVez("resultado", () => registrarLlamada(leadId, "link_enviado", ""), "Link de agenda copiado y apuntado");
+      return unaVez("resultado", () => registrarLlamada(leadId, "link_enviado", ""), "Link de agenda copiado y apuntado", true);
     }
-    if (clave === "confirma_agenda") return unaVez("resultado", () => confirmarAgenda(leadId), "Guardado: Confirma Agenda (cita confirmada)");
-    unaVez("resultado", () => registrarLlamada(leadId, clave as ResultadoSimple, ""), `Guardado: ${etiquetaEstado(clave)}`);
+    // Cristian, 14 nov: en la cola, «Guardando…» al pulsar y «✓ Llamada registrada» al terminar
+    const final = (m: string) => (variante === "cola" ? "✓ Llamada registrada" : m);
+    if (clave === "confirma_agenda") return unaVez("resultado", () => confirmarAgenda(leadId), final("Guardado: Confirma Agenda (cita confirmada)"), true);
+    unaVez("resultado", () => registrarLlamada(leadId, clave as ResultadoSimple, ""), final(`Guardado: ${etiquetaEstado(clave)}`), true);
   }
 
   const ventanas = (
@@ -232,7 +247,7 @@ export function AccionesLead({
     const bv = "inline-flex items-center gap-1.5 rounded-[10px] border border-white/30 bg-white/15 px-2.5 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-white/25 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-white";
     return (
       <>
-        <section className="relative rounded-[18px] bg-gradient-to-br from-primario-boton to-[#3f6ee6] px-4 pb-3 pt-3.5 text-white shadow-[0_10px_30px_-16px_rgb(43_89_209/0.6)] sm:px-[18px]" aria-label="Lead elegido">
+        <section className="relative rounded-[18px] bg-gradient-to-br from-primario-boton to-cola-degradado px-4 pb-3 pt-3.5 text-white shadow-[0_10px_30px_-16px_rgb(43_89_209/0.6)] sm:px-[18px]" aria-label="Lead elegido">
           {cabecera}
           <div className="mt-3 flex flex-wrap gap-1.5 border-t border-white/20 pt-3" role="toolbar" aria-label="Herramientas">
             {guion && (
@@ -371,7 +386,9 @@ export function FormVenta({
   const tipoDe = (p?: Producto) => (p?.modo_pago === "cuotas" ? "cuotas" : p?.modo_pago === "mensual" ? "mensual" : "completo");
   const [tipo, setTipo] = useState<string>(tipoInicial ?? tipoDe(producto));
   const [cash, setCash] = useState(tipoInicial && tipoInicial !== "completo" ? "" : tipoDe(producto) === "cuotas" ? "" : String(producto?.precio ?? ""));
-  const simbolo = moneda === "EUR" ? "€" : "$";
+  const [vendedorId, setVendedorId] = useState("");
+  // "" = el closer de la cita (o «Yo» si no hay cita); miId no está en `vendedores` → mi moneda
+  const simbolo = simboloVenta(moneda, vendedorId ? vendedores?.find((v) => v.id === vendedorId) : closerCita);
   return (
     <form action={onEnviar} className="space-y-3">
       <div>
@@ -460,7 +477,7 @@ export function FormVenta({
         <div>
           <label className="etiqueta-campo" htmlFor="acciones-lead-vendedor-si-no-eres-tu">Vendedor</label>
           {/* Con cita, por defecto el closer de la cita (lo decide también el servidor si no se elige nada) */}
-          <Desplegable id="acciones-lead-vendedor-si-no-eres-tu" name="vendedor" defaultValue="" className="campo">
+          <Desplegable id="acciones-lead-vendedor-si-no-eres-tu" name="vendedor" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="campo">
             <option value="">{closerCita ? `${closerCita.nombre} (closer de la cita)` : "Yo"}</option>
             {closerCita && miId && <option value={miId}>Yo</option>}
             {vendedores.filter((v) => v.id !== closerCita?.id).map((v) => <option key={v.id} value={v.id}>{v.nombre}</option>)}

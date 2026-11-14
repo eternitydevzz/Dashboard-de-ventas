@@ -25,7 +25,7 @@ async function clientePermitido(leadId: string) {
 }
 async function actualizarFicha(proyectoId: string, leadId: string, cambios: Record<string, unknown>) {
   const { error } = await db().from("clientes").upsert({ proyecto_id: proyectoId, lead_id: leadId, ...cambios, actualizado_en: new Date().toISOString() });
-  if (error) throw new ErrorUsuario(error.message);
+  if (error) throw new Error(error.message);
 }
 
 export async function cambiarEstadoCliente(leadId: string, estado: EstadoCliente) {
@@ -87,11 +87,11 @@ export async function guardarPasoOnboarding(id: string | null, nombre: string) {
     if (!nombre.trim()) throw new ErrorUsuario("Pon un nombre al paso.");
     if (id) {
       const { error } = await db().from("pasos_onboarding").update({ nombre: nombre.trim() }).eq("id", id).eq("proyecto_id", proyecto.id);
-      if (error) throw new ErrorUsuario(error.code === "23505" ? "Ya hay un paso con ese nombre." : error.message);
+      if (error) throw error.code === "23505" ? new ErrorUsuario("Ya hay un paso con ese nombre.") : new Error(error.message);
     } else {
       const { count } = await db().from("pasos_onboarding").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
       const { error } = await db().from("pasos_onboarding").insert({ proyecto_id: proyecto.id, nombre: nombre.trim(), orden: count ?? 0 });
-      if (error) throw new ErrorUsuario(error.code === "23505" ? "Ya hay un paso con ese nombre." : error.message);
+      if (error) throw error.code === "23505" ? new ErrorUsuario("Ya hay un paso con ese nombre.") : new Error(error.message);
     }
     refrescar();
   });
@@ -136,7 +136,7 @@ export async function nuevoCliente(formData: FormData) {
         .insert({ proyecto_id: proyecto.id, nombre, apellido, email: email || null, telefono: telefono || null, ...conPais(telefono || null), origen: "manual", pipeline_id: pipe?.id ?? null, etapa_id: etapa?.id ?? null, ...(esJefe(perfil) ? {} : perfil.rol === "closer" ? { closer_id: perfil.id } : { caller_id: perfil.id }) })
         .select("id")
         .single();
-      if (error) throw new ErrorUsuario(error.message);
+      if (error) throw new Error(error.message);
       leadId = nuevo.id;
       creado = true;
     }
