@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { panelConDesenfoque, retrasoPanel, textoConteo } from "@/components/animaciones/valores";
+import { panelConDesenfoque, retrasoFila, retrasoPanel, textoConteo } from "@/components/animaciones/valores";
 
 describe("retrasos de la entrada en cascada", () => {
-  // Cristian, 14 nov (noche): 30 ms entre paneles y tope en el 6.º (antes 60 ms y tope en el 11.º); las filas ya no se animan
-  it("0,03 s entre paneles y tope en el panel 6", () => {
+  it("0,06 s entre paneles y tope en el panel 11", () => {
     expect(retrasoPanel(0)).toBe(0);
-    expect(retrasoPanel(3, 90)).toBe(180);
-    expect(retrasoPanel(5)).toBe(150);
-    expect(retrasoPanel(30)).toBe(150);
+    expect(retrasoPanel(3, 90)).toBe(270);
+    expect(retrasoPanel(10)).toBe(600);
+    expect(retrasoPanel(30)).toBe(600);
+  });
+  it("filas: 0,2 s tras su panel, 22 ms entre filas y tope en la 15", () => {
+    expect(retrasoFila(0, 0)).toBe(200);
+    expect(retrasoFila(1, 2)).toBe(60 + 200 + 44);
+    expect(retrasoFila(0, 14)).toBe(200 + 14 * 22);
+    expect(retrasoFila(0, 99)).toBe(200 + 14 * 22);
   });
   it("desenfoque solo en los 12 primeros paneles", () => {
     expect(panelConDesenfoque(11)).toBe(true);
