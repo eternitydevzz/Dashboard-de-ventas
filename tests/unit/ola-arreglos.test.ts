@@ -31,14 +31,13 @@ const panel = (r: string) => leer(`src/app/(panel)/${r}`);
 // Los del carril D (crm/acciones.ts es del carril B)
 const ACCIONES = ["admin", "clientes", "equipo", "guiones", "onboarding-closers", "perfil", "closer/analisis"].map((c) => `src/app/(panel)/${c}/acciones.ts`);
 
-// Todo src (Cristian, 14 nov). crm/acciones.ts lo arregló el carril B en su rama: se mira al fusionarla (quitar esta excepción)
+// Todo src (Cristian, 14 nov), también crm/acciones.ts (lo arregló el carril B)
 const todoSrc = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? todoSrc(join(d, n)) : /\.tsx?$/.test(n) ? [join(d, n)] : []));
 const RAIZ = new URL("../../", import.meta.url).pathname;
 
 describe("errores de la base: mensaje genérico", () => {
   it("0 en todo src", () => {
     const malas = todoSrc(join(RAIZ, "src"))
-      .filter((r) => !r.endsWith("crm/acciones.ts"))
       .flatMap((r) => readFileSync(r, "utf8").split("\n").filter((l) => /new ErrorUsuario\((?:(?!new Error\().)*\.message\);/.test(l)).map((l) => `${r.slice(RAIZ.length)}: ${l.trim()}`));
     expect(malas).toEqual([]);
   });
