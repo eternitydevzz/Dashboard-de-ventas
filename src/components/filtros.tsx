@@ -91,7 +91,7 @@ export function Filtros({
       <div className={ligero ? "flex gap-0.5" : "flex rounded-lg border border-borde bg-panel-2 p-0.5"}>
         {PERIODOS.map((p) => (
           // Enlaces (17 oct 2026). Precarga por defecto (solo el esqueleto): la completa hacía demasiadas lecturas (D1, 13 nov)
-          <Link
+          <Link prefetch={false}
             key={p.v}
             href={conCambios({ periodo: p.v, desde: null, hasta: null })}
             replace
