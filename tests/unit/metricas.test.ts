@@ -112,7 +112,7 @@ describe("calcularVendedores", () => {
     const v = calcularVendedores(base(), octubre);
     const carla = v.callers.find((c) => c.perfil.id === "carla")!;
     expect(carla.llamadas).toBe(2);
-    expect(carla.contactos).toBe(1);
+    expect(carla.contactos).toBe(2); // 14 nov: contactado = llamada (l1 y el WhatsApp a l2); antes 1, solo los que avanzan
     expect(carla.agendas).toBe(2);
     expect(carla.ventas).toBe(1);
     const ana = v.closers.find((c) => c.perfil.id === "ana")!;

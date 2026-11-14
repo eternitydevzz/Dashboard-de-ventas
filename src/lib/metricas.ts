@@ -1,4 +1,4 @@
-import { esContacto } from "@/lib/estados-caller";
+import { BOTONES_RESULTADO } from "@/lib/estados-caller";
 import "server-only";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { db, todas, equipo, conBajas, idsDePrueba, deVerdad } from "@/lib/datos";
@@ -17,6 +17,20 @@ export function enRango(iso: string, r: { desde: Date | null; hasta: Date | null
   const t = new Date(iso).getTime();
   return (!r.desde || t >= r.desde.getTime()) && (!r.hasta || t < r.hasta.getTime());
 }
+
+// Cristian, 14 nov: cualquier botón de resultado de la cola es una llamada, también «Wsp enviado». Cada botón guarda
+// (leads/acciones.ts): «Link de agenda» y «Wsp enviado» → llamada (+ whatsapp), «Agendado» → cita «agendada», el resto
+// → cambio_etapa con su resultado. Las «llamada» de antes del 7 nov también cuentan.
+const BOTONES: ReadonlySet<string | null> = new Set(BOTONES_RESULTADO);
+export function esLlamada(a: { tipo: string; resultado: string | null }) {
+  return a.tipo === "llamada" || a.tipo === "whatsapp" || (a.tipo === "cambio_etapa" && BOTONES.has(a.resultado)) || (a.tipo === "cita" && a.resultado === "agendada");
+}
+// Cada lead cuenta como máximo 1 llamada al día (día en la zona del proyecto), se pulse lo que se pulse
+export function llamadasPorDia(acts: { lead_id: string; tipo: string; resultado: string | null; creado_en: string }[], dia: (iso: string) => string) {
+  return new Set(acts.filter(esLlamada).map((a) => `${a.lead_id}|${dia(a.creado_en)}`)).size;
+}
+// «Contactado» = lo mismo que «llamada», contado en personas (leads distintos)
+export const leadsLlamados = (acts: { lead_id: string; tipo: string; resultado: string | null }[]) => new Set(acts.filter(esLlamada).map((a) => a.lead_id));
 
 function cambioPct(actual: number, previo: number) {
   if (!previo) return actual ? 100 : 0;
@@ -42,7 +56,7 @@ async function cargarBaseDeLaBase(proyecto: Proyecto, conPrueba: boolean) {
       db().from("ventas").select("id, lead_id, vendedor_id, facturacion, cash_collected, fecha, producto_id, devuelto, devuelto_en").eq("proyecto_id", pid).order("id").range(a, b)
     ),
     todas<ActMin>((a, b) =>
-      db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", pid).or("tipo.in.(llamada,whatsapp),and(tipo.eq.cambio_etapa,resultado.not.is.null)").order("id").range(a, b) /* C11: también los resultados de los botones (contactos) */
+      db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", pid).or("tipo.in.(llamada,whatsapp),and(tipo.eq.cambio_etapa,resultado.not.is.null),and(tipo.eq.cita,resultado.eq.agendada)").order("id").range(a, b) /* C11: también los resultados de los botones (contactos); 14 nov: y «Agendado» */
     ),
     todas<PagoMin>((a, b) => db().from("pagos").select("importe, fecha, venta_id, ventas!inner(proyecto_id)").eq("ventas.proyecto_id", pid).order("id").range(a, b)),
     equipo(pid, conPrueba),
@@ -97,7 +111,9 @@ export function calcularFunnel(base: Base, rango: Rango, vendedor: Perfil | null
   const agendadosPrev = rango.previo ? citasF.filter((c) => enRango(c.creado_en, p)).length : null;
   const citasPeriodo = citasF.filter((c) => enRango(c.fecha, r));
   const ventas = ventasF.filter((v) => enRango(v.fecha, r));
-  const llamadasCaller = actsF.filter((a) => a.tipo === "llamada" && enRango(a.creado_en, r)).length;
+  const fmtDia = new Intl.DateTimeFormat("en-CA", { timeZone: zona });
+  const diaZona = (iso: string) => fmtDia.format(new Date(iso));
+  const llamadasCaller = llamadasPorDia(actsF.filter((a) => enRango(a.creado_en, r)), diaZona); // 14 nov: 1 por lead y día
   const citasHechas = citasPeriodo.filter((c) => ASISTIDAS.includes(c.estado)).length;
   const noShow = citasPeriodo.filter((c) => c.estado === "no_show").length;
   const seguimiento = citasPeriodo.filter((c) => c.estado === "seguimiento").length;
@@ -111,9 +127,7 @@ export function calcularFunnel(base: Base, rango: Rango, vendedor: Perfil | null
   // periodo, cuántas compraron desde que agendaron (aunque sea después del periodo). Nunca pasa del 100 %.
   // Las ventas no se filtran por vendedor (la del caller cuenta aunque cierre el closer); sí por producto.
   // Se compara por días en la zona del proyecto: una venta con fecha puesta a mano se guarda a las 12:00.
-  // Un solo formateador: crearlo en cada llamada hacía el cálculo ~3 veces más lento (medido, paso 0.3)
-  const fmtDia = new Intl.DateTimeFormat("en-CA", { timeZone: zona });
-  const diaZona = (iso: string) => fmtDia.format(new Date(iso));
+  // Un solo formateador (fmtDia, arriba): crearlo en cada llamada hacía el cálculo ~3 veces más lento (medido, paso 0.3)
   const primeraAgenda = new Map<string, string>();
   for (const c of agendados) {
     const d = diaZona(c.creado_en);
@@ -189,13 +203,15 @@ function serieDiaria(rango: Rango, zona: string, leadsFechas: string[], ventas: 
 }
 
 // Tabla por persona: callers y closers.
-export function calcularVendedores(base: Base, rango: Rango) {
+// shortcut: sin zona, el día de «1 llamada por lead y día» es el de UTC; hoy no la usa ninguna pantalla (14 nov), pasar la zona si vuelve a usarse
+export function calcularVendedores(base: Base, rango: Rango, zona = "UTC") {
+  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: zona });
   const callers = base.gente
     .filter((g) => g.rol === "caller")
     .map((g) => {
       const acts = base.actividades.filter((a) => a.perfil_id === g.id && enRango(a.creado_en, rango));
-      const llamadas = acts.filter((a) => a.tipo === "llamada").length;
-      const contactos = acts.filter(esContacto).length; // C11 (punto 16): los que avanzan
+      const llamadas = llamadasPorDia(acts, (iso) => fmt.format(new Date(iso))); // 14 nov: 1 por lead y día, cualquier botón
+      const contactos = leadsLlamados(acts).size; // 14 nov: contactado = llamada (antes, los que avanzan)
       const agendas = base.citas.filter((c) => c.agendada_por === g.id && c.estado !== "reagendada" && enRango(c.creado_en, rango)).length;
       const ventas = base.ventas.filter((v) => v.vendedor_id === g.id && enRango(v.fecha, rango));
       const asignados = base.leads.filter((l) => l.caller_id === g.id).length;

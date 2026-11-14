@@ -1,5 +1,10 @@
 import "server-only";
 import { db, todas } from "@/lib/datos";
+import { leadsLlamados } from "@/lib/metricas";
+
+// Cristian, 14 nov: llamadas de hoy = leads distintos con cualquier botón de resultado (también WhatsApp); «hoy» es un
+// solo día, así que 1 por lead y día = leads distintos. Contactados = el mismo número. Igual que KPIs, Mi Funnel y Ranking.
+export const llamadasHoyCola = (acts: { lead_id: string; tipo: string; resultado: string | null }[]) => leadsLlamados(acts).size;
 
 // KPIs de hoy de la cola («Mis leads» / «Callers»). F4 (plan Callers, 7 nov): todo filtra por proyecto.
 // C11 (7c.1): ya no se cuentan las ventas (F6: el caller no vende); las actividades llevan el lead para contar
