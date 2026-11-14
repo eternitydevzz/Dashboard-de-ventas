@@ -29,10 +29,11 @@ const cronometro = () => {
 async function cargarDeLaBase(proyecto: Proyecto) {
   const pid = proyecto.id;
   const { ms, medir, ya } = cronometro();
-  const leyendo = medir("leads", todas<LeadDeLaBase>((a, b) => db().from("leads").select(CAMPOS_LEAD).eq("proyecto_id", pid).order("id").range(a, b)));
+  const cuantos = (t: string) => () => db().from(t).select("id", { count: "exact", head: true }).eq("proyecto_id", pid);
+  const leyendo = medir("ms_leads", todas<LeadDeLaBase>((a, b) => db().from("leads").select(CAMPOS_LEAD).eq("proyecto_id", pid).order("id").range(a, b), cuantos("leads")));
   const [leads, tarjetas, pipelines, etapas, gente, base] = await Promise.all([
     leyendo,
-    medir("tarjetas", todas<Tarjeta>((a, b) => db().from("tarjetas_extra").select("lead_id, pipeline_id, etapa_id").eq("proyecto_id", pid).order("id").range(a, b))),
+    medir("ms_tarjetas", todas<Tarjeta>((a, b) => db().from("tarjetas_extra").select("lead_id, pipeline_id, etapa_id").eq("proyecto_id", pid).order("id").range(a, b), cuantos("tarjetas_extra"))),
     // Solo los pipelines de origen: «Callers» y «Closers» no son el pipeline de ningún lead
     db().from("pipelines").select("id, nombre").eq("proyecto_id", pid).eq("tipo", "normal").order("orden").then(({ data, error }) => {
       if (error) throw new Error(error.message);
@@ -44,7 +45,7 @@ async function cargarDeLaBase(proyecto: Proyecto) {
     }),
     equipo(pid),
     // Cristian, 14 nov (Ola 2): si la base no está en memoria, usa estos mismos leads (antes los volvía a leer)
-    medir("base", cargarBase(proyecto, false, () => leyendo.then((ls) => ls.map(({ id, creado_en, caller_id, closer_id }) => ({ id, creado_en, caller_id, closer_id }))))),
+    medir("ms_base", cargarBase(proyecto, false, () => leyendo.then((ls) => ls.map(({ id, creado_en, caller_id, closer_id }) => ({ id, creado_en, caller_id, closer_id }))))),
   ]);
   ms.lecturas = ya();
   // Lo que hacía la tabla de la Biblioteca (quitada el 26 oct): repasar después de responder las ofertas de los

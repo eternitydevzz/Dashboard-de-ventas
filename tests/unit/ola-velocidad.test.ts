@@ -75,7 +75,8 @@ describe("Fase 9 · velocidad", () => {
   it("KPIs → Leads pide a la base lo mismo que antes: 4 lecturas (leads, tarjetas, pipelines, etapas)", async () => {
     const { cargarLeadsKpis } = await import("@/lib/leads-kpis");
     await cargarLeadsKpis({ id: "p1" } as Parameters<typeof cargarLeadsKpis>[0]);
-    expect(tablas.sort()).toEqual(["etapas", "leads", "pipelines", "tarjetas_extra"]);
+    // 14 nov (noche): leads y tarjetas llevan además su cuenta (petición sin filas) para pedir las páginas juntas
+    expect(tablas.sort()).toEqual(["etapas", "leads", "leads", "pipelines", "tarjetas_extra", "tarjetas_extra"]);
   });
 
   it("/kpis no se precarga al abrir la app en ningún rol (Leads se carga en el servidor)", async () => {
