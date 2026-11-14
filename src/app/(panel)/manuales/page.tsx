@@ -52,7 +52,7 @@ export default async function ManualesPage({ searchParams }: PageProps<"/manuale
       <Cabecera titulo="Manuales" subtitulo="Lo que necesitas saber para vender" acciones={editor ? <SubirManual mercado={mercado} /> : undefined} />
       <Contenido>
         <PestanasManuales activa="manuales" manuales guiones={editor} />
-        {editor && <SelectorMercado actual={mercado} href={(m) => (m === "es" ? "/manuales?mercado=es" : "/manuales")} />}
+        {editor && <SelectorMercado actual={mercado} href={(m) => (m === "es" ? "/manuales?mercado=es" : "/manuales")} nota="España ve solo los manuales marcados para España (⚙ de cada manual)." />}
         {manuales.length === 0 ? (
           <div className="tarjeta"><Vacio icono={BookOpen} texto={editor ? "Todavía no hay manuales. Sube el primero con «Subir manual (.html)»." : "Todavía no hay manuales."} /></div>
         ) : (

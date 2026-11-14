@@ -19,23 +19,13 @@ export function cargarLeadsKpis(proyecto: Proyecto) {
   return renovadoPorDetras(`leads-kpis:${proyecto.id}`, UN_MINUTO, 5 * UN_MINUTO, () => cargarDeLaBase(proyecto), (f) => after(f));
 }
 
-// shortcut: medición temporal (Cristian, 14 nov, noche: «KPIs tarda muchísimo»); sale en los registros de Vercel como
-// [kpis-tiempos]. Quitarla cuando se sepa qué parte del tiempo es cada lectura.
-const cronometro = () => {
-  const t0 = performance.now();
-  const ms: Record<string, number> = {};
-  const medir = <T,>(nombre: string, p: PromiseLike<T>) => Promise.resolve(p).then((v) => ((ms[nombre] = Math.round(performance.now() - t0)), v));
-  return { ms, medir, ya: () => Math.round(performance.now() - t0) };
-};
-
 async function cargarDeLaBase(proyecto: Proyecto) {
   const pid = proyecto.id;
-  const { ms, medir, ya } = cronometro();
   const cuantos = (t: string) => () => db().from(t).select("id", { count: "exact", head: true }).eq("proyecto_id", pid);
-  const leyendo = medir("ms_leads", todas<LeadDeLaBase>((a, b) => db().from("leads").select(CAMPOS_LEAD).eq("proyecto_id", pid).order("id").range(a, b), cuantos("leads")));
+  const leyendo = todas<LeadDeLaBase>((a, b) => db().from("leads").select(CAMPOS_LEAD).eq("proyecto_id", pid).order("id").range(a, b), cuantos("leads"));
   const [leads, tarjetas, pipelines, etapas, gente, base] = await Promise.all([
     leyendo,
-    medir("ms_tarjetas", todas<Tarjeta>((a, b) => db().from("tarjetas_extra").select("lead_id, pipeline_id, etapa_id").eq("proyecto_id", pid).order("id").range(a, b), cuantos("tarjetas_extra"))),
+    todas<Tarjeta>((a, b) => db().from("tarjetas_extra").select("lead_id, pipeline_id, etapa_id").eq("proyecto_id", pid).order("id").range(a, b), cuantos("tarjetas_extra")),
     // Solo los pipelines de origen: «Callers» y «Closers» no son el pipeline de ningún lead
     db().from("pipelines").select("id, nombre").eq("proyecto_id", pid).eq("tipo", "normal").order("orden").then(({ data, error }) => {
       if (error) throw new Error(error.message);
@@ -47,9 +37,8 @@ async function cargarDeLaBase(proyecto: Proyecto) {
     }),
     equipo(pid),
     // Cristian, 14 nov (Ola 2): si la base no está en memoria, usa estos mismos leads (antes los volvía a leer)
-    medir("ms_base", cargarBase(proyecto, false, () => leyendo.then((ls) => ls.map(({ id, creado_en, caller_id, closer_id }) => ({ id, creado_en, caller_id, closer_id }))))),
+    cargarBase(proyecto, false, () => leyendo.then((ls) => ls.map(({ id, creado_en, caller_id, closer_id }) => ({ id, creado_en, caller_id, closer_id })))),
   ]);
-  ms.lecturas = ya();
   // Lo que hacía la tabla de la Biblioteca (quitada el 26 oct): repasar después de responder las ofertas de los
   // leads del formulario por si cambió la regla. Los leads ya guardan su oferta al entrar (leads.ts).
   const delFormulario = leads.filter((l) => esDeBiblioteca(l)).map((l) => ({ id: l.id, etiquetas: l.etiquetas, respuestas: l.respuestas, fuente: l.fuente, oferta: l.oferta }));
@@ -62,8 +51,7 @@ async function cargarDeLaBase(proyecto: Proyecto) {
   });
   // Quien ya no está sigue saliendo como caller o closer de sus leads, con «(baja)» (como en el resto de la app)
   const personas = await conBajas(gente, leads.flatMap((l) => [l.caller_id, l.closer_id]));
-  ms.bajas = ya();
-  const compactos = compactarLeads({
+  return compactarLeads({
     leads,
     tarjetas,
     pipelines,
@@ -71,6 +59,4 @@ async function cargarDeLaBase(proyecto: Proyecto) {
     gente: personas.map((p) => ({ id: p.id, nombre: p.nombre, rol: p.rol, ...("baja" in p && p.baja ? { baja: true } : {}) })),
     marcas: marcasEmbudo(base.actividades, base.citas, base.ventas, ASISTIDAS),
   });
-  console.info("[kpis-tiempos]", JSON.stringify({ ...ms, compactar: ya(), leads: leads.length, tarjetas: tarjetas.length, kb: Math.round(JSON.stringify(compactos).length / 1024) }));
-  return compactos;
 }
