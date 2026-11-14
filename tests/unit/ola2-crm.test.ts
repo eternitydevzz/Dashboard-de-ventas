@@ -27,7 +27,10 @@ const base = () => ({
     for (const m of ["select", "eq", "in", "not", "or", "order", "range", "limit", "insert", "update", "single", "maybeSingle", "overrideTypes"]) q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
     q.then = (r: (v: unknown) => unknown) => {
       if (c.ops.some(([o]) => o === "insert" || o === "update")) return Promise.resolve({ data: null, error: null }).then(r);
-      const filas = filtrar(tablas[tabla] ?? [], c.ops);
+      const sel = c.ops.find(([o]) => o === "select")?.[1][0];
+      // Como la base: con una lista simple de columnas, solo llegan esas (sin «*» ni tablas unidas)
+      const cols = typeof sel === "string" && !/[*()]/.test(sel) ? sel.split(",").map((x) => x.trim()) : null;
+      const filas = filtrar(tablas[tabla] ?? [], c.ops).map((f) => (cols ? Object.fromEntries(cols.map((k) => [k, (f as Fila)[k]])) : f));
       const una = c.ops.some(([o]) => o === "single" || o === "maybeSingle");
       return Promise.resolve({ data: una ? filas[0] ?? null : filas, error: null }).then(r);
     };
@@ -89,6 +92,7 @@ const lead = (id: string, caller: string | null, extra: Fila = {}) => ({
   id, nombre: `Lead ${id}`, apellido: "", email: null, telefono: null, pais: null, caller_id: caller, closer_id: null,
   estado_caller: "nuevo", creado_en: "2026-11-14T10:00:00Z", etiquetas: [], oferta: null, estrellas_caller: null,
   respuestas: [{ pregunta: "¿Qué buscas?", respuesta: "Aprender" }, { pregunta: PREGUNTA, respuesta: "Sí, tengo ahorros" }],
+  invertir: "Sí, tengo ahorros", // columna calculada por la base (20261118100000_leads_invertir.sql)
   proyecto_id: "p1", pipeline_id: "web", etapa_id: "web-nuevos", etapa_callers_id: null, ...extra,
 });
 
@@ -110,7 +114,7 @@ beforeEach(() => {
       { id: "web-agenda", pipeline_id: "web", nombre: "Agendan", orden: 1, pipelines: { proyecto_id: "p1", tipo: "normal" } },
       { id: "bib-form", pipeline_id: "bib", nombre: "Form", orden: 0, pipelines: { proyecto_id: "p1", tipo: "normal" } },
     ],
-    leads: [lead("A", "caller-1"), lead("B", "caller-2", { respuestas: [] }), lead("C", null, { pipeline_id: "bib", etapa_id: "bib-form" })],
+    leads: [lead("A", "caller-1"), lead("B", "caller-2", { respuestas: [], invertir: null }), lead("C", null, { pipeline_id: "bib", etapa_id: "bib-form" })],
     tarjetas_extra: [],
     permisos_pipeline: [],
     productos: [],
@@ -126,6 +130,12 @@ describe("CRM: las tarjetas van sin `respuestas` y con «invertir» calculado en
     expect(enviado).not.toContain(PREGUNTA);
     expect(enviado).not.toContain("Aprender");
     expect(descompactarCrm(t.leads as never).map((l) => [l.id, l.invertir])).toEqual([["A", "Sí, tengo ahorros"], ["B", null]]);
+  });
+  it("la base no manda las respuestas: se pide la columna calculada «invertir» (Cristian, 14 nov, noche)", async () => {
+    await tablero("web");
+    const pedido = consultas.filter((c) => c.tabla === "leads").map((c) => String(c.ops.find(([o]) => o === "select")?.[1][0]));
+    expect(pedido.length).toBeGreaterThan(0);
+    expect(pedido.every((s) => s.includes("invertir") && !s.includes("respuestas"))).toBe(true);
   });
 });
 

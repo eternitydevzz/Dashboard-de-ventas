@@ -13,7 +13,7 @@ import { FiltroUrl } from "@/components/barra-periodo";
 import { ahoraMs } from "@/lib/formato";
 import { TableroCrm, type LeadTarjeta } from "./tablero";
 import { compactarCrm } from "./compacto";
-import { esCloser, type Etapa, type Pipeline, type Producto, type Respuesta } from "@/lib/tipos";
+import { esCloser, type Etapa, type Pipeline, type Producto } from "@/lib/tipos";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 
 // Como deMemoria de caller/page.tsx: 1 minuto compartido; si la lectura falla no se guarda y sale vacío, como antes
@@ -88,13 +88,10 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
   const deCloser = !persona ? closersIds : persona.rol === "closer" ? [persona.id] : closersIds;
   const agendadasPor = persona?.rol === "caller" ? persona.id : null;
 
-  // La card solo necesita la respuesta de «invertir» (el popup pide el resto): menos datos que mandar al navegador
-  type Fila = Omit<LeadTarjeta, "invertir"> & { etapa_callers_id: string | null; respuestas: Respuesta[] | null };
-  const CAMPOS = "id, nombre, apellido, email, telefono, pais, etapa_id, etapa_callers_id, caller_id, closer_id, estado_caller, creado_en, etiquetas, respuestas, oferta";
-  const aTarjeta = ({ respuestas, ...l }: Fila): LeadTarjeta & { etapa_callers_id: string | null } => ({
-    ...l,
-    invertir: (respuestas ?? []).find((r) => r.pregunta.toLowerCase().includes("invertir"))?.respuesta ?? null,
-  });
+  // La card solo necesita la respuesta de «invertir» (el popup pide el resto). Cristian, 14 nov (noche): la calcula la base
+  // (columna leads.invertir, 20261118100000_leads_invertir.sql); antes se leían todas las respuestas (~1,3 MB por carga)
+  type Fila = LeadTarjeta & { etapa_callers_id: string | null };
+  const CAMPOS = "id, nombre, apellido, email, telefono, pais, etapa_id, etapa_callers_id, caller_id, closer_id, estado_caller, creado_en, etiquetas, invertir, oferta";
 
   // Lo del pipeline elegido, también a la vez
   // C5 (13 nov): sin los números de las pestañas: se calculaban (2 consultas más por carga) y no se enseñaban desde el 13 oct
@@ -105,12 +102,12 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           // «Callers»: solo los leads con caller (Cristian, 10 oct 2026)
           q = pipeline.tipo === "callers" ? q.not("caller_id", "is", null) : q.eq("pipeline_id", pipeline.id);
           return deLaPersona(q).order("creado_en", { ascending: false }).order("id").range(a, b);
-        }).then((filas) => filas.map(aTarjeta))
+        })
       : Promise.resolve([]),
     // Fase 4: en un pipeline de origen salen también sus tarjetas de leads cuyo pipeline principal es otro (con sus datos, en una consulta)
     pipeline?.tipo === "normal"
       ? todas<{ etapa_id: string | null; leads: Fila | null }>((a, b) => db().from("tarjetas_extra").select(`etapa_id, leads(${CAMPOS})`).eq("pipeline_id", pipeline.id).order("id").range(a, b).overrideTypes<{ etapa_id: string | null; leads: Fila | null }[], { merge: false }>()).then((filas) =>
-          filas.filter((x) => x.leads && esDeLaPersona(x.leads)).map((x) => ({ ...aTarjeta(x.leads!), etapa_id: x.etapa_id, otroPipeline: true }))
+          filas.filter((x) => x.leads && esDeLaPersona(x.leads)).map((x) => ({ ...x.leads!, etapa_id: x.etapa_id, otroPipeline: true }))
         )
       : Promise.resolve([]),
     pipeline?.tipo === "closers"

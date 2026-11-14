@@ -143,13 +143,12 @@ describe("la bienvenida no espera a la precarga", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("se quita a los 0,8 s si la pantalla ya tiene sus datos, aunque no haya llegado ninguna precarga", async () => {
+  // Cristian, 14 nov (noche): sin el mínimo de 0,8 s; se quita en cuanto la pantalla tiene sus datos
+  it("se quita en cuanto la pantalla tiene sus datos (sin mínimo), aunque no haya llegado ninguna precarga", async () => {
     const { esperarPantalla } = await import("@/components/bienvenida");
     const salir = vi.fn();
     esperarPantalla(salir, () => false);
-    vi.advanceTimersByTime(700);
-    expect(salir).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(200);
+    vi.advanceTimersByTime(100);
     expect(salir).toHaveBeenCalledTimes(1);
   });
 
