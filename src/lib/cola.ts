@@ -1,7 +1,25 @@
 import { puntosLead } from "@/lib/prioridad";
 import type { Pesos } from "@/lib/cualificacion";
-import type { Lead } from "@/lib/tipos";
+import type { Lead, Respuesta } from "@/lib/tipos";
 import { nombrePais } from "@/lib/formato";
+
+// Cristian, 14 nov (Ola 2): Mis leads manda cada pregunta del formulario una sola vez (antes, repetida en cada lead);
+// cada lead lleva [posición de la pregunta, respuesta]. Compacta el servidor y descompacta la cola, sin perder nada.
+export type RespuestasCompactas = [pregunta: number, respuesta: string][];
+export function compactarRespuestas<T extends { respuestas: Respuesta[] }>(leads: T[]) {
+  const preguntas: string[] = [];
+  const pos = new Map<string, number>();
+  const filas = leads.map(({ respuestas, ...l }) => ({
+    ...l,
+    r: respuestas.map(({ pregunta, respuesta }): [number, string] => {
+      let i = pos.get(pregunta);
+      if (i === undefined) pos.set(pregunta, (i = preguntas.push(pregunta) - 1));
+      return [i, respuesta];
+    }),
+  }));
+  return { preguntas, filas };
+}
+export const descompactarRespuestas = (preguntas: string[], r: RespuestasCompactas): Respuesta[] => r.map(([i, respuesta]) => ({ pregunta: preguntas[i], respuesta }));
 
 // C11 (plan Callers, 7 nov; 7c.1): la cola se filtra por columna con una fila de pastillas. «todos» = «Leads», toda la
 // cola (no hay pastilla solo para los nuevos). Sin fechas (punto 11): el caller mira las columnas y elige a quién llamar.
