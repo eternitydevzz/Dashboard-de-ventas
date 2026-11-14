@@ -81,7 +81,7 @@ export async function crearPipeline(nombre: string) {
     // Antes de «Callers» y «Closers», que van al final
     const { count } = await db().from("pipelines").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).eq("tipo", "normal");
     const { data, error } = await db().from("pipelines").insert({ proyecto_id: proyecto.id, nombre: n, orden: count ?? 0 }).select().single();
-    if (error) throw new ErrorUsuario(error.message);
+    if (error) throw new Error(`No se pudo crear el pipeline: ${error.message}`); // Cristian, 14 nov (F8): mensaje genérico
     // Columnas de un pipeline de origen (como antes del H7: los botones mueven por el nombre de la columna)
     await escribir(db().from("etapas").insert([
       { pipeline_id: data.id, nombre: "Nuevos", orden: 0, color: "#64748b" },
@@ -217,7 +217,7 @@ export async function marcarColumnaCitasGhl(etapaId: string | null) {
       if (e.pipelines.tipo !== "normal") throw new ErrorUsuario("Solo puede ser una columna de un pipeline de origen.");
     }
     const { error } = await db().from("proyectos").update({ etapa_citas_ghl: etapaId }).eq("id", proyecto.id);
-    if (error) throw new ErrorUsuario(/etapa_citas_ghl/.test(error.message) ? "Falta aplicar la migración de la base (columna de citas de GHL)." : error.message);
+    if (error) throw new ErrorUsuario(/etapa_citas_ghl/.test(error.message) ? "Falta aplicar la migración de la base (columna de citas de GHL)." : "Algo ha fallado. Inténtalo de nuevo y, si se repite, avisa al director.");
     refrescar();
   });
 }
@@ -388,9 +388,11 @@ export async function crearLeadManual(formData: FormData) {
     const nombre = String(formData.get("nombre") ?? "").trim();
     const email = String(formData.get("email") ?? "").trim().toLowerCase() || null;
     const telefono = String(formData.get("telefono") ?? "").trim() || null;
-    const pipelineId = String(formData.get("pipeline") ?? "") || null;
+    const elegido = String(formData.get("pipeline") ?? "") || null;
     if (!nombre || (!email && !telefono)) throw new ErrorUsuario("Pon nombre y email o teléfono.");
-    if (pipelineId) await pipelineDelProyecto(pipelineId, proyecto.id); // arreglo 29
+    if (elegido) await pipelineDelProyecto(elegido, proyecto.id); // arreglo 29
+    // Cristian, 14 nov (F8): sin pipeline, al primero de origen, como el webhook de GHL (api/webhooks/ghl/[proyectoId]/route.ts:74)
+    const pipelineId = elegido ?? (await db().from("pipelines").select("id").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden").limit(1).maybeSingle()).data?.id ?? null;
     const [n, ...resto] = nombre.split(" ");
     const etapaId = pipelineId ? await primeraEtapa(pipelineId) : null;
     const { data, error } = await db()
@@ -398,7 +400,11 @@ export async function crearLeadManual(formData: FormData) {
       .insert({ proyecto_id: proyecto.id, nombre: n, apellido: resto.join(" "), email, telefono, ...conPais(telefono), origen: "manual", pipeline_id: pipelineId, etapa_id: etapaId })
       .select("id")
       .single();
-    if (error) throw new ErrorUsuario(error.code === "23505" ? "Ya existe un lead con ese email." : error.message);
+    // Cristian, 14 nov (F8): el error de la base no se enseña; queda en el registro y el usuario ve el mensaje genérico
+    if (error) {
+      if (error.code === "23505") throw new ErrorUsuario("Ya existe un lead con ese email.");
+      throw new Error(`No se pudo crear el lead: ${error.message}`);
+    }
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: data.id, perfil_id: perfil.id, tipo: "nota", nota: "Lead creado a mano" });
     refrescar();
   });
