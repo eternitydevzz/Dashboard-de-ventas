@@ -104,6 +104,7 @@ export function TableroCrm({
   paraReparto,
   ceo = false,
   editar,
+  soloMirar = false,
   jefe,
   productos,
   moneda,
@@ -125,6 +126,7 @@ export function TableroCrm({
   paraReparto?: { id: string; nombre: string; etapas: { id: string; nombre: string }[] }[]; // Repartir leads: pipelines y columnas a elegir
   ceo?: boolean; // borrar en masa, solo el CEO
   editar: boolean; // Paso 0: «Editar» en este pipeline = sus columnas, renombrar y borrar
+  soloMirar?: boolean; // F7-B1: pipeline de solo mirar (el caller ve ahí sus leads, sin moverlos)
   jefe: boolean; // importar, crear y asignar leads (director y CEO)
   productos: Producto[];
   moneda: string;
@@ -543,7 +545,7 @@ export function TableroCrm({
                       caller={l.caller_id ? nombrePorId[l.caller_id] : null}
                       closer={l.closer_id ? nombrePorId[l.closer_id] : null}
                       ahora={ahora}
-                      onDrag={() => setArrastrando(l.id)}
+                      onDrag={soloMirar ? undefined : () => setArrastrando(l.id)}
                       arrastrando={arrastrando === l.id}
                       marcada={seleccion.has(l.id)}
                       onMarcar={
@@ -654,7 +656,7 @@ function Tarjeta({
   caller: string | null;
   closer: string | null;
   ahora: number;
-  onDrag: () => void;
+  onDrag?: () => void; // sin él, la tarjeta no se arrastra (solo abre su popup)
   arrastrando: boolean;
   marcada: boolean;
   onMarcar?: () => void;
@@ -673,10 +675,10 @@ function Tarjeta({
           <span title={`Entró el ${lead.creado_en.slice(0, 10)}`}>{haceDias(lead.creado_en, ahora)}</span>
         </span>
       }
-      arrastrable
+      arrastrable={!!onDrag}
       onArrastrar={(e) => {
         e.dataTransfer.setData("text/plain", lead.id);
-        onDrag();
+        onDrag?.();
       }}
       apagada={arrastrando}
       marcada={marcada}
