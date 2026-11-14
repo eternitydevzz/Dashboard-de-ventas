@@ -21,7 +21,7 @@ vi.mock("@/lib/permisos", async (orig) => ({
   ...(await orig<typeof import("@/lib/permisos")>()),
   exigirPagina: async () => ({ perfil: { id: "ceo-1", rol: "ceo", es_prueba: false }, proyecto: { id: "p1", nombre: "P", moneda: "USD", zona_horaria: "Europe/Madrid" } }),
 }));
-vi.mock("@/lib/mercado-datos", () => ({ mercadosDelProyecto: async () => ({ "closer-es": "es", "closer-latam": "latam" }) }));
+vi.mock("@/lib/mercado-datos", () => ({ mercadosDelProyecto: async () => ({ "closer-es": "es", "closer-latam": "latam" }), miMoneda: async () => "USD", miMercado: async () => null })); // Ola 2: Ventas también pide miMoneda (venta manual)
 vi.mock("@/components/filtros", () => ({ Filtros: () => null }));
 vi.mock("@/app/(panel)/ventas/fila-acciones", () => ({ FilaVentaAcciones: () => null }));
 

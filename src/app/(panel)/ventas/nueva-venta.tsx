@@ -74,9 +74,9 @@ export function NuevaVenta({ productos, vendedores, miId, moneda }: { productos:
                   action={(fd) =>
                     ejecutar(async () => {
                       const r = await exigirOk(crearLeadVenta(fd));
-                      if ("lead" in r) return setLead(r.lead);
+                      if (r.lead) return setLead(r.lead);
                       // Ya hay un lead con ese email o teléfono: se ofrece ese en vez de crear un duplicado
-                      if (await confirmar(`Ya existe «${nombreDe(r.existente)}» (${contacto(r.existente)}) con ese email o teléfono. ¿Registrar la venta a ese lead?`, { boton: "Usar ese lead" })) setLead(r.existente);
+                      if (r.existente && await confirmar(`Ya existe «${nombreDe(r.existente)}» (${contacto(r.existente)}) con ese email o teléfono. ¿Registrar la venta a ese lead?`, { boton: "Usar ese lead" })) setLead(r.existente!);
                     })
                   }
                 >
