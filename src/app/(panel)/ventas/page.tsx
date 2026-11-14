@@ -4,12 +4,13 @@ import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { db, todas, equipo, idsDePrueba, deVerdad } from "@/lib/datos";
 import { dinero, fechaHora, rangoDe, type Periodo, ETIQUETA_ROL } from "@/lib/formato";
-import type { Proyecto } from "@/lib/tipos";
+import type { Producto, Proyecto } from "@/lib/tipos";
 import { cashDelPeriodo } from "@/lib/metricas";
 import { Cabecera, Contenido, Kpi, Seccion, Insignia, Vacio } from "@/components/ui";
 import { Filtros } from "@/components/filtros";
 import { FilaVentaAcciones } from "./fila-acciones";
-import { mercadosDelProyecto } from "@/lib/mercado-datos";
+import { mercadosDelProyecto, miMoneda } from "@/lib/mercado-datos";
+import { NuevaVenta } from "./nueva-venta";
 import { contenidoMercado } from "@/lib/mercado";
 
 type VentaFila = {
@@ -39,7 +40,14 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
   const periodo = (typeof sp.periodo === "string" ? sp.periodo : "mes") as Periodo;
   const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string, sp.hasta as string);
   const vendedorId = jefe ? (typeof sp.vendedor === "string" ? sp.vendedor : "") : perfil.id;
-  const [gente, prueba, mercados] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), perfil.es_prueba ? Promise.resolve(new Set<string>()) : idsDePrueba(), mercadosDelProyecto(proyecto.id)]);
+  // Cristian, 14 nov: «Nueva venta» (solo jefes) necesita los productos y la moneda de quien la registra
+  const [gente, prueba, mercados, productos, miMon] = await Promise.all([
+    equipo(proyecto.id, !!perfil.es_prueba),
+    perfil.es_prueba ? Promise.resolve(new Set<string>()) : idsDePrueba(),
+    mercadosDelProyecto(proyecto.id),
+    jefe ? db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden") : null,
+    jefe ? miMoneda(proyecto, perfil.id) : proyecto.moneda,
+  ]);
   const ok = deVerdad(prueba); // 1.0: las ventas de los perfiles de prueba no cuentan
 
   const ventas = (
@@ -103,7 +111,9 @@ export default async function VentasPage({ searchParams }: PageProps<"/ventas">)
 
   return (
     <>
-      <Cabecera titulo="Ventas" subtitulo={`${proyecto.nombre} · ${rango.etiqueta}${vendedorId && jefe ? ` · ${nombre(vendedorId)}` : ""}`} />
+      <Cabecera titulo="Ventas" subtitulo={`${proyecto.nombre} · ${rango.etiqueta}${vendedorId && jefe ? ` · ${nombre(vendedorId)}` : ""}`}
+        acciones={jefe ? <NuevaVenta productos={(productos?.data ?? []) as Producto[]} vendedores={gente.filter((g) => g.rol === "closer" || g.rol === "caller").map((g) => ({ id: g.id, nombre: g.nombre, moneda: monedaDe(g.id) }))} miId={perfil.id} moneda={miMon} /> : undefined}
+      />
       <Contenido>
         <Filtros vendedores={jefe ? gente.filter((g) => g.rol !== "ceo" && g.rol !== "director").map((g) => ({ id: g.id, nombre: g.nombre, rol: ETIQUETA_ROL[g.rol] })) : undefined} />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
