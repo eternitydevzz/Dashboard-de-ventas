@@ -407,6 +407,7 @@ export async function crearLeadManual(formData: FormData) {
     }
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: data.id, perfil_id: perfil.id, tipo: "nota", nota: "Lead creado a mano" });
     refrescar();
+    return { id: data.id as string }; // Ola 2: la venta manual usa el lead recién creado
   });
 }
 

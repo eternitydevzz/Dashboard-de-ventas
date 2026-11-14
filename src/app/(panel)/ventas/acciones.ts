@@ -49,8 +49,7 @@ export async function crearLeadVenta(formData: FormData) {
     if (existente) return { existente };
     const r = await crearLeadManual(formData);
     if (esError(r)) throw new ErrorUsuario(r.error);
-    // crearLeadManual no devuelve el id: se lee el recién creado por su email o su teléfono
-    const { data: lead, error } = await (email ? porEmail() : porTelefono());
+    const { data: lead, error } = await db().from("leads").select(LEAD).eq("id", r.id).eq("proyecto_id", proyecto.id).single();
     if (error || !lead) throw new Error(`No se encontró el lead recién creado: ${error?.message ?? "sin fila"}`);
     return { lead };
   });
