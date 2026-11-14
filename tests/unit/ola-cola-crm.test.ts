@@ -61,6 +61,7 @@ const { default: CrmPage } = await import("@/app/(panel)/crm/page");
 const { TableroCrm } = await import("@/app/(panel)/crm/tablero");
 const { descompactarCrm } = await import("@/app/(panel)/crm/compacto");
 const { crearLeadManual } = await import("@/app/(panel)/crm/acciones");
+const { calcularNivel, nivelEnCrm } = await import("@/lib/pipelines");
 
 // Las props que la página le pasa al tablero
 function propsTablero(nodo: ReactNode): Record<string, unknown> | null {
@@ -123,6 +124,48 @@ describe("F7-B1 · el caller ve en el CRM solo sus leads asignados", () => {
   it("los jefes siguen viendo todo", async () => {
     sesion.perfil = { id: "jefe-1", nombre: "Director", rol: "director" };
     expect((await leadsQueVe("web")).map((l) => l.id).sort()).toEqual(["A", "B", "C", "D"]);
+  });
+});
+
+describe("F7-B1 · pipelines con «Sin acceso» para el rol caller (Cristian, 14 nov: «Sí, solo los suyos»)", () => {
+  beforeEach(() => {
+    tablas.pipelines.push({ id: "bib", proyecto_id: "p1", nombre: "1. Biblioteca Recursos", tipo: "normal", orden: 2 });
+    tablas.etapas.push({ id: "bib-form", pipeline_id: "bib", nombre: "Form", orden: 0 });
+    tablas.permisos_pipeline = [{ pipeline_id: "bib", rol: "caller", perfil_id: null, nivel: "sin_acceso" }];
+    tablas.leads.push(lead("F", "caller-1", { pipeline_id: "bib", etapa_id: "bib-form" }), lead("G", "caller-2", { pipeline_id: "bib", etapa_id: "bib-form" }));
+  });
+  const tablero = async (pipeline: string) => propsTablero(await CrmPage({ searchParams: Promise.resolve({ pipeline }) } as never))!;
+
+  it("el caller lo ve en el selector, con solo sus leads y en su columna", async () => {
+    const t = await tablero("bib");
+    expect((t.pipelines as { id: string }[]).map((p) => p.id)).toContain("bib");
+    expect((t.pipeline as { id: string }).id).toBe("bib");
+    expect(descompactarCrm(t.leads as never).map((l) => [l.id, l.etapa_id])).toEqual([["F", "bib-form"]]);
+  });
+  it("un caller sin leads en ese pipeline no recibe los de otros", async () => {
+    sesion.perfil = { id: "caller-3", nombre: "Caller Tres", rol: "caller" };
+    expect(descompactarCrm((await tablero("bib")).leads as never)).toEqual([]);
+  });
+  it("el nivel es «ver»: no edita columnas; mover sigue bloqueado por exigirNivel (calcularNivel sigue en «Sin acceso»)", async () => {
+    expect((await tablero("bib")).editar).toBe(false);
+    const filas = tablas.permisos_pipeline as never;
+    const caller = sesion.perfil as never;
+    expect(nivelEnCrm(caller, { id: "bib", tipo: "normal" }, filas)).toBe("ver");
+    expect(calcularNivel(caller, { id: "bib", tipo: "normal" }, filas)).toBe("sin_acceso");
+  });
+  it("los closers y un «Sin acceso» puesto a la persona no cambian", async () => {
+    const filas = [
+      { pipeline_id: "bib", rol: "closer", perfil_id: null, nivel: "sin_acceso" },
+      { pipeline_id: "bib", rol: null, perfil_id: "caller-9", nivel: "sin_acceso" },
+    ] as never;
+    expect(nivelEnCrm({ id: "closer-1", rol: "closer" } as never, { id: "bib", tipo: "normal" }, filas)).toBe("sin_acceso");
+    expect(nivelEnCrm({ id: "caller-9", rol: "caller" } as never, { id: "bib", tipo: "normal" }, filas)).toBe("sin_acceso");
+    // «Closers» sigue sin acceso para el caller (no es un pipeline de origen)
+    expect(nivelEnCrm({ id: "caller-1", rol: "caller" } as never, { id: "x", tipo: "closers" }, [])).toBe("sin_acceso");
+  });
+  it("los jefes siguen viendo todos los leads de ese pipeline", async () => {
+    sesion.perfil = { id: "jefe-1", nombre: "Director", rol: "director" };
+    expect(descompactarCrm((await tablero("bib")).leads as never).map((l) => l.id).sort()).toEqual(["F", "G"]);
   });
 });
 
