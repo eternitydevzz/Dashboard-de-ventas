@@ -1,11 +1,12 @@
 // Animaciones de la maqueta aprobada (cristalEntrada, cristalFoto, cristalIndicadores, cristalContar, onda y arrastre),
 // hechas desde fuera con la API de animación del navegador. Todas con fill "backwards" o sin fill: al acabar no queda
 // ningún estilo puesto, y nunca bloquean el clic.
-import { DESLIZA, DURACION_PANEL, SUAVE, panelConDesenfoque, retrasoPanel, textoConteo } from "./valores";
+import { DESLIZA, SUAVE, panelConDesenfoque, retrasoFila, retrasoPanel, textoConteo } from "./valores";
 
 const quieto = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const PANEL = ".tarjeta";
+const FILAS = "tbody tr, li, div[role=button]";
 const BARRAS = '[role=tablist], nav[aria-label^="Secciones"]';
 const NUMEROS = ".font-semibold.tabular-nums:is(.text-xl,.text-2xl,.text-3xl)";
 
@@ -15,18 +16,27 @@ export function entrada(raiz: HTMLElement, { base = 0, titulo = false, barra = n
   if (titulo)
     raiz.querySelector("h1")?.animate(
       [{ clipPath: "inset(0 0 100% 0)", transform: "translateY(70%)" }, { clipPath: "inset(-10% 0 -20% 0)", transform: "none" }],
-      { duration: 300, delay: base, easing: SUAVE, fill: "backwards" },
+      { duration: 420, delay: base, easing: SUAVE, fill: "backwards" },
     );
   // con una pestaña cambiada, solo entra lo que va debajo de su barra; la cabecera se queda quieta
   const tras = (x: Element) => !barra || (!barra.contains(x) && !x.contains(barra) && !!(barra.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING));
+  const alto = innerHeight;
   const paneles = [...raiz.querySelectorAll(PANEL)].filter((x) => !x.parentElement?.closest(PANEL) && tras(x));
   paneles.forEach((x, n) => {
     x.animate(
       panelConDesenfoque(n)
         ? [{ opacity: 0, transform: "translateY(12px)", filter: "blur(10px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }]
         : [{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }],
-      { duration: DURACION_PANEL, delay: retrasoPanel(n, base), easing: SUAVE, fill: "backwards" },
+      { duration: 450, delay: retrasoPanel(n, base), easing: SUAVE, fill: "backwards" },
     );
+    // shortcut: solo las filas a la vista (un tablero con cientos de tarjetas desenfocadas va a tirones), sin tope si hiciera falta
+    [...x.querySelectorAll(FILAS)]
+      .filter((f) => f.getBoundingClientRect().top < alto)
+      .forEach((f, j) =>
+        f.animate([{ opacity: 0, transform: "translateY(8px)", filter: "blur(6px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }], {
+          duration: 320, delay: retrasoFila(n, j, base), easing: SUAVE, fill: "backwards",
+        }),
+      );
   });
   const dentro = (sel: string) => paneles.flatMap((p) => [...p.querySelectorAll(sel)]);
   if (conteo) dentro(NUMEROS).forEach((el) => contar(el as HTMLElement));
@@ -65,28 +75,35 @@ export function contar(el: HTMLElement) {
   requestAnimationFrame(paso);
 }
 
-// Cristian, 14 nov (noche): al navegar, la sección entra entera a la vez con un fundido de 0,15 s que no empieza
-// invisible (con la cascada, al quitarse el esqueleto se veía un fotograma casi vacío)
-export function fundido(raiz: HTMLElement) {
-  if (quieto()) return;
-  raiz.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 150, easing: "ease-out" });
+// ---------- 3: salida ----------
+// Una copia de la pantalla que se va, encima y sin recibir clics, se desenfoca en 0,2 s mientras entra la nueva
+export function salida(raiz: HTMLElement) {
+  if (quieto() || !raiz.isConnected || !raiz.firstElementChild) return null;
+  const g = copiaDe(raiz);
+  document.body.appendChild(g);
+  g.animate([{ opacity: 1, filter: "blur(0)" }, { opacity: 0, filter: "blur(10px)" }], { duration: 200, easing: "ease-in", fill: "forwards" });
+  setTimeout(() => g.remove(), 220);
+  return g;
 }
 
-// ---------- 3: salida ----------
-// Una copia de la pantalla que se va, encima y sin recibir clics, se funde en 0,12 s mientras entra la nueva
-// (Cristian, 14 nov, noche: antes se desenfocaba 0,2 s encima del esqueleto y se veían las 2 mezcladas)
-export function salida(raiz: HTMLElement) {
-  if (quieto() || !raiz.isConnected || !raiz.firstElementChild) return false;
+// Copia de la pantalla, fija en su sitio, encima y sin recibir clics (para la salida y para el velo del esqueleto)
+export function copiaDe(raiz: HTMLElement) {
   const r = raiz.getBoundingClientRect();
   const g = raiz.cloneNode(true) as HTMLElement;
   g.querySelectorAll("[id]").forEach((x) => x.removeAttribute("id"));
   g.setAttribute("aria-hidden", "true");
   g.inert = true;
   g.style.cssText = `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;margin:0;pointer-events:none;z-index:1`;
-  document.body.appendChild(g);
-  g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: "ease-in", fill: "forwards" });
-  setTimeout(() => g.remove(), 140);
-  return true;
+  return g;
+}
+
+// Cristian, 14 nov (noche): al quitarse el esqueleto, la cascada empieza con todo invisible y se veía un fotograma casi
+// vacío. Ahora una copia del esqueleto (hecha antes de que se vaya) se funde en 0,3 s encima mientras entra la sección.
+export function velo(copia: HTMLElement) {
+  if (quieto()) return;
+  document.body.appendChild(copia);
+  copia.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: "ease-out", fill: "forwards" });
+  setTimeout(() => copia.remove(), 320);
 }
 
 // ---------- 5: pestañas ----------
