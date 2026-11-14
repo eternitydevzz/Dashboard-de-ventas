@@ -26,8 +26,43 @@ export function enMemoria<T>(clave: string, ms: number, cargar: () => Promise<T>
 
 export const UN_MINUTO = 60_000;
 
+// Cristian, 14 nov (noche, «memoria de 5 min» para KPIs → Leads): hasta `fresco` se usa lo guardado; de `fresco` a
+// `maximo` se usa lo guardado y se renueva por detrás con `lanzar` (en la app, after() de Next: después de responder);
+// pasado `maximo`, se espera a la base. Quien pide nunca espera a una renovación (el 13 nov, una recarga colgada hacía
+// esperar a todos): si falla, sigue lo guardado; si se queda colgada más de 1 min, se puede lanzar otra.
+// olvidarTodo() también lo borra: un cambio propio se ve al momento.
+const renovables = new Map<string, { desde: number; valor: Promise<unknown>; renovando: number }>();
+
+export function renovadoPorDetras<T>(clave: string, fresco: number, maximo: number, cargar: () => Promise<T>, lanzar: (f: () => Promise<unknown>) => void): Promise<T> {
+  if (process.env.VITEST) return cargar();
+  const ahora = Date.now();
+  const hay = renovables.get(clave);
+  if (!hay || ahora - hay.desde > maximo) {
+    const valor = cargar();
+    const nuevo = { desde: ahora, valor, renovando: 0 };
+    renovables.set(clave, nuevo);
+    valor.catch(() => {
+      if (renovables.get(clave) === nuevo) renovables.delete(clave);
+    });
+    return valor.then((v) => structuredClone(v));
+  }
+  if (ahora - hay.desde > fresco && (!hay.renovando || ahora - hay.renovando > UN_MINUTO)) {
+    hay.renovando = ahora;
+    lanzar(async () => {
+      try {
+        const v = await cargar();
+        if (renovables.get(clave) === hay) renovables.set(clave, { desde: Date.now(), valor: Promise.resolve(v), renovando: 0 });
+      } catch {
+        hay.renovando = 0; // la siguiente visita lo vuelve a intentar
+      }
+    });
+  }
+  return (hay.valor as Promise<T>).then((v) => structuredClone(v));
+}
+
 // Al guardar perfiles, miembros, permisos o ajustes del proyecto se borra todo lo guardado (esta copia del servidor),
 // para que esos cambios se vean al momento
 export function olvidarTodo() {
   guardado.clear();
+  renovables.clear();
 }
