@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarCheck, Flame, PhoneCall, Search, ShoppingCart, UserX, Users, Wallet } from "lucide-react";
 import { RANGO, resumenBiblioteca, type EscalonOferta } from "@/lib/biblioteca";
-import { cargandoDatos } from "@/lib/pantalla-lista";
-import { exigirOk } from "@/lib/resultado-cliente";
-import { cargarLeadsPestana } from "./acciones";
+import type { ConError } from "@/lib/resultado";
 import { descompactarLeads, type LeadsCompactos, type LeadVista } from "@/lib/leads-vista";
 import { cifras, compararFuentes, embudo, filtrarLeads, filtrarSinFuente, paisDe, repartir } from "@/lib/leads-cifras";
 import { ETIQUETA_ESTADO_CALLER, SIN_PAIS, nombrePais, pct } from "@/lib/formato";
@@ -32,44 +30,16 @@ import { GraficosLeads } from "./leads-graficos";
 import { AccionesLeads, CORTO } from "./leads-acciones";
 
 // 1c (Cristian, 26 oct 2026): KPIs → «Leads». Todos los leads del proyecto para decidir a quién llamar, ver cómo rinde
-// cada fuente (pipeline, con sus 🔗) y conocer al público. Los datos llegan compactos justo después de pintar
-// (lib/leads-kpis.ts) y todo lo demás se calcula aquí: cambiar un filtro no pide nada a la base.
-export function PestanaLeads({ barra, desde, hasta, zona, ofertas, csv }: { barra: React.ReactNode; desde: number | null; hasta: number | null; zona: string; ofertas: EscalonOferta[]; csv: React.ReactNode }) {
-  const [datos, setDatos] = useState<LeadsCompactos | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    let vivo = true;
-    // Mientras llegan, la bienvenida espera (lib/pantalla-lista.ts)
-    const listo = cargandoDatos();
-    exigirOk(cargarLeadsPestana())
-      .then((d) => vivo && setDatos(d as LeadsCompactos))
-      .catch((e) => vivo && setError(e instanceof Error ? e.message : "No se pudieron cargar los leads."))
-      .finally(listo);
-    return () => {
-      vivo = false;
-      listo();
-    };
-  }, []);
-  const vista = useMemo(() => (datos ? descompactarLeads(datos) : null), [datos]);
-  // Mientras cargan (o si fallan), las pestañas y el periodo siguen arriba para poder cambiar de pestaña
-  if (error)
+// cada fuente (pipeline, con sus 🔗) y conocer al público. Los datos llegan compactos desde el servidor (page.tsx; Cristian,
+// 14 nov: todo de una vez, sin esqueleto propio) y todo lo demás se calcula aquí: cambiar un filtro no pide nada a la base.
+export function PestanaLeads({ datos, barra, desde, hasta, zona, ofertas, csv }: { datos: LeadsCompactos | ConError; barra: React.ReactNode; desde: number | null; hasta: number | null; zona: string; ofertas: EscalonOferta[]; csv: React.ReactNode }) {
+  const vista = useMemo(() => ("error" in datos ? null : descompactarLeads(datos)), [datos]);
+  // Si fallan, las pestañas y el periodo siguen arriba para poder cambiar de pestaña
+  if ("error" in datos || !vista)
     return (
       <>
         <div className="tarjeta px-4">{barra}</div>
-        <p className="text-sm text-mal">{error}</p>
-      </>
-    );
-  if (!vista)
-    return (
-      <>
-        <div className="tarjeta px-4">{barra}</div>
-        {/* data-datos-pendientes: llega en el HTML desde el principio; mientras está, la bienvenida espera (lib/pantalla-lista.ts).
-            Sin aria-busy (D43): la entrada animada (components/animaciones) esperaba a que acabara la carga */}
-        <div className="animate-pulse space-y-3" role="status" data-datos-pendientes="">
-          <p className="text-sm text-texto-3">Cargando todos los leads…</p>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-24 rounded-xl bg-panel-2" />)}</div>
-          {[0, 1, 2, 3].map((i) => <div key={i} className="h-9 rounded-lg bg-panel-2" />)}
-        </div>
+        <p className="text-sm text-mal">{"error" in datos ? datos.error : ""}</p>
       </>
     );
   return <Contenido barra={barra} vista={vista} desde={desde} hasta={hasta} zona={zona} ofertas={ofertas} csv={csv} />;
