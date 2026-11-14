@@ -2,7 +2,8 @@ import Link from "next/link";
 import { MERCADOS, type Mercado } from "@/lib/mercado";
 
 // Cristian (13 nov 2026): quien edita cambia aquí entre lo de Latam y lo de España (mismas pantallas)
-export function SelectorMercado({ actual, href }: { actual: Mercado; href: (m: Mercado) => string }) {
+// `nota`: lo que se ve mirando España (Manuales ya no cae en lo de Latam: cada manual dice quién lo ve, 14 nov)
+export function SelectorMercado({ actual, href, nota = "Lo que España no tenga puesto aquí, lo ve de Latam." }: { actual: Mercado; href: (m: Mercado) => string; nota?: string }) {
   return (
     <div className="tarjeta flex flex-wrap items-center gap-1 p-1.5" role="tablist" aria-label="Equipo">
       {MERCADOS.map((m) => (
@@ -10,7 +11,7 @@ export function SelectorMercado({ actual, href }: { actual: Mercado; href: (m: M
           {m.t}
         </Link>
       ))}
-      {actual === "es" && <span className="px-2 text-xs text-texto-3">Lo que España no tenga puesto aquí, lo ve de Latam.</span>}
+      {actual === "es" && <span className="px-2 text-xs text-texto-3">{nota}</span>}
     </div>
   );
 }
