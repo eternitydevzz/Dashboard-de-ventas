@@ -24,7 +24,7 @@ export async function marcarPasoCloser(leadId: string, pasoId: string, hecho: bo
     if (hecho) hechos[pasoId] = new Date().toISOString();
     else delete hechos[pasoId];
     const { error } = await db().from("clientes").upsert({ proyecto_id: proyecto.id, lead_id: leadId, onboarding_closer: hechos, actualizado_en: new Date().toISOString() });
-    if (error) throw new ErrorUsuario(error.message);
+    if (error) throw new Error(error.message); // Cristian, 14 nov: el detalle de la base va al registro (seguro), el usuario ve el mensaje genérico
     refrescar();
   });
 }
@@ -43,11 +43,11 @@ export async function guardarPasoCloser(id: string | null, nombre: string) {
     if (!n || n.length > 80) throw new ErrorUsuario("Pon un nombre al punto (máximo 80 letras).");
     if (id) {
       const { error } = await db().from("pasos_onboarding_closer").update({ nombre: n }).eq("id", id).eq("proyecto_id", proyecto.id);
-      if (error) throw new ErrorUsuario(error.code === "23505" ? "Ya hay un punto con ese nombre." : error.message);
+      if (error) throw error.code === "23505" ? new ErrorUsuario("Ya hay un punto con ese nombre.") : new Error(error.message);
     } else {
       const { count } = await db().from("pasos_onboarding_closer").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
       const { error } = await db().from("pasos_onboarding_closer").insert({ proyecto_id: proyecto.id, nombre: n, orden: count ?? 0 });
-      if (error) throw new ErrorUsuario(error.code === "23505" ? "Ya hay un punto con ese nombre." : error.message);
+      if (error) throw error.code === "23505" ? new ErrorUsuario("Ya hay un punto con ese nombre.") : new Error(error.message);
     }
     refrescar();
   });

@@ -38,6 +38,13 @@
   --estado-descartado: #7b1a22;
   --sombra: 0 1px 2px rgb(15 26 51 / 0.04), 0 8px 32px rgb(15 26 51 / 0.08);
   --marca-eternity: #7b1a22;
+  /* Cristian, 14 nov (Fase 8): colores que iban a mano, como tokens (mismos valores, iguales en claro y oscuro) */
+  --embudo-2: #3b6ae0; /* components/embudo.tsx: escalones 2 a 5 (el 1 es --primario-boton) */
+  --embudo-3: #4f7fe8;
+  --embudo-4: #16a34a;
+  --embudo-5: #0f9a4a;
+  --cola-degradado: #3f6ee6; /* final del degradado de la cabecera de la cola (acciones-lead.tsx) */
+  --grabaciones-degradado: #1c2350; /* inicio del degradado de Grabaciones (grabaciones/cliente.tsx) */
   --desenfoque: 30px;
 }
 
@@ -103,6 +110,12 @@
   --color-primario-boton: var(--primario-boton);
   --color-eternity: var(--marca-eternity);
   --color-apagado: var(--apagado);
+  --color-embudo-2: var(--embudo-2);
+  --color-embudo-3: var(--embudo-3);
+  --color-embudo-4: var(--embudo-4);
+  --color-embudo-5: var(--embudo-5);
+  --color-cola-degradado: var(--cola-degradado);
+  --color-grabaciones-degradado: var(--grabaciones-degradado);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --shadow-panel: var(--sombra);

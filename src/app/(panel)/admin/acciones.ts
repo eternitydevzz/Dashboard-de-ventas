@@ -107,7 +107,7 @@ export async function cambiarPassword(perfilId: string, password: string) {
     const { data: miembro } = await db().from("miembros_proyecto").select("perfil_id").eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).maybeSingle();
     if (!miembro) throw new ErrorUsuario("Esa persona no está en este proyecto.");
     const { error } = await db().auth.admin.updateUserById(perfilId, { password });
-    if (error) throw new ErrorUsuario(error.message);
+    if (error) throw error.code === "weak_password" ? new ErrorUsuario("Esa contraseña es demasiado débil: prueba con una más larga o menos común.") : new Error(error.message); // Cristian, 14 nov: el detalle de la base va al registro (seguro), el usuario ve el mensaje genérico
   });
 }
 
@@ -295,7 +295,7 @@ export async function anadirAlProyecto(perfilId: string) {
     if (!persona) throw new ErrorUsuario("Esa persona no existe.");
     const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
     const { error } = await db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: perfilId, orden: count ?? 0 });
-    if (error) throw new ErrorUsuario(error.code === "23505" ? "Ya está en este proyecto." : error.message);
+    if (error) throw error.code === "23505" ? new ErrorUsuario("Ya está en este proyecto.") : new Error(error.message);
     refrescar();
   });
 }
@@ -948,7 +948,7 @@ export async function crearEtiqueta(nombre: unknown) {
     const t = etiquetaValida(nombre);
     const { data: ultima } = await db().from("etiquetas").select("orden").eq("proyecto_id", proyecto.id).order("orden", { ascending: false }).limit(1).maybeSingle();
     const { error } = await db().from("etiquetas").insert({ proyecto_id: proyecto.id, nombre: t, orden: ultima ? Number(ultima.orden) + 1 : 0 });
-    if (error) throw new ErrorUsuario(error.code === "23505" ? "Esa etiqueta ya existe." : error.message);
+    if (error) throw error.code === "23505" ? new ErrorUsuario("Esa etiqueta ya existe.") : new Error(error.message);
     refrescar();
     return { ok: true as const };
   });

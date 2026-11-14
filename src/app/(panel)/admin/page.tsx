@@ -241,8 +241,9 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
           ))}
         </div>
 
+        {/* Cristian, 14 nov: grid-cols-1 (= minmax(0,1fr)) para que en móvil la tabla se desplace dentro de su caja y no la página */}
         {tab === "equipo" && (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
             <Seccion titulo={`Equipo de ${proyecto.nombre} · ${gente.length} personas`}>
               <div className="-mx-4 overflow-x-auto sm:-mx-5">
                 <table className="tabla">

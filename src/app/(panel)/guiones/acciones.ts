@@ -23,7 +23,7 @@ export async function guardarGuion(rol: RolGuion, contenido: unknown, mercado: M
     // Sin `mercado` en la fila, la de Latam (también vale si la base aún no tiene la columna)
     const deEspana = mercadoValido(mercado) === "es" ? { mercado: "es" } : {};
     const { error } = await db().from("guiones").upsert({ proyecto_id: proyecto.id, rol, ...deEspana, contenido: g, actualizado_en: new Date().toISOString(), actualizado_por: perfil.id });
-    if (error) throw new ErrorUsuario(sinTabla(error.message) ? "Falta aplicar la migración de la base (guiones)." : error.message);
+    if (error) throw sinTabla(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (guiones).") : new Error(error.message); // Cristian, 14 nov: el detalle de la base va al registro (seguro), el usuario ve el mensaje genérico
     revalidatePath("/", "layout");
   });
 }
@@ -34,7 +34,7 @@ export async function restaurarGuion(rol: RolGuion, mercado: Mercado = "latam") 
     const { proyecto } = await exigir(esJefe);
     if (!ROLES.includes(rol)) throw new ErrorUsuario("Guion no válido.");
     const { error } = await db().from("guiones").delete().eq("proyecto_id", proyecto.id).eq("rol", rol).eq("mercado", mercadoValido(mercado) ?? "latam");
-    if (error && !sinTabla(error.message)) throw new ErrorUsuario(error.message);
+    if (error && !sinTabla(error.message)) throw new Error(error.message);
     revalidatePath("/", "layout");
   });
 }
@@ -67,6 +67,6 @@ export async function guardarMarcasGuion(leadId: string, marcas: Marcas, resulta
       total,
       resultado: resultado ? String(resultado).slice(0, 40) : null,
     });
-    if (error && !sinTabla(error.message)) throw new ErrorUsuario(error.message);
+    if (error && !sinTabla(error.message)) throw new Error(error.message);
   });
 }

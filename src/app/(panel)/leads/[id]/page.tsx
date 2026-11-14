@@ -2,7 +2,8 @@ import { ETIQUETA_ESTADO } from "@/lib/estados-caller";
 import { CAMPOS_FICHA, limpiarFicha } from "@/lib/ficha-cualificacion";
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
-import { miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
+import { mercadosDelProyecto, miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
+import { contenidoMercado } from "@/lib/mercado";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Mail, Phone, Globe, Tag, FileText, History, CalendarDays, ShoppingCart, Compass } from "lucide-react";
 import { getSesion, esJefe } from "@/lib/auth";
@@ -61,7 +62,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
   const jefe = esJefe(perfil);
   if (!jefe && lead.caller_id !== perfil.id && lead.closer_id !== perfil.id) notFound();
 
-  const [acts, citas, ventas, gente, productos, pipelines, etapas, fichaFila] = await Promise.all([
+  const [acts, citas, ventas, gente, productos, pipelines, etapas, fichaFila, mercados] = await Promise.all([
     db().from("actividades").select("*").eq("lead_id", id).order("creado_en", { ascending: false }).limit(100),
     db().from("citas").select("*").eq("lead_id", id).order("fecha", { ascending: false }),
     db().from("ventas").select("*, productos(nombre)").eq("lead_id", id).order("fecha", { ascending: false }),
@@ -70,12 +71,16 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
     db().from("pipelines").select("*").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden"),
     db().from("etapas").select("*, pipelines!inner(proyecto_id, tipo)").eq("pipelines.proyecto_id", proyecto.id).eq("pipelines.tipo", "normal").order("orden"),
     db().from("cualificaciones").select("campos").eq("lead_id", id).maybeSingle(), // C6 (sin la tabla todavía: vacía)
+    mercadosDelProyecto(proyecto.id),
   ]);
+  // Moneda (Cristian, 14 nov): cada venta en la de su vendedor (€ si es de España), mire quien mire
+  const monedaDe = (pid: string | null) => contenidoMercado(pid ? mercados[pid] ?? null : null).moneda(proyecto);
+  const dineroDe = (n: number, pid: string | null) => dinero(n, { moneda: monedaDe(pid) });
   const ficha = limpiarFicha(fichaFila.data?.campos);
   const nombre = (pid: string | null) => gente.find((g) => g.id === pid)?.nombre ?? "—";
   // La cita que cerraría una venta (la abierta más reciente, como en registrarVenta): su closer es el vendedor por defecto
   const citaAbierta = (citas.data as Cita[] | null)?.find((c) => [...ABIERTAS, "seguimiento"].includes(c.estado) && c.closer_id);
-  const closerCita = citaAbierta?.closer_id ? { id: citaAbierta.closer_id, nombre: nombre(citaAbierta.closer_id) } : undefined;
+  const closerCita = citaAbierta?.closer_id ? { id: citaAbierta.closer_id, nombre: nombre(citaAbierta.closer_id), moneda: monedaDe(citaAbierta.closer_id) } : undefined;
   const pipeline = (pipelines.data as Pipeline[]).find((p) => p.id === lead.pipeline_id);
   const etapa = (etapas.data as Etapa[]).find((e) => e.id === lead.etapa_id);
   // Fase 4: sus tarjetas en otros pipelines (si la tabla aún no existe, ninguna)
@@ -93,7 +98,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
         titulo={nombreCompleto}
         subtitulo={
           <span className="flex flex-wrap items-center gap-2">
-            <Link href={jefe ? `/crm${pipeline ? `?pipeline=${pipeline.id}` : ""}` : perfil.rol === "closer" ? "/closer" : "/caller"} className="inline-flex items-center gap-1 text-primario hover:underline">
+            <Link href={jefe ? `/crm${pipeline ? `?pipeline=${pipeline.id}` : ""}` : perfil.rol === "closer" ? "/closer/llamadas" : "/caller"} className="inline-flex items-center gap-1 text-primario hover:underline">
               <ArrowLeft className="h-3.5 w-3.5" /> Volver
             </Link>
             {pipeline && <>· {pipeline.nombre}</>}
@@ -217,7 +222,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 closers={gente.filter(esCloser).map((g) => ({ id: g.id, nombre: g.nombre }))}
                 productos={(productos.data ?? []) as Producto[]}
                 rol={perfil.rol}
-                vendedores={jefe ? gente.filter((g) => g.rol === "closer" || g.rol === "caller").map((g) => ({ id: g.id, nombre: g.nombre })) : undefined}
+                vendedores={jefe ? gente.filter((g) => g.rol === "closer" || g.rol === "caller").map((g) => ({ id: g.id, nombre: g.nombre, moneda: monedaDe(g.id) })) : undefined}
                 closerCita={closerCita}
                 miId={perfil.id}
                 linkAgenda={await miLinkAgenda(proyecto, perfil.id)}
@@ -256,9 +261,9 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 <ul className="space-y-2 text-sm">
                   {(ventas.data as (Venta & { productos: { nombre: string } | null })[]).map((v) => (
                     <li key={v.id} className="rounded-lg border border-borde bg-panel-2 px-3 py-2">
-                      <div className="flex justify-between font-medium"><span>{v.productos?.nombre ?? "Producto"}</span><span className="text-oro-texto">{dinero(Number(v.facturacion), proyecto)}</span></div>
-                      <div className="text-xs text-texto-3">Cobrado {dinero(Number(v.cash_collected), proyecto)} · {RESULTADO[v.tipo_pago]} · {nombre(v.vendedor_id)} · {fechaHora(v.fecha, proyecto)}</div>
-                      {v.devuelto && <div className="text-xs text-mal">Devuelto {dinero(Number(v.devuelto), proyecto)}{v.devuelto_en ? ` el ${fechaHora(v.devuelto_en, proyecto)}` : ""}{v.devolucion_nota ? ` · ${v.devolucion_nota}` : ""}</div>}
+                      <div className="flex justify-between font-medium"><span>{v.productos?.nombre ?? "Producto"}</span><span className="text-oro-texto">{dineroDe(Number(v.facturacion), v.vendedor_id)}</span></div>
+                      <div className="text-xs text-texto-3">Cobrado {dineroDe(Number(v.cash_collected), v.vendedor_id)} · {RESULTADO[v.tipo_pago]} · {nombre(v.vendedor_id)} · {fechaHora(v.fecha, proyecto)}</div>
+                      {v.devuelto && <div className="text-xs text-mal">Devuelto {dineroDe(Number(v.devuelto), v.vendedor_id)}{v.devuelto_en ? ` el ${fechaHora(v.devuelto_en, proyecto)}` : ""}{v.devolucion_nota ? ` · ${v.devolucion_nota}` : ""}</div>}
                     </li>
                   ))}
                 </ul>
