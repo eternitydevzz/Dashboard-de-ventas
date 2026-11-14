@@ -1,5 +1,4 @@
-"use server";
-
+import "server-only";
 import { getSesion, esJefe } from "@/lib/auth";
 import { db, equipo } from "@/lib/datos";
 import { fechaHora, ETIQUETA_ESTADO_CALLER } from "@/lib/formato";
@@ -25,14 +24,24 @@ export type ResumenLead = {
   respuestas: Respuesta[];
 };
 
+// Cristian, 14 nov (Ola 2): el popup lo pide por GET (api/leads/[id]/resumen) y no como acción del servidor: Next manda
+// las acciones de una en una y el popup esperaba a que acabara de guardarse un movimiento. La ruta da 403 con este texto.
+export const SIN_PERMISO = "No puedes ver este lead.";
+// Solo las columnas que enseña (antes `*`, con `datos` de GHL)
+const CAMPOS = "id, nombre, apellido, telefono, pais, email, pipeline_id, etapa_id, creado_en, caller_id, closer_id, estado_caller, estrellas_caller, etiquetas, oferta, respuestas";
+
 export async function resumenLead(leadId: string) {
   return seguro(async (): Promise<ResumenLead> => {
     const { perfil, proyecto } = await getSesion();
-    const { data: lead, error } = await db().from("leads").select("*").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle<Lead>();
-    if (error) throw new Error(`Popup del lead: ${error.message}`); // D43: un fallo de la base es error genérico, no «No puedes ver»
-    if (!lead || (!esJefe(perfil) && lead.caller_id !== perfil.id && lead.closer_id !== perfil.id)) throw new ErrorUsuario("No puedes ver este lead.");
+    // Ola 2: el lead, sus tarjetas 🔗 y el equipo a la vez (antes, en fila). Las tarjetas solo se usan si puede verlo.
     // Cristian, 14 nov: estas lecturas también miran su error (antes, un fallo salía como «—» sin avisar)
-    const [gente, { data: extra, error: eExtra }] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), db().from("tarjetas_extra").select("pipeline_id, etapa_id").eq("lead_id", lead.id)]);
+    const [{ data: lead, error }, gente, { data: extra, error: eExtra }] = await Promise.all([
+      db().from("leads").select(CAMPOS).eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle<Lead>(),
+      equipo(proyecto.id, !!perfil.es_prueba),
+      db().from("tarjetas_extra").select("pipeline_id, etapa_id").eq("lead_id", leadId),
+    ]);
+    if (error) throw new Error(`Popup del lead: ${error.message}`); // D43: un fallo de la base es error genérico, no «No puedes ver»
+    if (!lead || (!esJefe(perfil) && lead.caller_id !== perfil.id && lead.closer_id !== perfil.id)) throw new ErrorUsuario(SIN_PERMISO);
     if (eExtra) throw new Error(`Popup del lead (tarjetas_extra): ${eExtra.message}`);
     const tarjetas = [{ pipeline_id: lead.pipeline_id, etapa_id: lead.etapa_id }, ...(extra ?? [])].filter((t) => t.pipeline_id);
     const ids = (k: "pipeline_id" | "etapa_id") => tarjetas.map((t) => t[k]).filter((x): x is string => !!x);

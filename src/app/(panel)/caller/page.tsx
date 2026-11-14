@@ -14,7 +14,7 @@ import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { rangoDe, porcentaje, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
 import { kpisHoyCola, llamadasHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
-import { colaCaller, cuentaPorEstado, leerOrden, ordenarCola } from "@/lib/cola";
+import { colaCaller, compactarRespuestas, cuentaPorEstado, leerOrden, ordenarCola } from "@/lib/cola";
 import { ESTADOS_CALLER } from "@/lib/estados-caller";
 import { Cabecera, Contenido, Vacio, Avatar } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
@@ -26,7 +26,8 @@ import { BarraDeslizable } from "@/components/barra-deslizable";
 // «Leads» = solo los que siguen en «Leads» (Cristian, 10 nov: antes salían todos y el equipo se liaba); cada estado, en su pestaña
 const FILTROS = ESTADOS_CALLER.map((e) => ({ v: e.v, t: e.t }));
 
-const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, llamar_en, creado_en, etiquetas, respuestas, pipeline_id"; // C5: + pipeline (su nombre sale en la cabecera del lead)
+// Cristian, 14 nov (Ola 2): sin `etiquetas` (la cola no las enseña)
+const CAMPOS_COLA = "id, nombre, apellido, email, telefono, pais, estado_caller, llamar_en, creado_en, respuestas, pipeline_id"; // C5: + pipeline (su nombre sale en la cabecera del lead)
 // Velocidad (13 nov 2026): productos, scoring y pipelines casi no cambian y se pedían en cada carga y cada guardado de
 // cada persona. Se comparten 1 minuto (lib/memoria.ts; se borran al guardarlos). Si falla no se guarda y sale vacío, como antes.
 function deMemoria<T>(clave: string, leer: () => PromiseLike<{ data: T | null; error: { message: string } | null }>) {
@@ -37,7 +38,7 @@ function deMemoria<T>(clave: string, leer: () => PromiseLike<{ data: T | null; e
   }).catch((e) => (console.error(`[callers] ${clave}`, e instanceof Error ? e.message : e), null));
 }
 
-type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id">;
+type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "respuestas" | "pipeline_id">;
 
 export default async function CallerPage({ searchParams }: PageProps<"/caller">) {
   const { perfil, proyecto, tiene } = await exigirPagina("cola"); // H5
@@ -94,6 +95,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const visibles = filtrados.slice(0, 300);
   const pedido = filtrados.find((l) => l.id === sp.lead);
   if (pedido && !visibles.includes(pedido)) visibles.push(pedido);
+  const { preguntas, filas: enviados } = compactarRespuestas(visibles); // Ola 2: cada pregunta, una vez
   const closers = gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }));
   const cortos = nombresCortos(callers); // F13: dos callers con el mismo nombre se distinguen
   const enlaceFiltro = (v: string) => `/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), ...(filtroM ? { mercado: filtroM } : {}), columna: v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`;
@@ -142,7 +144,8 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
               ))}
             </BarraDeslizable>
           }
-          leads={visibles}
+          leads={enviados}
+          preguntas={preguntas}
           total={filtrados.length}
           asignados={leads.length}
           callerId={jefe ? caller.id : null}

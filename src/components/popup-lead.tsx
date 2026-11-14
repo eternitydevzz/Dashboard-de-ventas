@@ -7,19 +7,20 @@ import { Modal } from "@/components/modal";
 import { OfertaChip } from "@/components/oferta-chip";
 import { VerEstrellas } from "@/components/estrellas";
 import { TelefonoCopiable } from "@/components/telefono-copiable";
-import { resumenLead, type ResumenLead } from "@/app/(panel)/leads/resumen";
+import type { ResumenLead } from "@/app/(panel)/leads/resumen";
 import { nombrePais } from "@/lib/formato";
 
 // Popup de la card del lead (Cristian, 13 oct 2026): sus datos básicos y las respuestas del formulario, con el botón
 // «Ver toda la info» a su ficha. Lo abren las cards del CRM (todos los tableros) y las filas de la Biblioteca.
 export function PopupLead({ leadId, nombre, onCerrar }: { leadId: string; nombre: string; onCerrar: () => void }) {
-  const [datos, setDatos] = useState<ResumenLead | null>(null);
+  const [datos, setDatos] = useState<Omit<ResumenLead, "id"> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fallo, setFallo] = useState(false); // falló la red: «Reintentar» en vez de «Cargando…» para siempre
   const [intento, setIntento] = useState(0);
   useEffect(() => {
     let vivo = true;
-    resumenLead(leadId).then(
+    // Cristian, 14 nov (Ola 2): por GET (no espera a que acabe de guardarse un movimiento); 403 = sin permiso, con su texto
+    fetch(`/api/leads/${encodeURIComponent(leadId)}/resumen`).then((res) => res.json()).then(
       (r) => {
         if (!vivo) return;
         if (!r || typeof r !== "object") return void setFallo(true);
