@@ -41,14 +41,16 @@ function cambioPct(actual: number, previo: number) {
 // Con el volumen actual (miles de filas) es rápido y sencillo.
 // `conPrueba`: un perfil de prueba que mira lo suyo (sin él, lo de los perfiles de prueba no cuenta; 1.0)
 // 25 oct 2026: compartido 1 minuto entre todo el equipo (lib/memoria.ts); antes, una carga entera por persona y clic
-export function cargarBase(proyecto: Proyecto, conPrueba = false) {
-  return enMemoria(`base:${proyecto.id}:${conPrueba}`, UN_MINUTO, () => cargarBaseDeLaBase(proyecto, conPrueba));
+// Cristian, 14 nov (Ola 2): `leidos` = los leads que ya está leyendo quien la pide (KPIs → Leads, lib/leads-kpis.ts), con
+// el mismo filtro y orden; así no se leen 2 veces. Solo se llama si la base no está en memoria.
+export function cargarBase(proyecto: Proyecto, conPrueba = false, leidos?: () => Promise<LeadMin[]>) {
+  return enMemoria(`base:${proyecto.id}:${conPrueba}`, UN_MINUTO, () => cargarBaseDeLaBase(proyecto, conPrueba, leidos));
 }
 
-async function cargarBaseDeLaBase(proyecto: Proyecto, conPrueba: boolean) {
+async function cargarBaseDeLaBase(proyecto: Proyecto, conPrueba: boolean, leidos?: () => Promise<LeadMin[]>) {
   const pid = proyecto.id;
   const [leads, citasT, ventasT, actividadesT, pagosT, gente, prueba] = await Promise.all([
-    todas<LeadMin>((a, b) => db().from("leads").select("id, creado_en, caller_id, closer_id").eq("proyecto_id", pid).order("id").range(a, b)),
+    leidos ? leidos() : todas<LeadMin>((a, b) => db().from("leads").select("id, creado_en, caller_id, closer_id").eq("proyecto_id", pid).order("id").range(a, b)),
     todas<CitaMin>((a, b) =>
       db().from("citas").select("id, lead_id, closer_id, agendada_por, fecha, estado, creado_en").eq("proyecto_id", pid).order("id").range(a, b)
     ),

@@ -87,7 +87,7 @@ describe("Fase 9 · velocidad", () => {
     const pestana = buscar(await abrir(), "PestanaLeads");
     expect(pestana?.props?.datos).toBe(LEADS);
     expect(cargarLeadsPestana).toHaveBeenCalledTimes(1);
-    expect(tablas.sort()).toEqual(["pipelines", "productos"]); // las 2 lecturas pequeñas de antes
+    expect(tablas).toEqual(["productos"]); // Ola 2 (14 nov): los pipelines salen de la carga de los leads (antes, una lectura más)
     for (const f of ["leads.tsx", "utms.tsx"]) {
       const codigo = leer(`${PANEL}/kpis/${f}`);
       expect(codigo, f).not.toMatch(/cargarLeadsPestana|cargarUtmsPestana|useEffect\(|data-datos-pendientes/);

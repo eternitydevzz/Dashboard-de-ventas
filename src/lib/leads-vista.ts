@@ -61,15 +61,20 @@ export function marcasEmbudo(
   return m;
 }
 
-// Un lead compacto: [id, nombre, teléfono, email, país, alta (segundos), pipeline, columna, 🔗 [[pipeline, columna]…],
-// caller, closer, estado, estrellas, oferta, fuente, etiquetas, respuestas [[pregunta, respuesta]…], marcas]. Las
-// posiciones apuntan a las listas de `LeadsCompactos`; -1 = ninguno.
-type LeadCompacto = [string, string, string | null, string | null, string | null, number, number, number, [number, number][], number, number, string, number | null, string | null, number, number[], [number, number][], number];
+// Un lead compacto: [id, nombre, teléfono, email, país, alta (segundos), pipeline, columna, 🔗, caller, closer, estado,
+// estrellas (0 = sin estrellas; la base solo deja 1-5), oferta, fuente, etiquetas, respuestas, marcas]. Las posiciones
+// apuntan a las listas de `LeadsCompactos`; -1 = ninguno.
+// Cristian, 14 nov (Ola 2, «la velocidad, lo más importante»): estado y oferta van como posición en `textos`, y 🔗
+// ([pipeline, columna, pipeline, columna…]), etiquetas y respuestas (cada [pregunta, respuesta] es otra lista) como
+// posición en `listas`: miles de leads repiten la misma lista. Medido con los 4.690 leads del 14 nov (datos personales
+// tapados): props 868 → 681 KB; con el HTML pintado, 1.168 → 968 KB (comprimido, 218 → 208 KB). Lo pintado, igual.
+type LeadCompacto = [string, string, string | null, string | null, string | null, number, number, number, number, number, number, number, number, number, number, number, number, number];
 export type LeadsCompactos = {
   pipelines: PipelineVista[];
   etapas: EtapaVista[];
   gente: PersonaVista[];
-  textos: string[]; // fuentes, etiquetas, preguntas y respuestas, sin repetir
+  textos: string[]; // estados, ofertas, fuentes, etiquetas, preguntas y respuestas, sin repetir
+  listas: number[][]; // 🔗, etiquetas y respuestas, sin repetir
   leads: LeadCompacto[];
 };
 
@@ -102,19 +107,27 @@ export function compactarLeads(d: { leads: LeadDeLaBase[]; tarjetas: Tarjeta[]; 
   const pipe = posicion(d.pipelines);
   const etapa = posicion(d.etapas);
   const persona = posicion(d.gente);
-  const textos: string[] = [];
-  const indice = new Map<string, number>();
-  const texto = (t: string) => {
-    let i = indice.get(t);
-    if (i === undefined) {
-      i = textos.length;
-      textos.push(t);
-      indice.set(t, i);
-    }
-    return i;
+  // Lo que ya salió va una sola vez: cada uno lleva su posición (textos por el texto; listas por sus números)
+  const sinRepetir = <T>(clave: (x: T) => string) => {
+    const lista: T[] = [];
+    const indice = new Map<string, number>();
+    const pos = (x: T) => {
+      const k = clave(x);
+      let i = indice.get(k);
+      if (i === undefined) {
+        i = lista.length;
+        lista.push(x);
+        indice.set(k, i);
+      }
+      return i;
+    };
+    return { lista, pos };
   };
-  const tarjetasDe = new Map<string, [number, number][]>();
-  for (const t of d.tarjetas) tarjetasDe.set(t.lead_id, [...(tarjetasDe.get(t.lead_id) ?? []), [pipe(t.pipeline_id), etapa(t.etapa_id)]]);
+  const textos = sinRepetir<string>((t) => t);
+  const listas = sinRepetir<number[]>((l) => l.join(","));
+  const texto = textos.pos;
+  const tarjetasDe = new Map<string, number[]>();
+  for (const t of d.tarjetas) tarjetasDe.set(t.lead_id, [...(tarjetasDe.get(t.lead_id) ?? []), pipe(t.pipeline_id), etapa(t.etapa_id)]);
   const leads = d.leads.map((l): LeadCompacto => [
     l.id,
     `${l.nombre ?? ""} ${l.apellido ?? ""}`.trim(),
@@ -124,19 +137,22 @@ export function compactarLeads(d: { leads: LeadDeLaBase[]; tarjetas: Tarjeta[]; 
     Math.round(new Date(l.creado_en).getTime() / 1000),
     pipe(l.pipeline_id),
     etapa(l.etapa_id),
-    tarjetasDe.get(l.id) ?? [],
+    listas.pos(tarjetasDe.get(l.id) ?? []),
     persona(l.caller_id),
     persona(l.closer_id),
-    l.estado_caller,
-    l.estrellas_caller,
-    l.oferta,
+    texto(l.estado_caller),
+    l.estrellas_caller ?? 0,
+    l.oferta ? texto(l.oferta) : -1,
     l.fuente ? texto(l.fuente) : -1,
-    (l.etiquetas ?? []).map(texto),
-    (l.respuestas ?? []).map((r) => [texto(r.pregunta), texto(r.respuesta ?? "")]),
+    listas.pos((l.etiquetas ?? []).map(texto)),
+    listas.pos((l.respuestas ?? []).map((r) => listas.pos([texto(r.pregunta), texto(r.respuesta ?? "")]))),
     d.marcas.get(l.id) ?? 0,
   ]);
-  return { pipelines: d.pipelines, etapas: d.etapas, gente: d.gente, textos, leads };
+  return { pipelines: d.pipelines, etapas: d.etapas, gente: d.gente, textos: textos.lista, listas: listas.lista, leads };
 }
+
+// [a, b, c, d] → [[a, b], [c, d]]
+const deDos = (l: number[]) => Array.from({ length: l.length / 2 }, (_, i) => [l[2 * i], l[2 * i + 1]] as const);
 
 export function descompactarLeads(c: LeadsCompactos): { pipelines: PipelineVista[]; etapas: EtapaVista[]; gente: PersonaVista[]; leads: LeadVista[] } {
   const id = <T extends { id: string }>(lista: T[], i: number) => (i >= 0 ? lista[i]?.id ?? null : null);
@@ -149,18 +165,18 @@ export function descompactarLeads(c: LeadsCompactos): { pipelines: PipelineVista
     alta: alta * 1000,
     pipelineId: id(c.pipelines, p),
     etapaId: id(c.etapas, e),
-    tarjetas: tarjetas.flatMap(([tp, te]) => {
+    tarjetas: deDos(c.listas[tarjetas]).flatMap(([tp, te]) => {
       const pipelineId = id(c.pipelines, tp);
       return pipelineId ? [{ pipelineId, etapaId: id(c.etapas, te) }] : [];
     }),
     callerId: id(c.gente, caller),
     closerId: id(c.gente, closer),
-    estado,
-    estrellas,
-    oferta,
+    estado: c.textos[estado],
+    estrellas: estrellas || null,
+    oferta: oferta >= 0 ? c.textos[oferta] : null,
     fuente: fuente >= 0 ? c.textos[fuente] : null,
-    etiquetas: etiquetas.map((i) => c.textos[i]),
-    respuestas: respuestas.map(([pr, rs]) => ({ pregunta: c.textos[pr], respuesta: c.textos[rs] })),
+    etiquetas: c.listas[etiquetas].map((i) => c.textos[i]),
+    respuestas: c.listas[respuestas].map((i) => ({ pregunta: c.textos[c.listas[i][0]], respuesta: c.textos[c.listas[i][1]] })),
     marcas,
   }));
   return { pipelines: c.pipelines, etapas: c.etapas, gente: c.gente, leads };

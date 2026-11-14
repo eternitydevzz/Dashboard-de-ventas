@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   BookOpen,
   Mic,
@@ -39,6 +39,7 @@ import { Desplegable } from "@/components/eleccion";
 import { CampanaAvisos } from "@/components/campana-avisos";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
 import { useResalteMenu } from "@/components/animaciones/animaciones";
+import { FIN_BIENVENIDA } from "@/components/bienvenida";
 
 const ICONOS = {
   funnel: BarChart3,
@@ -105,12 +106,24 @@ export function BarraLateral({
   // abrir la app (cada pestaña preparaba Funnel, KPIs, Ranking… cada 5 min). Solo la que se señala con el ratón,
   // el dedo o el teclado, justo antes de pulsar (como antes del 17 oct), y completa.
   // 11 nov 2026 (Cristian: «solo las 3 secciones más usadas por cada rol»): esas 3 sí se precargan al abrir la app,
-  // completas, desde el primer pintado (prefetch={true} fijo). Medido en la app publicada (11 nov): con el enlace que empezaba
+  // completas, desde el primer pintado (prefetch={true} fijo; desde el 14 nov, al quitarse la bienvenida: abajo). Medido en la app publicada (11 nov): con el enlace que empezaba
   // con prefetch={false} y pasaba a true después, Next no precargó nada (0 peticiones en 10 s; causa probable, sin aislar). Las demás, al señalarlas.
   // Límite conocido: en el móvil el menú está escondido y Next solo precarga los enlaces que se ven.
+  // Cristian, 14 nov (Ola 2): las 3 empiezan al quitarse la bienvenida, con la pantalla abierta ya cargada. Antes salían
+  // desde el primer pintado (la guía de Next: un enlace se precarga al entrar en pantalla, prefetching.md:66-75) y
+  // competían con ella (la de /crm, 241 KB, acababa a ~5,4 s). Siguen completas (prefetch={true}, link.md:303): la
+  // precarga por defecto de una página dinámica con loading.tsx solo trae hasta la pantalla de carga (link.md:302).
+  // El enlace se vuelve a montar con la precarga ya puesta (key), como el caso medido que sí precargaba (arriba).
+  const [trasBienvenida, setTrasBienvenida] = useState(false);
+  useEffect(() => {
+    const ya = () => setTrasBienvenida(true);
+    window.addEventListener(FIN_BIENVENIDA, ya);
+    return () => window.removeEventListener(FIN_BIENVENIDA, ya);
+  }, []);
+  const deEntrada = (href: string) => trasBienvenida && precarga.includes(href);
   const [precargadas, setPrecargadas] = useState<Set<string>>(() => new Set());
   const precargar = (href: string) => setPrecargadas((s) => (s.has(href) ? s : new Set(s).add(href)));
-  const conPrecarga = (href: string) => precarga.includes(href) || precargadas.has(href);
+  const conPrecarga = (href: string) => deEntrada(href) || precargadas.has(href);
   const [yendo, setYendo] = useState<{ a: string; desde: string } | null>(null);
   const destino = yendo && yendo.desde === ruta ? yendo.a : null;
   const [abierto, setAbierto] = useState(false);
@@ -169,6 +182,7 @@ export function BarraLateral({
                 return (
                   <li key={it.href}>
                     <Link
+                      key={deEntrada(it.href) ? "precarga" : "normal"}
                       href={it.href}
                       data-activo={activo || undefined}
                       prefetch={ruta !== it.href && conPrecarga(it.href)} // la sección en la que ya estás no se vuelve a precargar en cada guardado

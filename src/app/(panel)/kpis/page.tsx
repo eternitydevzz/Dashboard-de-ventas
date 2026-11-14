@@ -16,7 +16,7 @@ import { BarrasObjetivos } from "@/components/barras-objetivos";
 import { FormObjetivo, BotonQuitarObjetivo, FormLanzamiento, BotonBorrarLanzamiento } from "./objetivos-cliente";
 import { ActualizarCsv } from "./subir-csv";
 import { ESCALERA, type EscalonOferta } from "@/lib/biblioteca";
-import type { Pipeline, Producto } from "@/lib/tipos";
+import type { Producto } from "@/lib/tipos";
 import { Embudo } from "@/components/embudo";
 import { CuerpoFunnel } from "@/components/cuerpo-funnel";
 import { TarjetasKpis, type PersonaKpi } from "@/components/tarjetas-kpis";
@@ -91,13 +91,13 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     // Por eso /kpis ya no se precarga al abrir la app (lib/mensajes-entrada.ts). Periodo por la fecha de alta, «Todo» por defecto.
     const periodo = (typeof sp.periodo === "string" ? sp.periodo : "todo") as Periodo;
     const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string | undefined, sp.hasta as string | undefined);
-    // Lo que venía de la Biblioteca: precios de la escalera y los pipelines de «Actualizar con CSV» (dos lecturas pequeñas)
-    const [{ data: productos }, { data: pipes }, datos] = await Promise.all([
+    // Lo que venía de la Biblioteca: precios de la escalera (una lectura pequeña) y los pipelines de «Actualizar con CSV».
+    // Cristian, 14 nov (Ola 2): esos pipelines son los mismos que ya trae la carga de los leads (antes, una lectura más)
+    const [{ data: productos }, datos] = await Promise.all([
       db().from("productos").select("*").eq("proyecto_id", proyecto.id).order("orden"),
-      db().from("pipelines").select("*").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden"),
       cargarLeadsPestana(),
     ]);
-    const pipelines = (pipes ?? []) as Pipeline[];
+    const pipelines = esError(datos) ? [] : datos.pipelines;
     const ofertas: EscalonOferta[] = ESCALERA.map((e) => {
       const p = ((productos ?? []) as Producto[]).find((x) => x.nombre.toLowerCase() === e.producto.toLowerCase());
       return { clave: e.clave, nombre: p?.nombre ?? e.producto, precio: p?.precio ? `${$(Number(p.precio))}${p.modo_pago === "mensual" ? " / mes" : ""}` : "A medida", quien: e.quien };

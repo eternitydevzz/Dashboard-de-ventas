@@ -29,7 +29,14 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
 
   // C11 (plan Callers, 7 nov, punto 11): sin número rojo de llamadas vencidas (ya no hay fechas). Una consulta menos.
   // 13 nov (Cristian): cada uno elige si es del equipo de Latam o del de España (null = sin elegir; se le pregunta)
-  const [secciones, mercado] = await Promise.all([seccionesPermitidas(perfil, proyecto.id), leerMercado(proyecto.id, perfil.id)]);
+  // F1b: campana y ventana del día, solo para el CEO. Si el cálculo falla, el panel sigue sin campana (se anota).
+  // Cristian, 14 nov (Ola 2): se leen a la vez que permisos y mercado (antes, después: una espera más en cada carga)
+  const esCeo = perfil.rol === "ceo";
+  const [secciones, mercado, avisos] = await Promise.all([
+    seccionesPermitidas(perfil, proyecto.id),
+    leerMercado(proyecto.id, perfil.id),
+    esCeo ? avisosCeo(proyecto.id).catch((e) => (console.error("[avisos del CEO]", e), undefined)) : undefined,
+  ]);
   if (mercado === null) redirect("/onboarding/mercado");
   // N3 y N2 (Cristian, 13 nov): sin foto no se entra (todos); callers y closers, además, eligen su zona horaria
   const paso = pasoPendiente(perfil);
@@ -76,11 +83,6 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
       : []),
   ].filter((g) => g.items.length > 0);
 
-
-  // F1b: campana y ventana del día, solo para el CEO. Si el cálculo falla, el panel sigue sin campana (se anota)
-  const esCeo = perfil.rol === "ceo";
-  const avisos = esCeo ? await avisosCeo(proyecto.id).catch((e) => (console.error("[avisos del CEO]", e), undefined)) : undefined;
-
   // Bienvenida (11 nov 2026): las 3 secciones de su rol que tiene en el menú se precargan al abrir la app
   const items = menu.flatMap((g) => g.items);
   const precarga = PRECARGA_ROL[perfil.rol].map((href) => items.find((it) => it.href === href)).filter((it) => it !== undefined);
@@ -98,7 +100,7 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
       <Dialogos />
       <AvisosEnVivo proyectoId={proyecto.id} />
       {/* 11 nov 2026: vuelve la bienvenida, solo visual (no espera a nada); la ventana sale cuando se quita */}
-      <Bienvenida nombre={nombre} secciones={precarga.map((it) => it.texto)} rutas={precarga.map((it) => it.href)} />
+      <Bienvenida nombre={nombre} secciones={precarga.map((it) => it.texto)} />
       <VentanaEntrada rol={perfil.rol} nombre={nombre} avisos={avisos} />
     </ProveedorToasts>
   );
