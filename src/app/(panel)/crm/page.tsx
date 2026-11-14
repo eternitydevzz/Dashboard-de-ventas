@@ -14,6 +14,16 @@ import { ahoraMs } from "@/lib/formato";
 import { TableroCrm, type LeadTarjeta } from "./tablero";
 import { compactarCrm } from "./compacto";
 import { esCloser, type Etapa, type Pipeline, type Producto, type Respuesta } from "@/lib/tipos";
+import { enMemoria, UN_MINUTO } from "@/lib/memoria";
+
+// Como deMemoria de caller/page.tsx: 1 minuto compartido; si la lectura falla no se guarda y sale vacío, como antes
+function deMemoria<T>(clave: string, leer: () => PromiseLike<{ data: T | null; error: { message: string } | null }>) {
+  return enMemoria(clave, UN_MINUTO, async () => {
+    const { data, error } = await leer();
+    if (error) throw new Error(error.message);
+    return data;
+  }).catch((e) => (console.error(`[crm] ${clave}`, e instanceof Error ? e.message : e), null));
+}
 
 // Un solo CRM para todos (Paso H7) con los pipelines del equipo (Paso 0, como GHL): los de origen (Webinar 1…),
 // «Callers» (los leads con caller, por el resultado de su llamada) y «Closers» (Pre-call y Post-call juntos).
@@ -26,27 +36,26 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
   const sp = await searchParams;
 
   // Velocidad (13 oct 2026): todo lo que no depende del pipeline elegido va a la vez (antes, 9 pasos en fila)
-  const [gente, todos, filas, { data: productos }, { data: etapasProyecto }, canales] = await Promise.all([
+  // Cristian, 14 nov (Ola 2): y se comparte 1 minuto (lib/memoria.ts, como Mis leads): cambiar de pipeline ya no lo
+  // vuelve a pedir a la base. Se borra al guardar en el CRM, Programas, Recursos o Administración (olvidarTodo).
+  const [gente, todos, filas, productos, etapasProyecto, canales, moneda] = await Promise.all([
     equipo(proyecto.id, !!perfil.es_prueba),
-    db().from("pipelines").select("*").eq("proyecto_id", proyecto.id).order("orden").then(({ data }) => (data ?? []) as Pipeline[]),
+    deMemoria(`crm-pipelines:${proyecto.id}`, () => db().from("pipelines").select("*").eq("proyecto_id", proyecto.id).order("orden")).then((data) => (data ?? []) as Pipeline[]),
     // Velocidad (17 oct 2026): los permisos de los pipelines del proyecto, a la vez (antes, después de los pipelines)
-    db()
-        .from("permisos_pipeline")
-        .select("pipeline_id, rol, perfil_id, nivel, pipelines!inner(proyecto_id)")
-        .eq("pipelines.proyecto_id", proyecto.id)
-        .then(({ data }) =>
-          ((data ?? []) as (FilaPermisoPipeline & { pipelines?: unknown })[]).map((f) => {
-            const { pipelines: _fuera, ...fila } = f; // eslint-disable-line @typescript-eslint/no-unused-vars
-            return fila as FilaPermisoPipeline;
-          })
-        ),
-    // «Vendido» abre la venta: el caller no registra ventas (Cristian, 12 oct)
+    deMemoria(`crm-permisos:${proyecto.id}`, () => db().from("permisos_pipeline").select("pipeline_id, rol, perfil_id, nivel, pipelines!inner(proyecto_id)").eq("pipelines.proyecto_id", proyecto.id)).then((data) =>
+      ((data ?? []) as (FilaPermisoPipeline & { pipelines?: unknown })[]).map((f) => {
+        const { pipelines: _fuera, ...fila } = f; // eslint-disable-line @typescript-eslint/no-unused-vars
+        return fila as FilaPermisoPipeline;
+      })
+    ),
+    // «Vendido» abre la venta: el caller no registra ventas (Cristian, 12 oct). Misma clave que Mis leads (caller/page.tsx).
     perfil.rol === "caller"
-      ? Promise.resolve({ data: [] as Producto[] })
-      : db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
+      ? Promise.resolve([] as Producto[])
+      : deMemoria(`productos-activos:${proyecto.id}`, () => db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")),
     // Las columnas de todos los pipelines: las del elegido y las de las acciones masivas
-    db().from("etapas").select("*, pipelines!inner(proyecto_id)").eq("pipelines.proyecto_id", proyecto.id).order("orden"),
-    canalesDe(proyecto.id), // B2b: los canales del proyecto (filtro de canal y origen de las citas)
+    deMemoria(`crm-etapas:${proyecto.id}`, () => db().from("etapas").select("*, pipelines!inner(proyecto_id)").eq("pipelines.proyecto_id", proyecto.id).order("orden")),
+    enMemoria(`canales:${proyecto.id}`, UN_MINUTO, () => canalesDe(proyecto.id)), // B2b: los canales del proyecto (filtro de canal y origen de las citas)
+    miMoneda(proyecto, perfil.id), // Ola 2: a la vez (antes, una consulta más al final, en fila)
   ]);
   const persona = jefe ? gente.find((g) => g.id === sp.persona && (g.rol === "caller" || g.rol === "closer")) ?? null : perfil;
   // Los leads de una persona: los que tiene asignados como caller o como closer. Cristian, 14 nov (F7-B1): un caller,
@@ -159,7 +168,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           soloMirar={!!pipeline && calcularNivel(perfil, pipeline, filas) === "sin_acceso"}
           jefe={jefe}
           productos={(productos ?? []) as Producto[]}
-          moneda={await miMoneda(proyecto, perfil.id)}
+          moneda={moneda}
           estrellasOpcionales={perfil.rol !== "caller"}
           canales={canales}
           ahora={ahoraMs()} // D43: «hace X d» con la hora del servidor (sin #418)

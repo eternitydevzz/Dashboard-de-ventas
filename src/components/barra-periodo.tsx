@@ -9,6 +9,7 @@ import { BarraCarga } from "@/components/barra-carga";
 import { Desplegable } from "@/components/eleccion";
 
 // Día / Semana / Mes / Año / Personalizado + ‹ periodo › + Actualizar. Todo va en la URL (p, n, desde, hasta).
+// Cristian, 14 nov (velocidad): sin precarga; cada enlace visible precargaba el layout del panel (lecturas a la base)
 export function BarraPeriodo({ etiqueta, porDefecto = "mes", conActualizar = true }: { etiqueta: string; porDefecto?: string; conActualizar?: boolean }) {
   const router = useRouter();
   const ruta = usePathname();
@@ -47,7 +48,7 @@ export function BarraPeriodo({ etiqueta, porDefecto = "mes", conActualizar = tru
               </button>
             );
           return (
-            <Link
+            <Link prefetch={false}
               key={x.v}
               href={conCambios({ p: x.v, n: null, desde: null, hasta: null })}
               replace
@@ -65,11 +66,11 @@ export function BarraPeriodo({ etiqueta, porDefecto = "mes", conActualizar = tru
       </div>
       {periodo !== "rango" && (
         <div className="flex items-center rounded-lg border border-borde bg-panel">
-          <Link href={conCambios({ n: String(n - 1) })} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo anterior">
+          <Link prefetch={false} href={conCambios({ n: String(n - 1) })} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo anterior">
             <ChevronLeft className="h-4 w-4" />
           </Link>
           <span className="min-w-32 px-1 text-center text-sm font-medium">{etiqueta}</span>
-          <Link href={conCambios({ n: String(n + 1) })} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo siguiente">
+          <Link prefetch={false} href={conCambios({ n: String(n + 1) })} replace scroll={false} className="p-2 text-texto-2 hover:text-texto" aria-label="Periodo siguiente">
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>

@@ -19,8 +19,9 @@ export function cargarLeadsKpis(proyecto: Proyecto) {
 
 async function cargarDeLaBase(proyecto: Proyecto) {
   const pid = proyecto.id;
+  const leyendo = todas<LeadDeLaBase>((a, b) => db().from("leads").select(CAMPOS_LEAD).eq("proyecto_id", pid).order("id").range(a, b));
   const [leads, tarjetas, pipelines, etapas, gente, base] = await Promise.all([
-    todas<LeadDeLaBase>((a, b) => db().from("leads").select(CAMPOS_LEAD).eq("proyecto_id", pid).order("id").range(a, b)),
+    leyendo,
     todas<Tarjeta>((a, b) => db().from("tarjetas_extra").select("lead_id, pipeline_id, etapa_id").eq("proyecto_id", pid).order("id").range(a, b)),
     // Solo los pipelines de origen: «Callers» y «Closers» no son el pipeline de ningún lead
     db().from("pipelines").select("id, nombre").eq("proyecto_id", pid).eq("tipo", "normal").order("orden").then(({ data, error }) => {
@@ -32,7 +33,8 @@ async function cargarDeLaBase(proyecto: Proyecto) {
       return (data ?? []).map((e) => ({ id: e.id as string, nombre: e.nombre as string, pipeline_id: e.pipeline_id as string, color: e.color as string }));
     }),
     equipo(pid),
-    cargarBase(proyecto),
+    // Cristian, 14 nov (Ola 2): si la base no está en memoria, usa estos mismos leads (antes los volvía a leer)
+    cargarBase(proyecto, false, () => leyendo.then((ls) => ls.map(({ id, creado_en, caller_id, closer_id }) => ({ id, creado_en, caller_id, closer_id })))),
   ]);
   // Lo que hacía la tabla de la Biblioteca (quitada el 26 oct): repasar después de responder las ofertas de los
   // leads del formulario por si cambió la regla. Los leads ya guardan su oferta al entrar (leads.ts).

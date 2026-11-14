@@ -220,7 +220,7 @@ describe("F8 · lead creado a mano sin pipeline", () => {
 
   it("entra en el primer pipeline de origen (el de menor orden), en su primera columna, como el webhook", async () => {
     tablas.leads = [];
-    expect(await crearLeadManual(form({ nombre: "Lead A", email: "lead-a@ejemplo.test" }))).toBeUndefined();
+    expect(await crearLeadManual(form({ nombre: "Lead A", email: "lead-a@ejemplo.test" }))).toEqual({ id: "nuevo" }); // Ola 2: devuelve el id (venta manual)
     expect(insertado()).toMatchObject({ pipeline_id: "web", etapa_id: "etapa-1" });
     const pipes = consultas.find((c) => c.tabla === "pipelines")!.ops;
     expect(pipes).toContainEqual(["eq", ["tipo", "normal"]]);

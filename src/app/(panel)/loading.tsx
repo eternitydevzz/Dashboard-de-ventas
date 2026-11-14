@@ -2,7 +2,8 @@
 // (.esqueleto en globals.css) en vez de parpadear, como en la maqueta docs/maqueta-bienvenida.html.
 export default function Cargando() {
   return (
-    <div className="px-4 pt-16 sm:px-8 lg:pt-8" aria-busy="true" aria-label="Cargando">
+    // data-datos-pendientes (Cristian, 14 nov, Ola 2): al abrir la app, la bienvenida no se quita mientras se vea esto
+    <div className="px-4 pt-16 sm:px-8 lg:pt-8" aria-busy="true" aria-label="Cargando" data-datos-pendientes>
       <div className="esqueleto h-8 w-48 rounded-lg" />
       <div className="esqueleto mt-2 h-4 w-72 rounded" />
       <div className="esqueleto mt-6 h-14 rounded-xl" />

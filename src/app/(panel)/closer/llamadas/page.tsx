@@ -54,7 +54,6 @@ const sumarMes = (ym: string, n: number) => {
 
 export default async function LlamadasPage({ searchParams }: PageProps<"/closer/llamadas">) {
   const { perfil, proyecto } = await exigirPagina("agendas"); // H5
-  const monedaVenta = await miMoneda(proyecto, perfil.id); // 13 nov: € para el equipo de España (mismo número)
   const jefe = esJefe(perfil);
   // H5 (caso 1 confirmado por Cristian): un caller con «Agendas» ve solo las citas que agendó él, solo para mirar
   const mirar = perfil.rol === "caller";
@@ -70,22 +69,23 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const horaDe = zonaVer !== zona ? nombreZona(zonaVer) : undefined;
   const ahora = ahoraMs();
 
-  const [gente, mercados] = await Promise.all([equipo(proyecto.id, !!perfil.es_prueba), jefe ? mercadosDelProyecto(proyecto.id) : ({} as Record<string, Mercado>)]);
-  // 13 nov: los jefes filtran por mercado (Todos / España / Latam) los closers y, con ellos, sus citas
-  const filtroM = jefe ? mercadoValido(sp.mercado) : null;
-  const vis = closersVisibles(perfil, filtroM ? gente.filter((g) => entraEnMercado(mercados, g.id, filtroM)) : gente, str("closer") || null);
-  // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM
-  const [{ citas: citasTodas, ventas: ventasTodas, gente: conBaja }, productos, { etapas: etapasCl }, canales] = await Promise.all([
-    cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer") && !filtroM, gente), // con mercado, sin las citas sin closer; N5: con las de closers de baja
+  // Cristian, 14 nov (velocidad): todo lo que no depende del equipo, a la vez (antes, 3 tandas seguidas); sin leer lo que no se enseña
+  const [monedaVenta, gente, mercados, productos, { etapas: etapasCl }, canales, { data: pg }, { data: sinUnir }] = await Promise.all([
+    miMoneda(proyecto, perfil.id), // 13 nov: € para el equipo de España (mismo número)
+    equipo(proyecto.id, !!perfil.es_prueba),
+    jefe ? mercadosDelProyecto(proyecto.id) : ({} as Record<string, Mercado>),
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
     etapasCloser(proyecto.id),
     canalesDe(proyecto.id), // B2b
+    // GHL: si está conectado (el botón no sale al caller) y qué citas no se han podido unir a un lead (jefes y Revisión IA)
+    mirar ? { data: null } : db().from("proyectos").select("ghl_token, ghl_location_id, ghl_sincronizado_en").eq("id", proyecto.id).single(),
+    jefe || tab === "revision" ? db().from("citas_sin_lead").select("id, titulo, fecha, closer_id, estado").eq("proyecto_id", proyecto.id).in("estado", ["pendiente", "invalida"]).order("fecha") : { data: null },
   ]);
-  // GHL: si está conectado y qué citas no se han podido unir a un lead
-  const [{ data: pg }, { data: sinUnir }] = await Promise.all([
-    db().from("proyectos").select("ghl_token, ghl_location_id, ghl_sincronizado_en").eq("id", proyecto.id).single(),
-    db().from("citas_sin_lead").select("id, titulo, fecha, closer_id, estado").eq("proyecto_id", proyecto.id).in("estado", ["pendiente", "invalida"]).order("fecha"),
-  ]);
+  // 13 nov: los jefes filtran por mercado (Todos / España / Latam) los closers y, con ellos, sus citas
+  const filtroM = jefe ? mercadoValido(sp.mercado) : null;
+  const vis = closersVisibles(perfil, filtroM ? gente.filter((g) => entraEnMercado(mercados, g.id, filtroM)) : gente, str("closer") || null);
+  // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM. Las ventas solo se enseñan en Post-call
+  const { citas: citasTodas, ventas: ventasTodas, gente: conBaja } = await cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer") && !filtroM, gente, tab === "postcall"); // con mercado, sin las citas sin closer; N5: con las de closers de baja
   const nombrePersona = (id: string | null) => conBaja.find((g) => g.id === id)?.nombre ?? "—"; // N5: «Ana (baja)»
   const ghlConectado = !!(pg?.ghl_token && pg?.ghl_location_id);
   const pendientesUnir = (sinUnir ?? []).filter((x) => x.estado === "pendiente");
@@ -138,7 +138,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
         <PestanasAgendas activa="/closer/llamadas" />
         <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
           {tabsVisibles.map((t, i) => (
-            <Link key={t.v} href={baseQs({ tab: t.v, sub: null, vista: null, conc: null, cual: null })} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${tab === t.v ? "bg-primario-suave font-medium text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
+            <Link prefetch={false} key={t.v} href={baseQs({ tab: t.v, sub: null, vista: null, conc: null, cual: null })} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${tab === t.v ? "bg-primario-suave font-medium text-primario" : "text-texto-2 hover:bg-panel-2"}`}>
               <span className="font-mono text-[10px] text-oro">0{i + 1}</span> {t.t}
               {t.v === "precall" && <span className="rounded-full bg-panel-2 px-1.5 text-[11px] tabular-nums">{citasTodas.filter((c) => esPrecall(c, ahora)).length}</span>}
             </Link>
@@ -161,15 +161,15 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
 
         {jefe && (pendientesUnir.length > 0 || invalidas.length > 0) && str("revisar") !== "1" && str("revisar") !== "invalidas" && (
           <p className="text-sm text-texto-2">
-            ¿No ves todas las agendas? {pendientesUnir.length > 0 && <>Hay <b>{pendientesUnir.length}</b> de GHL sin unir a un lead. <Link href={baseQs({ tab: "agendas", revisar: "1" })} className="font-medium text-oro hover:underline">Revisar →</Link></>}
-            {invalidas.length > 0 && <> · <Link href={baseQs({ tab: "agendas", revisar: "invalidas" })} className="text-texto-3 hover:underline">Ver inválidas ({invalidas.length})</Link></>}
+            ¿No ves todas las agendas? {pendientesUnir.length > 0 && <>Hay <b>{pendientesUnir.length}</b> de GHL sin unir a un lead. <Link prefetch={false} href={baseQs({ tab: "agendas", revisar: "1" })} className="font-medium text-oro hover:underline">Revisar →</Link></>}
+            {invalidas.length > 0 && <> · <Link prefetch={false} href={baseQs({ tab: "agendas", revisar: "invalidas" })} className="text-texto-3 hover:underline">Ver inválidas ({invalidas.length})</Link></>}
           </p>
         )}
         {jefe && (str("revisar") === "1" || str("revisar") === "invalidas") && (
           <div className="tarjeta overflow-hidden">
             <div className="flex items-center justify-between border-b border-borde px-4 py-2">
               <h2 className="font-semibold">{str("revisar") === "1" ? "Citas de GHL sin unir a un lead" : "Citas marcadas como inválidas en GHL"}</h2>
-              <Link href={baseQs({ revisar: null })} className="text-sm text-primario hover:underline">Cerrar</Link>
+              <Link prefetch={false} href={baseQs({ revisar: null })} className="text-sm text-primario hover:underline">Cerrar</Link>
             </div>
             {(str("revisar") === "1" ? pendientesUnir : invalidas).length === 0 ? (
               <Vacio icono={Inbox} texto="No queda ninguna." />
@@ -222,11 +222,11 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
       <div className="tarjeta overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b border-borde p-2">
           {FILTROS_ESTADO.map((f) => (
-            <Link key={f.v} href={baseQs({ estado: f.v || null })} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.t}</Link>
+            <Link prefetch={false} key={f.v} href={baseQs({ estado: f.v || null })} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.t}</Link>
           ))}
           <div className="ml-auto flex rounded-lg border border-borde bg-panel-2 p-0.5">
             {vistas.map((v) => (
-              <Link key={v.v} href={baseQs({ vista: v.v })} className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs ${vista === v.v ? "bg-primario text-white" : "text-texto-2"}`}><v.i className="h-3.5 w-3.5" />{v.t}</Link>
+              <Link prefetch={false} key={v.v} href={baseQs({ vista: v.v })} className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs ${vista === v.v ? "bg-primario text-white" : "text-texto-2"}`}><v.i className="h-3.5 w-3.5" />{v.t}</Link>
             ))}
           </div>
         </div>
@@ -236,15 +236,15 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold">{MESES[Number(ym.slice(5)) - 1].replace(/^./, (x) => x.toUpperCase())} de {ym.slice(0, 4)} <span className="ml-2 rounded-full bg-oro-suave px-2 py-0.5 text-xs font-medium text-oro">{(() => { const n = filtradas.filter((c) => diaEnZona(c.fecha, zonaVer).startsWith(ym)).length; return `${n} ${n === 1 ? "llamada" : "llamadas"}`; })()}</span></h2>
               <div className="flex gap-1">
-                <Link href={baseQs({ m: sumarMes(ym, -1) })} className="btn-secundario p-2" aria-label="Mes anterior"><ChevronLeft className="h-4 w-4" /></Link>
-                <Link href={baseQs({ m: sumarMes(ym, 1) })} className="btn-secundario p-2" aria-label="Mes siguiente"><ChevronRight className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ m: sumarMes(ym, -1) })} className="btn-secundario p-2" aria-label="Mes anterior"><ChevronLeft className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ m: sumarMes(ym, 1) })} className="btn-secundario p-2" aria-label="Mes siguiente"><ChevronRight className="h-4 w-4" /></Link>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-xs text-texto-3">{DIAS.map((d) => <div key={d} className="py-1">{d}</div>)}</div>
             <div className="grid grid-cols-7 gap-1">
               {celdasMes(`${ym}-01`).map((d, i) =>
                 d ? (
-                  <Link key={d} href={baseQs({ vista: "dia", d })} className={`min-h-20 rounded-lg border p-1.5 text-left transition hover:border-primario ${d === hoy ? "border-primario/60 bg-primario-suave/40" : "border-borde bg-panel"}`}>
+                  <Link prefetch={false} key={d} href={baseQs({ vista: "dia", d })} className={`min-h-20 rounded-lg border p-1.5 text-left transition hover:border-primario ${d === hoy ? "border-primario/60 bg-primario-suave/40" : "border-borde bg-panel"}`}>
                     <div className="text-xs text-texto-3">{Number(d.slice(8))}</div>
                     {(porDia.get(d) ?? []).length > 0 && (
                       <>
@@ -269,14 +269,14 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">Semana del {soloFecha(`${semana[0]}T12:00:00Z`, proyecto)}</h2>
               <div className="flex gap-1">
-                <Link href={baseQs({ d: moverDia(-7) })} className="btn-secundario p-2" aria-label="Semana anterior"><ChevronLeft className="h-4 w-4" /></Link>
-                <Link href={baseQs({ d: moverDia(7) })} className="btn-secundario p-2" aria-label="Semana siguiente"><ChevronRight className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ d: moverDia(-7) })} className="btn-secundario p-2" aria-label="Semana anterior"><ChevronLeft className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ d: moverDia(7) })} className="btn-secundario p-2" aria-label="Semana siguiente"><ChevronRight className="h-4 w-4" /></Link>
               </div>
             </div>
             <div className="grid gap-2 md:grid-cols-7">
               {semana.map((d, i) => (
                 <div key={d} className="rounded-lg border border-borde bg-panel-2/60 p-2">
-                  <Link href={baseQs({ vista: "dia", d })} className="text-xs font-medium text-texto-2 hover:text-primario">{DIAS[i]} {Number(d.slice(8))}</Link>
+                  <Link prefetch={false} href={baseQs({ vista: "dia", d })} className="text-xs font-medium text-texto-2 hover:text-primario">{DIAS[i]} {Number(d.slice(8))}</Link>
                   <ul className="mt-1 space-y-1">
                     {(porDia.get(d) ?? []).map((c) => (
                       <li key={c.id} className={`rounded-md px-2 py-1 text-xs ${porRecuperar(c) ? "bg-mal-suave" : "bg-panel"}`}>
@@ -298,8 +298,8 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
               <div className="flex items-center justify-between border-b border-borde px-4 py-2">
                 <h2 className="font-semibold">{soloFecha(`${dia}T12:00:00Z`, proyecto)}</h2>
                 <div className="flex gap-1">
-                  <Link href={baseQs({ d: moverDia(-1) })} className="btn-secundario p-2" aria-label="Día anterior"><ChevronLeft className="h-4 w-4" /></Link>
-                  <Link href={baseQs({ d: moverDia(1) })} className="btn-secundario p-2" aria-label="Día siguiente"><ChevronRight className="h-4 w-4" /></Link>
+                  <Link prefetch={false} href={baseQs({ d: moverDia(-1) })} className="btn-secundario p-2" aria-label="Día anterior"><ChevronLeft className="h-4 w-4" /></Link>
+                  <Link prefetch={false} href={baseQs({ d: moverDia(1) })} className="btn-secundario p-2" aria-label="Día siguiente"><ChevronRight className="h-4 w-4" /></Link>
                 </div>
               </div>
             )}
@@ -320,8 +320,8 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
           <span className="text-texto-3">{pre.length} llamadas por hacer</span>
           <FiltroUrl nombre="orden" etiqueta="Orden" todos="Orden: fecha de llamada" opciones={[{ v: "agendada", t: "Orden: agendada el (más reciente)" }]} />
           <div className="ml-auto flex rounded-lg border border-borde bg-panel-2 p-0.5">
-            <Link href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
-            <Link href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
+            <Link prefetch={false} href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
+            <Link prefetch={false} href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
           </div>
         </div>
         {tabla ? (
@@ -344,8 +344,8 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     const interruptor = (
       <div className="flex items-center justify-end">
         <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-          <Link href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
-          <Link href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
+          <Link prefetch={false} href={baseQs({ vista: null })} className={`rounded-md px-2.5 py-1 text-xs ${!tabla ? "bg-primario text-white" : "text-texto-2"}`}>Pipeline</Link>
+          <Link prefetch={false} href={baseQs({ vista: "tabla" })} className={`rounded-md px-2.5 py-1 text-xs ${tabla ? "bg-primario text-white" : "text-texto-2"}`}>Tabla</Link>
         </div>
       </div>
     );
@@ -364,7 +364,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
       <div className="tarjeta overflow-hidden">
         <div className="flex flex-wrap gap-1 border-b border-borde p-2">
           {SUB_POSTCALL.map((s) => (
-            <Link key={s.v} href={baseQs({ sub: s.v })} className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${sub === s.v ? "bg-oro-suave font-medium text-oro" : "text-texto-2 hover:bg-panel-2"}`}>
+            <Link prefetch={false} key={s.v} href={baseQs({ sub: s.v })} className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ${sub === s.v ? "bg-oro-suave font-medium text-oro" : "text-texto-2 hover:bg-panel-2"}`}>
               {s.t}<span className="rounded-full bg-panel-2 px-1.5 text-[11px] tabular-nums">{cuenta(s.v)}</span>
             </Link>
           ))}

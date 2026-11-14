@@ -10,12 +10,14 @@ import { Insignia, Vacio } from "@/components/ui";
 import { AccionesLead } from "@/components/acciones-lead";
 import type { Guion } from "@/lib/guiones";
 import type { Lead, Producto, Proyecto, Rol } from "@/lib/tipos";
-import type { CampoOrden, OrdenCola } from "@/lib/cola";
+import { descompactarRespuestas, type CampoOrden, type OrdenCola, type RespuestasCompactas } from "@/lib/cola";
 import { colorEstado } from "@/lib/estados-caller";
 import { conZona } from "@/app/(panel)/perfil/foto-zona";
 import { nombreZona } from "@/lib/zona-persona";
 
-export type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "etiquetas" | "respuestas" | "pipeline_id"> & { puntos: number };
+export type LeadCola = Pick<Lead, "id" | "nombre" | "apellido" | "email" | "telefono" | "pais" | "estado_caller" | "llamar_en" | "creado_en" | "respuestas" | "pipeline_id"> & { puntos: number };
+// Ola 2: llega con las respuestas compactas (lib/cola.ts) y aquí se rehacen
+type LeadEnviado = Omit<LeadCola, "respuestas"> & { r: RespuestasCompactas };
 
 const iniciales = (n: string) => inicialesDe(n) || "?";
 const nombreDe = (l: Pick<LeadCola, "nombre" | "apellido">) => `${l.nombre} ${l.apellido}`.trim() || "Sin nombre";
@@ -28,7 +30,8 @@ const letra = (puntos: number) => nivel(puntos).texto.slice(-1); // «Prioridad 
 // En el móvil la tabla se desliza de lado dentro de su tarjeta y, al tocar un lead, la pantalla baja a su ficha.
 export function ColaCaller({
   pestanas,
-  leads,
+  leads: enviados,
+  preguntas,
   total,
   asignados,
   callerId,
@@ -47,7 +50,8 @@ export function ColaCaller({
   puedeGrabar,
 }: {
   pestanas: ReactNode;
-  leads: LeadCola[];
+  leads: LeadEnviado[];
+  preguntas: string[];
   total: number;
   asignados: number;
   callerId: string | null; // solo para los jefes, que miran la cola de otro
@@ -65,6 +69,7 @@ export function ColaCaller({
   nombresPipeline: Record<string, string>; // pipeline de origen del lead («Webinar 1»…), en la cabecera
   puedeGrabar: boolean; // C10
 }) {
+  const leads = useMemo((): LeadCola[] => enviados.map(({ r, ...l }) => ({ ...l, respuestas: descompactarRespuestas(preguntas, r) })), [enviados, preguntas]);
   const elegido = useSearchParams().get("lead");
   const [busca, setBusca] = useState("");
   const [guionDe, setGuionDe] = useState<string | null>(null); // lead con el guion abierto

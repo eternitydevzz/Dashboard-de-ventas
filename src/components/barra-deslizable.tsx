@@ -23,6 +23,7 @@ export function BarraDeslizable({ children, className = "", ...resto }: { childr
     };
     const bajar = (e: PointerEvent) => {
       if (e.pointerType !== "mouse" || e.button !== 0) return; // el dedo ya desliza solo
+      if ((e.target as Element).closest?.('[draggable="true"]')) return; // Cristian, 14 nov: lo que se arrastra para ordenar (Manuales) no mueve la barra
       inicio = { x: e.clientX, left: el.scrollLeft };
       arrastro = false;
     };
@@ -40,7 +41,7 @@ export function BarraDeslizable({ children, className = "", ...resto }: { childr
       e.stopPropagation();
       arrastro = false;
     };
-    const arrastrarNativo = (e: DragEvent) => e.preventDefault(); // que el enlace no se «arrastre» como imagen
+    const arrastrarNativo = (e: DragEvent) => !(e.target as Element).closest?.('[draggable="true"]') && e.preventDefault(); // que el enlace no se «arrastre» como imagen (salvo lo que se ordena)
 
     el.addEventListener("wheel", rueda, { passive: false });
     el.addEventListener("pointerdown", bajar);

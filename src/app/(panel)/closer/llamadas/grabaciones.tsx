@@ -46,12 +46,12 @@ export async function Grabaciones({ proyecto, sp, closerIds, closers, jefe, yo, 
     <section className="space-y-3">
       <div className="tarjeta flex flex-wrap items-center gap-2 p-2.5">
         <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-          <Link href={baseQs({ vista: null })} className={`rounded-md px-3 py-1.5 text-sm ${!calendario ? "bg-primario text-white" : "text-texto-2"}`}>Lista</Link>
-          <Link href={baseQs({ vista: "calendario" })} className={`rounded-md px-3 py-1.5 text-sm ${calendario ? "bg-primario text-white" : "text-texto-2"}`}>Calendario</Link>
+          <Link prefetch={false} href={baseQs({ vista: null })} className={`rounded-md px-3 py-1.5 text-sm ${!calendario ? "bg-primario text-white" : "text-texto-2"}`}>Lista</Link>
+          <Link prefetch={false} href={baseQs({ vista: "calendario" })} className={`rounded-md px-3 py-1.5 text-sm ${calendario ? "bg-primario text-white" : "text-texto-2"}`}>Calendario</Link>
         </div>
         <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
           {[["", "Todas", enPeriodo.length], ["pendientes", "Pendientes", enPeriodo.filter((g) => g.conciliacion === "pendiente").length], ["conciliadas", "Conciliadas", enPeriodo.filter((g) => g.cita_id).length]].map(([v, t, n]) => (
-            <Link key={v as string} href={baseQs({ conc: (v as string) || null })} className={`rounded-md px-3 py-1.5 text-sm ${filtro === v ? "bg-primario text-white" : "text-texto-2"}`}>{t} <span className="text-xs opacity-70">{n}</span></Link>
+            <Link prefetch={false} key={v as string} href={baseQs({ conc: (v as string) || null })} className={`rounded-md px-3 py-1.5 text-sm ${filtro === v ? "bg-primario text-white" : "text-texto-2"}`}>{t} <span className="text-xs opacity-70">{n}</span></Link>
           ))}
         </div>
         <BarraPeriodo etiqueta={rango.etiqueta} conActualizar={false} />
@@ -82,7 +82,7 @@ export async function Grabaciones({ proyecto, sp, closerIds, closers, jefe, yo, 
                       {(g.share_url || g.url) && <a href={g.share_url ?? g.url!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primario hover:underline">Ver en Fathom <ExternalLink className="h-3 w-3" /></a>}
                     </td>
                     {jefe && <td className="text-texto-2">{nCloser(g.closer_id)}</td>}
-                    <td>{c ? <Link href={`/leads/${c.leads?.id}`} className="hover:text-primario">{nombre(c)}<div className="text-xs text-texto-3">{fechaHora(c.fecha, proyecto)}</div></Link> : <span className="text-xs text-texto-3">{g.motivo ?? "—"}</span>}</td>
+                    <td>{c ? <Link prefetch={false} href={`/leads/${c.leads?.id}`} className="hover:text-primario">{nombre(c)}<div className="text-xs text-texto-3">{fechaHora(c.fecha, proyecto)}</div></Link> : <span className="text-xs text-texto-3">{g.motivo ?? "—"}</span>}</td>
                     <td><Insignia tono={ETQ[g.conciliacion][1]}>{ETQ[g.conciliacion][0]}</Insignia>{c && g.motivo && <div className="text-[11px] text-texto-3">{g.motivo}</div>}</td>
                     <td className="text-right"><AccionesGrabacion id={g.id} unida={!!g.cita_id} descartada={g.conciliacion === "descartada"} opciones={g.cita_id ? [] : opciones(g)} /></td>
                   </tr>

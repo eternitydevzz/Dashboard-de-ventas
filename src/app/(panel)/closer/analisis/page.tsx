@@ -74,7 +74,7 @@ export default async function AnalisisPage({ searchParams }: PageProps<"/closer/
         {!hayClaveIa() && <p className="tarjeta border-aviso/40 p-4 text-sm text-aviso">Falta la clave de Claude en el servidor (<code>ANTHROPIC_API_KEY</code>). Sin ella no se analiza nada; las grabaciones quedan en cola.</p>}
         <div className="tarjeta flex flex-wrap items-center gap-2 p-2.5">
           <div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">
-            {[["resumen", "Resumen"], ["llamadas", "Llamadas"], ...(jefe ? [["manual", "Manual"]] : [])].map(([v, t], i) => <Link key={v} href={url({ sub: v === "resumen" ? null : v })} className={`rounded-md px-3 py-1.5 text-sm ${sub === v ? "bg-primario text-white" : "text-texto-2"}`}><span className="mr-1 font-mono text-[10px] opacity-70">0{i + 1}</span>{t}</Link>)}
+            {[["resumen", "Resumen"], ["llamadas", "Llamadas"], ...(jefe ? [["manual", "Manual"]] : [])].map(([v, t], i) => <Link prefetch={false} key={v} href={url({ sub: v === "resumen" ? null : v })} className={`rounded-md px-3 py-1.5 text-sm ${sub === v ? "bg-primario text-white" : "text-texto-2"}`}><span className="mr-1 font-mono text-[10px] opacity-70">0{i + 1}</span>{t}</Link>)}
           </div>
           {jefe && <FiltroUrl nombre="closer" etiqueta="Closer" todos="Todos los closers" opciones={vis.todos.map((c) => ({ v: c.id, t: c.nombre }))} />}
           <div className="2xl:ml-auto"><BarraPeriodo etiqueta={rango.etiqueta} conActualizar={false} /></div>
@@ -95,17 +95,17 @@ export default async function AnalisisPage({ searchParams }: PageProps<"/closer/
           </>
         )}
         {sub === "llamadas" && (
-          <Seccion acciones={<div className="flex w-full flex-wrap items-center gap-2"><BuscadorUrl placeholder="Buscar por nombre o título…" /><div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">{[["", "Todas"], ["cerrado", "Cerrados"], ["no_cerrado", "No cerrados"], ["seguimiento", "Seguimiento"]].map(([v, t]) => <Link key={v} href={url({ res: v || null })} className={`rounded-md px-3 py-1.5 text-sm ${res === v ? "bg-primario text-white" : "text-texto-2"}`}>{t}</Link>)}</div></div>}>
+          <Seccion acciones={<div className="flex w-full flex-wrap items-center gap-2"><BuscadorUrl placeholder="Buscar por nombre o título…" /><div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">{[["", "Todas"], ["cerrado", "Cerrados"], ["no_cerrado", "No cerrados"], ["seguimiento", "Seguimiento"]].map(([v, t]) => <Link prefetch={false} key={v} href={url({ res: v || null })} className={`rounded-md px-3 py-1.5 text-sm ${res === v ? "bg-primario text-white" : "text-texto-2"}`}>{t}</Link>)}</div></div>}>
             {lista.length === 0 ? <Vacio icono={ScanSearch} texto="Nada con ese filtro." /> : <ListaLlamadas filas={lista} nombre={nombre} proyecto={proyecto} />}
           </Seccion>
         )}
         {sub === "manual" && jefe && (
-          <Seccion acciones={<div className="flex w-full flex-wrap items-center gap-2"><BuscadorUrl placeholder="Buscar…" /><div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">{[["", `Todas · ${hechos.length}`], ["sin", `Sin evaluar · ${hechos.filter((f) => f.evaluacion_manual === null).length}`], ["evaluadas", `Evaluadas · ${hechos.filter((f) => f.evaluacion_manual !== null).length}`]].map(([v, t]) => <Link key={v} href={url({ eval: v || null })} className={`rounded-md px-3 py-1.5 text-sm ${evaluar === v ? "bg-primario text-white" : "text-texto-2"}`}>{t}</Link>)}</div></div>}>
+          <Seccion acciones={<div className="flex w-full flex-wrap items-center gap-2"><BuscadorUrl placeholder="Buscar…" /><div className="flex rounded-lg border border-borde bg-panel-2 p-0.5">{[["", `Todas · ${hechos.length}`], ["sin", `Sin evaluar · ${hechos.filter((f) => f.evaluacion_manual === null).length}`], ["evaluadas", `Evaluadas · ${hechos.filter((f) => f.evaluacion_manual !== null).length}`]].map(([v, t]) => <Link prefetch={false} key={v} href={url({ eval: v || null })} className={`rounded-md px-3 py-1.5 text-sm ${evaluar === v ? "bg-primario text-white" : "text-texto-2"}`}>{t}</Link>)}</div></div>}>
             {manual.length === 0 ? <Vacio icono={ScanSearch} texto="No hay llamadas analizadas para evaluar." /> : (
               <ul className="divide-y divide-borde">
                 {manual.map((f) => (
                   <li key={f.id} className="flex flex-wrap items-center gap-3 py-3 text-sm">
-                    <Link href={`/closer/analisis/${f.id}`} className="min-w-48 flex-1 font-medium hover:text-primario">{nombre(f)}<div className="text-xs font-normal text-texto-3">{f.grabaciones?.inicio ? fechaHora(f.grabaciones.inicio, proyecto) : ""} · IA: {f.puntuacion}/100</div></Link>
+                    <Link prefetch={false} href={`/closer/analisis/${f.id}`} className="min-w-48 flex-1 font-medium hover:text-primario">{nombre(f)}<div className="text-xs font-normal text-texto-3">{f.grabaciones?.inicio ? fechaHora(f.grabaciones.inicio, proyecto) : ""} · IA: {f.puntuacion}/100</div></Link>
                     <EvaluarManual id={f.id} nota={f.evaluacion_manual} texto={f.evaluacion_nota ?? ""} />
                   </li>
                 ))}
@@ -123,7 +123,7 @@ function ListaLlamadas({ filas, nombre, proyecto }: { filas: Fila[]; nombre: (f:
     <ul className="divide-y divide-borde">
       {filas.map((f) => (
         <li key={f.id}>
-          <Link href={`/closer/analisis/${f.id}`} className="flex flex-wrap items-center gap-3 py-3 text-sm hover:bg-panel-2">
+          <Link prefetch={false} href={`/closer/analisis/${f.id}`} className="flex flex-wrap items-center gap-3 py-3 text-sm hover:bg-panel-2">
             <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums ${f.estado === "hecho" ? "bg-oro-suave text-oro" : "bg-panel-2 text-texto-3"}`}>{f.estado === "hecho" ? f.puntuacion : "…"}</span>
             <span className="min-w-40 flex-1"><b>{nombre(f)}</b><span className="block text-xs text-texto-3">{f.grabaciones?.inicio ? fechaHora(f.grabaciones.inicio, proyecto) : ""}</span></span>
             {f.estado === "hecho" && f.resultado && <Insignia tono={RES[f.resultado as keyof typeof RES][1]}>{RES[f.resultado as keyof typeof RES][0]}</Insignia>}

@@ -1,14 +1,59 @@
 "use server";
 
 import { exigirSeccion } from "@/lib/permisos";
-import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
+import { ErrorUsuario, esError, notaValida, seguro } from "@/lib/resultado";
 import { revalidatePath } from "next/cache";
-import { getSesion, esJefe } from "@/lib/auth";
+import { getSesion, esJefe, exigir } from "@/lib/auth";
 import { db, registrarActividad, escribir } from "@/lib/datos";
 import { hoyEnZona, localAIso } from "@/lib/formato";
 import { diaEnZona } from "@/lib/llamadas";
 import { leerNumero } from "@/lib/numero";
 import { esCloser } from "@/lib/tipos";
+import { telefonoClave } from "@/lib/leads";
+import { crearLeadManual } from "@/app/(panel)/crm/acciones";
+
+// ---------- Nueva venta (Cristian, 14 nov): solo CEO y directores; buscar o crear el lead y luego registrarVenta ----------
+const LEAD = "id, nombre, apellido, email, telefono";
+async function jefeDeVentas() {
+  await exigirSeccion("ventas");
+  return exigir(esJefe);
+}
+
+// Por nombre, apellido, email o teléfono; mínimo 3 letras, máximo 10, solo del proyecto abierto
+export async function buscarLeadsVenta(texto: string) {
+  return seguro(async () => {
+    const { proyecto } = await jefeDeVentas();
+    const t = texto.trim().replace(/[%,()\\]/g, " ").slice(0, 60); // como buscarLeadsParaLlamada: sin romper el «or»
+    if (t.trim().length < 3) return [];
+    const { data, error } = await db().from("leads").select(LEAD).eq("proyecto_id", proyecto.id)
+      .or(`nombre.ilike.%${t}%,apellido.ilike.%${t}%,email.ilike.%${t}%,telefono.ilike.%${t}%`)
+      .order("creado_en", { ascending: false }).limit(10);
+    if (error) throw new Error(`No se pudieron buscar leads: ${error.message}`);
+    return data ?? [];
+  });
+}
+
+// Si el email o el teléfono (últimas 9 cifras) ya son de otro lead, se ofrece ese y no se crea un duplicado.
+// Si no, se crea igual que «Nuevo lead» del CRM (crearLeadManual: primer pipeline, país por el teléfono).
+export async function crearLeadVenta(formData: FormData) {
+  return seguro(async () => {
+    const { proyecto } = await jefeDeVentas();
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const clave = telefonoClave(String(formData.get("telefono") ?? "").trim() || null);
+    const escapado = email.replace(/[\\%_]/g, "\\$&"); // «_» y «%» son comodines de ilike (como nuevoCliente)
+    const porEmail = () => db().from("leads").select(LEAD).eq("proyecto_id", proyecto.id).ilike("email", escapado).limit(1).maybeSingle();
+    const porTelefono = () => db().from("leads").select(LEAD).eq("proyecto_id", proyecto.id).eq("telefono_clave", clave).order("creado_en", { ascending: false }).limit(1).maybeSingle();
+    const [e, t] = await Promise.all([email ? porEmail() : null, clave.length >= 6 ? porTelefono() : null]);
+    if (e?.error || t?.error) throw new Error(`No se pudieron buscar duplicados: ${(e?.error ?? t?.error)!.message}`);
+    const existente = e?.data ?? t?.data;
+    if (existente) return { existente };
+    const r = await crearLeadManual(formData);
+    if (esError(r)) throw new ErrorUsuario(r.error);
+    const { data: lead, error } = await db().from("leads").select(LEAD).eq("id", r.id).eq("proyecto_id", proyecto.id).single();
+    if (error || !lead) throw new Error(`No se encontró el lead recién creado: ${error?.message ?? "sin fila"}`);
+    return { lead };
+  });
+}
 
 async function ventaPermitida(ventaId: string) {
   const { perfil, proyecto } = await getSesion();

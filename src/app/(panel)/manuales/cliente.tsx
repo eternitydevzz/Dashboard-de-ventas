@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
-import { BookOpen, Check, Maximize2, Settings2, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, Maximize2, Settings2, Upload } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { BarraDeslizable } from "@/components/barra-deslizable";
 import { useToast } from "@/components/toasts";
@@ -11,7 +11,10 @@ import { exigirOk } from "@/lib/resultado-cliente";
 import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
 import { MERCADOS, type Mercado } from "@/lib/mercado";
-import { guardarManual, guardarMercadosManual, prepararSubidaManual } from "./acciones";
+import { reordenar } from "@/lib/orden";
+import { guardarManual, guardarMercadosManual, ordenarManuales, prepararSubidaManual } from "./acciones";
+
+const ARRASTRE_MANUAL = "application/x-eternity-manual";
 
 // `vistos`: solo para jefes (ajuste ⚙). visto_en null = «Sin ver»
 export type ManualFila = { id: string; titulo: string; actualizado_en: string; por: string | null; mercados: Mercado[]; vistos?: { id: string; nombre: string; visto_en: string | null }[] };
@@ -20,18 +23,67 @@ export type ManualFila = { id: string; titulo: string; actualizado_en: string; p
 // para cambiar de uno a otro (antes, una lista a la izquierda que le quitaba sitio al .html)
 export function VisorManuales({ manuales, elegido, editor, zona, mercado = "latam" }: { manuales: ManualFila[]; elegido: ManualFila; editor: boolean; zona: Proyecto["zona_horaria"]; mercado?: "latam" | "es" }) {
   const src = `/api/manuales/${elegido.id}?v=${encodeURIComponent(elegido.actualizado_en)}`; // ?v=: al cambiarlo, no sale el viejo
+  // Cristian, 14 nov: los jefes ordenan los botones arrastrándolos. El orden nuevo se ve al momento; si falla, vuelve
+  // el de antes. `base`: cuando llega el orden guardado del servidor, manda ese.
+  const [propio, setPropio] = useState<{ base: ManualFila[]; ids: string[] } | null>(null);
+  const [sobre, setSobre] = useState<string | null>(null);
+  const [, iniciar] = useTransition();
+  const toast = useToast();
+  const lista = propio?.base === manuales ? propio.ids.flatMap((id) => manuales.filter((m) => m.id === id)) : manuales;
+  const mover = (desde: string, hasta: string) => {
+    if (!editor || desde === hasta) return;
+    const ids = reordenar(lista.map((m) => m.id), desde, hasta);
+    setPropio({ base: manuales, ids });
+    iniciar(async () => {
+      try {
+        await exigirOk(ordenarManuales(ids));
+      } catch (err) {
+        setPropio(null);
+        toast(err instanceof Error ? err.message : "No se pudo guardar el orden.", "error");
+      }
+    });
+  };
   return (
     <section className="tarjeta flex flex-col overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-borde px-3 py-2.5 sm:px-4">
         <BarraDeslizable role="navigation" className="flex min-w-0 flex-1 gap-1.5" aria-label="Manuales">
-          {manuales.map((m) => {
+          {lista.map((m, i) => {
             const on = m.id === elegido.id;
             return (
-              <span key={m.id} className="inline-flex shrink-0 items-center gap-0.5">
+              <span
+                key={m.id}
+                draggable={editor}
+                // BarraDeslizable cancela todo arrastre de dentro (para que el enlace no se arrastre como imagen):
+                // a los jefes se les para aquí, antes de llegar a ella. Con React (onDragStart) llegaría tarde.
+                ref={(el) => {
+                  if (!el || !editor) return;
+                  const empezar = (ev: DragEvent) => {
+                    ev.stopPropagation();
+                    ev.dataTransfer?.setData(ARRASTRE_MANUAL, m.id);
+                  };
+                  el.addEventListener("dragstart", empezar);
+                  return () => el.removeEventListener("dragstart", empezar);
+                }}
+                onDragOver={(ev) => {
+                  if (!editor || !ev.dataTransfer.types.includes(ARRASTRE_MANUAL)) return;
+                  ev.preventDefault();
+                  setSobre(m.id);
+                }}
+                onDragLeave={() => setSobre((s) => (s === m.id ? null : s))}
+                onDrop={(ev) => {
+                  const desde = ev.dataTransfer.getData(ARRASTRE_MANUAL);
+                  setSobre(null);
+                  if (!desde) return;
+                  ev.preventDefault();
+                  mover(desde, m.id);
+                }}
+                title={editor ? "Arrastra para ordenar" : undefined}
+                className={`inline-flex shrink-0 items-center gap-0.5 rounded-xl ${sobre === m.id ? "ring-2 ring-primario" : ""}`}
+              >
                 <Link href={`/manuales?m=${m.id}${editor && mercado === "es" ? "&mercado=es" : ""}`} aria-current={on ? "page" : undefined} title={`Actualizado el ${fechaHora(m.actualizado_en, { zona_horaria: zona })}${m.por ? ` · por ${m.por}` : ""}`} className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${on ? "border-transparent bg-primario-boton text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)]" : "border-borde bg-panel-2 text-texto-2 hover:border-borde-fuerte hover:text-texto"}`}>
                   <BookOpen className="h-4 w-4" /> {m.titulo}
                 </Link>
-                {editor && <AjustesManual manual={m} zona={zona} />}
+                {editor && <AjustesManual manual={m} zona={zona} alMover={(d) => mover(m.id, lista[i + d].id)} primero={i === 0} ultimo={i === lista.length - 1} />}
               </span>
             );
           })}
@@ -90,19 +142,20 @@ export function SubirManual({ cambiar, mercado = "latam" }: { cambiar?: ManualFi
 }
 
 // Cristian, 14 nov: ajuste ⚙ de cada manual (CEO y directores): qué mercados lo ven y quién lo ha abierto
-function AjustesManual({ manual, zona }: { manual: ManualFila; zona: Proyecto["zona_horaria"] }) {
+type Mover = { alMover: (d: -1 | 1) => void; primero: boolean; ultimo: boolean };
+function AjustesManual({ manual, zona, ...mover }: { manual: ManualFila; zona: Proyecto["zona_horaria"] } & Mover) {
   const [abierto, setAbierto] = useState(false);
   return (
     <>
       <button type="button" onClick={() => setAbierto(true)} aria-label="Ajustes del manual" title="Ajustes del manual" className="rounded-lg p-1.5 text-texto-3 hover:bg-panel-2 hover:text-texto">
         <Settings2 className="h-4 w-4" />
       </button>
-      {abierto && <VentanaAjustes manual={manual} zona={zona} onCerrar={() => setAbierto(false)} />}
+      {abierto && <VentanaAjustes manual={manual} zona={zona} onCerrar={() => setAbierto(false)} {...mover} />}
     </>
   );
 }
 
-function VentanaAjustes({ manual, zona, onCerrar }: { manual: ManualFila; zona: Proyecto["zona_horaria"]; onCerrar: () => void }) {
+function VentanaAjustes({ manual, zona, onCerrar, alMover, primero, ultimo }: { manual: ManualFila; zona: Proyecto["zona_horaria"]; onCerrar: () => void } & Mover) {
   const [marcados, setMarcados] = useState<Mercado[]>(manual.mercados);
   const [error, setError] = useState("");
   const [enviando, iniciar] = useTransition();
@@ -134,6 +187,14 @@ function VentanaAjustes({ manual, zona, onCerrar }: { manual: ManualFila; zona: 
           {!marcados.length && <p className="text-xs text-mal">Marca al menos un mercado.</p>}
           {error && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{error}</p>}
           <button type="button" className="btn-primario w-full" disabled={enviando || !marcados.length} onClick={guardar}>{enviando ? "Guardando…" : "Guardar"}</button>
+        </section>
+        {/* Cristian, 14 nov: lo mismo que arrastrar, con teclado */}
+        <section className="space-y-2">
+          <h3 className="etiqueta-campo">Orden</h3>
+          <div className="flex gap-2">
+            <button type="button" className="btn-secundario flex-1" disabled={primero} onClick={() => alMover(-1)}><ArrowLeft className="h-4 w-4" /> Mover antes</button>
+            <button type="button" className="btn-secundario flex-1" disabled={ultimo} onClick={() => alMover(1)}>Mover después <ArrowRight className="h-4 w-4" /></button>
+          </div>
         </section>
         <section className="space-y-2">
           <h3 className="etiqueta-campo">Quién lo ha visto</h3>

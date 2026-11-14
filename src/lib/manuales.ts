@@ -36,6 +36,15 @@ export function mercadosValidos(v: unknown): Mercado[] {
   return r;
 }
 
+// Cristian, 14 nov: un solo orden para todos, pero cada mercado reordena solo los que ve. Esos ocupan los mismos
+// sitios que ya tenían entre todos; los demás no se mueven.
+export function ordenCompleto(todos: string[], nuevos: string[]): string[] {
+  const mueve = new Set(nuevos);
+  if (mueve.size !== nuevos.length || !nuevos.every((id) => todos.includes(id))) throw new ErrorUsuario("Los manuales han cambiado. Recarga la página.");
+  let k = 0;
+  return todos.map((id) => (mueve.has(id) ? nuevos[k++] : id));
+}
+
 // «Quién lo ha visto»: cada persona de esos mercados, con la última vez que lo abrió (null = sin ver)
 export function quienLoHaVisto(mercados: Mercado[], personas: { id: string; nombre: string }[], mercadoDePersona: Record<string, Mercado>, vistos: { perfil_id: string; visto_en: string }[]) {
   const cuando = new Map(vistos.map((v) => [v.perfil_id, v.visto_en]));

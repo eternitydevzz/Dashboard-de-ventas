@@ -16,7 +16,8 @@ const NADIE = "00000000-0000-0000-0000-000000000000";
 // `conSinCloser` (3 nov, el jefe mirando a todos): también las que no tienen closer del equipo.
 // N5 (13 nov): con `equipoActivo`, el jefe mirando a todos ve también las de closers de baja (desactivados o fuera del
 // proyecto); `gente` = el equipo más ellos, con «(baja)» en el nombre. Las de perfiles de prueba siguen fuera.
-export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null, conSinCloser = false, equipoActivo: Perfil[] = []) {
+// Cristian, 14 nov: `conVentas` = false cuando la pantalla no enseña ventas (Agendas → Agendas): una lectura menos.
+export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null, conSinCloser = false, equipoActivo: Perfil[] = [], conVentas = true) {
   const ids = closerIds.length ? closerIds : [NADIE];
   const conBaja = conSinCloser && equipoActivo.length > 0;
   const [citasTodas, ventasTodas] = await Promise.all([
@@ -26,7 +27,7 @@ export async function cargarCitasVentas(proyectoId: string, closerIds: string[],
       const q = conSinCloser ? base.or(`closer_id.in.(${ids.join(",")}),closer_id.is.null${deBaja}`) : base.in("closer_id", ids);
       return (agendadasPor ? q.eq("agendada_por", agendadasPor) : q).order("fecha").order("id").range(a, b);
     }),
-    todas<VentaFila>((a, b) => db().from("ventas").select("*, pagos(importe), leads(nombre, apellido), productos(nombre)").eq("proyecto_id", proyectoId).in("vendedor_id", ids).order("id").range(a, b)),
+    conVentas ? todas<VentaFila>((a, b) => db().from("ventas").select("*, pagos(importe), leads(nombre, apellido), productos(nombre)").eq("proyecto_id", proyectoId).in("vendedor_id", ids).order("id").range(a, b)) : ([] as VentaFila[]),
   ]);
   const gente = await conBajas(equipoActivo, conBaja ? citasTodas.map((c) => c.closer_id) : []);
   const bajas = new Set(gente.filter((g) => g.baja).map((g) => g.id));
@@ -96,9 +97,8 @@ export function columnasCloser(
 }
 
 // Las columnas de «Closers» de un proyecto (el pipeline del equipo)
+// Cristian, 14 nov: una lectura (etapas unidas a su pipeline) en vez de dos seguidas. Hoy hay 1 pipeline de closers por proyecto.
 export async function etapasCloser(proyectoId: string) {
-  const { data: pipe } = await db().from("pipelines").select("id").eq("proyecto_id", proyectoId).eq("tipo", "closers").maybeSingle();
-  if (!pipe) return { pipelineId: null, etapas: [] as Etapa[] };
-  const { data } = await db().from("etapas").select("*").eq("pipeline_id", pipe.id).order("orden");
-  return { pipelineId: pipe.id as string, etapas: (data ?? []) as Etapa[] };
+  const { data } = await db().from("etapas").select("*, pipelines!inner(id)").eq("pipelines.proyecto_id", proyectoId).eq("pipelines.tipo", "closers").order("orden");
+  return { etapas: (data ?? []) as Etapa[] };
 }

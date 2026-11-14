@@ -8,6 +8,7 @@ import { mercadoDe, type Mercado } from "@/lib/mercado";
 import { mercadosDelProyecto, mercadoVista } from "@/lib/mercado-datos";
 import { manualesDeMercado, mercadosDe, quienLoHaVisto } from "@/lib/manuales";
 import { SelectorMercado } from "@/components/selector-mercado";
+import { PestanasManuales } from "./pestanas";
 
 type Fila = { id: string; titulo: string; actualizado_en: string; mercado?: string; mercados?: string[]; perfiles: unknown };
 type Visto = { manual_id: string; perfil_id: string; visto_en: string };
@@ -50,6 +51,7 @@ export default async function ManualesPage({ searchParams }: PageProps<"/manuale
     <>
       <Cabecera titulo="Manuales" subtitulo="Lo que necesitas saber para vender" acciones={editor ? <SubirManual mercado={mercado} /> : undefined} />
       <Contenido>
+        <PestanasManuales activa="manuales" manuales guiones={editor} />
         {editor && <SelectorMercado actual={mercado} href={(m) => (m === "es" ? "/manuales?mercado=es" : "/manuales")} />}
         {manuales.length === 0 ? (
           <div className="tarjeta"><Vacio icono={BookOpen} texto={editor ? "Todavía no hay manuales. Sube el primero con «Subir manual (.html)»." : "Todavía no hay manuales."} /></div>

@@ -5,26 +5,48 @@ import { M_MAESTRIA } from "@/lib/marca-m";
 import { hayDatosPendientes } from "@/lib/pantalla-lista";
 
 // Bienvenida (Cristian, 11 nov 2026; maqueta docs/maqueta-bienvenida.html, idea de beterangles.com).
-// Tapa la app mientras se precargan las 3 secciones de su rol (los enlaces del menú, barra-lateral.tsx) y se quita
-// cuando están las 3 y la pantalla de entrada tiene sus datos, como mínimo a los 0,8 s y como máximo a los 4 s, también al recargar.
-// Cristian (11 nov): «no tiene sentido que esté si no carga al menos 1 pantalla». En octubre esperaba a 16 secciones y
-// saturó la base (25 oct); ahora son 3. Al quitarse avisa con «bienvenida-fin» (la ventana de mensajes espera).
+// Tapa la app hasta que la pantalla de entrada tiene sus datos (esperarPantalla, abajo), también al recargar.
+// Cristian (11 nov): «no tiene sentido que esté si no carga al menos 1 pantalla». Al quitarse avisa con «bienvenida-fin»
+// (la ventana de mensajes espera y la barra lateral lanza entonces las 3 precargas de su rol).
 export const FIN_BIENVENIDA = "bienvenida-fin";
 
 // Cristian, 14 nov: la primera petición «_rsc» de una sección puede ser solo el árbol de rutas (sin datos), una
 // redirección o un fallo; esas no la dan por cargada. Solo cuenta una respuesta buena con cuerpo.
+// Ola 2 (14 nov): la bienvenida ya no la usa; queda porque la prueba tests/unit/ola-arreglos.test.ts (de otro carril) la importa.
 // shortcut: «con datos» = más de 2 KB sin comprimir (el árbol pesa menos); si Next cambia sus precargas, revisar la cifra.
 export function precargaConDatos(e: PerformanceResourceTiming) {
   const estado = e.responseStatus ?? 200; // Safari no da el estado: se da por bueno
   return e.name.includes("_rsc=") && estado >= 200 && estado < 300 && e.decodedBodySize > 2048;
 }
 
-export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secciones: string[]; rutas: string[] }) {
+// Cristian, 14 nov (Ola 2, «la velocidad, lo más importante»): ya no espera a las precargas del menú (la de /crm acababa a
+// ~5,4 s y la capa se quedaba hasta el tope de 4 s); solo a la pantalla abierta: mínimo 0,8 s, máximo 4 s y, entre medias,
+// en cuanto no tiene datos por llegar (lib/pantalla-lista.ts: el contador de cargandoDatos() y la marca
+// data-datos-pendientes, que lleva también la pantalla de carga, (panel)/loading.tsx). Se mira cada 100 ms: el aviso de
+// «ya llegaron» puede llegar antes de que la marca se quite del HTML. Las precargas empiezan al quitarse (barra-lateral.tsx).
+export function esperarPantalla(salir: () => void, pendientes = hayDatosPendientes, [minimo, maximo] = [800, 4000]) {
+  const t0 = Date.now();
+  let hecho = false;
+  const fin = () => {
+    if (hecho) return;
+    hecho = true;
+    const espera = minimo - (Date.now() - t0);
+    if (espera > 0) setTimeout(salir, espera);
+    else salir();
+  };
+  const mirar = setInterval(() => {
+    if (!pendientes()) fin();
+  }, 100);
+  const tope = setTimeout(fin, maximo);
+  return () => {
+    clearInterval(mirar);
+    clearTimeout(tope);
+  };
+}
+
+export function Bienvenida({ nombre, secciones }: { nombre: string; secciones: string[] }) {
   const [fase, setFase] = useState<"cargando" | "saliendo" | "fuera">("cargando");
   const capa = useRef<HTMLDivElement>(null);
-  // Texto fijo en vez del array: si el servidor vuelve a pintar el layout (router.refresh) llega otro array con lo mismo,
-  // y el efecto no debe repetirse (la capa volvería a salir)
-  const claveRutas = rutas.join("|");
   // Quita la capa y avisa a la ventana de mensajes, una sola vez (lo llaman el fin del fundido y el seguro)
   const avisado = useRef(false);
   const quitar = () => {
@@ -34,40 +56,9 @@ export function Bienvenida({ nombre, secciones, rutas }: { nombre: string; secci
     window.dispatchEvent(new Event(FIN_BIENVENIDA));
   };
 
-  useEffect(() => {
-    // Siempre la completa, también al recargar (Cristian, 11 nov: «si recargo no hace la pantalla de carga completa»)
-    // Máximo 4 s (Cristian, 11 nov): también espera a los datos de la pantalla de entrada (KPIs → Leads y UTMs los piden
-    // después de pintarse y enseñaban «Cargando todos los leads…»: «no quiero que se vea así»)
-    const [minimo, maximo] = [800, 4000];
-    const t0 = performance.now();
-    const faltan = new Set(claveRutas.split("|").filter((r) => r && r !== location.pathname)); // la de entrada ya está cargada
-    let hecho = false;
-    const salir = () => {
-      if (hecho) return;
-      hecho = true;
-      setTimeout(() => setFase("saliendo"), Math.max(0, minimo - (performance.now() - t0)));
-    };
-    // Cada precarga de sección llega como una petición «…?_rsc=» a su ruta
-    const observador = new PerformanceObserver((l) => {
-      for (const e of l.getEntries()) {
-        if (!precargaConDatos(e as PerformanceResourceTiming)) continue;
-        faltan.delete(new URL(e.name).pathname);
-      }
-    });
-    observador.observe({ type: "resource", buffered: true });
-    // Lista = las 3 precargas han llegado y la pantalla no tiene datos por llegar (lib/pantalla-lista.ts: el contador de
-    // cargandoDatos() y la marca data-datos-pendientes). Se mira cada 100 ms: el aviso de «ya llegaron» puede llegar
-    // antes de que la marca se quite del HTML.
-    const mirar = setInterval(() => {
-      if (!faltan.size && !hayDatosPendientes()) salir();
-    }, 100);
-    const tope = setTimeout(salir, maximo);
-    return () => {
-      observador.disconnect();
-      clearInterval(mirar);
-      clearTimeout(tope);
-    };
-  }, [claveRutas]);
+  // Siempre la completa, también al recargar (Cristian, 11 nov: «si recargo no hace la pantalla de carga completa»).
+  // Una sola vez: si el servidor vuelve a pintar el layout (router.refresh), la capa no vuelve a salir
+  useEffect(() => esperarPantalla(() => setFase("saliendo")), []);
 
   // Seguro (11 nov 2026, medido en la app publicada): en una pestaña oculta Chrome congela las animaciones y el fundido no
   // terminaba nunca; la capa seguía puesta hasta mirar la pestaña. Si a los 0,5 s de empezar a salir sigue ahí, se quita.
