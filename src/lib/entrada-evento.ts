@@ -39,3 +39,27 @@ export async function completarLeadDelEvento(o: { proyectoId: string; entradaId:
   }
   return (puesto ?? []).length > 0;
 }
+
+// Cristian, 15 nov («sí, arréglalo»): desde el 13 nov, 4 envíos de la web llegaron 2 veces idénticos (mismo event_id y
+// mismo contenido) en 1-5 s (reintento de la web o doble clic). Ese repetido se ignora. El formulario por pasos manda
+// el mismo event_id con contenido distinto: ese sí sigue (arriba). Sin event_id no hay con qué compararlo: sigue.
+const ordenado = (v: unknown): unknown =>
+  Array.isArray(v) ? v.map(ordenado) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, ordenado((v as Record<string, unknown>)[k])])) : v;
+// La base (jsonb) reordena las claves: se comparan ya ordenadas
+export const mismoEnvio = (a: unknown, b: unknown) => JSON.stringify(ordenado(a)) === JSON.stringify(ordenado(b));
+
+export async function envioRepetido(entradaId: string, cuerpo: Record<string, unknown>): Promise<boolean> {
+  const eventId = typeof cuerpo.event_id === "string" ? cuerpo.event_id.trim().slice(0, 200) : "";
+  if (!eventId) return false;
+  const { data, error } = await db()
+    .from("webhook_eventos")
+    .select("payload")
+    .eq("entrada_id", entradaId)
+    .eq("payload->>event_id", eventId)
+    .gte("recibido_en", new Date(Date.now() - 60_000).toISOString())
+    .order("recibido_en", { ascending: false })
+    .limit(5);
+  // Si no se puede mirar, se procesa como siempre (mejor un envío de más que perder uno)
+  if (error) return false;
+  return (data ?? []).some((f) => mismoEnvio(f.payload, cuerpo));
+}

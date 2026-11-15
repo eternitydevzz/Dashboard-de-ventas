@@ -5,7 +5,7 @@ import { dentroDelLimite } from "@/lib/limite";
 import { aplicarReglas, interpretar, reglasValidas } from "@/lib/entrada";
 import { crearEjecuciones } from "@/lib/workflows-motor";
 import { ipDelEnvio } from "@/lib/ip-envio";
-import { completarLeadDelEvento } from "@/lib/entrada-evento";
+import { completarLeadDelEvento, envioRepetido } from "@/lib/entrada-evento";
 import { enviarEmail, urlApp } from "@/lib/email";
 import { EMAIL_AVISO_GHL } from "@/lib/ghl-envios";
 import type { Proyecto } from "@/lib/tipos";
@@ -53,6 +53,13 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
     cuerpo = j;
   } catch {
     return responder({ ok: false, error: "JSON no válido" }, 400);
+  }
+
+  // 0 · Cristian, 15 nov: el mismo envío (mismo event_id y contenido) repetido en menos de 1 min se apunta y se ignora
+  // (la web lo mandaba 2 veces). Se responde «ok» para que la web no lo vuelva a intentar.
+  if (await envioRepetido(entrada.id, cuerpo)) {
+    await db().from("webhook_eventos").insert({ proyecto_id: entrada.proyecto_id, entrada_id: entrada.id, tipo: `entrada: ${entrada.nombre}`, payload: cuerpo, procesado: true, error: "Repetido: ignorado (mismo event_id y contenido en menos de 1 min)" });
+    return responder({ ok: true, repetido: true });
   }
 
   // 1 · Se guarda el envío entero, pase lo que pase después
