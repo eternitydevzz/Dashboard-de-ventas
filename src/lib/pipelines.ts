@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/datos";
-import { puedeAdmin } from "@/lib/auth";
+import { esJefe, puedeAdmin } from "@/lib/auth";
 import { ErrorUsuario } from "@/lib/resultado";
 import type { Perfil, Pipeline, TipoPipeline } from "@/lib/tipos";
 
@@ -23,18 +23,19 @@ export function nivelDefecto(tipo: TipoPipeline, rol: Perfil["rol"]): Nivel {
   return "ver";
 }
 
-export function calcularNivel(perfil: Perfil, pipeline: Pick<Pipeline, "id" | "tipo">, filas: FilaPermisoPipeline[]): Nivel {
+export function calcularNivel(perfil: Perfil, pipeline: Pick<Pipeline, "id" | "tipo" | "solo_jefes">, filas: FilaPermisoPipeline[]): Nivel {
   if (puedeAdmin(perfil)) return "editar";
+  if (pipeline.solo_jefes && !esJefe(perfil)) return "sin_acceso"; // Cristian, 15 nov: «Todos los leads», solo CEO y directores
   const deEste = filas.filter((f) => f.pipeline_id === pipeline.id);
   return deEste.find((f) => f.perfil_id === perfil.id)?.nivel ?? deEste.find((f) => f.rol === perfil.rol)?.nivel ?? nivelDefecto(pipeline.tipo, perfil.rol);
 }
 
 // Cristian, 14 nov (F7-B1, «Sí, solo los suyos»): en el CRM, un caller ve también los pipelines de origen donde su ROL
 // tiene «Sin acceso», solo para mirar (el CRM le filtra sus leads). Mover sigue pasando por calcularNivel (exigirNivel).
-export function nivelEnCrm(perfil: Perfil, pipeline: Pick<Pipeline, "id" | "tipo">, filas: FilaPermisoPipeline[]): Nivel {
+export function nivelEnCrm(perfil: Perfil, pipeline: Pick<Pipeline, "id" | "tipo" | "solo_jefes">, filas: FilaPermisoPipeline[]): Nivel {
   const nivel = calcularNivel(perfil, pipeline, filas);
   const porPersona = filas.some((f) => f.pipeline_id === pipeline.id && f.perfil_id === perfil.id);
-  return nivel === "sin_acceso" && perfil.rol === "caller" && pipeline.tipo === "normal" && !porPersona ? "ver" : nivel;
+  return nivel === "sin_acceso" && perfil.rol === "caller" && pipeline.tipo === "normal" && !pipeline.solo_jefes && !porPersona ? "ver" : nivel;
 }
 
 export async function filasPermisoPipeline(pipelineIds: string[]) {

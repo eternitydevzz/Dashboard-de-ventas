@@ -34,7 +34,7 @@ export async function cargarFicha(perfilId: string) {
     const { perfil, proyecto, miembro, persona } = await personaDelProyecto(perfilId);
     const [permisos, { data: pipes }, { data: fathom }] = await Promise.all([
       cargarDatosPermisos(perfil, proyecto.id),
-      db().from("pipelines").select("id, nombre, tipo").eq("proyecto_id", proyecto.id).order("orden"),
+      db().from("pipelines").select("id, nombre, tipo, solo_jefes").eq("proyecto_id", proyecto.id).order("orden"),
       db().from("cuentas_fathom").select("id, nombre").eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).order("nombre"),
     ]);
     const filas = await filasPermisoPipeline((pipes ?? []).map((p) => p.id));
@@ -53,7 +53,7 @@ export async function cargarFicha(perfilId: string) {
       pipelines: (pipes ?? []).map((p) => {
         const propio = filas.find((f) => f.pipeline_id === p.id && f.perfil_id === perfilId)?.nivel ?? null;
         const delRol = filas.find((f) => f.pipeline_id === p.id && f.rol === persona.rol)?.nivel ?? nivelDefecto(p.tipo as TipoPipeline, persona.rol);
-        return { id: p.id as string, nombre: p.nombre as string, propio, delRol, efectivo: calcularNivel(persona, { id: p.id, tipo: p.tipo as TipoPipeline }, filas) as Nivel };
+        return { id: p.id as string, nombre: p.nombre as string, propio, delRol, efectivo: calcularNivel(persona, { id: p.id, tipo: p.tipo as TipoPipeline, solo_jefes: !!p.solo_jefes }, filas) as Nivel };
       }),
     };
   });
