@@ -48,7 +48,7 @@ export type Proyecto = {
 
 // Paso 0: «Callers» y «Closers» son pipelines del equipo (uno de cada por proyecto)
 export type TipoPipeline = "normal" | "callers" | "closers";
-export type Pipeline = { id: string; proyecto_id: string; nombre: string; orden: number; tipo: TipoPipeline };
+export type Pipeline = { id: string; proyecto_id: string; nombre: string; orden: number; tipo: TipoPipeline; solo_jefes?: boolean }; // solo_jefes: Cristian, 15 nov («Todos los leads»)
 // estado_caller: columna de «Callers» unida a un estado del lead · columna_cita: de «Closers», unida a Pre-call o Post-call
 export type Etapa = { id: string; pipeline_id: string; nombre: string; orden: number; color: string; estado_caller?: EstadoCaller | null; columna_cita?: string | null };
 
