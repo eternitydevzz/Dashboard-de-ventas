@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 vi.mock("@/lib/limite", () => ({ dentroDelLimite: async () => true }));
-vi.mock("@/lib/entrada-evento", () => ({ completarLeadDelEvento: async () => false }));
+vi.mock("@/lib/entrada-evento", () => ({ completarLeadDelEvento: async () => false, envioRepetido: async () => false })); // 15 nov: también la comprobación de envío repetido
 vi.mock("@/lib/leads", async (original) => ({ ...(await original<typeof import("@/lib/leads")>()), guardarLeads: vi.fn(async () => ({})) }));
 // En el test de la Entrada se sustituye para saber si se llamó; en los demás, el real
 let usarFalso = false;
