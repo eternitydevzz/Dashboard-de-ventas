@@ -6,7 +6,6 @@ import { isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { contenidoMercado } from "@/lib/mercado";
 import { crearUnaVez, simboloVenta } from "@/components/acciones-lead";
-import { precargaConDatos } from "@/components/bienvenida";
 import VentasPage from "@/app/(panel)/ventas/page";
 
 // Ventas con la base simulada: `filas` = lo que devuelve cada `todas()` (ventas del periodo, ventas para el cash, pagos)
@@ -99,17 +98,6 @@ describe("accesibilidad", () => {
   it("el botón de borrar venta tiene aria-label", () => {
     expect(panel("ventas/fila-acciones.tsx")).toContain('aria-label="Borrar venta"');
   });
-});
-
-describe("bienvenida: una sección cuenta como cargada solo si su _rsc trae datos", () => {
-  const e = (x: Partial<PerformanceResourceTiming>) => ({ name: "https://app.test/kpis?_rsc=abc", responseStatus: 200, decodedBodySize: 50_000, ...x }) as PerformanceResourceTiming;
-  it("con datos, sí", () => expect(precargaConDatos(e({}))).toBe(true));
-  it("el árbol de rutas (respuesta pequeña), no", () => expect(precargaConDatos(e({ decodedBodySize: 600 }))).toBe(false));
-  it("una redirección o un fallo, no", () => {
-    expect(precargaConDatos(e({ responseStatus: 307 }))).toBe(false);
-    expect(precargaConDatos(e({ responseStatus: 500 }))).toBe(false);
-  });
-  it("sin _rsc, no", () => expect(precargaConDatos(e({ name: "https://app.test/kpis" }))).toBe(false));
 });
 
 describe("migración: quitar solo la versión vieja de cambiar_forma_pago", () => {

@@ -10,15 +10,6 @@ import { hayDatosPendientes } from "@/lib/pantalla-lista";
 // (la ventana de mensajes espera y la barra lateral lanza entonces las 3 precargas de su rol).
 export const FIN_BIENVENIDA = "bienvenida-fin";
 
-// Cristian, 14 nov: la primera petición «_rsc» de una sección puede ser solo el árbol de rutas (sin datos), una
-// redirección o un fallo; esas no la dan por cargada. Solo cuenta una respuesta buena con cuerpo.
-// Ola 2 (14 nov): la bienvenida ya no la usa; queda porque la prueba tests/unit/ola-arreglos.test.ts (de otro carril) la importa.
-// shortcut: «con datos» = más de 2 KB sin comprimir (el árbol pesa menos); si Next cambia sus precargas, revisar la cifra.
-export function precargaConDatos(e: PerformanceResourceTiming) {
-  const estado = e.responseStatus ?? 200; // Safari no da el estado: se da por bueno
-  return e.name.includes("_rsc=") && estado >= 200 && estado < 300 && e.decodedBodySize > 2048;
-}
-
 // Cristian, 14 nov (Ola 2, «la velocidad, lo más importante»): ya no espera a las precargas del menú (la de /crm acababa a
 // ~5,4 s y la capa se quedaba hasta el tope de 4 s); solo a la pantalla abierta: mínimo 0,8 s, máximo 4 s y, entre medias,
 // en cuanto no tiene datos por llegar (lib/pantalla-lista.ts: el contador de cargandoDatos() y la marca

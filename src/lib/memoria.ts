@@ -31,7 +31,7 @@ export const UN_MINUTO = 60_000;
 // pasado `maximo`, se espera a la base. Quien pide nunca espera a una renovación (el 13 nov, una recarga colgada hacía
 // esperar a todos): si falla, sigue lo guardado; si se queda colgada más de 1 min, se puede lanzar otra.
 // olvidarTodo() también lo borra: un cambio propio se ve al momento.
-const renovables = new Map<string, { desde: number; valor: Promise<unknown>; renovando: number }>();
+const renovables = new Map<string, { desde: number; valor: Promise<unknown>; renovando: number; viejo?: boolean }>();
 
 export function renovadoPorDetras<T>(clave: string, fresco: number, maximo: number, cargar: () => Promise<T>, lanzar: (f: () => Promise<unknown>) => void): Promise<T> {
   if (process.env.VITEST) return cargar();
@@ -46,7 +46,7 @@ export function renovadoPorDetras<T>(clave: string, fresco: number, maximo: numb
     });
     return valor.then((v) => structuredClone(v));
   }
-  if (ahora - hay.desde > fresco && (!hay.renovando || ahora - hay.renovando > UN_MINUTO)) {
+  if ((ahora - hay.desde > fresco || hay.viejo) && (!hay.renovando || ahora - hay.renovando > UN_MINUTO)) {
     hay.renovando = ahora;
     lanzar(async () => {
       try {
@@ -62,6 +62,12 @@ export function renovadoPorDetras<T>(clave: string, fresco: number, maximo: numb
 
 // Al guardar perfiles, miembros, permisos o ajustes del proyecto se borra todo lo guardado (esta copia del servidor),
 // para que esos cambios se vean al momento
+// Cristian, 15 nov: algo cambió (p. ej. una llamada desde la cola) → la siguiente visita sigue respondiendo al momento con
+// lo guardado, pero lo renueva por detrás aunque no haya pasado el minuto. No hace esperar a nadie (olvidarTodo sí).
+export function marcarViejo(prefijo: string) {
+  for (const [clave, e] of renovables) if (clave.startsWith(prefijo)) e.viejo = true;
+}
+
 export function olvidarTodo() {
   guardado.clear();
   renovables.clear();

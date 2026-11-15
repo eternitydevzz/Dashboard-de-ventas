@@ -37,7 +37,7 @@ export default async function OnboardingClosersPage({ searchParams }: { searchPa
                   </div>
                   <Anillo valor={pasos.length ? Math.round((pasos.filter((p) => c.hechos[p.id]).length / pasos.length) * 100) : 0} tamano={56} color="var(--ok)" />
                 </div>
-                <ChecklistCliente leadId={c.lead_id} pasos={pasos.map((p) => ({ id: p.id, nombre: p.nombre }))} hechos={c.hechos} editable={jefe} />
+                <ChecklistCliente leadId={c.lead_id} pasos={pasos.map((p) => ({ id: p.id, nombre: p.nombre }))} hechos={c.hechos} editable={jefe} zona={proyecto.zona_horaria} />
               </Seccion>
             ))}
           </div>

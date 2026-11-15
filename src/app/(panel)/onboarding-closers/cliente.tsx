@@ -12,7 +12,7 @@ type Paso = { id: string; nombre: string };
 
 // Fase 5: seguimiento visual por cliente (línea de pasos) y, para el CEO y los directores, los pasos se editan
 // en el sitio (renombrar, quitar, añadir). Marcar un paso = pulsar su círculo.
-export function ChecklistCliente({ leadId, pasos, hechos, editable = false }: { leadId: string; pasos: Paso[]; hechos: Record<string, string>; editable?: boolean }) {
+export function ChecklistCliente({ leadId, pasos, hechos, editable = false, zona }: { leadId: string; pasos: Paso[]; hechos: Record<string, string>; editable?: boolean; zona: string }) {
   const { pendiente, error, ejecutar } = useAccion();
   return (
     <div>
@@ -47,7 +47,8 @@ export function ChecklistCliente({ leadId, pasos, hechos, editable = false }: { 
                     </span>
                   )}
                 </div>
-                {hecho && <div className="text-[11px] text-texto-3">Hecho el {new Date(hechos[p.id]).toLocaleDateString("es-ES")}</div>}
+                {/* Cristian, 15 nov: en la zona del proyecto, igual en el servidor y en el navegador (sin el error #418) */}
+                {hecho && <div className="text-[11px] text-texto-3">Hecho el {new Date(hechos[p.id]).toLocaleDateString("es-ES", { timeZone: zona })}</div>}
               </div>
             </li>
           );
