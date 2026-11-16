@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
-import { PhoneOff, Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
-import { anadirNota, confirmarAgenda, registrarLlamada, registrarVenta, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
-import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado, type BotonResultado } from "@/lib/estados-caller";
+import { startTransition, useState, useTransition, type ReactNode } from "react";
+import { Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
+import { anadirNota, confirmarAgenda, deshacerResultado, registrarLlamada, registrarVenta, type PasoResultado, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
+import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado } from "@/lib/estados-caller";
 import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "@/app/(panel)/crm/ventanas-estado";
 import { Modal } from "@/components/modal";
 import { SelectorEstrellas } from "@/components/estrellas";
-import { useToast } from "@/components/toasts";
+import { useQuitarToast, useToast } from "@/components/toasts";
 import { avisoDe, exigirOk } from "@/lib/resultado-cliente";
-import type { Producto, Respuesta } from "@/lib/tipos";
+import type { Lead, Producto, Respuesta } from "@/lib/tipos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { GuionLlamada } from "@/components/guion-llamada";
 import { BotonGrabar, useGrabadora } from "@/components/grabadora";
@@ -71,11 +71,10 @@ export function Mensajes({ error, ok }: { error: string; ok: string }) {
 // El botón de «Link enviado» se llama «Link de agenda» (Cristian, 10 nov); el resto, como su columna
 const textoBoton = (k: string) => (k === "link_enviado" ? "Link de agenda" : etiquetaEstado(k));
 
-// C11 (plan Callers, 7 nov): iconos de los 9 resultados (los de la maqueta, lucide)
-const ICONO_RESULTADO: Record<BotonResultado, LucideIcon> = {
+// C11 (plan Callers, 7 nov): iconos de los resultados (los de la maqueta, lucide). N1: sin «No responde»
+const ICONO_RESULTADO: Record<string, LucideIcon> = {
   link_enviado: Link2, // 10 nov: «Link de agenda» en el sitio de «Llamado»
   wsp_enviado: MessageCircle,
-  no_responde: PhoneOff,
   no_interesa: CircleX,
   seguimiento: Repeat,
   llamar_luego: Clock,
@@ -83,6 +82,7 @@ const ICONO_RESULTADO: Record<BotonResultado, LucideIcon> = {
   confirma_agenda: CalendarCheck,
   descartado: Ban,
 };
+const BOTONES = BOTONES_RESULTADO.filter((k) => ICONO_RESULTADO[k]); // solo los que tienen icono (N1: sin «No responde»)
 
 // Botones del lead (cola, guion y ficha completa). C11: los 9 resultados mueven el lead a su columna de «Callers»;
 // los que piden datos (estrellas, fecha) abren su ventana, la misma que al soltar en el CRM.
@@ -111,6 +111,7 @@ export function AccionesLead({
   onGuionAbierto,
   onSiguiente,
   puedeGrabar = false,
+  onCambio,
 }: {
   leadId: string;
   telefono: string | null;
@@ -134,6 +135,7 @@ export function AccionesLead({
   onGuionAbierto?: (abierto: boolean) => void;
   onSiguiente?: () => void;
   puedeGrabar?: boolean; // C10: con la sección «Grabaciones», «Grabar» en la cabecera del lead y en el guion
+  onCambio?: (c: Partial<Pick<Lead, "estado_caller" | "llamar_en">>) => void; // cola: mueve el lead en pantalla al momento
 }) {
   const grabadora = useGrabadora();
   const { pendiente, error, ok, ejecutar } = useAccion();
@@ -150,11 +152,52 @@ export function AccionesLead({
   // ventana de venta no se cierra hasta que responde el servidor. Mientras una va, la segunda igual no sale.
   const [enCurso] = useState(() => new Set<string>()); // el mismo Set en cada pintado
   const unaVez = crearUnaVez(enCurso, ejecutar, aviso);
-  const [modal, setModal] = useState<null | "guion" | "nota" | "venta">(null);
+  const [modal, setModal] = useState<null | "guion" | "nota">(null);
   const [ventana, setVentana] = useState<DestinoConVentana | null>(null);
   const [nota, setNota] = useState("");
   const telLimpio = (telefono ?? "").replace(/[^\d]/g, "");
-  const productosVisibles = rol === "caller" ? [] : productos; // el caller no registra ventas (Cristian, 12 oct)
+  const productosVisibles = productos; // N1 (Cristian, 16 nov): el caller también registra ventas
+  const [ventaAbierta, setVentaAbierta] = useState(false); // aparte del guion: «Venta» se abre encima de él
+  const quitarAviso = useQuitarToast();
+  const [, iniciarResultado] = useTransition();
+
+  // C1/R2/C13: el lead cambia en pantalla al pulsar (onCambio, dentro de la transición: si falla, vuelve solo), los
+  // botones no se bloquean, «Guardando…» se quita al responder (C5, C14) y el aviso final trae «Deshacer» (y Ctrl+Z)
+  function guardarResultado(clave: string, accion: () => Promise<unknown>, mensaje: string) {
+    if (enCurso.has(`resultado:${clave}`)) return; // doble clic en el mismo botón = un guardado
+    enCurso.add(`resultado:${clave}`);
+    const espera = aviso("Guardando…", "cargando");
+    iniciarResultado(async () => {
+      onCambio?.({ estado_caller: clave as Lead["estado_caller"] });
+      try {
+        const r = await exigirOk(accion());
+        const paso = (r as { deshacer?: PasoResultado } | undefined)?.deshacer;
+        aviso(mensaje, "ok", paso ? { deshacer: { texto: mensaje, deshacer: () => deshacer(paso) } } : undefined);
+        const a = avisoDe(r);
+        if (a) aviso(a, "error");
+      } catch (e) {
+        aviso(e instanceof Error ? e.message : "Algo falló.", "error");
+      } finally {
+        quitarAviso(espera);
+        enCurso.delete(`resultado:${clave}`);
+      }
+    });
+  }
+  // A3b-01: vuelve exactamente a como estaba (también la columna de la cola, al momento)
+  function deshacer(paso: PasoResultado) {
+    const espera = aviso("Deshaciendo…", "cargando");
+    startTransition(async () => {
+      onCambio?.({ estado_caller: paso.antes.estado_caller as Lead["estado_caller"], llamar_en: paso.antes.llamar_en });
+      try {
+        await exigirOk(deshacerResultado(paso));
+        aviso("Deshecho");
+      } catch (e) {
+        aviso(e instanceof Error ? e.message : "No se pudo deshacer.", "error");
+      } finally {
+        quitarAviso(espera);
+      }
+    });
+  }
   const nombre = nombreLead || "este lead";
   const controlado = guionAbierto !== undefined;
   const verGuion = controlado ? guionAbierto : modal === "guion";
@@ -167,12 +210,12 @@ export function AccionesLead({
     if (clave === "link_enviado" && !desdeMoverA) {
       if (!linkAgenda) return aviso("Este proyecto no tiene link de agenda: ponlo en Administración.", "error");
       void copiarLinkAgenda();
-      return unaVez("resultado", () => registrarLlamada(leadId, "link_enviado", ""), "Link de agenda copiado y apuntado", true);
+      return guardarResultado("link_enviado", () => registrarLlamada(leadId, "link_enviado", ""), "Link de agenda copiado y apuntado");
     }
     // Cristian, 14 nov: en la cola, «Guardando…» al pulsar y «✓ Llamada registrada» al terminar
     const final = (m: string) => (variante === "cola" ? "✓ Llamada registrada" : m);
-    if (clave === "confirma_agenda") return unaVez("resultado", () => confirmarAgenda(leadId), final("Guardado: Confirma Agenda (cita confirmada)"), true);
-    unaVez("resultado", () => registrarLlamada(leadId, clave as ResultadoSimple, ""), final(`Guardado: ${etiquetaEstado(clave)}`), true);
+    if (clave === "confirma_agenda") return guardarResultado(clave, () => confirmarAgenda(leadId), final("Guardado: Confirma Agenda (cita confirmada)"));
+    guardarResultado(clave, () => registrarLlamada(leadId, clave as ResultadoSimple, ""), final(`Guardado: ${etiquetaEstado(clave)}`));
   }
 
   const ventanas = (
@@ -187,11 +230,12 @@ export function AccionesLead({
           respuestas={respuestas}
           actual={estado}
           grabador={puedeGrabar ? <BotonGrabar leadId={leadId} nombre={nombre} /> : undefined}
-          resultados={BOTONES_RESULTADO.map((k) => {
+          resultados={BOTONES.map((k) => {
             const Icono = ICONO_RESULTADO[k];
             return { clave: k, texto: textoBoton(k), icono: <Icono className="h-4 w-4 shrink-0" style={{ color: colorEstado(k) }} /> };
           })}
           onResultado={resultado}
+          onVenta={productosVisibles.length ? () => setVentaAbierta(true) : undefined}
           onSiguiente={onSiguiente && (() => { grabadora?.avisarFin(); onSiguiente(); })}
           onCerrar={() => abrirGuion(false)}
         />
@@ -205,21 +249,19 @@ export function AccionesLead({
           moneda={moneda}
           esCaller={rol === "caller"}
           onCerrar={() => setVentana(null)}
-          onGuardar={(accion, mensaje) => ejecutar(accion, mensaje)}
+          onGuardar={(accion, mensaje) => guardarResultado(ventana, accion, mensaje)}
         />
       )}
-      {modal === "venta" && (
-        <Modal titulo="Registrar venta" onCerrar={() => setModal(null)} ancho="max-w-lg">
+      {ventaAbierta && (
+        <Modal titulo="Registrar venta" onCerrar={() => setVentaAbierta(false)} ancho="max-w-lg">
           <FormVenta
             productos={productosVisibles}
             vendedores={vendedores}
             closerCita={closerCita}
             miId={miId}
             moneda={moneda}
-            onEnviar={(fd) => {
-              unaVez("venta", () => registrarVenta(leadId, fd), "Venta registrada");
-              setModal(null);
-            }}
+            // S4-9: se cierra solo si se guardó (antes se cerraba al momento y con un error se perdía lo escrito)
+            onEnviar={(fd) => unaVez("venta", () => exigirOk(registrarVenta(leadId, fd)).then(() => setVentaAbierta(false)), "Venta registrada")}
           />
         </Modal>
       )}
@@ -277,14 +319,14 @@ export function AccionesLead({
             </div>
             <label className="flex items-center gap-2 text-[12.5px] font-semibold text-texto-2">
               Mover a
-              <select className="campo w-auto py-1.5" value={estado ?? ""} disabled={pendiente} onChange={(e) => e.target.value && e.target.value !== estado && resultado(e.target.value, true)}>
+              <select className="campo w-auto py-1.5" value={estado ?? ""} onChange={(e) => e.target.value && e.target.value !== estado && resultado(e.target.value, true)}>
                 {/* «Cerrados» no se elige (lo pone el closer), pero un lead vendido lo enseña en vez de «Leads» (13 nov) */}
                 {ESTADOS_CALLER.filter((x) => x.v !== "vendido" || estado === "vendido").map((x) => <option key={x.v} value={x.v} disabled={x.v === "vendido"}>{x.t}</option>)}
               </select>
             </label>
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            {BOTONES_RESULTADO.map((k) => {
+            {BOTONES.map((k) => {
               const Icono = ICONO_RESULTADO[k];
               const actual = estado === k;
               const c = colorEstado(k);
@@ -293,7 +335,6 @@ export function AccionesLead({
                   key={k}
                   type="button"
                   aria-current={actual ? "true" : undefined}
-                  disabled={pendiente}
                   onClick={() => resultado(k)}
                   style={{ ["--c" as string]: c }}
                   className={`flex min-h-[60px] items-center gap-3 rounded-2xl border px-3 py-2.5 text-left text-[13.5px] font-bold transition active:scale-[0.98] ${actual ? "border-[var(--c)] bg-[color-mix(in_srgb,var(--c)_10%,var(--panel-2))] shadow-[inset_0_0_0_1px_var(--c)]" : "border-borde bg-panel-2 hover:border-[color-mix(in_srgb,var(--c)_55%,transparent)]"}`}
@@ -305,6 +346,13 @@ export function AccionesLead({
                 </button>
               );
             })}
+            {/* N1 (Cristian, 16 nov): «Venta» en verde, la última; abre «Registrar venta» */}
+            {productosVisibles.length > 0 && (
+              <button type="button" onClick={() => setVentaAbierta(true)} className="flex min-h-[60px] items-center gap-3 rounded-2xl border border-[#15924a] bg-[#15924a] px-3 py-2.5 text-left text-[13.5px] font-bold text-white transition hover:brightness-110 active:scale-[0.98]">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-white/20"><ShoppingCart className="h-[18px] w-[18px]" /></span>
+                Venta
+              </button>
+            )}
           </div>
           <div className="mt-3"><Mensajes error={error} ok={ok} /></div>
         </section>
@@ -335,24 +383,24 @@ export function AccionesLead({
         <button className={boton} disabled={pendiente} onClick={() => setModal("nota")}>
           <StickyNote className="h-4 w-4 text-texto-3" /> Nota
         </button>
-        {productosVisibles.length > 0 && (
-          <button className={boton} disabled={pendiente} onClick={() => setModal("venta")}>
-            <ShoppingCart className="h-4 w-4 text-oro-texto" /> Registrar venta
-          </button>
-        )}
       </div>
       <div>
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-texto-3">¿Cómo ha ido?</div>
         <div className={`grid gap-2 ${compacto ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
-          {BOTONES_RESULTADO.map((k) => {
+          {BOTONES.map((k) => {
             const Icono = ICONO_RESULTADO[k];
             const actual = estado === k;
             return (
-              <button key={k} type="button" className={`${boton} ${actual ? "border-primario bg-primario-suave text-primario" : ""}`} aria-current={actual ? "true" : undefined} disabled={pendiente} onClick={() => resultado(k)}>
+              <button key={k} type="button" className={`${boton} ${actual ? "border-primario bg-primario-suave text-primario" : ""}`} aria-current={actual ? "true" : undefined} onClick={() => resultado(k)}>
                 <Icono className="h-4 w-4" style={{ color: colorEstado(k) }} /> {textoBoton(k)}
               </button>
             );
           })}
+          {productosVisibles.length > 0 && (
+            <button type="button" className="btn-secundario justify-start border-[#15924a] bg-[#15924a] text-white hover:brightness-110" onClick={() => setVentaAbierta(true)}>
+              <ShoppingCart className="h-4 w-4" /> Venta
+            </button>
+          )}
         </div>
       </div>
       <Mensajes error={error} ok={ok} />
@@ -389,8 +437,9 @@ export function FormVenta({
   const [vendedorId, setVendedorId] = useState("");
   // "" = el closer de la cita (o «Yo» si no hay cita); miId no está en `vendedores` → mi moneda
   const simbolo = simboloVenta(moneda, vendedorId ? vendedores?.find((v) => v.id === vendedorId) : closerCita);
+  // S4-9: con `action`, React vacía el formulario al enviar aunque falle; así lo escrito se queda si hay un error
   return (
-    <form action={onEnviar} className="space-y-3">
+    <form onSubmit={(e) => (e.preventDefault(), onEnviar(new FormData(e.currentTarget)))} className="space-y-3">
       <div>
         <label className="etiqueta-campo" htmlFor="acciones-lead-producto">Producto</label>
         <Desplegable id="acciones-lead-producto"

@@ -55,16 +55,16 @@ describe("C11 · rotación de closers", () => {
 describe("C11 · botones de resultado", () => {
   const insertsDe = (t: string) => consultas.filter((c) => c.tabla === t).flatMap((c) => c.ops.filter(([o]) => o === "insert").map(([, a]) => a[0] as Record<string, unknown>));
   it("«Link de agenda» lleva a «Link enviado», apunta una llamada (KPI «Llamadas hoy») y no toca las estrellas", async () => {
-    expect(await registrarLlamada("l1", "link_enviado", "")).toBeUndefined();
+    expect(await registrarLlamada("l1", "link_enviado", "")).toMatchObject({ deshacer: { despues: "link_enviado" } }); // f1a: datos para deshacer
     expect(updateDe("leads")).toEqual({ estado_caller: "link_enviado", llamar_en: null });
     expect(insertsDe("actividades")).toEqual([expect.objectContaining({ tipo: "llamada", resultado: "link_enviado" })]);
   });
-  it("«Wsp enviado» apunta una llamada y un WhatsApp (10 nov); «No responde», un cambio de columna", async () => {
+  it("«Wsp enviado» apunta una llamada y un WhatsApp (10 nov); «Descartado», un cambio de columna (f1a: sin «No responde»)", async () => {
     await registrarLlamada("l1", "wsp_enviado", "");
     expect(insertsDe("actividades")).toEqual([expect.objectContaining({ tipo: "llamada", resultado: "wsp_enviado" }), expect.objectContaining({ tipo: "whatsapp", resultado: "wsp_enviado" })]);
     consultas = [];
-    await registrarLlamada("l1", "no_responde", "");
-    expect(insertDe("actividades")).toMatchObject({ tipo: "cambio_etapa", resultado: "no_responde" });
+    await registrarLlamada("l1", "descartado", "");
+    expect(insertDe("actividades")).toMatchObject({ tipo: "cambio_etapa", resultado: "descartado" });
   });
   it("«Seguimiento» pide estrellas de 2 a 5, como hoy, y las guarda", async () => {
     expect(await registrarLlamada("l1", "seguimiento", "")).toMatchObject({ error: expect.stringMatching(/2 a 5/) });
@@ -102,7 +102,7 @@ describe("C11 · «Confirma Agenda» confirma también la cita (punto 14)", () =
   });
   it("con cita abierta: la cita a «confirmada» y el lead a «Confirma Agenda»", async () => {
     respuesta["citas:select"] = { data: { id: "c1" }, error: null };
-    expect(await confirmarAgenda("l1")).toBeUndefined();
+    expect(await confirmarAgenda("l1")).toMatchObject({ deshacer: { despues: "confirma_agenda" } }); // f1a: datos para deshacer
     expect(updateDe("citas")).toEqual({ estado: "confirmada" });
     expect(updateDe("leads")).toEqual({ estado_caller: "confirma_agenda", llamar_en: null });
     expect(insertDe("actividades")).toMatchObject({ tipo: "cambio_etapa", resultado: "confirma_agenda" });

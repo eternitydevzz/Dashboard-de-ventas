@@ -54,14 +54,14 @@ beforeEach(() => {
 describe("F3 · si falla guardar el estado, no dice «Guardado»", () => {
   it("falla el cambio de estado del lead: devuelve error y no apunta la llamada", async () => {
     respuesta["leads:update"] = fallo;
-    const r = await registrarLlamada("l1", "no_responde", "");
+    const r = await registrarLlamada("l1", "seguimiento", "", 3); // f1a: «No responde» ya no existe (N1)
     expect(r).toMatchObject({ error: expect.any(String) });
     expect(inserts("actividades")).toHaveLength(0);
   });
   it("todo bien: no hay error y la llamada queda apuntada", async () => {
     respuesta["leads:update"] = { data: null, error: null };
-    const r = await registrarLlamada("l1", "no_responde", "");
-    expect(r).toBeUndefined();
+    const r = await registrarLlamada("l1", "seguimiento", "", 3); // f1a: «No responde» ya no existe (N1)
+    expect(r).toMatchObject({ deshacer: expect.any(Object) }); // f1a: ahora devuelve lo necesario para deshacer
     expect(inserts("actividades")).toHaveLength(1);
   });
   it("falla mover la columna del pipeline de origen: también devuelve error", async () => {

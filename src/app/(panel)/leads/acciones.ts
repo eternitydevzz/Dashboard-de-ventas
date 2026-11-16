@@ -14,7 +14,7 @@ import { planDePagos } from "@/lib/finanzas";
 import type { EstadoCaller, Lead, Perfil, Proyecto } from "@/lib/tipos";
 import { leerNumero } from "@/lib/numero";
 import { ABIERTAS } from "@/lib/llamadas";
-import { CON_ESTRELLAS, etiquetaEstado } from "@/lib/estados-caller";
+import { CON_ESTRELLAS, ESTADOS_CALLER, etiquetaEstado } from "@/lib/estados-caller";
 import { closerDeLaRotacion, sumarRotacion } from "@/lib/rotacion";
 import { closerLibreA } from "@/lib/agenda-libre";
 import { miMercado } from "@/lib/mercado-datos";
@@ -58,12 +58,24 @@ const aIso = localAIso;
 // «No contesta» ponía 1★ encima). Historial (Cristian, 10 nov): «Link de agenda» = llamada; «Wsp enviado» = llamada y
 // WhatsApp (suma en los dos KPIs); las dos cuentan como contacto. El resto, cambio de columna con el estado nuevo
 // (contacto = los que avanzan, punto 16). «Llamado» ya no existe.
-export type ResultadoSimple = "nuevo" | "link_enviado" | "wsp_enviado" | "no_responde" | "no_interesa" | "seguimiento" | "llamar_luego" | "descartado" | "reagendado";
-const SIMPLES: ResultadoSimple[] = ["nuevo", "link_enviado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado"];
+// N1 (Cristian, 16 nov): fuera «No responde» (los leads que ya están ahí se quedan; deshacer aún puede volver a él)
+export type ResultadoSimple = "nuevo" | "link_enviado" | "wsp_enviado" | "no_interesa" | "seguimiento" | "llamar_luego" | "descartado" | "reagendado";
+const SIMPLES: ResultadoSimple[] = ["nuevo", "link_enviado", "wsp_enviado", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado"];
+const DESCARTE = ["no_interesa", "descartado"];
+
+// A3b-01: lo que hace falta para deshacer un clic (cómo estaba el lead y las actividades que creó ese clic)
+type Antes = { estado_caller: string; etapa_id: string | null; estrellas_caller: number | null; llamar_en: string | null };
+export type PasoResultado = { leadId: string; despues: string; antes: Antes; actividades: string[]; cita?: { id: string; estado: string } };
+const antesDe = (l: Lead): Antes => ({ estado_caller: l.estado_caller, etapa_id: l.etapa_id ?? null, estrellas_caller: l.estrellas_caller ?? null, llamar_en: l.llamar_en ?? null });
+// registrarActividad no devuelve el id: se leen las últimas de este clic (mismo lead, persona y resultado)
+async function actividadesDelClic(leadId: string, perfilId: string, resultado: string, n: number) {
+  const { data } = await db().from("actividades").select("id").eq("lead_id", leadId).eq("perfil_id", perfilId).eq("resultado", resultado).order("creado_en", { ascending: false }).limit(n);
+  return ((data ?? []) as { id: string }[]).map((a) => a.id);
+}
 
 // «Llamar luego» vuelve a guardar cuándo (Cristian, 10 nov 2026; opcional y solo se muestra): `llamarEn` = «AAAA-MM-DDTHH:MM»
 export async function registrarLlamada(leadId: string, resultado: ResultadoSimple, nota: string, estrellas?: number, llamarEn?: string) {
-  return seguro(async () => {
+  return seguro(async (): Promise<{ deshacer: PasoResultado }> => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
     if (!SIMPLES.includes(resultado)) throw new ErrorUsuario("Resultado no válido.");
     nota = notaValida(nota);
@@ -71,14 +83,53 @@ export async function registrarLlamada(leadId: string, resultado: ResultadoSimpl
     if (lead.estado_caller === "vendido" && perfil.rol === "caller") throw new ErrorUsuario("Este lead ya compró: lo lleva el closer.");
     const n = CON_ESTRELLAS.has(resultado) ? estrellasEntre(estrellas, 2, 5) : null;
     const llamar = resultado === "llamar_luego" && llamarEn ? aIso(llamarEn, zonaPersona(perfil, proyecto)) : null; // 13 nov: en la zona de quien lo pone // aIso valida el formato
+    // A3b-01: al descartar se apunta su columna de antes (en datos: sin columnas nuevas) para poder volver a ella
+    const descarta = DESCARTE.includes(resultado) && !DESCARTE.includes(lead.estado_caller) && lead.etapa_id;
+    const datos = descarta ? { datos: { ...((lead.datos as Record<string, unknown> | null) ?? {}), etapa_antes_descarte: lead.etapa_id } } : {};
     // F3 (plan Callers, 7 nov): si falla, error (antes salía «Guardado» aunque el estado no cambiara)
-    await escribir(db().from("leads").update({ estado_caller: resultado, llamar_en: llamar, ...(n ? { estrellas_caller: n } : {}) }).eq("id", leadId), "leads");
+    await escribir(db().from("leads").update({ estado_caller: resultado, llamar_en: llamar, ...(n ? { estrellas_caller: n } : {}), ...datos }).eq("id", leadId), "leads");
     const tipo = resultado === "link_enviado" || resultado === "wsp_enviado" ? "llamada" : "cambio_etapa";
     const texto = [`→ ${etiquetaEstado(resultado)}`, n ? `${n}★` : "", llamar ? `Llamar el ${fechaHora(llamar, proyecto)}` : "", nota].filter(Boolean).join(" · ");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo, resultado, nota: texto });
     if (resultado === "wsp_enviado") await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "whatsapp", resultado, nota: texto });
-    if (resultado === "no_interesa" || resultado === "descartado") await moverAColumna(lead, resultado, ["descartados", "descartado", "no interesa"]);
-    if (resultado === "nuevo") await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
+    if (DESCARTE.includes(resultado)) await moverAColumna(lead, resultado, ["descartados", "descartado", "no interesa"]);
+    else if (!(DESCARTE.includes(lead.estado_caller) && (await volverDeDescarte(lead))) && resultado === "nuevo") await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
+    const actividades = await actividadesDelClic(leadId, perfil.id, resultado, resultado === "wsp_enviado" ? 2 : 1);
+    refrescar();
+    return { deshacer: { leadId, despues: resultado, antes: antesDe(lead), actividades } };
+  });
+}
+
+// A3b-01: sale de «Descartados»/«No interesa» → vuelve a la columna apuntada al descartar (si sigue en su pipeline)
+async function volverDeDescarte(lead: Lead) {
+  const etapa = (lead.datos as Record<string, unknown> | null)?.etapa_antes_descarte;
+  if (typeof etapa !== "string" || !lead.pipeline_id) return false;
+  const { data } = await db().from("etapas").select("id, nombre").eq("pipeline_id", lead.pipeline_id);
+  if (!(data ?? []).some((e) => e.id === etapa)) return false;
+  if (etapa !== lead.etapa_id) await escribir(db().from("leads").update({ etapa_id: etapa }).eq("id", lead.id), "leads");
+  return true;
+}
+
+// A3b-01 (botón «Deshacer» y Ctrl+Z): el lead vuelve exactamente a como estaba y se borran las actividades de ese clic
+// (para no inflar «Llamadas hoy»). Mismas comprobaciones que registrarLlamada; lo que llega del navegador se valida.
+export async function deshacerResultado(paso: PasoResultado) {
+  return seguro(async () => {
+    await exigirSeccion("cola", "crm", "agendas", "clientes");
+    const { lead, perfil, proyecto } = await leadPermitido(paso.leadId);
+    if (lead.estado_caller !== paso.despues) throw new ErrorUsuario("Este lead cambió después: ya no se puede deshacer.");
+    const a = paso.antes;
+    if (!ESTADOS_CALLER.some((e) => e.v === a.estado_caller) || a.estado_caller === "vendido") throw new ErrorUsuario("No se puede deshacer: estado no válido.");
+    if (a.estrellas_caller !== null && !(Number.isInteger(a.estrellas_caller) && a.estrellas_caller >= 1 && a.estrellas_caller <= 5)) throw new ErrorUsuario("No se puede deshacer: estrellas no válidas.");
+    if (a.llamar_en !== null && Number.isNaN(Date.parse(a.llamar_en))) throw new ErrorUsuario("No se puede deshacer: fecha no válida.");
+    if (a.etapa_id !== lead.etapa_id) {
+      const { data } = a.etapa_id && lead.pipeline_id ? await db().from("etapas").select("id, nombre").eq("pipeline_id", lead.pipeline_id) : { data: [] };
+      if (!(data ?? []).some((e) => e.id === a.etapa_id)) throw new ErrorUsuario("No se puede deshacer: esa columna ya no está en su pipeline.");
+    }
+    if (paso.cita && !(ABIERTAS as readonly string[]).includes(paso.cita.estado)) throw new ErrorUsuario("No se puede deshacer: estado de cita no válido.");
+    await escribir(db().from("leads").update({ estado_caller: a.estado_caller, ...(a.etapa_id !== lead.etapa_id ? { etapa_id: a.etapa_id } : {}), estrellas_caller: a.estrellas_caller, llamar_en: a.llamar_en }).eq("id", lead.id), "leads");
+    if (paso.cita) await escribir(db().from("citas").update({ estado: paso.cita.estado }).eq("id", paso.cita.id).eq("lead_id", lead.id).eq("proyecto_id", proyecto.id), "citas");
+    const ids = paso.actividades.filter((x) => typeof x === "string").slice(0, 5);
+    if (ids.length) await escribir(db().from("actividades").delete().in("id", ids).eq("lead_id", lead.id).eq("perfil_id", perfil.id).eq("proyecto_id", proyecto.id), "actividades");
     refrescar();
   });
 }
@@ -87,13 +138,15 @@ export async function registrarLlamada(leadId: string, resultado: ResultadoSimpl
 export async function confirmarAgenda(leadId: string) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes");
-    const { perfil, proyecto } = await leadPermitido(leadId);
-    const { data: cita } = await db().from("citas").select("id").eq("lead_id", leadId).eq("proyecto_id", proyecto.id).in("estado", [...ABIERTAS]).order("fecha", { ascending: false }).limit(1).maybeSingle();
+    const { lead, perfil, proyecto } = await leadPermitido(leadId);
+    const { data: cita } = await db().from("citas").select("id, estado").eq("lead_id", leadId).eq("proyecto_id", proyecto.id).in("estado", [...ABIERTAS]).order("fecha", { ascending: false }).limit(1).maybeSingle();
     if (!cita) throw new ErrorUsuario("Este lead no tiene ninguna cita abierta que confirmar. Márcalo primero como «Agendado».");
     await escribir(db().from("citas").update({ estado: "confirmada" }).eq("id", cita.id), "citas");
     await escribir(db().from("leads").update({ estado_caller: "confirma_agenda", llamar_en: null }).eq("id", leadId), "leads");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cambio_etapa", resultado: "confirma_agenda", nota: "→ Confirma Agenda · cita confirmada" });
+    const actividades = await actividadesDelClic(leadId, perfil.id, "confirma_agenda", 1);
     refrescar();
+    return { deshacer: { leadId, despues: "confirma_agenda", antes: antesDe(lead), actividades, cita: { id: cita.id as string, estado: cita.estado as string } } satisfies PasoResultado };
   });
 }
 
@@ -180,8 +233,6 @@ export async function registrarVenta(leadId: string, formData: FormData) {
     const productoId = String(formData.get("producto") ?? "");
     const { data: producto } = await db().from("productos").select("*").eq("id", productoId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!producto) throw new ErrorUsuario("Elige un producto.");
-    // Cristian (12 oct): el caller no cierra ventas; las registra el closer (o un jefe)
-    if (perfil.rol === "caller") throw new ErrorUsuario("El caller no registra ventas: las cierra el closer.");
   
     const num = (k: string) => {
       const v = leerNumero(formData.get(k));
