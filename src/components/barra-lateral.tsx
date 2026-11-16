@@ -41,6 +41,8 @@ import { CampanaAvisos } from "@/components/campana-avisos";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
 import { useResalteMenu } from "@/components/animaciones/animaciones";
 import { FIN_BIENVENIDA } from "@/components/bienvenida";
+import { confirmar } from "@/components/dialogos";
+import { useGrabadora } from "@/components/grabadora";
 
 const ICONOS = {
   funnel: BarChart3,
@@ -134,6 +136,7 @@ export function BarraLateral({
   const [abierto, setAbierto] = useState(false);
   const [pendiente, iniciar] = useTransition();
   const menuRef = useRef<HTMLElement>(null);
+  const grabadora = useGrabadora(); // la barra está dentro de <ProveedorGrabadora> (app/(panel)/layout.tsx)
   useResalteMenu(menuRef, destino ?? ruta); // C7: el resalte se desliza a la opción nueva
 
   const contenido = (
@@ -241,7 +244,18 @@ export function BarraLateral({
             <Moon className="h-4 w-4 dark:hidden" />
           </button>
           <form action={cerrarSesion}>
-            <button className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2 hover:text-mal" title="Cerrar sesión" aria-label="Cerrar sesión">
+            <button
+              onClick={(e) => {
+                // A4-06: cerrar sesión navega dentro de la app y no pasa por el aviso «beforeunload» de la grabadora
+                if (!grabadora?.grabando) return;
+                e.preventDefault();
+                const form = e.currentTarget.form;
+                void confirmar("Hay una grabación en curso: párala y espera a que se guarde antes de salir. ¿Salir igualmente?", { boton: "Salir" }).then((si) => si && form?.requestSubmit());
+              }}
+              className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2 hover:text-mal"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           </form>

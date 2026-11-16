@@ -30,6 +30,7 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   const [segundos, setSegundos] = useState(0);
   const [subiendo, setSubiendo] = useState(false);
   const rec = useRef<MediaRecorder | null>(null);
+  const iniciando = useRef(false); // S4-7: mientras sale el permiso del micrófono, un 2.º «empezar» no hace nada
   const trozos = useRef<Blob[]>([]);
   const [finAviso, setFinAviso] = useState<number | null>(null);
   const [quedan, setQuedan] = useState(AVISO_FIN_SEG);
@@ -45,6 +46,9 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
     }, 500);
     return () => clearInterval(t);
   }, [finAviso]);
+
+  // A4-06: si la grabadora se quita (p. ej. al cerrar sesión), el micrófono no se queda abierto
+  useEffect(() => () => rec.current?.stream.getTracks().forEach((t) => t.stop()), []);
 
   useEffect(() => {
     if (!grabando) return;
@@ -83,13 +87,16 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
 
   const empezar = useCallback(
     async (leadId: string, nombre: string) => {
-      if (rec.current) return;
+      if (rec.current || iniciando.current) return;
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return void toast("Este navegador no puede grabar. Usa Chrome en el ordenador.", "error");
       let stream: MediaStream;
+      iniciando.current = true;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch {
         return void toast("Sin permiso para el micrófono: dale permiso en el candado de la barra de direcciones.", "error");
+      } finally {
+        iniciando.current = false; // rec.current se pone justo debajo, sin otro await entre medias
       }
       const tipo = TIPOS.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
       const m = new MediaRecorder(stream, tipo ? { mimeType: tipo } : undefined);

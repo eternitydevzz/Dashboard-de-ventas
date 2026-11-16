@@ -32,6 +32,7 @@ vi.mock("@/components/campana-avisos", () => ({ CampanaAvisos: () => null }));
 vi.mock("@/components/animaciones/animaciones", () => ({ useResalteMenu: () => {} }));
 vi.mock("@/components/ui", () => ({ Avatar: () => null }));
 vi.mock("@/components/eleccion", () => ({ Desplegable: () => null }));
+vi.mock("@/components/grabadora", () => ({ useGrabadora: () => null })); // F3 (A4-06): la barra mira si hay grabación al cerrar sesión
 const acciones = vi.hoisted(() => ({ asignarLeads: vi.fn(), borrarLeads: vi.fn(async () => ({ borrados: 0, saltados: 0 })), cambiarEtiquetas: vi.fn(), moverLeads: vi.fn() }));
 vi.mock("@/app/(panel)/crm/acciones", () => acciones);
 vi.mock("@/components/dialogos", () => ({ confirmar: async () => true }));
