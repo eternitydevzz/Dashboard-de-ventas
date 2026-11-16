@@ -8,8 +8,9 @@ import { FormVenta, useAccion } from "@/components/acciones-lead";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { ESTADOS_CLIENTE, type EstadoCliente, type FichaCliente } from "@/lib/clientes";
 import type { Producto } from "@/lib/tipos";
-import { anotarSeguimiento, borrarPasoOnboarding, cambiarEstadoCliente, guardarCasoExito, guardarPasoOnboarding, marcarPasoOnboarding, nuevoCliente } from "./acciones";
+import { anotarSeguimiento, borrarPasoOnboarding, borrarSeguimiento, cambiarEstadoCliente, guardarCasoExito, guardarPasoOnboarding, marcarPasoOnboarding, nuevoCliente } from "./acciones";
 import { confirmar } from "@/components/dialogos";
+import { useToast } from "@/components/toasts";
 
 type Paso = { id: string; nombre: string };
 const cerrarSiOk = (r: unknown, cerrar: () => void) => {
@@ -24,6 +25,15 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
   const [tab, setTab] = useState(pestana);
   const { pendiente, error, ejecutar } = useAccion();
   const [caso, setCaso] = useState(ficha.caso_exito);
+  const toast = useToast();
+  // N2: si sale bien, el aviso enseña «Deshacer» (y Ctrl+Z); `atras` dice cómo volver (null = nada que deshacer)
+  const conDeshacer = (fn: () => Promise<unknown>, mensaje: string, atras: (r: unknown) => (() => unknown) | null) =>
+    ejecutar(async () => {
+      const r = await exigirOk(fn());
+      const deshacer = atras(r);
+      toast(mensaje, "ok", deshacer ? { deshacer: { texto: mensaje, deshacer } } : undefined);
+      return r;
+    });
   return (
     <>
       <button className="btn-secundario px-2.5 py-1 text-xs" onClick={() => { setTab(pestana); setAbierto(true); }}>{texto}</button>
@@ -33,7 +43,7 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-texto-2">Estado:</span>
               {ESTADOS_CLIENTE.map((x) => (
-                <button key={x.v} disabled={pendiente} onClick={() => ejecutar(() => cambiarEstadoCliente(leadId, x.v as EstadoCliente), `Ahora está «${x.t}»`)} className={`rounded-full px-3 py-1 text-xs ${ficha.estado === x.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>
+                <button key={x.v} disabled={pendiente} onClick={() => { const antes = ficha.estado; conDeshacer(() => cambiarEstadoCliente(leadId, x.v as EstadoCliente), `Ahora está «${x.t}»`, () => (antes === x.v ? null : () => ejecutar(() => cambiarEstadoCliente(leadId, antes), "Deshecho"))); }} className={`rounded-full px-3 py-1 text-xs ${ficha.estado === x.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>
                   {x.t}
                 </button>
               ))}
@@ -45,7 +55,16 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
             </div>
 
             {tab === "seguimiento" && (
-              <form className="space-y-3" action={(fd) => ejecutar(async () => cerrarSiOk(await anotarSeguimiento(leadId, String(fd.get("nota") ?? ""), String(fd.get("proximo") ?? "")), () => setAbierto(false)), "Seguimiento guardado")}>
+              <form className="space-y-3" action={(fd) => {
+                const proximo = String(fd.get("proximo") ?? "");
+                const antes = ficha.proximo_contacto ?? "";
+                conDeshacer(async () => cerrarSiOk(await anotarSeguimiento(leadId, String(fd.get("nota") ?? ""), proximo), () => setAbierto(false)), "Seguimiento guardado", (r) => {
+                  const id = (r as { seguimientoId?: string | null } | undefined)?.seguimientoId;
+                  if (!id && proximo === antes) return null;
+                  // Deshacer = borrar ese seguimiento y, si cambió, volver a la fecha de antes (nota vacía = no crea otro)
+                  return () => ejecutar(async () => { if (id) await exigirOk(borrarSeguimiento(id)); if (proximo !== antes) await exigirOk(anotarSeguimiento(leadId, "", antes)); }, "Deshecho");
+                });
+              }}>
                 <div><label className="etiqueta-campo" htmlFor="seg-nota">Nota de este contacto (opcional)</label><textarea id="seg-nota" name="nota" rows={3} className="campo" placeholder="Cómo va, qué necesita…" /></div>
                 <div><label className="etiqueta-campo" htmlFor="seg-proximo">Próximo contacto</label><input id="seg-proximo" name="proximo" type="date" defaultValue={ficha.proximo_contacto ?? ""} className="campo" /></div>
                 <button className="btn-primario w-full" disabled={pendiente}>Guardar</button>
@@ -63,7 +82,8 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
                 {pasos.length === 0 && <p className="text-texto-3">No hay pasos. Créalos en «Pasos del onboarding».</p>}
                 {pasos.map((p) => (
                   <label key={p.id} className="flex items-center gap-2 rounded-lg bg-panel-2 px-3 py-2">
-                    <input type="checkbox" defaultChecked={!!ficha.onboarding[p.id]} disabled={pendiente} onChange={(e) => ejecutar(() => marcarPasoOnboarding(leadId, p.id, e.target.checked), e.target.checked ? "Paso hecho" : "Paso desmarcado")} />
+                    {/* key con el valor guardado: al deshacer, la casilla se vuelve a pintar como está en la base */}
+                    <input key={`${p.id}-${!!ficha.onboarding[p.id]}`} type="checkbox" defaultChecked={!!ficha.onboarding[p.id]} disabled={pendiente} onChange={(e) => { const si = e.target.checked; conDeshacer(() => marcarPasoOnboarding(leadId, p.id, si), si ? "Paso hecho" : "Paso desmarcado", () => () => ejecutar(() => marcarPasoOnboarding(leadId, p.id, !si), "Deshecho")); }} />
                     <span className="flex-1">{p.nombre}</span>
                     {ficha.onboarding[p.id] && <span className="text-[11px] text-texto-3">{new Date(ficha.onboarding[p.id]).toLocaleDateString("es-ES", { timeZone: zona })}</span>}
                   </label>

@@ -44,11 +44,25 @@ export async function anotarSeguimiento(leadId: string, nota: string, proximo: s
     const { perfil, proyecto } = await clientePermitido(leadId);
     if (proximo && !FECHA.test(proximo)) throw new ErrorUsuario("Fecha no válida.");
     if (nota.length > 4000) throw new ErrorUsuario("La nota es demasiado larga.");
+    let seguimientoId: string | null = null; // N2: el id creado, para que «Deshacer» borre justo ese
     if (nota.trim()) {
-      await escribir(db().from("seguimientos_cliente").insert({ proyecto_id: proyecto.id, lead_id: leadId, nota: nota.trim(), perfil_id: perfil.id }), "seguimientos_cliente");
+      const { data } = await escribir(db().from("seguimientos_cliente").insert({ proyecto_id: proyecto.id, lead_id: leadId, nota: nota.trim(), perfil_id: perfil.id }).select("id").single(), "seguimientos_cliente");
+      seguimientoId = (data as { id: string }).id;
       await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "nota", resultado: null, nota: `Seguimiento de cliente: ${nota.trim()}` });
     }
     await actualizarFicha(proyecto.id, leadId, { proximo_contacto: proximo || null });
+    refrescar();
+    return { seguimientoId };
+  });
+}
+
+// N2 «Deshacer» de un seguimiento: solo uno propio, del mismo proyecto y de los últimos 15 minutos
+export async function borrarSeguimiento(id: string) {
+  return seguro(async () => {
+    const { perfil, proyecto } = await exigirSeccion("clientes");
+    const desde = new Date(Date.now() - 15 * 60_000).toISOString();
+    const { data } = await escribir(db().from("seguimientos_cliente").delete().eq("id", id).eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).gte("creado_en", desde).select("id"), "seguimientos_cliente");
+    if (!data?.length) throw new ErrorUsuario("Ese seguimiento ya no se puede deshacer: solo los tuyos de los últimos 15 minutos.");
     refrescar();
   });
 }
