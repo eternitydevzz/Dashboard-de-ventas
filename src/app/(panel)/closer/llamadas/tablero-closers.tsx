@@ -17,6 +17,7 @@ import { confirmar } from "@/components/dialogos";
 import { Pastillas } from "@/components/eleccion";
 import { ARRASTRE_COLUMNA } from "@/lib/orden";
 import { TarjetaCrm } from "@/components/tarjeta-crm";
+import { conDeshacer, seDeshaceEstado } from "../acciones-cita";
 
 // Tablero «Closers» (Paso 0, Cristian 10 oct 2026): Pre-call y Post-call juntos, en el CRM y en Agendas.
 // Columnas unidas: Pre-call cambia el estado de la cita; Post-call como en el H6 (estrellas, fecha, venta; las
@@ -91,23 +92,37 @@ export function TableroClosers({
     return r.citaId;
   }
 
+  // N2: Deshacer = la misma acción con lo de antes. Cambiar el estado saca la cita de su columna libre (trigger
+  // cita_columna_closers), así que al deshacer también vuelve a ella. Nada de esto sale a GHL ni a workflows.
+  function volverCita(c: TarjetaCitaC, origen: string, estadoAntes?: EstadoCita) {
+    const libre = columnas.find((x) => x.id === origen)?.clave ? null : origen;
+    return () =>
+      ejecutar(async () => {
+        if (estadoAntes) await exigirOk(cambiarEstadoCita(c.id, estadoAntes, ""));
+        if (libre || !estadoAntes) await exigirOk(moverCitaColumna(c.id, libre));
+      }, "Deshecho");
+  }
+  const moverColumna = (c: TarjetaCitaC, origen: string, etapaId: string | null, msg: string) => ejecutar(conDeshacer(toast, () => moverCitaColumna(c.id, etapaId), msg, volverCita(c, origen)));
+  const cambiarEstado = (c: TarjetaCitaC, origen: string, e: EstadoCita, msg: string) =>
+    seDeshaceEstado(c.estado, e) ? ejecutar(conDeshacer(toast, () => cambiarEstadoCita(c.id, e, ""), msg, volverCita(c, origen, c.estado))) : ejecutar(() => cambiarEstadoCita(c.id, e, ""), msg);
+
   function mover(item: Item, destino: ColumnaC) {
     if (item.origen === destino.id) return;
     const clave = destino.clave;
     // Columna libre: solo citas (se quedan ahí hasta que cambie su estado)
     if (!clave) {
       if (item.clase === "venta") toast("Una venta solo va a Reserva, Cuotas o Cerradas, o a una columna de citas (y se borra).", "error");
-      else ejecutar(() => moverCitaColumna(item.cita.id, destino.id), `${item.cita.nombre} → ${destino.t}`);
+      else moverColumna(item.cita, item.origen, destino.id, `${item.cita.nombre} → ${destino.t}`);
       return;
     }
     // Vuelve a la columna de su estado: no cambia nada más
     if (item.clase === "cita" && item.cita.natural === clave) {
-      ejecutar(() => moverCitaColumna(item.cita.id, null), `${item.cita.nombre} → ${destino.t}`);
+      moverColumna(item.cita, item.origen, null, `${item.cita.nombre} → ${destino.t}`);
       return;
     }
     // Pre-call: cambia el estado de la cita
     if (esClavePrecall(clave)) {
-      if (item.clase === "cita") ejecutar(() => cambiarEstadoCita(item.cita.id, clave, ""), `${item.cita.nombre} → ${destino.t}`);
+      if (item.clase === "cita") cambiarEstado(item.cita, item.origen, clave, `${item.cita.nombre} → ${destino.t}`);
       else void confirmar(`¿Borrar la venta de ${item.venta.nombre} (${item.venta.facturacionTxt}) y pasar su cita a «${destino.t}»? Se borran también sus cobros y plazos; no se puede deshacer.`).then((ok) => {
         if (ok) ejecutar(async () => exigirOk(cambiarEstadoCita(await quitarVenta(item.venta), clave, "")), `${item.venta.nombre} → ${destino.t}`);
       });
@@ -129,7 +144,7 @@ export function TableroClosers({
     }
     const estado = DIRECTO[clave];
     if (estado) {
-      if (item.clase === "cita") ejecutar(() => cambiarEstadoCita(item.cita.id, estado, ""), `${item.cita.nombre} → ${destino.t}`);
+      if (item.clase === "cita") cambiarEstado(item.cita, item.origen, estado, `${item.cita.nombre} → ${destino.t}`);
       else void confirmar(`¿Borrar la venta de ${item.venta.nombre} (${item.venta.facturacionTxt}) y pasar su cita a «${destino.t}»? Se borran también sus cobros y plazos; no se puede deshacer.`).then((ok) => {
         if (ok) ejecutar(async () => exigirOk(cambiarEstadoCita(await quitarVenta(item.venta), estado, "")), `${item.venta.nombre} → ${destino.t}`);
       });

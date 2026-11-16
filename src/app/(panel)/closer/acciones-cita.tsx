@@ -9,7 +9,22 @@ import { useAccion, Mensajes, FormVenta } from "@/components/acciones-lead";
 import { Modal } from "@/components/modal";
 import { CoachIa } from "@/components/coach";
 import { SelectorEstrellas } from "@/components/estrellas";
+import { useToast } from "@/components/toasts";
+import { exigirOk } from "@/lib/resultado-cliente";
 import type { EstadoCita, Producto } from "@/lib/tipos";
+
+// N2 (Cristian): se deshacen (botón y Ctrl+Z) solo los estados que cambian únicamente la cita: ninguno manda nada
+// fuera ni su actividad cuenta en KPIs (metricas.ts). No: no califica, seguimiento y perdida (mueven el lead en el CRM
+// y ponen estrellas), cerrada (venta) y reagendada (crea otra cita).
+const SE_DESHACEN: EstadoCita[] = ["pendiente", "confirmacion_pendiente", "confirmada", "no_show", "cancelada"];
+export const seDeshaceEstado = (antes: EstadoCita, despues: EstadoCita) => antes !== despues && SE_DESHACEN.includes(antes) && SE_DESHACEN.includes(despues);
+
+// Para `ejecutar` de useAccion (sin su mensaje): si sale bien, el aviso lleva «Deshacer»
+export const conDeshacer = (toast: ReturnType<typeof useToast>, fn: () => Promise<unknown>, mensaje: string, volver: () => unknown) => async () => {
+  const r = await exigirOk(fn());
+  toast(mensaje, "ok", { deshacer: { texto: mensaje, deshacer: volver } });
+  return r;
+};
 
 export function AccionesCita({
   cita,
@@ -31,7 +46,12 @@ export function AccionesCita({
   const [modal, setModal] = useState<null | "venta" | "reagendar" | "seguimiento" | "perdida" | "closer">(null);
   const b = "btn-secundario px-2.5 py-1.5 text-xs";
   const abierta = cita.estado === "pendiente" || cita.estado === "confirmada" || cita.estado === "confirmacion_pendiente";
-  const estado = (e: EstadoCita, msg: string) => ejecutar(() => cambiarEstadoCita(cita.id, e, ""), msg);
+  const toast = useToast();
+  const estado = (e: EstadoCita, msg: string) => {
+    const antes = cita.estado;
+    if (!seDeshaceEstado(antes, e)) return ejecutar(() => cambiarEstadoCita(cita.id, e, ""), msg);
+    ejecutar(conDeshacer(toast, () => cambiarEstadoCita(cita.id, e, ""), msg, () => ejecutar(() => cambiarEstadoCita(cita.id, antes, ""), "Deshecho")));
+  };
   // Doble clic en «Registrar venta» = dos ventas: la ventana no se cierra hasta que responde el servidor (como en acciones-lead)
   const ventaEnCurso = useRef(false);
 
