@@ -190,8 +190,8 @@ type ArgsVenta = { leadId: string; producto: string; facturacion: number; cash: 
 
 export async function herramientaVenta(a: ArgsVenta) {
   await permisoFicha();
-  const { perfil, proyecto } = await getSesion();
-  if (perfil.rol === "caller") throw new ErrorUsuario("El caller no registra ventas: las cierra el closer."); // como registrarVenta
+  const { proyecto } = await getSesion();
+  // N1 (Cristian, 16 nov): el caller también registra ventas, como en la app (registrarVenta)
   const [lead] = await leadsDe([a.leadId]);
   const { data: prods } = await db().from("productos").select("id, nombre").eq("proyecto_id", proyecto.id).order("orden");
   const producto = elegir((prods ?? []) as { id: string; nombre: string }[], a.producto, "producto");

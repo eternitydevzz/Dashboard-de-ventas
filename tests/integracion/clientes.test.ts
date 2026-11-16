@@ -71,7 +71,8 @@ describe("Clientes", () => {
     expect(Number(v!.facturacion)).toBe(1997);
     expect((await db.from("vencimientos").select("importe").eq("venta_id", v!.id)).data!.map((x) => Number(x.importe))).toEqual([1000]);
     // Mismo teléfono sin el prefijo del país → misma persona (últimas 9 cifras, V2-12)
-    await ok(nuevoCliente(venta({ nombre: "Marta", telefono: "600 111 222" })));
+    // Otra compra suya (otro producto): la misma venta repetida en menos de 1 min sería un doble clic (S5-4, Fase 2)
+    await ok(nuevoCliente(venta({ nombre: "Marta", telefono: "600 111 222", producto: e.productos["Low ticket"], facturacion: "47", cash: "47", tipo_pago: "completo" })));
     expect((await db.from("leads").select("id").eq("proyecto_id", e.proyecto.id).eq("nombre", "Marta")).data).toHaveLength(1);
     expect((await db.from("ventas").select("id").eq("lead_id", marta!.id)).data).toHaveLength(2);
     // Venta mal hecha (cobrado > facturación): error y sin lead suelto

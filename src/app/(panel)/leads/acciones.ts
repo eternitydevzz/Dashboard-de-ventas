@@ -354,6 +354,7 @@ export async function registrarVenta(leadId: string, formData: FormData) {
       p_estrellas: estrellasCloser || null,
     });
     if (error?.message.includes("cita_cerrada")) throw new ErrorUsuario("Esa cita no es de este lead o ya está cerrada.");
+    if (error?.message.includes("registrar_venta: duplicada")) throw new ErrorUsuario("Esta venta ya se acaba de registrar (doble clic): mira Ventas antes de repetirla."); // S5-4
     if (error) throw new Error(`No se pudo guardar la venta: ${error.message}`);
     if (cita && adelantada) await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", nota: `Cita adelantada: era el ${fechaHora(cita.fecha, proyecto)}` });
     await registrarActividad({

@@ -234,7 +234,7 @@ export function AccionesVencimiento({ id, deVenta, estado, venceEl }: { id: stri
 export function ImportarBanco({ cuentas }: { cuentas: Op[] }) {
   const [abierto, setAbierto] = useState(false);
   const [cuenta, setCuenta] = useState("");
-  const [res, setRes] = useState<{ importados: number; fallos: string[] } | null>(null);
+  const [res, setRes] = useState<{ importados: number; saltadas?: number; fallos: string[] } | null>(null);
   const [error, setError] = useState("");
   const [cargando, iniciar] = useTransition();
   return (
@@ -245,10 +245,10 @@ export function ImportarBanco({ cuentas }: { cuentas: Op[] }) {
           <div className="space-y-3 text-sm">
             <p className="text-texto-2">Columnas: <code>fecha</code> (AAAA-MM-DD o DD/MM/AAAA), <code>descripcion</code> e <code>importe</code> (negativo = gasto). Quedan «sin conciliar» hasta que les pongas categoría.</p>
             <Desplegable className="campo" value={cuenta} onChange={(e) => setCuenta(e.target.value)} aria-label="Cuenta"><option value="">Cuenta por defecto</option>{cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</Desplegable>
-            <input type="file" accept=".csv,text/csv" className="campo" disabled={cargando} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setError(""); const t = await f.text(); iniciar(async () => { try { setRes((await exigirOk(importarMovimientos(t, cuenta || null))) as { importados: number; fallos: string[] }); } catch (err) { setError(err instanceof Error ? err.message : "Algo falló."); } }); }} />
+            <input type="file" accept=".csv,text/csv" className="campo" disabled={cargando} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setError(""); const t = await f.text(); iniciar(async () => { try { setRes((await exigirOk(importarMovimientos(t, cuenta || null))) as { importados: number; saltadas?: number; fallos: string[] }); } catch (err) { setError(err instanceof Error ? err.message : "Algo falló."); } }); }} />
             {cargando && <p className="text-texto-3">Importando…</p>}
             {error && <p className="text-mal">{error}</p>}
-            {res && <div className="rounded-lg bg-panel-2 p-3"><b>{res.importados}</b> movimientos importados.{res.fallos.length > 0 && <ul className="mt-2 list-disc pl-5 text-xs text-mal">{res.fallos.slice(0, 20).map((f) => <li key={f}>{f}</li>)}</ul>}</div>}
+            {res && <div className="rounded-lg bg-panel-2 p-3"><b>{res.importados}</b> movimientos importados.{!!res.saltadas && <span className="text-texto-3"> {res.saltadas} ya estaban importadas (misma fecha, importe y descripción): no se repiten.</span>}{res.fallos.length > 0 && <ul className="mt-2 list-disc pl-5 text-xs text-mal">{res.fallos.slice(0, 20).map((f) => <li key={f}>{f}</li>)}</ul>}</div>}
           </div>
         </Modal>
       )}
