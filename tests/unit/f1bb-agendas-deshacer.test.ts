@@ -153,14 +153,14 @@ describe("tablero de Agendas", () => {
     expect(acc.moverCitaColumna).toHaveBeenCalledWith("c1", "libre1");
     pasoDeshacer()!.deshacer();
     await esperar();
-    expect(acc.moverCitaColumna).toHaveBeenLastCalledWith("c1", null);
+    expect(acc.moverCitaColumna).toHaveBeenLastCalledWith("c1", null, "libre1"); // solo si sigue en «libre1»
   });
   it("de una columna libre a otra libre se deshace volviendo a la primera", async () => {
     soltar(pintarTablero([col("libre1", null, [tarjeta("pendiente", "pendiente")]), col("libre2", null)]), "libre2", "libre1");
     await esperar();
     pasoDeshacer()!.deshacer();
     await esperar();
-    expect(acc.moverCitaColumna).toHaveBeenLastCalledWith("c1", "libre1");
+    expect(acc.moverCitaColumna).toHaveBeenLastCalledWith("c1", "libre1", "libre2");
   });
   it("de una columna libre a la de su estado se deshace volviendo a la libre", async () => {
     soltar(pintarTablero([col("libre1", null, [tarjeta("pendiente", "pendiente")]), col("pendiente", "pendiente")]), "pendiente", "libre1");
@@ -168,6 +168,6 @@ describe("tablero de Agendas", () => {
     expect(acc.moverCitaColumna).toHaveBeenCalledWith("c1", null);
     pasoDeshacer()!.deshacer();
     await esperar();
-    expect(acc.moverCitaColumna).toHaveBeenLastCalledWith("c1", "libre1");
+    expect(acc.moverCitaColumna).toHaveBeenLastCalledWith("c1", "libre1", null);
   });
 });
