@@ -7,6 +7,8 @@ import { useAccion } from "@/components/acciones-lead";
 import { borrarPasoCloser, guardarPasoCloser, marcarPasoCloser } from "./acciones";
 import { confirmar, pedirTexto } from "@/components/dialogos";
 import { Desplegable } from "@/components/eleccion";
+import { useToast } from "@/components/toasts";
+import { exigirOk } from "@/lib/resultado-cliente";
 
 type Paso = { id: string; nombre: string };
 
@@ -14,6 +16,7 @@ type Paso = { id: string; nombre: string };
 // en el sitio (renombrar, quitar, añadir). Marcar un paso = pulsar su círculo.
 export function ChecklistCliente({ leadId, pasos, hechos, editable = false, zona }: { leadId: string; pasos: Paso[]; hechos: Record<string, string>; editable?: boolean; zona: string }) {
   const { pendiente, error, ejecutar } = useAccion();
+  const toast = useToast();
   return (
     <div>
       <ol className="relative space-y-0">
@@ -26,7 +29,15 @@ export function ChecklistCliente({ leadId, pasos, hechos, editable = false, zona
               <button
                 type="button"
                 disabled={pendiente}
-                onClick={() => ejecutar(() => marcarPasoCloser(leadId, p.id, !hecho), !hecho ? `${p.nombre}: hecho` : `${p.nombre}: sin hacer`)}
+                onClick={() => {
+                  const mensaje = !hecho ? `${p.nombre}: hecho` : `${p.nombre}: sin hacer`;
+                  // N2: si sale bien, «Deshacer» (y Ctrl+Z) lo deja como estaba con la misma acción
+                  ejecutar(async () => {
+                    const r = await exigirOk(marcarPasoCloser(leadId, p.id, !hecho));
+                    toast(mensaje, "ok", { deshacer: { texto: mensaje, deshacer: () => ejecutar(() => marcarPasoCloser(leadId, p.id, hecho), "Deshecho") } });
+                    return r;
+                  });
+                }}
                 className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold transition ${hecho ? "border-ok bg-ok text-white" : "border-borde-fuerte bg-panel text-texto-3 hover:border-primario hover:text-primario"}`}
                 aria-label={`${p.nombre}: ${hecho ? "hecho (pulsa para desmarcar)" : "sin hacer (pulsa para marcar)"}`}
                 aria-pressed={hecho}

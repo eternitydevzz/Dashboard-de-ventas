@@ -330,7 +330,8 @@ export async function moverLead(leadId: string, etapaId: string) {
 }
 
 // «Closers» (Paso 0): una cita a una columna libre (o de vuelta a la de su estado con null)
-export async function moverCitaColumna(citaId: string, etapaId: string | null) {
+// `siEtapa` (Deshacer, N2): solo si la cita sigue en la columna que dejó ese clic (undefined = sin comprobar)
+export async function moverCitaColumna(citaId: string, etapaId: string | null, siEtapa?: string | null) {
   return seguro(async () => {
     await exigirSeccion("crm", "agendas"); // H5
     const { perfil, proyecto } = await getSesion();
@@ -345,7 +346,10 @@ export async function moverCitaColumna(citaId: string, etapaId: string | null) {
       await exigirNivel(perfil, proyecto.id, e.pipeline_id, "ver");
       nombre = `«${e.nombre}»`;
     }
-    await escribir(db().from("citas").update({ etapa_closers_id: etapaId }).eq("id", citaId), "citas");
+    let cambio = db().from("citas").update({ etapa_closers_id: etapaId }).eq("id", citaId);
+    if (siEtapa !== undefined) cambio = siEtapa === null ? cambio.is("etapa_closers_id", null) : cambio.eq("etapa_closers_id", siEtapa);
+    const { data: movida } = await escribir(cambio.select("id"), "citas");
+    if (siEtapa !== undefined && movida?.length !== 1) throw new ErrorUsuario("Esta cita cambió después: ya no se puede deshacer.");
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cambio_etapa", nota: `Cita movida a ${nombre} (Closers)` });
     refrescar();
   });

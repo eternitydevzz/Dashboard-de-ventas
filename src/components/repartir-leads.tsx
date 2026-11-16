@@ -8,6 +8,7 @@ import { exigirOk } from "@/lib/resultado-cliente";
 import { MODOS_REPARTO, type ModoReparto } from "@/lib/reparto";
 import { OFERTAS } from "@/lib/oferta";
 import { previsualizarReparto, repartirLeads, type PeticionReparto } from "@/app/(panel)/crm/reparto";
+import { asignarLeads } from "@/app/(panel)/crm/acciones";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 import { SIN_PAIS, nombrePais } from "@/lib/formato";
 
@@ -100,8 +101,11 @@ export function RepartirLeads({
     setError("");
     iniciar(async () => {
       try {
-        const r = (await exigirOk(repartirLeads(peticion()))) as { repartidos: number };
-        toast(quitar ? `${r.repartidos} leads sin caller` : `${r.repartidos} leads repartidos`);
+        const r = (await exigirOk(repartirLeads(peticion()))) as { repartidos: number; antes?: Record<string, string[]> };
+        const texto = quitar ? `${r.repartidos} leads sin caller` : `${r.repartidos} leads repartidos`;
+        // F1b (botón y Ctrl+Z): cada lead vuelve a su caller de antes («» = sin caller). Desasignar no trae «antes».
+        const antes = r.antes && Object.keys(r.antes).length ? r.antes : null;
+        toast(texto, "ok", antes ? { deshacer: { texto, deshacer: () => deshacerReparto(antes) } } : undefined);
         setAbierto(false);
         setVista(null);
       } catch (e) {
@@ -109,6 +113,15 @@ export function RepartirLeads({
       }
     });
   };
+  const deshacerReparto = (antes: Record<string, string[]>) =>
+    iniciar(async () => {
+      try {
+        for (const [caller, ids] of Object.entries(antes)) await exigirOk(asignarLeads(ids, caller || null));
+        toast("Reparto deshecho");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "No se pudo deshacer.", "error");
+      }
+    });
   // Los países con leads disponibles (más primero; «Sin país» al final) y los elegidos aunque ya no tengan ninguno
   const opcionesPais = Object.entries({ ...Object.fromEntries(paises.map((p) => [p, 0])), ...(ultimosPaises ?? {}) }).sort((a, b) =>
     a[0] === SIN_PAIS ? 1 : b[0] === SIN_PAIS ? -1 : b[1] - a[1] || nombrePais(a[0]).localeCompare(nombrePais(b[0]))

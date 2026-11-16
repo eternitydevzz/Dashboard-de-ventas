@@ -35,7 +35,8 @@ async function citaPermitida(citaId: string) {
   return { cita, perfil, proyecto };
 }
 
-export async function cambiarEstadoCita(citaId: string, estado: EstadoCita, nota: string, estrellas?: number) {
+// siEstado (Deshacer, N2): solo escribe si la cita sigue en el estado que dejó ese clic; así no pisa a otra persona
+export async function cambiarEstadoCita(citaId: string, estado: EstadoCita, nota: string, estrellas?: number, siEstado?: EstadoCita) {
   return seguro(async () => {
     await exigirSeccion("agendas"); // H5
     nota = notaValida(nota);
@@ -43,8 +44,10 @@ export async function cambiarEstadoCita(citaId: string, estado: EstadoCita, nota
     const { cita, perfil, proyecto } = await citaPermitida(citaId);
     const n = estado === "no_califica" ? 1 : PIDEN_ESTRELLAS.includes(estado) ? estrellasEntre(estrellas, 1, 5) : null;
     // Ola 6 (C6): una cerrada tiene su venta y no vuelve a otro estado (ni con la IA ni si se cerró a la vez)
-    const { data: cambiada } = await escribir(db().from("citas").update({ estado, nota: nota || cita.nota, ...(n ? { estrellas_closer: n } : {}) }).eq("id", citaId).neq("estado", "cerrada").select("id"), "citas");
-    if (cambiada?.length !== 1) throw new ErrorUsuario("Esta cita acaba de cambiar. Recarga la página y vuelve a intentarlo.");
+    let cambio = db().from("citas").update({ estado, nota: nota || cita.nota, ...(n ? { estrellas_closer: n } : {}) }).eq("id", citaId).neq("estado", "cerrada");
+    if (siEstado) cambio = cambio.eq("estado", siEstado);
+    const { data: cambiada } = await escribir(cambio.select("id"), "citas");
+    if (cambiada?.length !== 1) throw new ErrorUsuario(siEstado ? "Esta cita cambió después: ya no se puede deshacer." : "Esta cita acaba de cambiar. Recarga la página y vuelve a intentarlo.");
     await registrarActividad({
       proyecto_id: proyecto.id,
       lead_id: cita.lead_id,

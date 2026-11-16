@@ -165,8 +165,24 @@ export async function anadirNota(leadId: string, nota: string) {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
     nota = notaValida(nota);
     if (!nota.trim()) return;
+    const inicio = new Date(Date.now() - 1000).toISOString(); // margen por relojes
     const { perfil, proyecto } = await leadPermitido(leadId);
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "nota", nota: nota.trim() });
+    // F1b (Deshacer): registrarActividad no devuelve el id; la de este clic (misma persona, lead y texto, desde el inicio)
+    const { data } = await db().from("actividades").select("id").eq("lead_id", leadId).eq("perfil_id", perfil.id).eq("tipo", "nota").eq("nota", nota.trim()).gte("creado_en", inicio).order("creado_en", { ascending: false }).limit(1).maybeSingle();
+    refrescar();
+    return data ? { id: data.id as string } : undefined;
+  });
+}
+
+// F1b (botón «Deshacer» y Ctrl+Z de «Nota guardada»): borra solo una nota mía, de este proyecto y de hace 15 min o menos
+export async function borrarNotaReciente(actividadId: string) {
+  return seguro(async () => {
+    const { perfil, proyecto } = await exigirSeccion("cola", "crm", "agendas", "clientes");
+    if (!actividadId || typeof actividadId !== "string") throw new ErrorUsuario("Nota no encontrada.");
+    const desde = new Date(Date.now() - 15 * 60_000).toISOString();
+    const { data } = await escribir(db().from("actividades").delete().eq("id", actividadId).eq("tipo", "nota").eq("perfil_id", perfil.id).eq("proyecto_id", proyecto.id).gte("creado_en", desde).select("id"), "actividades");
+    if (!data?.length) throw new ErrorUsuario("Esta nota ya no se puede deshacer.");
     refrescar();
   });
 }
@@ -373,5 +389,7 @@ export async function volverANuevo(leadId: string) {
     await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "nota", nota: "Devuelto a «Nuevo» en el tablero del caller" });
     refrescar();
+    // F1b: se deshace con deshacerResultado (su nota del historial se queda: es tipo «nota», que ese no borra)
+    return { deshacer: { leadId, despues: "nuevo", antes: antesDe(lead), actividades: [] } satisfies PasoResultado };
   });
 }

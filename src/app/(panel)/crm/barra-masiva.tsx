@@ -49,9 +49,47 @@ export function BarraMasiva({
   const ids = [...seleccion];
   const n = ids.length;
   const de = (x: string) => (x === "__ninguno" ? null : x);
+  // F1b (Deshacer, botón y Ctrl+Z): lo de antes sale de los leads marcados que hay en pantalla, agrupado por valor
+  const marcados = leads.filter((l) => seleccion.has(l.id));
+  const agrupar = (valores: (l: LeadTarjeta) => string[]) => {
+    const g = new Map<string, string[]>();
+    for (const l of marcados) for (const v of valores(l)) g.set(v, [...(g.get(v) ?? []), l.id]);
+    return g;
+  };
+  const igual = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+  function asignar() {
+    const callerAntes = caller ? agrupar((l) => [l.caller_id ?? ""]) : null;
+    const closerAntes = closer ? agrupar((l) => [l.closer_id ?? ""]) : null;
+    ejecutar(
+      async () => {
+        await exigirOk(asignarLeads(ids, caller ? de(caller) : undefined, closer ? de(closer) : undefined));
+        setCaller("");
+        setCloser("");
+      },
+      `${n} leads asignados`,
+      () => ejecutar(async () => {
+        for (const [c, grupo] of callerAntes ?? []) await exigirOk(asignarLeads(grupo, c || null, undefined));
+        for (const [c, grupo] of closerAntes ?? []) await exigirOk(asignarLeads(grupo, undefined, c || null));
+      }, `${n} leads con su caller/closer de antes`)
+    );
+  }
+
+  // Añadir: deshacer la quita a los que no la tenían. Quitar: se la vuelve a poner (como estaba escrita) a quien la tenía.
+  function etiquetar(anadir: boolean) {
+    const t = etiqueta.trim();
+    const antes = anadir ? agrupar((l) => (l.etiquetas.some((e) => igual(e, t)) ? [] : [t])) : agrupar((l) => [...new Set(l.etiquetas.filter((e) => igual(e, t)))]);
+    ejecutar(
+      async () => {
+        await exigirOk(cambiarEtiquetas(ids, anadir ? [etiqueta] : [], anadir ? [] : [etiqueta]));
+        setEtiqueta("");
+      },
+      `Etiqueta «${t}» ${anadir ? "añadida" : "quitada"}`,
+      antes.size ? () => ejecutar(async () => { for (const [e, grupo] of antes) await exigirOk(cambiarEtiquetas(grupo, anadir ? [] : [e], anadir ? [e] : [])); }, "Etiquetas como estaban") : undefined
+    );
+  }
 
   async function exportar() {
-    const marcados = leads.filter((l) => seleccion.has(l.id));
     // C6: con la ficha de cualificación del caller (columnas «Cualificación · …»)
     let fichas: Awaited<ReturnType<typeof fichasParaExportar>> = {};
     try {
@@ -101,13 +139,7 @@ export function BarraMasiva({
       <button
         className="btn-secundario px-2.5 py-1.5 text-xs"
         disabled={!caller && !closer}
-        onClick={() =>
-          ejecutar(async () => {
-            await exigirOk(asignarLeads(ids, caller ? de(caller) : undefined, closer ? de(closer) : undefined));
-            setCaller("");
-            setCloser("");
-          }, `${n} leads asignados`)
-        }
+        onClick={asignar}
       >
         Asignar
       </button>
@@ -139,10 +171,10 @@ export function BarraMasiva({
         <Tag className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-texto-3" />
         <input value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} placeholder="Etiqueta" className="campo w-28 py-1.5 pl-8 text-xs" aria-label="Etiqueta" />
       </div>
-      <button className="btn-secundario px-2.5 py-1.5 text-xs" disabled={!etiqueta.trim()} onClick={() => ejecutar(async () => { await exigirOk(cambiarEtiquetas(ids, [etiqueta], [])); setEtiqueta(""); }, `Etiqueta «${etiqueta.trim()}» añadida`)}>
+      <button className="btn-secundario px-2.5 py-1.5 text-xs" disabled={!etiqueta.trim()} onClick={() => etiquetar(true)}>
         Añadir
       </button>
-      <button className="btn-secundario px-2.5 py-1.5 text-xs" disabled={!etiqueta.trim()} onClick={() => ejecutar(async () => { await exigirOk(cambiarEtiquetas(ids, [], [etiqueta])); setEtiqueta(""); }, `Etiqueta «${etiqueta.trim()}» quitada`)}>
+      <button className="btn-secundario px-2.5 py-1.5 text-xs" disabled={!etiqueta.trim()} onClick={() => etiquetar(false)}>
         Quitar
       </button>
       <button className="btn-secundario px-2.5 py-1.5 text-xs" onClick={() => void exportar()}>

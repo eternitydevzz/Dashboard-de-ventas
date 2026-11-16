@@ -4,18 +4,29 @@
 export type PasoDeshacer = { texto: string; deshacer: () => unknown };
 
 const MAX = 20;
+const CADUCA_MS = 15 * 60_000; // revisor 1b: un Ctrl+Z tardío no pisa lo que otra persona cambió después
 const pila: PasoDeshacer[] = [];
+const hora = new WeakMap<PasoDeshacer, number>();
+const vivo = (p: PasoDeshacer) => Date.now() - (hora.get(p) ?? 0) <= CADUCA_MS;
 
 export function apuntarDeshacer(paso: PasoDeshacer) {
   pila.push(paso);
+  hora.set(paso, Date.now());
   if (pila.length > MAX) pila.shift();
 }
 
 // Saca el paso de la lista (por el botón «Deshacer» o por Ctrl+Z): cada paso se deshace una sola vez
 export function sacarDeshacer(paso?: PasoDeshacer) {
-  if (!paso) return pila.pop();
+  if (!paso) {
+    while (pila.length) {
+      const p = pila.pop()!;
+      if (vivo(p)) return p;
+    }
+    return undefined;
+  }
   const i = pila.lastIndexOf(paso);
-  return i >= 0 ? pila.splice(i, 1)[0] : undefined;
+  const p = i >= 0 ? pila.splice(i, 1)[0] : undefined;
+  return p && vivo(p) ? p : undefined;
 }
 
 export function vaciarDeshacer() {
