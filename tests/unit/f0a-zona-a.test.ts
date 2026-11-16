@@ -135,7 +135,7 @@ describe("A2-07 + A4-08 · las acciones masivas solo van a los marcados que se v
     (borrar.props.onClick as () => void)();
     await vi.waitFor(() => expect(ejecutar).toHaveBeenCalled());
     await ejecutar.mock.results[0].value;
-    const ids = acciones.borrarLeads.mock.calls.at(-1)![0] as string[];
+    const ids = (acciones.borrarLeads.mock.calls.at(-1) as unknown[])[0] as string[];
     expect(ids).toHaveLength(75);
     expect(ids.every((id) => vistos.some((l) => l.id === id))).toBe(true);
   });
