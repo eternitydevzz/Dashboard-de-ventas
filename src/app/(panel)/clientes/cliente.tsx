@@ -59,10 +59,10 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
                 const proximo = String(fd.get("proximo") ?? "");
                 const antes = ficha.proximo_contacto ?? "";
                 conDeshacer(async () => cerrarSiOk(await anotarSeguimiento(leadId, String(fd.get("nota") ?? ""), proximo), () => setAbierto(false)), "Seguimiento guardado", (r) => {
-                  const id = (r as { seguimientoId?: string | null } | undefined)?.seguimientoId;
+                  const { seguimientoId: id, actividadId } = (r as { seguimientoId?: string | null; actividadId?: string | null } | undefined) ?? {};
                   if (!id && proximo === antes) return null;
-                  // Deshacer = borrar ese seguimiento y, si cambió, volver a la fecha de antes (nota vacía = no crea otro)
-                  return () => ejecutar(async () => { if (id) await exigirOk(borrarSeguimiento(id)); if (proximo !== antes) await exigirOk(anotarSeguimiento(leadId, "", antes)); }, "Deshecho");
+                  // Deshacer = borrar ese seguimiento (y su línea del historial) y, si cambió, volver a la fecha de antes (nota vacía = no crea otro)
+                  return () => ejecutar(async () => { if (id) await exigirOk(borrarSeguimiento(id, actividadId)); if (proximo !== antes) await exigirOk(anotarSeguimiento(leadId, "", antes)); }, "Deshecho");
                 });
               }}>
                 <div><label className="etiqueta-campo" htmlFor="seg-nota">Nota de este contacto (opcional)</label><textarea id="seg-nota" name="nota" rows={3} className="campo" placeholder="Cómo va, qué necesita…" /></div>

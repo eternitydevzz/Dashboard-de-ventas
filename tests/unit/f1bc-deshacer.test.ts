@@ -25,7 +25,7 @@ vi.mock("@/components/toasts", () => ({ useToast: () => avisos.toast, useQuitarT
 vi.mock("@/components/dialogos", () => ({ confirmar: async () => true, pedirTexto: async () => null }));
 const cli = vi.hoisted(() => ({
   cambiarEstadoCliente: vi.fn(async (..._a: unknown[]) => undefined),
-  anotarSeguimiento: vi.fn(async (..._a: unknown[]): Promise<unknown> => ({ seguimientoId: "s1" })),
+  anotarSeguimiento: vi.fn(async (..._a: unknown[]): Promise<unknown> => ({ seguimientoId: "s1", actividadId: "a1" })),
   borrarSeguimiento: vi.fn(async (..._a: unknown[]) => undefined),
   marcarPasoOnboarding: vi.fn(async (..._a: unknown[]) => undefined),
   guardarCasoExito: vi.fn(),
@@ -113,7 +113,7 @@ describe("Clientes · seguimiento", () => {
     expect(paso.texto).toBe("Seguimiento guardado");
     await paso.deshacer();
     await esperar();
-    expect(cli.borrarSeguimiento).toHaveBeenCalledWith("s1");
+    expect(cli.borrarSeguimiento).toHaveBeenCalledWith("s1", "a1");
     expect(cli.anotarSeguimiento).toHaveBeenLastCalledWith("l1", "", "2026-11-20");
   });
 
@@ -121,12 +121,12 @@ describe("Clientes · seguimiento", () => {
     await enviar("Hablamos", "2026-11-20");
     await pasoDeshacer()!.deshacer();
     await esperar();
-    expect(cli.borrarSeguimiento).toHaveBeenCalledWith("s1");
+    expect(cli.borrarSeguimiento).toHaveBeenCalledWith("s1", "a1");
     expect(cli.anotarSeguimiento).toHaveBeenCalledTimes(1);
   });
 
   it("sin nota, deshacer solo vuelve a la fecha de antes", async () => {
-    cli.anotarSeguimiento.mockResolvedValueOnce({ seguimientoId: null });
+    cli.anotarSeguimiento.mockResolvedValueOnce({ seguimientoId: null, actividadId: null });
     await enviar("", "");
     await pasoDeshacer()!.deshacer();
     await esperar();
