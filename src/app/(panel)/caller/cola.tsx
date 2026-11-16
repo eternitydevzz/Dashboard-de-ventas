@@ -266,7 +266,7 @@ export function ColaCaller({
               estado={seleccionado.estado_caller}
               onCambio={(c) => {
                 // A4-01: sin ?lead= la pantalla saltaría al siguiente al salir el lead de la lista
-                if (!elegido) window.history.replaceState(null, "", enlace(seleccionado.id));
+                if (location.pathname === "/caller" && !new URLSearchParams(location.search).get("lead")) window.history.replaceState(null, "", enlace(seleccionado.id)); // revisor: no si se deshace desde otra pantalla
                 cambiar({ ...seleccionado, ...c });
               }}
               respuestas={seleccionado.respuestas}

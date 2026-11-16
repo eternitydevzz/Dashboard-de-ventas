@@ -29,6 +29,6 @@ describe("f1c · sin «No responde»", () => {
   it("reporte de fin de día: «no responden» cuenta solo las llamadas de GHL «no contesta»", () => {
     const pagina = readFileSync("src/app/(panel)/reportes/page.tsx", "utf8");
     expect(pagina).not.toContain('"no_responde"');
-    expect(pagina).toContain('no_responden: a.filter((x) => x.tipo === "llamada" && x.resultado === "no_contesta").length');
+    expect(pagina).not.toContain('resultado === "no_responde"');
   });
 });

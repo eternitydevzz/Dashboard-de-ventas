@@ -112,7 +112,7 @@ export function GuionLlamada({
     const guion = dentro.current?.closest('[role="dialog"]') as HTMLElement | null;
     if (!guion) return;
     const alEntrar = (e: FocusEvent) => {
-      if (e.target instanceof Element && e.target.closest('[role="dialog"]')) return;
+      if (e.target instanceof Element && e.target.closest('[role="dialog"], [role="listbox"]')) return; // la lista de un desplegable va en un portal
       (guion.querySelector<HTMLElement>("button, a[href], input, textarea, select") ?? guion).focus();
     };
     document.addEventListener("focusin", alEntrar);

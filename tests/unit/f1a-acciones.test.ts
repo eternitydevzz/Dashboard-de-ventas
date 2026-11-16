@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       consultas.push(c);
       const tipo = () => (["update", "insert", "delete"].find((o) => c.ops.some(([x]) => x === o)) ?? "select");
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "neq", "in", "order", "limit", "update", "insert", "delete", "maybeSingle", "single"]) q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
+      for (const m of ["select", "eq", "neq", "in", "gte", "order", "limit", "update", "insert", "delete", "maybeSingle", "single"]) q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
       q.then = (r: (v: Resp) => unknown) => Promise.resolve(respuesta[`${tabla}:${tipo()}`] ?? { data: null, error: null }).then(r);
       return q;
     },
@@ -94,6 +94,24 @@ describe("A3b-01 · deshacer devuelve el lead exactamente a como estaba", () => 
     respuesta["leads:select"] = { data: { ...lead, estado_caller: "confirma_agenda" }, error: null };
     await deshacerResultado({ ...r.deshacer, leadId: "l1", despues: "confirma_agenda", antes: { estado_caller: "agendado", etapa_id: "e-ini", estrellas_caller: null, llamar_en: null }, actividades: [] } as never);
     expect(updates("citas")).toEqual([{ estado: "pendiente" }]);
+    // revisor: solo vuelve si la cita sigue «confirmada» (no reabre una cerrada, no-show o cancelada)
+    expect(de("citas", "update")[0].ops).toEqual(expect.arrayContaining([["eq", ["estado", "confirmada"]]]));
+  });
+
+  it("revisor: borra solo actividades recientes del mismo resultado y tipos de botón", async () => {
+    respuesta["leads:select"] = { data: { ...lead, estado_caller: "no_interesa" }, error: null };
+    await deshacerResultado({ leadId: "l1", despues: "no_interesa", antes: { estado_caller: "nuevo", etapa_id: "e-ini", estrellas_caller: null, llamar_en: null }, actividades: ["a1"] });
+    const ops = de("actividades", "delete")[0].ops;
+    expect(ops).toEqual(expect.arrayContaining([["eq", ["resultado", "no_interesa"]], ["in", ["tipo", ["llamada", "whatsapp", "cambio_etapa"]]]]));
+    expect(ops.some(([o, a]) => o === "gte" && a[0] === "creado_en")).toBe(true);
+  });
+
+  it("revisor: no deja volver a «Agendado» si el lead ya no tiene cita abierta", async () => {
+    respuesta["leads:select"] = { data: { ...lead, estado_caller: "seguimiento" }, error: null };
+    respuesta["citas:select"] = { data: null, error: null };
+    const r = await deshacerResultado({ leadId: "l1", despues: "seguimiento", antes: { estado_caller: "agendado", etapa_id: "e-ini", estrellas_caller: null, llamar_en: null }, actividades: [] });
+    expect(r).toMatchObject({ error: expect.stringMatching(/cita/) });
+    expect(updates("leads")).toHaveLength(0);
   });
 });
 

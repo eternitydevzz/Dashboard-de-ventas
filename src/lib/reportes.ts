@@ -5,7 +5,7 @@ export type Pregunta = { clave: string; texto: string; tipo: "numero" | "texto";
 export const PREGUNTAS: Record<"caller" | "closer", Pregunta[]> = {
   caller: [
     { clave: "llamadas", texto: "¿Cuántas llamadas?", tipo: "numero" },
-    { clave: "no_responden", texto: "¿Cuántas no responden?", tipo: "numero" },
+    // N1 (Cristian, 16 nov): fuera «¿Cuántas no responden?» con el botón «No responde» (se sigue con Wsp e «No interesa»)
     { clave: "agendas", texto: "¿Cuántas agendas?", tipo: "numero", destacada: true },
     { clave: "whatsapps", texto: "¿Cuántos mensajes de WhatsApp?", tipo: "numero" },
     { clave: "seguimientos", texto: "¿Cuántos seguimientos?", tipo: "numero" },

@@ -14,7 +14,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       consultas.push(c);
       const tipo = () => (c.ops.some(([o]) => o === "update") ? "update" : c.ops.some(([o]) => o === "insert") ? "insert" : "select");
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "in", "order", "limit", "update", "insert", "maybeSingle", "single"]) q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
+      for (const m of ["select", "eq", "in", "gte", "order", "limit", "update", "insert", "maybeSingle", "single"]) q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
       q.then = (r: (v: Resp) => unknown) => Promise.resolve(respuesta[`${tabla}:${tipo()}`] ?? { data: null, error: null }).then(r);
       return q;
     },
