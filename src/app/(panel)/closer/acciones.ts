@@ -103,6 +103,7 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
       agendada_por: cita.agendada_por ?? perfil.id, // la agenda sigue siendo mérito de quien la consiguió
       fecha,
       nota: cita.nota,
+      canal: cita.canal ?? null, // A5-04: sigue siendo del mismo canal
     });
     if (errNueva) {
       // Si la nueva no entra (otro cogió ese hueco a la vez), la de antes vuelve a como estaba: ninguna cita se pierde
