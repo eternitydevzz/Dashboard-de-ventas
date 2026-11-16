@@ -550,8 +550,9 @@ export async function crearWorkflowDeEtiqueta(etiqueta: string) {
 export async function pararWorkflow(workflowId: string) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
-    const { data: w } = await db().from("workflows").select("id").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
-    if (!w) throw new ErrorUsuario("Workflow no encontrado.");
+    const w = await workflowConEntrada(workflowId, proyecto.id);
+    // S1-1: en real «Mandar a GHL» de la Entrada está apagado; si se para, nadie manda sus leads (como borrarWorkflow)
+    if (w.entrada_id && w.modo === "real") throw new ErrorUsuario("Este workflow manda los leads de su Entrada a GHL. Pulsa primero «Volver a lo de hoy» y después apágalo.");
     await escribir(db().from("workflows").update({ encendido: false, actualizado_en: new Date().toISOString() }).eq("id", workflowId), "workflows");
     refrescar();
     return { ok: true as const };

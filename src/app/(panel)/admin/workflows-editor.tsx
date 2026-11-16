@@ -200,7 +200,7 @@ export function EditorWorkflow({
               type="checkbox"
               className="interruptor"
               checked={w.encendido}
-              disabled={pendiente || sinGuardar}
+              disabled={pendiente || sinGuardar || (real && !cita && w.encendido)}
               onChange={(e) => {
                 const on = e.target.checked;
                 void confirmar(on ? `¿Encender el workflow? Empieza a recibir ${quien}.` : `¿Apagar el workflow? Deja de recibir ${quien}.`).then((ok) => ok && ejecutar(() => (on ? encenderWorkflow(w.id) : pararWorkflow(w.id)), on ? "Encendido" : "Apagado"));

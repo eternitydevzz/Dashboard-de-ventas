@@ -47,14 +47,14 @@ describe("La base solo acepta los 12 estados (10 nov: «Link enviado» en vez de
 describe("«Agendado» a mano por el caller (punto 13)", () => {
   it("sin closers en la rotación, avisa y no crea nada", async () => {
     como(e, e.p.callerA);
-    await falla(agendarCita(e.leads.LeadA, "", "2026-12-01T10:00", "", 4), /rotación/);
+    await falla(agendarCita(e.leads.LeadA, "", "2037-12-01T10:00", "", 4), /rotación/);
   });
   it("con la rotación, el closer lo pone la app aunque se intente otro; estrellas obligatorias", async () => {
     await rotacion(e.p.closerA.id, 100);
     await rotacion(e.p.closerB.id, 0);
     como(e, e.p.callerA);
-    await falla(agendarCita(e.leads.LeadA, e.p.closerB.id, "2026-12-01T10:00", ""), /de 2 a 5/);
-    await ok(agendarCita(e.leads.LeadA, e.p.closerB.id, "2026-12-01T10:00", "Le interesa el VIP", 4));
+    await falla(agendarCita(e.leads.LeadA, e.p.closerB.id, "2037-12-01T10:00", ""), /de 2 a 5/);
+    await ok(agendarCita(e.leads.LeadA, e.p.closerB.id, "2037-12-01T10:00", "Le interesa el VIP", 4));
     expect(await citaDe(e.leads.LeadA)).toMatchObject({ closer_id: e.p.closerA.id, agendada_por: e.p.callerA.id, estrellas_caller: 4 });
     expect(await lead(e.leads.LeadA)).toMatchObject({ estado_caller: "agendado", closer_id: e.p.closerA.id });
     const { data: m } = await db.from("miembros_proyecto").select("rotacion_cuenta").eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.closerA.id).single();
@@ -62,7 +62,7 @@ describe("«Agendado» a mano por el caller (punto 13)", () => {
   });
   it("la misma hora ya cogida no se puede volver a agendar (huecos del calendario)", async () => {
     como(e, e.p.callerA);
-    await falla(agendarCita(e.leads.LeadA, "", "2026-12-01T10:00", "", 4), /ya no está libre/);
+    await falla(agendarCita(e.leads.LeadA, "", "2037-12-01T10:00", "", 4), /ya no está libre/);
   });
   it("«Confirma Agenda» confirma también la cita (punto 14)", async () => {
     como(e, e.p.callerA);
