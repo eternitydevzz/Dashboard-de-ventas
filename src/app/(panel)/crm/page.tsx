@@ -149,6 +149,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
       <Contenido>
         {/* 25 oct 2026 (Cristian): sin refresco automático cada 60 s; la base se saturaba con el equipo trabajando */}
         <TableroCrm
+          key={pipeline?.id} // A4-08: otro pipeline = tablero nuevo (sin selección ni filtros del anterior)
           pipelines={pipelines}
           pipeline={pipeline}
           etapas={etapas}

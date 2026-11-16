@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Papa from "papaparse";
 import { Download, Tag, Trash2, X } from "lucide-react";
 import { asignarLeads, borrarLeads, cambiarEtiquetas, moverLeads } from "./acciones";
 import { Desplegable } from "@/components/eleccion";
 import { confirmar } from "@/components/dialogos";
 import { exigirOk } from "@/lib/resultado-cliente";
+import { csvExcel } from "@/lib/csv-excel";
 import { ETIQUETA_ESTADO_CALLER, nombrePais } from "@/lib/formato";
 import { CAMPOS_FICHA } from "@/lib/ficha-cualificacion";
 import { fichasParaExportar } from "@/app/(panel)/caller/ficha-acciones";
@@ -71,7 +71,7 @@ export function BarraMasiva({
       Entró: l.creado_en.slice(0, 10),
       ...Object.fromEntries(CAMPOS_FICHA.map((c) => [`Cualificación · ${c.t}`, (fichas as Record<string, Record<string, string>>)[l.id]?.[c.k] ?? ""])),
     }));
-    const csv = "﻿" + Papa.unparse(filas);
+    const csv = csvExcel(Object.keys(filas[0] ?? {}), filas.map(Object.values)); // S1-4: neutraliza fórmulas (nombres de formularios públicos)
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;

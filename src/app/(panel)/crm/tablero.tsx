@@ -91,6 +91,9 @@ const UNIONES: Record<TipoPipeline, { v: string; t: string }[]> = {
 const COLORES = ["#64748b", "#2f55d4", "#d97706", "#7c3aed", "#0891b2", "#db2777", "#16a34a", "#dc2626"];
 const POR_COLUMNA = 40;
 
+// A2-07 (Fase 0): lo marcado que la búsqueda o un filtro esconde no se cuenta ni recibe acciones masivas
+export const marcadosVisibles = (marcados: Set<string>, leads: { id: string }[]) => new Set(leads.filter((l) => marcados.has(l.id)).map((l) => l.id));
+
 export function TableroCrm({
   pipelines: pipelinesServidor,
   pipeline,
@@ -150,7 +153,7 @@ export function TableroCrm({
   const [verMas, setVerMas] = useState<Record<string, number>>({});
   const [modal, setModal] = useState<null | "importar" | "lead" | "pipeline" | "permisos">(null);
   const [ventana, setVentana] = useState<{ lead: LeadTarjeta; destino: DestinoConVentana; etapaId: string } | null>(null);
-  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const [marcados, setSeleccion] = useState<Set<string>>(new Set()); // se lee siempre por «seleccion» (abajo)
   const [error, setError] = useState("");
   // Fase 4: columnas y pipelines se ordenan arrastrando; el orden nuevo se ve al momento (optimista)
   const [ordenCols, setOrdenCols] = useState<{ base: Etapa[]; ids: string[] } | null>(null);
@@ -210,6 +213,7 @@ export function TableroCrm({
           nombrePais(l.pais).toLowerCase().includes(t)
       );
   }, [leadsIniciales, moviendo, q, canal, pais]);
+  const seleccion = useMemo(() => marcadosVisibles(marcados, leads), [marcados, leads]);
 
   const toast = useToast();
   function ejecutar(fn: () => Promise<unknown>, mensaje?: string) {
