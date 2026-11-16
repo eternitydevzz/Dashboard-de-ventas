@@ -2,7 +2,9 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Plus, Upload, Search, RefreshCw, Link2, X } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { Plus, Upload, Search, RefreshCw, Link2, X, CalendarDays, Columns3, List } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { useAccion } from "@/components/acciones-lead";
 import { SelectorEstrellas } from "@/components/estrellas";
@@ -48,11 +50,15 @@ export function CrearLlamada({ closers, soyCloser }: { closers: { id: string; no
           ) : (
             <form
               className="space-y-3"
-              action={(fd) => {
-                ejecutar(() => agendarCita(lead.id, String(fd.get("closer")), String(fd.get("fecha")), String(fd.get("nota") ?? ""), fd.get("estrellas") ? Number(fd.get("estrellas")) : undefined), "Llamada creada");
-                setAbierto(false);
-                setLead(null);
-              }}
+              action={(fd) =>
+                // S4-9: se cierra solo si el servidor dice que sí; si falla, queda abierta con el error
+                ejecutar(async () => {
+                  const r = await exigirOk(agendarCita(lead.id, String(fd.get("closer")), String(fd.get("fecha")), String(fd.get("nota") ?? ""), fd.get("estrellas") ? Number(fd.get("estrellas")) : undefined));
+                  setAbierto(false);
+                  setLead(null);
+                  return r;
+                }, "Llamada creada")
+              }
             >
               <p className="text-sm">Lead: <b>{`${lead.nombre} ${lead.apellido}`.trim()}</b> <button type="button" className="text-xs text-primario hover:underline" onClick={() => setLead(null)}>cambiar</button></p>
               <CamposCita closers={closers} inicial={soyCloser ?? undefined} id="cliente-closer" />
@@ -210,5 +216,51 @@ export function FilaSinUnir({ id, titulo, fechaTxt, closer }: { id: string; titu
       </div>
       {error && <p className="text-xs text-mal">{error}</p>}
     </li>
+  );
+}
+
+const VISTAS_CAL = [
+  { v: "mes", t: "Mes", i: CalendarDays },
+  { v: "semana", t: "Semana", i: Columns3 },
+  { v: "dia", t: "Día", i: CalendarDays },
+  { v: "lista", t: "Lista", i: List },
+] as const;
+const FILTROS_ESTADO = [
+  { v: "", t: "Todos" },
+  { v: "abiertas", t: "Pendientes" },
+  { v: "cerrada", t: "Cerradas" },
+  { v: "perdida", t: "Perdidas" },
+  { v: "no_show", t: "No-show" },
+  { v: "reagendada", t: "Reagendadas" },
+  { v: "cancelada", t: "Canceladas" },
+];
+
+// R9: las 4 vistas llegan ya pintadas del servidor; cambiar de una a otra solo toca la dirección (replaceState, guía de
+// Next 16 «Native History API»), sin pedir la página. Los filtros leen la dirección actual para no perder la vista.
+export function VistasCalendario({ estado, ...vistas }: { estado: string; mes: ReactNode; semana: ReactNode; dia: ReactNode; lista: ReactNode }) {
+  const ruta = usePathname();
+  const params = useSearchParams();
+  const pedida = params.get("vista");
+  const vista = VISTAS_CAL.find((x) => x.v === pedida)?.v ?? "mes";
+  const con = (k: string, v: string) => {
+    const p = new URLSearchParams(params.toString());
+    if (v) p.set(k, v);
+    else p.delete(k);
+    return `${ruta}?${p}`;
+  };
+  return (
+    <div className="tarjeta overflow-hidden">
+      <div className="flex flex-wrap items-center gap-2 border-b border-borde p-2">
+        {FILTROS_ESTADO.map((f) => (
+          <Link prefetch={false} key={f.v} href={con("estado", f.v)} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.t}</Link>
+        ))}
+        <div className="ml-auto flex rounded-lg border border-borde bg-panel-2 p-0.5">
+          {VISTAS_CAL.map((v) => (
+            <button type="button" key={v.v} aria-pressed={vista === v.v} onClick={() => window.history.replaceState(null, "", con("vista", v.v))} className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs ${vista === v.v ? "bg-primario text-white" : "text-texto-2"}`}><v.i className="h-3.5 w-3.5" />{v.t}</button>
+          ))}
+        </div>
+      </div>
+      {vistas[vista]}
+    </div>
   );
 }

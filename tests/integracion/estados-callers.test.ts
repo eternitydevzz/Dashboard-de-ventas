@@ -34,13 +34,15 @@ describe("La base solo acepta los 12 estados (10 nov: «Link enviado» en vez de
     expect(error?.message).toMatch(/estado_caller_check/);
     const { error: e2 } = await db.from("leads").update({ estado_caller: "llamado" }).eq("id", e.leads.LeadA);
     expect(e2?.message).toMatch(/estado_caller_check/);
+    const { error: e4 } = await db.from("leads").update({ estado_caller: "no_responde" }).eq("id", e.leads.LeadA); // 16 nov
+    expect(e4?.message).toMatch(/estado_caller_check/);
     const { error: e3 } = await db.from("leads").update({ estado_caller: "link_enviado" }).eq("id", e.leads.LeadA);
     expect(e3).toBeNull();
   });
-  it("«Callers» nace con las 12 columnas en su orden: «Link enviado» antes de «Agendado» y sin «Llamado»", async () => {
+  it("«Callers» nace con las 11 columnas en su orden: «Link enviado» antes de «Agendado», sin «Llamado» ni «No responde»", async () => {
     const { data: p } = await db.from("pipelines").select("id").eq("proyecto_id", e.proyecto.id).eq("tipo", "callers").single();
     const { data: cols } = await db.from("etapas").select("nombre, estado_caller").eq("pipeline_id", p!.id).not("estado_caller", "is", null).order("orden");
-    expect(cols!.map((c) => c.nombre)).toEqual(["Leads", "Wsp enviado", "No responde", "No interesa", "Seguimiento", "Llamar luego", "Link enviado", "Agendado", "Confirma Agenda", "Reagendado", "Descartado", "Cerrados"]);
+    expect(cols!.map((c) => c.nombre)).toEqual(["Leads", "Wsp enviado", "No interesa", "Seguimiento", "Llamar luego", "Link enviado", "Agendado", "Confirma Agenda", "Reagendado", "Descartado", "Cerrados"]);
   });
 });
 

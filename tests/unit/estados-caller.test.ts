@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import { ESTADOS_CALLER, BOTONES_RESULTADO, AVANZAN, CON_ESTRELLAS, esContacto, etiquetaEstado } from "@/lib/estados-caller";
 
 describe("C11 · estados del caller", () => {
-  it("12 columnas en el orden decidido (punto 12)", () => {
-    expect(ESTADOS_CALLER.map((e) => e.t)).toEqual(["Leads", "Wsp enviado", "No responde", "No interesa", "Seguimiento", "Llamar luego", "Link enviado", "Agendado", "Confirma Agenda", "Reagendado", "Descartado", "Cerrados"]);
+  it("11 columnas en el orden decidido (punto 12; 16 nov: sin «No responde»)", () => {
+    expect(ESTADOS_CALLER.map((e) => e.t)).toEqual(["Leads", "Wsp enviado", "No interesa", "Seguimiento", "Llamar luego", "Link enviado", "Agendado", "Confirma Agenda", "Reagendado", "Descartado", "Cerrados"]);
     expect(ESTADOS_CALLER.map((e) => e.v)).not.toContain("no_contesta");
     expect(ESTADOS_CALLER.map((e) => e.v)).not.toContain("llamado"); // 10 nov: fuera «Llamado»
   });
-  it("9 botones de resultado (7c.1): sin Leads, Reagendado ni Cerrados", () => {
-    expect(BOTONES_RESULTADO).toEqual(["link_enviado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "descartado"]);
+  it("8 botones de resultado (7c.1): sin Leads, Reagendado, Cerrados ni No responde (16 nov)", () => {
+    expect(BOTONES_RESULTADO).toEqual(["link_enviado", "wsp_enviado", "no_interesa", "seguimiento", "llamar_luego", "agendado", "confirma_agenda", "descartado"]);
   });
   it("contacto = los que avanzan (punto 16), y desde el 10 nov Link de agenda y Wsp enviado; No responde no", () => {
     expect([...AVANZAN].sort()).toEqual(["agendado", "confirma_agenda", "llamar_luego", "no_interesa", "reagendado", "seguimiento", "vendido"]);
@@ -18,7 +18,7 @@ describe("C11 · estados del caller", () => {
     expect(esContacto({ tipo: "llamada", resultado: "link_enviado" })).toBe(true);
     expect(esContacto({ tipo: "llamada", resultado: "wsp_enviado" })).toBe(true);
     expect(esContacto({ tipo: "whatsapp", resultado: "wsp_enviado" })).toBe(false);
-    expect(esContacto({ tipo: "cambio_etapa", resultado: "no_responde" })).toBe(false);
+    expect(esContacto({ tipo: "cambio_etapa", resultado: "no_responde" })).toBe(false); // historial de antes del 16 nov
     expect(esContacto({ tipo: "cambio_etapa", resultado: null })).toBe(false); // mover a mano en el CRM
     // Revisión del 7 nov: «Agendado» con su botón apunta una cita (no un cambio de columna) y también es contacto
     expect(esContacto({ tipo: "cita", resultado: "agendada" })).toBe(true);
