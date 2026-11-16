@@ -28,6 +28,7 @@ export function BarraMasiva({
   ejecutar,
   limpiar,
   ceo,
+  zona = "UTC",
 }: {
   seleccion: Set<string>;
   leads: LeadTarjeta[];
@@ -36,9 +37,10 @@ export function BarraMasiva({
   destinos: DestinoMasivo[];
   nombrePorId: Record<string, string>;
   etapaNombre: Record<string, string>;
-  ejecutar: (fn: () => Promise<unknown>, mensaje?: string) => void;
+  ejecutar: (fn: () => Promise<unknown>, mensaje?: string, deshacer?: () => unknown) => void;
   limpiar: () => void;
   ceo: boolean; // borrar en masa, solo el CEO (Cristian, 12 oct)
+  zona?: string; // S1-21: zona del proyecto para «Entró»
 }) {
   const [caller, setCaller] = useState("");
   const [closer, setCloser] = useState("");
@@ -68,7 +70,7 @@ export function BarraMasiva({
       Closer: l.closer_id ? nombrePorId[l.closer_id] ?? "" : "",
       Estado: ETIQUETA_ESTADO_CALLER[l.estado_caller as keyof typeof ETIQUETA_ESTADO_CALLER] ?? l.estado_caller,
       Etiquetas: l.etiquetas.join(", "),
-      Entró: l.creado_en.slice(0, 10),
+      Entró: new Intl.DateTimeFormat("en-CA", { timeZone: zona }).format(new Date(l.creado_en)), // S1-21: día en la zona del proyecto
       ...Object.fromEntries(CAMPOS_FICHA.map((c) => [`Cualificación · ${c.t}`, (fichas as Record<string, Record<string, string>>)[l.id]?.[c.k] ?? ""])),
     }));
     const csv = csvExcel(Object.keys(filas[0] ?? {}), filas.map(Object.values)); // S1-4: neutraliza fórmulas (nombres de formularios públicos)
@@ -116,13 +118,20 @@ export function BarraMasiva({
       <button
         className="btn-secundario px-2.5 py-1.5 text-xs"
         disabled={!destino}
-        onClick={() =>
-          ejecutar(async () => {
-            await exigirOk(moverLeads(ids, destino));
-            setDestino("");
-            limpiar();
-          }, `${n} leads movidos`)
-        }
+        onClick={() => {
+          // A3b-02: Deshacer = cada lead vuelve a su columna de antes con la misma acción (los sin columna se quedan)
+          const antes = new Map<string, string[]>();
+          for (const l of leads) if (seleccion.has(l.id) && l.etapa_id) antes.set(l.etapa_id, [...(antes.get(l.etapa_id) ?? []), l.id]);
+          ejecutar(
+            async () => {
+              await exigirOk(moverLeads(ids, destino));
+              setDestino("");
+              limpiar();
+            },
+            `${n} leads movidos`,
+            antes.size ? () => ejecutar(async () => { for (const [etapa, grupo] of antes) await exigirOk(moverLeads(grupo, etapa)); }, `${n} leads vueltos a su columna`) : undefined
+          );
+        }}
       >
         Mover
       </button>
