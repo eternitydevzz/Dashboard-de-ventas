@@ -69,7 +69,8 @@ export async function espejoGhl(
     const columna = await igualarColumnas(pApp.id, pGhl.stages ?? [], r);
     const nombreColumna = new Map((pGhl.stages ?? []).map((s) => [s.id, s.name.trim()]));
 
-    const ops = await oportunidadesDePipelineGhl({ token, locationId, pipelineId: pGhl.id, fetchImpl });
+    // F4 S3-11: se leen como mucho 20 páginas de 100; si hay más, que se vea (antes cortaba en silencio)
+    const ops = await oportunidadesDePipelineGhl({ token, locationId, pipelineId: pGhl.id, fetchImpl, alTope: () => r.avisos.push(`Espejo: «${nombre}» tiene más de 2.000 oportunidades en GHL; solo se leen las primeras 2.000 cada minuto`) });
     const vistas = new Map<string, string>();
     for (let i = 0; i < ops.length; i += 200) {
       const { data } = await db().from("ghl_espejo").select("opp_id, etapa_ghl").eq("proyecto_id", proyecto.id).in("opp_id", ops.slice(i, i + 200).map((o) => o.id));

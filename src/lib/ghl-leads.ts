@@ -73,12 +73,17 @@ export async function leerLeadsGhl(proyecto: Proyecto & { ghl_location_id: strin
   const hasta = proyecto.ghl_leads_hasta ? new Date(proyecto.ghl_leads_hasta).getTime() : ahora;
 
   // 1 · Contactos creados después del corte, los más viejos primero; fuera los ya vistos
-  const recientes = await contactosNuevosGhl({ token, locationId, desde: new Date(hasta - MARGEN), limite: 100, fetchImpl });
-  const { data: vistosFilas, error: errVistos } = recientes.length
-    ? await db().from("ghl_oportunidades_vistas").select("opp_id").eq("proyecto_id", proyecto.id).in("opp_id", recientes.map((c) => c.id))
-    : { data: [], error: null };
-  if (errVistos) throw new Error(`No se pudo leer ghl_oportunidades_vistas: ${errVistos.message}`);
-  const yaVistos = new Set((vistosFilas ?? []).map((v) => v.opp_id as string));
+  const leer = async (desde: number) => {
+    const lista = await contactosNuevosGhl({ token, locationId, desde: new Date(desde), limite: 100, fetchImpl });
+    const { data: vistosFilas, error: errVistos } = lista.length
+      ? await db().from("ghl_oportunidades_vistas").select("opp_id").eq("proyecto_id", proyecto.id).in("opp_id", lista.map((c) => c.id))
+      : { data: [], error: null };
+    if (errVistos) throw new Error(`No se pudo leer ghl_oportunidades_vistas: ${errVistos.message}`);
+    return { lista, vistos: new Set((vistosFilas ?? []).map((v) => v.opp_id as string)) };
+  };
+  let { lista: recientes, vistos: yaVistos } = await leer(hasta - MARGEN);
+  // F4 S3-8: más de 100 en los 2 min del margen (una importación) y todos vistos: sin margen, desde el cursor
+  if (recientes.length >= 100 && recientes.every((c) => yaVistos.has(c.id))) ({ lista: recientes, vistos: yaVistos } = await leer(hasta));
   const pendientes = recientes.filter((c) => !yaVistos.has(c.id)).sort((a, b) => fecha(a) - fecha(b)).slice(0, MAX_POR_LECTURA);
 
   const campos = await preguntas(token, locationId, fetchImpl, ahora);
@@ -117,6 +122,11 @@ export async function leerLeadsGhl(proyecto: Proyecto & { ghl_location_id: strin
     }
     // `opp_id` guarda el id del contacto (la tabla se creó para oportunidades el 16 oct)
     await db().from("ghl_oportunidades_vistas").upsert({ proyecto_id: proyecto.id, opp_id: c.id, contact_id: c.id, n_respuestas: lead.respuestas.length, visto_en: new Date(ahora).toISOString() });
+    yaVistos.add(c.id);
+  }
+  // F4 S3-8: el cursor pasa los vistos (también los de lecturas anteriores) hasta el primer pendiente sin hacer
+  for (const c of [...recientes].sort((a, b) => fecha(a) - fecha(b))) {
+    if (!yaVistos.has(c.id)) break;
     nuevoHasta = Math.max(nuevoHasta, fecha(c));
   }
 
@@ -224,20 +234,25 @@ async function cambiosEnGhl(
       : [];
     const { lead } = leadDeContactoGhl(c.id, c, campos, { fuente: c.source ?? null, creadoEn: c.dateAdded ?? null });
 
-    if (faltan.length) {
-      const g = await meterEnPipelines(proyecto, lead, faltan, pipesApp, r);
-      r.nuevos += g.nuevos;
-      r.actualizados += g.actualizados;
-      r.cambiados++;
-      // Si ya estaba, que se vea en su historial por qué tiene la tarjeta nueva
-      if (ya) {
-        const { error: errHist } = await db().from("actividades").insert({ proyecto_id: proyecto.id, lead_id: ya.id, perfil_id: null, tipo: "webhook", nota: `Nueva etiqueta en GHL (API) · ahora también en ${faltan.join(", ")}` });
-        if (errHist) console.error("[actividad] no se pudo guardar la etiqueta nueva:", errHist.message);
+    // F4 A1-01 (14 nov): uno que falla se apunta y los demás siguen (antes paraba a todos los de detrás cada minuto)
+    try {
+      if (faltan.length) {
+        const g = await meterEnPipelines(proyecto, lead, faltan, pipesApp, r);
+        r.nuevos += g.nuevos;
+        r.actualizados += g.actualizados;
+        r.cambiados++;
+        // Si ya estaba, que se vea en su historial por qué tiene la tarjeta nueva
+        if (ya) {
+          const { error: errHist } = await db().from("actividades").insert({ proyecto_id: proyecto.id, lead_id: ya.id, perfil_id: null, tipo: "webhook", nota: `Nueva etiqueta en GHL (API) · ahora también en ${faltan.join(", ")}` });
+          if (errHist) console.error("[actividad] no se pudo guardar la etiqueta nueva:", errHist.message);
+        }
+      } else if (ya && hayCambios(ya, lead)) {
+        // Solo se escribe si GHL trae algo nuevo (así no se reescribe cada 60 s durante la media hora)
+        await guardarLeads(proyecto, [sinPisar(lead, ya)], { pipelineId: null, origen: "ghl", perfilId: null, repartir: false });
+        r.puestosAlDia++;
       }
-    } else if (ya && hayCambios(ya, lead)) {
-      // Solo se escribe si GHL trae algo nuevo (así no se reescribe cada 60 s durante la media hora)
-      await guardarLeads(proyecto, [sinPisar(lead, ya)], { pipelineId: null, origen: "ghl", perfilId: null, repartir: false });
-      r.puestosAlDia++;
+    } catch (e) {
+      r.errores.push(`Cambiados ${c.id}: ${e instanceof Error ? e.message : e}`);
     }
   }
 }
