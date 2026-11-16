@@ -124,7 +124,7 @@ describe("S2-3 · importar el extracto", () => {
     base["movimientos:select"] = { data: [{ tipo: "ingreso", importe: "100.00", fecha: "2026-11-02T17:00:00+00:00", descripcion: "cliente", cuenta_id: null }], error: null };
     const r = await fin.importarMovimientos(csv, null);
     expect(r).toMatchObject({ importados: 1, saltadas: 2 });
-    expect((r as { fallos: string[] }).fallos).toEqual(["2 ya estaban importadas (misma fecha, importe y descripción): no se repiten.", "Fila 5: fecha o importe no válidos", "Fila 6: fecha o importe no válidos"]);
+    expect((r as { fallos: string[] }).fallos).toEqual(["Fila 5: fecha o importe no válidos", "Fila 6: fecha o importe no válidos"]); // las saltadas van aparte, no como fallo
     const filas = arg(de("movimientos", "insert")[0], "insert")?.[0] as { descripcion: string; importe: number }[];
     expect(filas.map((f) => [f.descripcion, f.importe])).toEqual([["café", 3]]);
   });

@@ -246,8 +246,7 @@ export async function importarMovimientos(texto: string, cuentaId: string | null
     if (filas.length) await escribir(db().from("movimientos").insert(filas), "movimientos");
     refrescar();
     const saltadas = leidas.length - filas.length;
-    // La ventana de importar solo enseña «fallos»: el aviso de las saltadas va el primero de la lista
-    return { importados: filas.length, saltadas, fallos: saltadas ? [`${saltadas} ya estaban importadas (misma fecha, importe y descripción): no se repiten.`, ...fallos] : fallos };
+    return { importados: filas.length, saltadas, fallos };
   });
 }
 
