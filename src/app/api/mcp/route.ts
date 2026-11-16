@@ -297,5 +297,6 @@ async function atender(req: Request) {
 }
 
 export const POST = atender;
-export const GET = atender;
+// A1-02: sin SSE. El GET abierto se cortaba a los 300 s en Vercel; el cliente MCP toma el 405 como «no hay SSE»
+export const GET = () => new Response(null, { status: 405, headers: { Allow: "POST, DELETE" } });
 export const DELETE = atender;

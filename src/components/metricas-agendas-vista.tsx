@@ -89,7 +89,7 @@ function Barras({ titulo, filas }: { titulo: string; filas: { nombre: string; n:
           {filas.slice(0, 8).map((f) => (
             <li key={f.nombre} title={`${f.nombre}: ${f.n} (${pct(Math.round((f.n / total) * 100))})`}>
               <div className="flex justify-between text-sm"><span className="truncate">{f.nombre}</span><span className="tabular-nums text-texto-2">{f.n}</span></div>
-              <div className="mt-1 h-2 overflow-hidden rounded-full bg-panel-2"><div className="h-full rounded-full bg-primario" style={{ width: `${pct((f.n / max) * 100)}` }} /></div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-panel-2"><div className="h-full rounded-full bg-primario" style={{ width: `${Math.round((f.n / max) * 100)}%` }} /></div>
             </li>
           ))}
           {filas.length > 8 && <li className="text-xs text-texto-3">+ {filas.length - 8} fuentes más</li>}
