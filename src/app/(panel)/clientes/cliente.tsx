@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Settings2, Trash2, Check, Star, CalendarClock, ListChecks, UserRound } from "lucide-react";
 import { Modal } from "@/components/modal";
-import { FormVenta, useAccion } from "@/components/acciones-lead";
+import { FormVenta, crearUnaVez, useAccion } from "@/components/acciones-lead";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { ESTADOS_CLIENTE, type EstadoCliente, type FichaCliente } from "@/lib/clientes";
 import type { Producto } from "@/lib/tipos";
@@ -143,10 +143,12 @@ export function EditorPasos({ pasos }: { pasos: Paso[] }) {
 export function NuevoCliente({ productos, vendedores, moneda }: { productos: Producto[]; vendedores?: { id: string; nombre: string }[]; moneda: string }) {
   const [abierto, setAbierto] = useState(false);
   const [datos, setDatos] = useState<Record<string, string> | null>(null);
-  const [error, setError] = useState("");
-  const [cargando, setCargando] = useState(false);
+  const { pendiente, error, ejecutar } = useAccion();
+  const toast = useToast();
+  const [enCurso] = useState(() => new Set<string>()); // S2-10: doble clic = una sola venta (como «Nueva venta»)
+  const unaVez = crearUnaVez(enCurso, ejecutar, toast);
   const router = useRouter();
-  const cerrar = () => { setAbierto(false); setDatos(null); setError(""); };
+  const cerrar = () => { setAbierto(false); setDatos(null); };
   return (
     <>
       <button className="btn-primario" onClick={() => setAbierto(true)}><Plus className="h-4 w-4" /> Nuevo cliente</button>
@@ -169,22 +171,12 @@ export function NuevoCliente({ productos, vendedores, moneda }: { productos: Pro
                 productos={productos}
                 vendedores={vendedores}
                 moneda={moneda}
-                onEnviar={async (fd) => {
+                onEnviar={(fd) => {
                   for (const [k, v] of Object.entries(datos)) fd.set(k, v);
-                  setCargando(true);
-                  setError("");
-                  try {
-                    await exigirOk(nuevoCliente(fd));
-                    cerrar();
-                    router.refresh();
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : "Algo falló.");
-                  } finally {
-                    setCargando(false);
-                  }
+                  unaVez("cliente", async () => { await exigirOk(nuevoCliente(fd)); cerrar(); router.refresh(); }, "");
                 }}
               />
-              {cargando && <p className="text-sm text-texto-3">Guardando…</p>}
+              {pendiente && <p className="text-sm text-texto-3">Guardando…</p>}
               {error && <p className="text-sm text-mal">{error}</p>}
               <button className="text-xs text-primario hover:underline" onClick={() => setDatos(null)}>← Cambiar los datos</button>
             </div>
