@@ -64,6 +64,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
     setT(0);
     setSonando(false);
     setFallo(false);
+    setIntento(0);
     sono.current = 0;
     volver.current = null;
     window.history.replaceState(null, "", `/grabaciones?g=${id}`);
@@ -183,7 +184,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
             src={`/api/grabaciones/${g.id}${intento ? `?r=${intento}` : ""}`}
             preload="metadata"
             onTimeUpdate={(e) => {
-              if (fallo) return;
+              if (fallo || volver.current !== null) return; // revisor: al recargar, el audio empieza en 0 antes de volver al punto
               const a = e.currentTarget;
               if (!a.seeking) sono.current = a.currentTime;
               setT(a.currentTime);
