@@ -188,9 +188,18 @@ export function calcularRanking(base: Base, rango: Rango, zona: string, v: Vista
   const entra = (g: Perfil) => (!mercado || v.mercados[g.id] === mercado) && (!!v.proyecto.ranking_mostrar_bajas || !("baja" in g && g.baja));
   const { callers, closers } = calcularKpis({ ...base, gente: base.gente.filter(entra) }, rango, zona);
   const verClosers = v.perfil.rol !== "caller" || esCloser(v.perfil) || !!v.proyecto.ranking_closers_para_callers;
+  // A5-03 (Cristian, 16 nov): la venta es de su vendedor → «cerradas» = sus ventas, igual que la facturación (siempre cuadran)
+  // Un CEO o director nunca sale en closers, aunque sea también closer (Cristian, 16 nov)
+  const porVenta = closers
+    .filter((c) => c.perfil.rol !== "ceo" && c.perfil.rol !== "director")
+    .map((c) => {
+      const t = tasa(c.ventas, c.asistidas);
+      // Tope de 100 %: puede haber ventas sin cita (p. ej. manuales), más que asistidas
+      return { ...c, cerradas: c.ventas, cierreSobreAsistencia: t === null ? null : Math.min(100, t) };
+    });
   return {
     mercado,
     callers: [...callers].sort((a, b) => b.agendados - a.agendados || b.cerrados - a.cerrados || b.llamadas - a.llamadas),
-    closers: verClosers ? [...closers].sort((a, b) => b.facturacion - a.facturacion || (b.cierreSobreAsistencia ?? 0) - (a.cierreSobreAsistencia ?? 0)) : null,
+    closers: verClosers ? porVenta.sort((a, b) => b.facturacion - a.facturacion || (b.cierreSobreAsistencia ?? 0) - (a.cierreSobreAsistencia ?? 0)) : null,
   };
 }

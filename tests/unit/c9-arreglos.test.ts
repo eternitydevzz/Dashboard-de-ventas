@@ -184,12 +184,14 @@ describe("3 · Dobles clics y estados (medios)", () => {
     expect(await fin.pagarLiquidacion("f1", null)).toMatchObject({ error: expect.any(String) });
     expect(de("liquidaciones", "update")).toHaveLength(0);
   });
-  it("«Cobrado» de un deudor dos veces: la 2.ª no crea otro ingreso", async () => {
+  // Fase 2 (S2-1): el ingreso se crea antes que el plazo; si el plazo ya cambió, ese ingreso se borra
+  it("«Cobrado» de un deudor dos veces: la 2.ª no deja otro ingreso", async () => {
     base["vencimientos:select"] = { data: { id: "f1", proyecto_id: "p1", estado: "pendiente", venta_id: null, importe: 10, nombre: "Juan" }, error: null };
+    base["movimientos:insert"] = { data: { id: "m9" }, error: null };
     base["vencimientos:update"] = { data: [], error: null };
     expect(await fin.marcarVencimiento("f1", "pagado")).toMatchObject({ error: expect.stringMatching(/acaba de cambiar/) });
     expect(de("vencimientos", "update")[0].ops).toContainEqual(["eq", ["estado", "pendiente"]]);
-    expect(de("movimientos", "insert")).toHaveLength(0);
+    expect(de("movimientos", "delete").map((c) => arg(c, "eq"))).toEqual([["id", "m9"]]);
   });
   it("«Registrar pago» programado dos veces: la 2.ª borra su gasto y avisa", async () => {
     base["egresos_programados:select"] = { data: { id: "f1", proyecto_id: "p1", importe: 5, proxima: "2026-11-01", cada: "mes", descripcion: "Luz" }, error: null };

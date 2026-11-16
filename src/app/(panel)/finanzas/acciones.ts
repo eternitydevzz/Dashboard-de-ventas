@@ -25,6 +25,11 @@ async function delProyecto(tabla: "cuentas" | "categorias_finanzas" | "movimient
   const { data } = await db().from(tabla).select("id").eq("id", id).eq("proyecto_id", proyectoId).maybeSingle();
   if (!data) throw new ErrorUsuario("Ese dato no es de este proyecto.");
 }
+// S2-3: «2026-13-45» o «31/02/2026» tienen buen formato pero no existen
+const fechaExiste = (ymd: string) => {
+  const [a, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, d)).toISOString().slice(0, 10) === ymd;
+};
 const fechaIso = (txt: string, zona: string) => (txt ? localAIso(`${txt}T12:00`, zona) : new Date().toISOString());
 
 // ---------- Ingresos extra y gastos ----------
@@ -45,6 +50,10 @@ export async function borrarMovimiento(id: string) {
     await delProyecto("movimientos", id, proyecto.id);
     const { data: liq } = await db().from("liquidaciones").select("id").eq("movimiento_id", id).maybeSingle();
     if (liq) throw new ErrorUsuario("Este gasto es el pago de una liquidación: desmárcala como pagada en Liquidaciones.");
+    // S2-2: el ingreso de un deudor cobrado (si se borra, el plazo queda «pagado» sin dinero en caja)
+    const { data: venc, error } = await db().from("vencimientos").select("id").eq("movimiento_id", id).limit(1).maybeSingle();
+    if (error) throw new Error(`No se pudo comprobar «vencimientos»: ${error.message}`);
+    if (venc) throw new ErrorUsuario("Este ingreso es el cobro de un pago: desmárcalo en Pagos pendientes");
     await escribir(db().from("movimientos").delete().eq("id", id), "movimientos");
     refrescar();
   });
@@ -163,20 +172,24 @@ export async function marcarVencimiento(id: string, estado: "pendiente" | "pagad
     if (estado === "pagado" && v.venta_id) throw new ErrorUsuario("Los plazos de una venta se pagan registrando el cobro de la venta («Cobro»).");
     if (!["pendiente", "pagado", "no_paga"].includes(estado)) throw new ErrorUsuario("Estado no válido.");
     // Arreglo 33: deshacer un «cobrado» por error → vuelve a pendiente y se borra el ingreso que creó
+    // S2-1: primero el plazo (solo si sigue pagado) y después se borra el ingreso: si algo falla, no queda un plazo
+    // pendiente con su dinero borrado
     if (v.estado === "pagado" && estado !== "pagado") {
+      await soloSiSigue(db().from("vencimientos").update({ estado, pagado_en: null, movimiento_id: null }).eq("id", id).eq("estado", "pagado").select("id"), null, "Este pago acaba de cambiar. Recarga la página.");
       if (v.movimiento_id) await escribir(db().from("movimientos").delete().eq("id", v.movimiento_id), "movimientos");
-      await escribir(db().from("vencimientos").update({ estado, pagado_en: null, movimiento_id: null }).eq("id", id), "vencimientos");
       refrescar();
       return;
     }
-    // C9: solo si sigue como se leyó (un doble clic en «Cobrado» creaba 2 ingresos)
-    await soloSiSigue(db().from("vencimientos").update({ estado, pagado_en: estado === "pagado" ? new Date().toISOString() : null }).eq("id", id).eq("estado", v.estado).select("id"), null, "Este pago acaba de cambiar. Recarga la página.");
-    // Un deudor puesto a mano que paga: entra como ingreso (y se guarda cuál, para poder deshacerlo)
+    // Un deudor puesto a mano que paga: entra como ingreso (y se guarda cuál, para poder deshacerlo).
+    // S2-1: el ingreso va primero; si el plazo no cambia después, se borra (antes podía quedar «pagado» sin ingreso)
+    let mov: string | null = null;
     if (estado === "pagado" && v.estado !== "pagado") {
       const { data: cat } = await db().from("categorias_finanzas").select("id").eq("proyecto_id", proyecto.id).eq("tipo", "ingreso").order("nombre").limit(1).maybeSingle();
-      const { data: mov } = await escribir(db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "ingreso", importe: v.importe, categoria_id: cat?.id ?? null, descripcion: `Cobro de ${v.nombre ?? "deudor"}`, creado_por: perfil.id }).select("id").single(), "movimientos");
-      await escribir(db().from("vencimientos").update({ movimiento_id: mov?.id ?? null }).eq("id", id), "vencimientos");
+      const { data: m } = await escribir(db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "ingreso", importe: v.importe, categoria_id: cat?.id ?? null, descripcion: `Cobro de ${v.nombre ?? "deudor"}`, creado_por: perfil.id }).select("id").single(), "movimientos");
+      mov = m?.id ?? null;
     }
+    // C9: solo si sigue como se leyó (un doble clic en «Cobrado» creaba 2 ingresos)
+    await soloSiSigue(db().from("vencimientos").update({ estado, pagado_en: estado === "pagado" ? new Date().toISOString() : null, ...(mov ? { movimiento_id: mov } : {}) }).eq("id", id).eq("estado", v.estado).select("id"), mov, "Este pago acaba de cambiar. Recarga la página.");
     refrescar();
   });
 }
@@ -201,22 +214,40 @@ export async function importarMovimientos(texto: string, cuentaId: string | null
     const res = Papa.parse<Record<string, string>>(texto.replace(/^﻿/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => h.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") });
     if (!res.data.length) throw new ErrorUsuario("El CSV está vacío.");
     if (res.data.length > 5000) throw new ErrorUsuario("Como mucho 5.000 movimientos por archivo.");
-    const filas: Record<string, unknown>[] = [];
+    const leidas: { tipo: string; importe: number; fecha: string; descripcion: string | null }[] = [];
     const fallos: string[] = [];
     res.data.forEach((f, i) => {
       const t = (f.fecha ?? "").trim();
       const m = t.match(/^(\d{4})-(\d{2})-(\d{2})/) ?? t.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
       const ymd = m ? (m[1].length === 4 ? `${m[1]}-${m[2]}-${m[3]}` : `${m[3]}-${m[2]}-${m[1]}`) : null;
       const v = leerNumero(f.importe);
-      if (!ymd || !Number.isFinite(v) || v === 0) {
+      if (!ymd || !fechaExiste(ymd) || !Number.isFinite(v) || v === 0) {
         fallos.push(`Fila ${i + 2}: fecha o importe no válidos`);
         return;
       }
-      filas.push({ proyecto_id: proyecto.id, tipo: v > 0 ? "ingreso" : "egreso", importe: Math.abs(Math.round(v * 100) / 100), fecha: localAIso(`${ymd}T12:00`, proyecto.zona_horaria), descripcion: (f.descripcion ?? f.concepto ?? "").trim() || null, cuenta_id: cuentaId, origen: "importado", conciliado: false, creado_por: perfil.id });
+      leidas.push({ tipo: v > 0 ? "ingreso" : "egreso", importe: Math.abs(Math.round(v * 100) / 100), fecha: localAIso(`${ymd}T12:00`, proyecto.zona_horaria), descripcion: (f.descripcion ?? f.concepto ?? "").trim() || null });
     });
+    // S2-3: importar dos veces el mismo extracto no duplica: se salta lo que ya está en esta cuenta (misma fecha,
+    // importe y descripción) y lo repetido dentro del archivo
+    const clave = (x: { tipo: string; importe: number | string; fecha: string; descripcion: string | null }) => `${x.tipo}|${Number(x.importe).toFixed(2)}|${new Date(x.fecha).getTime()}|${x.descripcion ?? ""}`;
+    const vistas = new Set<string>();
+    if (leidas.length) {
+      const fechas = leidas.map((x) => x.fecha).sort();
+      const ya = await todas<{ tipo: string; importe: number; fecha: string; descripcion: string | null; cuenta_id: string | null }>((a, b) => db().from("movimientos").select("tipo, importe, fecha, descripcion, cuenta_id").eq("proyecto_id", proyecto.id).gte("fecha", fechas[0]).lte("fecha", fechas.at(-1)!).order("id").range(a, b));
+      for (const x of ya) if ((x.cuenta_id ?? null) === cuentaId) vistas.add(clave(x));
+    }
+    const nuevas = leidas.filter((x) => {
+      const k = clave(x);
+      if (vistas.has(k)) return false;
+      vistas.add(k);
+      return true;
+    });
+    const filas = nuevas.map((x) => ({ ...x, proyecto_id: proyecto.id, cuenta_id: cuentaId, origen: "importado", conciliado: false, creado_por: perfil.id }));
     if (filas.length) await escribir(db().from("movimientos").insert(filas), "movimientos");
     refrescar();
-    return { importados: filas.length, fallos };
+    const saltadas = leidas.length - filas.length;
+    // La ventana de importar solo enseña «fallos»: el aviso de las saltadas va el primero de la lista
+    return { importados: filas.length, saltadas, fallos: saltadas ? [`${saltadas} ya estaban importadas (misma fecha, importe y descripción): no se repiten.`, ...fallos] : fallos };
   });
 }
 

@@ -33,6 +33,25 @@ export function pendienteDe(v: VentaF, pagos: PagoF[]) {
   return Math.max(0, n(v.facturacion) - n(v.cash_collected) - pagos.filter((p) => p.venta_id === v.id).reduce((s, p) => s + n(p.importe), 0));
 }
 
+// A2-03 (Cristian, 16 nov): en Finanzas se elige € o $ y se FILTRA, sin convertir. Cada venta va en la moneda de su
+// vendedor (como en Ventas) y arrastra sus cobros y plazos. Lo puesto a mano (movimientos, gastos programados, deudores
+// sin venta) no tiene moneda propia: se da por hecho que va en la del proyecto y solo sale al ver esa.
+type Moneda = "USD" | "EUR";
+export const monedaDeLaVista = (param: unknown, delProyecto: Moneda): Moneda => (param === "eur" ? "EUR" : param === "usd" ? "USD" : delProyecto);
+export function filtrarPorMoneda<D extends { ventas: { id: string; vendedor_id: string | null }[]; pagos: { venta_id: string }[]; vencimientos: { venta_id: string | null }[]; movimientos: unknown[]; programados?: unknown[] }>(d: D, moneda: Moneda, monedaDe: (vendedor: string | null) => Moneda, delProyecto: Moneda): D {
+  const ventas = d.ventas.filter((v) => monedaDe(v.vendedor_id) === moneda);
+  const quedan = new Set(ventas.map((v) => v.id));
+  const manual = moneda === delProyecto;
+  return {
+    ...d,
+    ventas,
+    pagos: d.pagos.filter((p) => quedan.has(p.venta_id)),
+    vencimientos: d.vencimientos.filter((v) => (v.venta_id ? quedan.has(v.venta_id) : manual)),
+    movimientos: manual ? d.movimientos : [],
+    ...(d.programados ? { programados: manual ? d.programados : [] } : {}),
+  };
+}
+
 export function resumenFinanzas(d: { ventas: VentaF[]; pagos: PagoF[]; movimientos: MovF[]; categorias: CatF[]; backend: Set<string>; vencimientos?: VencF[] }, r: R, zona = "America/New_York") {
   const cobros = cobrosDe(d.ventas, d.pagos, d.backend).filter((c) => enRango(c.fecha, r));
   const devuelto = d.ventas.filter((v) => v.devuelto && enRango(v.devuelto_en, r)).reduce((s, v) => s + n(v.devuelto), 0);
@@ -148,11 +167,8 @@ export function planDePagos(o: { facturacion: number; cobradoHoy: number; tipo: 
   const resto = redondear(o.facturacion - o.cobradoHoy);
   if (resto <= 0.009) return [];
   const sumarDias = (d: number) => new Date(new Date(o.fecha).getTime() + d * 86_400_000).toISOString().slice(0, 10);
-  const sumarMeses = (m: number) => {
-    const d = new Date(o.fecha);
-    d.setUTCMonth(d.getUTCMonth() + m);
-    return d.toISOString().slice(0, 10);
-  };
+  // S3-3: cada plazo desde la fecha de la venta (31-ene + 1 mes = 28-feb, no 3-mar)
+  const sumarMeses = (m: number) => siguienteMes(new Date(o.fecha).toISOString().slice(0, 10), m);
   if (o.tipo === "cuotas" && o.numCuotas && o.numCuotas >= 2) {
     const quedan = o.cobradoHoy > 0 ? o.numCuotas - 1 : o.numCuotas;
     const cada = Math.floor((resto / quedan) * 100) / 100;
@@ -161,11 +177,11 @@ export function planDePagos(o: { facturacion: number; cobradoHoy: number; tipo: 
   return [{ numero: 1, importe: resto, vence_el: sumarDias(30) }];
 }
 
-// El mismo día del mes siguiente («AAAA-MM-DD»); si no existe (31 → 30), el último del mes
-export function siguienteMes(ymd: string) {
+// El mismo día `meses` meses después («AAAA-MM-DD»; por defecto el mes siguiente); si no existe (31 → 30), el último del mes
+export function siguienteMes(ymd: string, meses = 1) {
   const [a, m, d] = ymd.split("-").map(Number);
-  const ultimo = new Date(Date.UTC(a, m + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(a, m, Math.min(d, ultimo))).toISOString().slice(0, 10);
+  const ultimo = new Date(Date.UTC(a, m + meses, 0)).getUTCDate();
+  return new Date(Date.UTC(a, m - 1 + meses, Math.min(d, ultimo))).toISOString().slice(0, 10);
 }
 
 // Membresía (bloque A): siempre hay un cobro del mes siguiente pendiente mientras no se dé de baja. Devuelve los
@@ -178,8 +194,9 @@ export function plazosMensualesQueFaltan(ventas: { id: string; lead_id: string; 
     let numero = Math.max(1, ...suyos.map((p) => p.numero));
     let ultimo = suyos.length ? suyos.map((p) => p.vence_el).sort().at(-1)! : v.fecha.slice(0, 10);
     while (ultimo <= hoy && nuevos.length < 1000) {
-      ultimo = siguienteMes(ultimo);
       numero++;
+      // S6-4: el plazo n = fecha de la venta + (n − 1) meses (encadenar desde el anterior dejaba el día en 28 para siempre)
+      ultimo = siguienteMes(v.fecha.slice(0, 10), numero - 1);
       nuevos.push({ venta_id: v.id, lead_id: v.lead_id, numero, importe: redondear(v.facturacion), vence_el: ultimo });
     }
   }

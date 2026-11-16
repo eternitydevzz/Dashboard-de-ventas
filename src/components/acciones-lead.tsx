@@ -505,28 +505,18 @@ export function FormVenta({
           <label className="etiqueta-campo" htmlFor="acciones-lead-cash-collected-hoy">Cash collected hoy</label>
           <input id="acciones-lead-cash-collected-hoy" name="cash" inputMode="decimal" required value={cash} onChange={(e) => setCash(e.target.value)} className="campo" />
         </div>
-        {tipo === "cuotas" ? (
-          <label className="block"><span className="etiqueta-campo">Número de cuotas</span><input name="num_cuotas" type="number" min={2} key={productoId} defaultValue={producto?.num_cuotas ?? 3} className="campo" /></label>
-        ) : (
-          <div>
-            <label className="etiqueta-campo" htmlFor="acciones-lead-metodo">Método</label>
-            <Pastillas id="acciones-lead-metodo" name="metodo" className="campo">
-              <option value="stripe">Stripe</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="otro">Otro</option>
-            </Pastillas>
-          </div>
-        )}
         {tipo === "cuotas" && (
-          <div>
-            <label className="etiqueta-campo" htmlFor="acciones-lead-metodo-2">Método</label>
-            <Pastillas id="acciones-lead-metodo-2" name="metodo" className="campo">
-              <option value="stripe">Stripe</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="otro">Otro</option>
-            </Pastillas>
-          </div>
+          <label className="block"><span className="etiqueta-campo">Número de cuotas</span><input name="num_cuotas" type="number" min={2} key={productoId} defaultValue={producto?.num_cuotas ?? 3} className="campo" /></label>
         )}
+        {/* S4-8: un solo «Método» fuera del condicional; si no, al pasar a cuotas se montaba otro y volvía a Stripe */}
+        <div>
+          <label className="etiqueta-campo" htmlFor="acciones-lead-metodo">Método</label>
+          <Pastillas id="acciones-lead-metodo" name="metodo" className="campo">
+            <option value="stripe">Stripe</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="otro">Otro</option>
+          </Pastillas>
+        </div>
         <label className="block"><span className="etiqueta-campo">Fecha de la venta</span><input name="fecha" type="date" className="campo" /></label>
       </div>
       {vendedores && vendedores.length > 0 && (

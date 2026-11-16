@@ -74,7 +74,7 @@ export default async function RankingPage({ searchParams }: PageProps<"/ranking"
             )}
           </Seccion>}
         </div>
-        <p className="flex items-center gap-1.5 text-xs text-texto-3"><Trophy className="h-3.5 w-3.5 text-oro" /> Callers ordenados por agendados; closers por facturación. Mismas cifras que «KPIs por persona».</p>
+        <p className="flex items-center gap-1.5 text-xs text-texto-3"><Trophy className="h-3.5 w-3.5 text-oro" /> Callers ordenados por agendados; closers por facturación. Cerradas = ventas a su nombre.</p>
       </Contenido>
     </>
   );
