@@ -105,7 +105,8 @@ async function preparar(p: PeticionReparto, vista = false) {
   const plan = quitar ? new Map<string, string>() : planReparto(leads, callers, { modo: p.modo, n: p.n, porPersona: p.porPersona, tope: p.tope }, carga);
   // Al desasignar, los que se quedan sin caller: todos o los `n` más nuevos
   const sinCaller = !quitar ? [] : p.todos ? leads : leads.slice(0, Math.max(0, Math.floor(Number(p.n) || 0)));
-  return { perfil, proyecto, gente, callers: quitar ? [] : callers, leads, plan, carga, porPais, conCaller, sinCaller };
+  const previo = new Map(elegidos.map((l) => [l.id, l.caller_id ?? ""])); // F1b: para deshacer el reparto
+  return { perfil, proyecto, gente, callers: quitar ? [] : callers, leads, plan, carga, porPais, conCaller, sinCaller, previo };
 }
 
 // Los leads marcados, por trozos de 200 (el filtro `in` va en la dirección), de los más nuevos a los más antiguos
@@ -139,7 +140,7 @@ export async function previsualizarReparto(p: PeticionReparto) {
 
 export async function repartirLeads(p: PeticionReparto) {
   return seguro(async () => {
-    const { perfil, proyecto, gente, plan, sinCaller } = await preparar(p);
+    const { perfil, proyecto, gente, plan, sinCaller, previo } = await preparar(p);
     if (p.desasignar && p.origen === "reasignar") {
       if (!sinCaller.length) throw new ErrorUsuario("No hay leads que desasignar con esos filtros.");
       for (let i = 0; i < sinCaller.length; i += 200) {
@@ -167,6 +168,12 @@ export async function repartirLeads(p: PeticionReparto) {
       }
     }
     revalidatePath("/", "layout");
-    return { repartidos: plan.size };
+    // F1b (Deshacer): a quién tenía cada lead que cambió («» = sin caller). Desasignar no se deshace (también cambia el estado).
+    const antes: Record<string, string[]> = {};
+    for (const [lead, caller] of plan) {
+      const era = previo.get(lead) ?? "";
+      if (era !== caller) (antes[era] ??= []).push(lead);
+    }
+    return { repartidos: plan.size, antes };
   });
 }

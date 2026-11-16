@@ -2,7 +2,7 @@
 
 import { startTransition, useState, useTransition, type ReactNode } from "react";
 import { Clock, MessageCircle, ShoppingCart, StickyNote, ScrollText, Check, Link2, FolderOpen, CircleX, Repeat, CalendarDays, CalendarCheck, Ban, type LucideIcon } from "lucide-react";
-import { anadirNota, confirmarAgenda, deshacerResultado, registrarLlamada, registrarVenta, type PasoResultado, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
+import { anadirNota, borrarNotaReciente, confirmarAgenda, deshacerResultado, registrarLlamada, registrarVenta, type PasoResultado, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
 import { BOTONES_RESULTADO, ESTADOS_CALLER, colorEstado, etiquetaEstado } from "@/lib/estados-caller";
 import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "@/app/(panel)/crm/ventanas-estado";
 import { Modal } from "@/components/modal";
@@ -26,16 +26,19 @@ export function simboloVenta(miMoneda: string, vendedor?: Persona) {
 
 // Ejecuta una acción del servidor: muestra «guardado» en un aviso flotante
 // y, si falla, el error en el aviso y también junto al botón.
+// F1b: `deshacer(r)` devuelve cómo deshacerlo (con lo que contestó el servidor) → botón «Deshacer» y Ctrl+Z
+export type DeshacerDe = (r: unknown) => (() => unknown) | undefined;
 export function useAccion() {
   const [pendiente, iniciar] = useTransition();
   const [error, setError] = useState("");
   const toast = useToast();
-  function ejecutar(fn: () => Promise<unknown>, mensaje?: string) {
+  function ejecutar(fn: () => Promise<unknown>, mensaje?: string, deshacer?: DeshacerDe) {
     setError("");
     iniciar(async () => {
       try {
         const r = await exigirOk(fn());
-        if (mensaje) toast(mensaje);
+        const atras = deshacer?.(r);
+        if (mensaje) toast(mensaje, "ok", atras ? { deshacer: { texto: mensaje, deshacer: atras } } : undefined);
         const aviso = avisoDe(r);
         if (aviso) toast(aviso, "error");
       } catch (e) {
@@ -50,12 +53,12 @@ export function useAccion() {
 
 // Una acción por clave a la vez: un doble clic durante el guardado no lanza otra. Con `guardando`, avisa al momento
 // («Guardando…», Cristian 14 nov: la respuesta tardaba y no se veía nada) y el mensaje final sale al terminar.
-export function crearUnaVez(enCurso: Set<string>, ejecutar: (fn: () => Promise<unknown>, mensaje?: string) => void, avisar: (texto: string) => void) {
-  return (clave: string, fn: () => Promise<unknown>, mensaje: string, guardando = false) => {
+export function crearUnaVez(enCurso: Set<string>, ejecutar: (fn: () => Promise<unknown>, mensaje?: string, deshacer?: DeshacerDe) => void, avisar: (texto: string) => void) {
+  return (clave: string, fn: () => Promise<unknown>, mensaje: string, guardando = false, deshacer?: DeshacerDe) => {
     if (enCurso.has(clave)) return;
     enCurso.add(clave);
     if (guardando) avisar("Guardando…");
-    ejecutar(() => fn().finally(() => enCurso.delete(clave)), mensaje);
+    ejecutar(() => fn().finally(() => enCurso.delete(clave)), mensaje, deshacer);
   };
 }
 
@@ -274,7 +277,11 @@ export function AccionesLead({
               className="btn-primario w-full"
               disabled={pendiente}
               onClick={() =>
-                unaVez("nota", () => exigirOk(anadirNota(leadId, nota)).then(() => { setNota(""); setModal(null); }), "Nota guardada")
+                // F1b: Deshacer = borrar esa nota (el servidor solo deja la mía, reciente y del proyecto)
+                unaVez("nota", () => exigirOk(anadirNota(leadId, nota)).then((r) => { setNota(""); setModal(null); return r; }), "Nota guardada", false, (r) => {
+                  const id = (r as { id?: string } | undefined)?.id;
+                  return id ? () => ejecutar(() => borrarNotaReciente(id), "Nota borrada") : undefined;
+                })
               }
             >
               Guardar nota

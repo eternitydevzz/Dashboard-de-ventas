@@ -28,6 +28,8 @@ export function SelectoresLead({
 }) {
   const { pendiente, error, ok, ejecutar } = useAccion();
   const nombre = (lista: Persona[], id: string | null) => lista.find((p) => p.id === id)?.nombre ?? "Sin asignar";
+  // F1b: Deshacer (botón y Ctrl+Z) = la misma acción con el valor que había en pantalla antes del cambio
+  const volver = (fn: () => Promise<unknown>, mensaje: string) => () => () => ejecutar(fn, mensaje);
   if (!jefe) {
     return (
       <dl className="grid grid-cols-2 gap-2 text-sm">
@@ -40,7 +42,7 @@ export function SelectoresLead({
     <div className="space-y-3">
       <div>
         <label className="etiqueta-campo" htmlFor="selectores-pipeline-y-columna">Pipeline y columna</label>
-        <Desplegable id="selectores-pipeline-y-columna" className="campo" value={etapaId ?? ""} disabled={pendiente} onChange={(e) => ejecutar(() => cambiarEtapaLead(leadId, e.target.value), "Lead movido")}>
+        <Desplegable id="selectores-pipeline-y-columna" className="campo" value={etapaId ?? ""} disabled={pendiente} onChange={(e) => ejecutar(() => cambiarEtapaLead(leadId, e.target.value), "Lead movido", etapaId ? volver(() => cambiarEtapaLead(leadId, etapaId), "Lead vuelto a su columna") : undefined)}>
           {!etapaId && <option value="">Sin columna</option>}
           {pipelines.map((p) => (
             <optgroup key={p.id} label={p.nombre}>
@@ -52,14 +54,14 @@ export function SelectoresLead({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="etiqueta-campo" htmlFor="selectores-caller">Caller</label>
-          <Desplegable id="selectores-caller" className="campo" value={callerId ?? ""} disabled={pendiente} onChange={(e) => ejecutar(() => asignarDesdeFicha(leadId, "caller_id", e.target.value), "Caller asignado")}>
+          <Desplegable id="selectores-caller" className="campo" value={callerId ?? ""} disabled={pendiente} onChange={(e) => ejecutar(() => asignarDesdeFicha(leadId, "caller_id", e.target.value), "Caller asignado", volver(() => asignarDesdeFicha(leadId, "caller_id", callerId ?? ""), "Caller como estaba"))}>
             <option value="">Sin asignar</option>
             {callers.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </Desplegable>
         </div>
         <div>
           <label className="etiqueta-campo" htmlFor="selectores-closer">Closer</label>
-          <Desplegable id="selectores-closer" className="campo" value={closerId ?? ""} disabled={pendiente} onChange={(e) => ejecutar(() => asignarDesdeFicha(leadId, "closer_id", e.target.value), "Closer asignado")}>
+          <Desplegable id="selectores-closer" className="campo" value={closerId ?? ""} disabled={pendiente} onChange={(e) => ejecutar(() => asignarDesdeFicha(leadId, "closer_id", e.target.value), "Closer asignado", volver(() => asignarDesdeFicha(leadId, "closer_id", closerId ?? ""), "Closer como estaba"))}>
             <option value="">Sin asignar</option>
             {closers.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </Desplegable>
