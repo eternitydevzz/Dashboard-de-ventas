@@ -95,7 +95,7 @@ describe("botones de la cita", () => {
     expect(paso?.texto).toBe("Confirmada");
     paso!.deshacer();
     await esperar();
-    expect(acc.cambiarEstadoCita).toHaveBeenLastCalledWith("c1", "pendiente", "");
+    expect(acc.cambiarEstadoCita).toHaveBeenLastCalledWith("c1", "pendiente", "", undefined, "confirmada");
   });
   it("«No califica» no ofrece Deshacer (mueve el lead en el CRM)", async () => {
     pulsar(pintarAcciones("pendiente"), "No califica");
@@ -130,7 +130,7 @@ describe("tablero de Agendas", () => {
     expect(acc.cambiarEstadoCita).toHaveBeenCalledWith("c1", "cancelada", "");
     pasoDeshacer()!.deshacer();
     await esperar();
-    expect(acc.cambiarEstadoCita).toHaveBeenLastCalledWith("c1", "pendiente", "");
+    expect(acc.cambiarEstadoCita).toHaveBeenLastCalledWith("c1", "pendiente", "", undefined, "cancelada");
     expect(acc.moverCitaColumna).not.toHaveBeenCalled();
   });
   it("desde una columna libre: Deshacer devuelve el estado y la columna libre (el cambio de estado la saca de ella)", async () => {
@@ -138,7 +138,7 @@ describe("tablero de Agendas", () => {
     await esperar();
     pasoDeshacer()!.deshacer();
     await esperar();
-    expect(acc.cambiarEstadoCita).toHaveBeenLastCalledWith("c1", "pendiente", "");
+    expect(acc.cambiarEstadoCita).toHaveBeenLastCalledWith("c1", "pendiente", "", undefined, "confirmada");
     expect(acc.moverCitaColumna).toHaveBeenLastCalledWith("c1", "libre1");
   });
   it("a «No califica» arrastrando: sin Deshacer", async () => {

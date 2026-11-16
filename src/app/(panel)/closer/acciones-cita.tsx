@@ -50,7 +50,7 @@ export function AccionesCita({
   const estado = (e: EstadoCita, msg: string) => {
     const antes = cita.estado;
     if (!seDeshaceEstado(antes, e)) return ejecutar(() => cambiarEstadoCita(cita.id, e, ""), msg);
-    ejecutar(conDeshacer(toast, () => cambiarEstadoCita(cita.id, e, ""), msg, () => ejecutar(() => cambiarEstadoCita(cita.id, antes, ""), "Deshecho")));
+    ejecutar(conDeshacer(toast, () => cambiarEstadoCita(cita.id, e, ""), msg, () => ejecutar(() => cambiarEstadoCita(cita.id, antes, "", undefined, e), "Deshecho")));
   };
   // Doble clic en «Registrar venta» = dos ventas: la ventana no se cierra hasta que responde el servidor (como en acciones-lead)
   const ventaEnCurso = useRef(false);

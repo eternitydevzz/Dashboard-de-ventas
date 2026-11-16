@@ -94,17 +94,18 @@ export function TableroClosers({
 
   // N2: Deshacer = la misma acción con lo de antes. Cambiar el estado saca la cita de su columna libre (trigger
   // cita_columna_closers), así que al deshacer también vuelve a ella. Nada de esto sale a GHL ni a workflows.
-  function volverCita(c: TarjetaCitaC, origen: string, estadoAntes?: EstadoCita) {
+  // `puesto`: el estado que dejó el clic; el servidor no deshace si otra persona lo cambió después
+  function volverCita(c: TarjetaCitaC, origen: string, estadoAntes?: EstadoCita, puesto?: EstadoCita) {
     const libre = columnas.find((x) => x.id === origen)?.clave ? null : origen;
     return () =>
       ejecutar(async () => {
-        if (estadoAntes) await exigirOk(cambiarEstadoCita(c.id, estadoAntes, ""));
+        if (estadoAntes) await exigirOk(cambiarEstadoCita(c.id, estadoAntes, "", undefined, puesto));
         if (libre || !estadoAntes) await exigirOk(moverCitaColumna(c.id, libre));
       }, "Deshecho");
   }
   const moverColumna = (c: TarjetaCitaC, origen: string, etapaId: string | null, msg: string) => ejecutar(conDeshacer(toast, () => moverCitaColumna(c.id, etapaId), msg, volverCita(c, origen)));
   const cambiarEstado = (c: TarjetaCitaC, origen: string, e: EstadoCita, msg: string) =>
-    seDeshaceEstado(c.estado, e) ? ejecutar(conDeshacer(toast, () => cambiarEstadoCita(c.id, e, ""), msg, volverCita(c, origen, c.estado))) : ejecutar(() => cambiarEstadoCita(c.id, e, ""), msg);
+    seDeshaceEstado(c.estado, e) ? ejecutar(conDeshacer(toast, () => cambiarEstadoCita(c.id, e, ""), msg, volverCita(c, origen, c.estado, e))) : ejecutar(() => cambiarEstadoCita(c.id, e, ""), msg);
 
   function mover(item: Item, destino: ColumnaC) {
     if (item.origen === destino.id) return;
