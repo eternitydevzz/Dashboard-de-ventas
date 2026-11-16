@@ -114,13 +114,15 @@ export function BarraLateral({
   // entonces no navegaba (0 de 5 sin pasar el ratón antes). Ahora el enlace no cambia nunca (prefetch={false} fijo) y se
   // precarga a mano con router.prefetch (prefetching.md, «Manual prefetch»), completa con kind "full" (prefetch.js:
   // PrefetchKind.FULL; la de por defecto en una página dinámica con loading.tsx solo trae la pantalla de carga, link.md:302).
-  // La sección en la que ya estás no se precarga. Límite: router.prefetch solo actúa en producción, como la de <Link>.
+  // La sección en la que ya estás no se precarga. En el móvil el menú está escondido: las 3 de entrada no se precargan
+  // (como antes con <Link>, que solo precarga lo que se ve), para no cargar más la base.
   const router = useRouter();
   const precargar = (href: string) => {
     if (href !== ruta) router.prefetch(href, { kind: "full" as never }); // el tipo es un enum interno de Next
   };
   useEffect(() => {
     const ya = () => {
+      if (!matchMedia("(min-width: 1024px)").matches) return; // lg: el menú solo se ve desde ahí
       for (const h of precarga) if (h !== location.pathname) router.prefetch(h, { kind: "full" as never });
     };
     window.addEventListener(FIN_BIENVENIDA, ya);

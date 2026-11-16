@@ -98,8 +98,14 @@ describe("R15 · el enlace del menú no cambia de identidad al precargar", () =>
     const ventana = new EventTarget();
     vi.stubGlobal("window", ventana);
     vi.stubGlobal("location", { pathname: "/crm" });
+    let ancho = true;
+    vi.stubGlobal("matchMedia", () => ({ matches: ancho }));
     const antes = pintar();
     h.efectos.forEach((f) => f());
+    ancho = false; // móvil: el menú está escondido, no se precarga nada
+    ventana.dispatchEvent(new Event(FIN_BIENVENIDA));
+    expect(router.prefetch).not.toHaveBeenCalled();
+    ancho = true;
     ventana.dispatchEvent(new Event(FIN_BIENVENIDA));
     expect(router.prefetch.mock.calls.map((c) => c[0]).sort()).toEqual(["/funnel", "/kpis"]);
     const despues = pintar();
