@@ -18,12 +18,15 @@ const moverMes = (mes: string, n: number) => {
 };
 type Liq = { id: string; perfil_id: string; mes: string; base_facturado: number; base_cobrado: number; comision_facturado: number; comision_cobrado: number; detalle: LineaL[]; tramo: { base: number; pct: number } | null; estado: "pendiente" | "pagada"; pagada_en: string | null; calculada_en: string };
 
-export async function TabLiquidaciones({ d, proyecto, sp, yo }: { d: DatosFinanzas; proyecto: Proyecto; sp: SP; yo: Perfil }) {
+export async function TabLiquidaciones({ d, proyecto, sp, yo, deLaMoneda }: { d: DatosFinanzas; proyecto: Proyecto; sp: SP; yo: Perfil; deLaMoneda: (perfilId: string) => boolean }) {
   const $ = (n: number) => dinero(n, proyecto, 2);
   const mes = typeof sp.mes === "string" && /^\d{4}-\d{2}$/.test(sp.mes) ? sp.mes : hoyEnZona(proyecto.zona_horaria).slice(0, 7);
   const estado = typeof sp.estado === "string" ? sp.estado : "";
-  const { data } = await db().from("liquidaciones").select("*").eq("proyecto_id", proyecto.id).eq("mes", mes);
-  const todas = ((data ?? []) as Liq[]).map((l) => ({ ...l, base_facturado: Number(l.base_facturado), base_cobrado: Number(l.base_cobrado), comision_facturado: Number(l.comision_facturado), comision_cobrado: Number(l.comision_cobrado) }));
+  const { data, error } = await db().from("liquidaciones").select("*").eq("proyecto_id", proyecto.id).eq("mes", mes);
+  // S2-16: si la base falla, error.tsx (antes salía «No hay comisiones» e invitaba a «Calcular»)
+  if (error) throw new Error(`No se pudieron leer las liquidaciones: ${error.message}`);
+  // A2-03: cada persona en la moneda de su mercado (filtro € / $)
+  const todas = ((data ?? []) as Liq[]).filter((l) => deLaMoneda(l.perfil_id)).map((l) => ({ ...l, base_facturado: Number(l.base_facturado), base_cobrado: Number(l.base_cobrado), comision_facturado: Number(l.comision_facturado), comision_cobrado: Number(l.comision_cobrado) }));
   const lista = todas.filter((l) => (estado === "pagados" ? l.estado === "pagada" : estado === "todos" ? true : l.estado === "pendiente")).sort((a, b) => b.comision_cobrado - a.comision_cobrado);
   const suma = (e: string) => todas.filter((l) => l.estado === e).reduce((s, l) => s + l.comision_cobrado, 0);
   const cuentas = d.cuentas.map((c) => ({ id: c.id, nombre: c.nombre }));

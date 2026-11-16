@@ -9,7 +9,10 @@ import { BarraPeriodo } from "@/components/barra-periodo";
 import { cargarPantallaFinanzas } from "./cargar";
 import { GuiaFinanciera, TipoCambio } from "./cliente";
 import { TabResumen } from "./tab-resumen";
-import { TabVentas } from "./tab-ventas";
+import { Chips, TabVentas } from "./tab-ventas";
+import { filtrarPorMoneda, monedaDeLaVista } from "@/lib/finanzas";
+import { mercadosDelProyecto } from "@/lib/mercado-datos";
+import { contenidoMercado } from "@/lib/mercado";
 import { TabLiquidaciones } from "./tab-liquidaciones";
 import { TabIngresos, TabEgresos } from "./tab-gastos";
 import { TabCuentas, TabMovimientos } from "./tab-cuentas";
@@ -33,10 +36,16 @@ export default async function FinanzasPage({ searchParams }: PageProps<"/finanza
   const tab = (PESTANAS.some((p) => p.v === sp.tab) ? sp.tab : "resumen") as Tab;
   const p = leerPeriodo(sp);
   const rango = rangoNav(p.periodo, p.n, proyecto.zona_horaria, p.desde, p.hasta);
-  const d = await cargarPantallaFinanzas(proyecto);
+  // A2-03 (Cristian, 16 nov): se elige € o $ (?moneda=eur|usd, por defecto la del proyecto) y se FILTRA, sin convertir.
+  // La moneda de una venta es la de su vendedor, como en Ventas; los importes se pintan con ese símbolo.
+  const [todo, mercados] = await Promise.all([cargarPantallaFinanzas(proyecto), mercadosDelProyecto(proyecto.id)]);
+  const monedaDe = (perfilId: string | null) => contenidoMercado(perfilId ? mercados[perfilId] ?? null : null).moneda(proyecto);
+  const moneda = monedaDeLaVista(sp.moneda, proyecto.moneda);
+  const d = filtrarPorMoneda(todo, moneda, monedaDe, proyecto.moneda);
+  const vista = { ...proyecto, moneda };
   const conPeriodo = tab !== "liquidaciones" && tab !== "divisas" && !(tab === "ventas" && sp.ver === "pendientes") && !(tab === "egresos" && sp.ver === "programados");
   const qs = (t: string) => {
-    const q = new URLSearchParams(Object.entries(sp).filter(([k, v]) => typeof v === "string" && ["p", "n", "desde", "hasta"].includes(k)) as [string, string][]);
+    const q = new URLSearchParams(Object.entries(sp).filter(([k, v]) => typeof v === "string" && ["p", "n", "desde", "hasta", "moneda"].includes(k)) as [string, string][]);
     q.set("tab", t);
     return `/finanzas?${q}`;
   };
@@ -54,16 +63,17 @@ export default async function FinanzasPage({ searchParams }: PageProps<"/finanza
               </Link>
             );
           })}
+          <div className="ml-auto"><Chips sp={{ ...sp, moneda: moneda.toLowerCase() }} nombre="moneda" opciones={[["eur", "€"], ["usd", "$"]]} /></div>
         </nav>
         {conPeriodo && <div className="tarjeta flex justify-end p-2.5"><BarraPeriodo etiqueta={rango.etiqueta} /></div>}
 
-        {tab === "resumen" && <TabResumen d={d} rango={rango} proyecto={proyecto} />}
-        {tab === "ventas" && <TabVentas d={d} rango={rango} proyecto={proyecto} sp={sp} jefe={esJefe(perfil)} />}
-        {tab === "liquidaciones" && <TabLiquidaciones d={d} proyecto={proyecto} sp={sp} yo={perfil} />}
-        {tab === "ingresos" && <TabIngresos d={d} rango={rango} proyecto={proyecto} />}
-        {tab === "egresos" && <TabEgresos d={d} rango={rango} proyecto={proyecto} sp={sp} />}
-        {tab === "cuentas" && <TabCuentas d={d} rango={rango} proyecto={proyecto} />}
-        {tab === "movimientos" && <TabMovimientos d={d} rango={rango} proyecto={proyecto} sp={sp} />}
+        {tab === "resumen" && <TabResumen d={d} rango={rango} proyecto={vista} />}
+        {tab === "ventas" && <TabVentas d={d} rango={rango} proyecto={vista} sp={sp} jefe={esJefe(perfil)} />}
+        {tab === "liquidaciones" && <TabLiquidaciones d={d} proyecto={vista} sp={sp} yo={perfil} deLaMoneda={(id) => monedaDe(id) === moneda} />}
+        {tab === "ingresos" && <TabIngresos d={d} rango={rango} proyecto={vista} />}
+        {tab === "egresos" && <TabEgresos d={d} rango={rango} proyecto={vista} sp={sp} />}
+        {tab === "cuentas" && <TabCuentas d={d} rango={rango} proyecto={vista} />}
+        {tab === "movimientos" && <TabMovimientos d={d} rango={rango} proyecto={vista} sp={sp} />}
         {tab === "divisas" && (
           <section className="tarjeta max-w-xl space-y-4 p-5">
             <h2 className="titulo-seccion">Tipo de cambio (a mano)</h2>
