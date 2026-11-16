@@ -18,7 +18,7 @@ export default async function DuplicadosPage() {
     <>
       <Cabecera titulo="Duplicados" subtitulo={`${proyecto.nombre} · mismo teléfono (últimas 9 cifras) · ${grupos.length} ${grupos.length === 1 ? "grupo" : "grupos"}`} />
       <Contenido>
-        <ListaDuplicados grupos={grupos} />
+        <ListaDuplicados grupos={grupos} zona={proyecto.zona_horaria} />
       </Contenido>
     </>
   );

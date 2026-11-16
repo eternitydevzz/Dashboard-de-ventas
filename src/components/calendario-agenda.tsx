@@ -21,6 +21,7 @@ export function CalendarioAgenda({ leadId }: { leadId?: string }) {
   const [mes, setMes] = useState<string | null>(null); // «AAAA-MM» que se ve
   const [fallo, setFallo] = useState(false); // falló la red: «Reintentar» en vez de buscar para siempre
   const [intento, setIntento] = useState(0);
+  const [falta, setFalta] = useState(false); // se intentó agendar sin día y hora
 
   useEffect(() => {
     let vivo = true;
@@ -65,7 +66,9 @@ export function CalendarioAgenda({ leadId }: { leadId?: string }) {
 
   return (
     <div className="space-y-3">
-      <input type="hidden" name="fecha" value={dia && hora ? hora : ""} required />
+      {/* S4-9: un hidden no se valida; este campo oculto sí, y el formulario no se envía sin día y hora */}
+      <input name="fecha" value={dia && hora ? hora : ""} onChange={() => {}} required tabIndex={-1} aria-hidden className="sr-only" onInvalid={(e) => (e.preventDefault(), setFalta(true))} />
+      {falta && !(dia && hora) && <p className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">Elige el día y la hora para poder agendar.</p>}
       <div className="flex items-center justify-between">
         <b>{MESES[m - 1]} {y}</b>
         <div className="flex gap-1">

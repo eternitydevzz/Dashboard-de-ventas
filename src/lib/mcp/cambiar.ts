@@ -148,7 +148,7 @@ export async function herramientaMoverCita(a: { citaId: string; columna: string 
 }
 
 // ---------- cambiar_estado (los botones de la ficha) ----------
-export const ESTADOS: (ResultadoSimple | "confirma_agenda")[] = ["nuevo", "link_enviado", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado", "confirma_agenda"];
+export const ESTADOS: (ResultadoSimple | "confirma_agenda")[] = ["nuevo", "link_enviado", "wsp_enviado", "no_interesa", "seguimiento", "llamar_luego", "descartado", "reagendado", "confirma_agenda"];
 
 export async function herramientaEstado(a: { leadId: string; estado: (typeof ESTADOS)[number]; nota?: string; estrellas?: number; llamarEn?: string }) {
   if (a.estado === "confirma_agenda") ok(await confirmarAgenda(a.leadId));

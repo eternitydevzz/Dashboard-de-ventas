@@ -27,7 +27,7 @@ afterAll(async () => {
 describe("Pipelines del equipo", () => {
   it("al crear un proyecto se crean «Callers» y «Closers» con sus columnas unidas, y no se pueden borrar", async () => {
     const { data: c } = await db.from("etapas").select("nombre, estado_caller").eq("pipeline_id", callers).order("orden");
-    expect(c!.map((x) => x.estado_caller)).toEqual(["nuevo", "wsp_enviado", "no_responde", "no_interesa", "seguimiento", "llamar_luego", "link_enviado", "agendado", "confirma_agenda", "reagendado", "descartado", "vendido"]); // C11: 12
+    expect(c!.map((x) => x.estado_caller)).toEqual(["nuevo", "wsp_enviado", "no_interesa", "seguimiento", "llamar_luego", "link_enviado", "agendado", "confirma_agenda", "reagendado", "descartado", "vendido"]); // 16 nov: 11, sin «No responde»
     const { data: k } = await db.from("etapas").select("columna_cita").eq("pipeline_id", closers).order("orden");
     expect(k!.map((x) => x.columna_cita)).toEqual(["pendiente", "confirmacion_pendiente", "confirmada", "no_califica", "pendientes", "reagendadas", "reserva", "cuotas", "cerradas", "seguimiento", "no_show", "cancelada", "perdida"]);
     como(e, e.p.ceo);

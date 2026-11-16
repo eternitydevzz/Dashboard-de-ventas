@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import Link, { useLinkStatus } from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { startTransition, useEffect, useMemo, useOptimistic, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Inbox, Search } from "lucide-react";
 import { ETIQUETA_ESTADO_CALLER, fechaHora, iniciales as inicialesDe, nombrePais } from "@/lib/formato";
 import { nivel } from "@/lib/prioridad";
@@ -10,7 +10,7 @@ import { Insignia, Vacio } from "@/components/ui";
 import { AccionesLead } from "@/components/acciones-lead";
 import type { Guion } from "@/lib/guiones";
 import type { Lead, Producto, Proyecto, Rol } from "@/lib/tipos";
-import { descompactarRespuestas, type CampoOrden, type OrdenCola, type RespuestasCompactas } from "@/lib/cola";
+import { buscaCola, descompactarRespuestas, ordenarCola, type CampoOrden, type OrdenCola, type RespuestasCompactas } from "@/lib/cola";
 import { colorEstado } from "@/lib/estados-caller";
 import { conZona } from "@/app/(panel)/perfil/foto-zona";
 import { nombreZona } from "@/lib/zona-persona";
@@ -22,6 +22,14 @@ type LeadEnviado = Omit<LeadCola, "respuestas"> & { r: RespuestasCompactas };
 const iniciales = (n: string) => inicialesDe(n) || "?";
 const nombreDe = (l: Pick<LeadCola, "nombre" | "apellido">) => `${l.nombre} ${l.apellido}`.trim() || "Sin nombre";
 const letra = (puntos: number) => nivel(puntos).texto.slice(-1); // «Prioridad A» → «A»
+const SIN_CAMBIOS: Record<string, LeadCola> = {};
+
+// R10/C3: cambiar de columna sigue yendo al servidor (aquí solo están los leads de la columna elegida); al menos se
+// ve al momento que está cargando (punto en la pastilla y la lista atenuada). Va dentro de cada pastilla (Link).
+export function CargandoColumna() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden data-cargando={pending ? "" : undefined} className={`ml-1 inline-block h-1.5 w-1.5 rounded-full bg-primario align-middle transition-opacity ${pending ? "animate-pulse opacity-100" : "opacity-0"}`} />;
+}
 
 // Velocidad (28 oct 2026, Cristian: «el equipo dice que va muy lento»): elegir un lead de la cola no pide la página al
 // servidor: se cambia la dirección con pushState (Next la sincroniza con useSearchParams) y la ficha sale al momento.
@@ -36,6 +44,7 @@ export function ColaCaller({
   asignados,
   callerId,
   pestana,
+  busqueda,
   orden,
   zona,
   conIA,
@@ -56,6 +65,7 @@ export function ColaCaller({
   asignados: number;
   callerId: string | null; // solo para los jefes, que miran la cola de otro
   pestana: string;
+  busqueda: string; // R8: ?q= (el servidor ya buscó en todos los leads del caller)
   orden: OrdenCola | null;
   zona: Proyecto["zona_horaria"];
   conIA: boolean;
@@ -69,14 +79,31 @@ export function ColaCaller({
   nombresPipeline: Record<string, string>; // pipeline de origen del lead («Webinar 1»…), en la cabecera
   puedeGrabar: boolean; // C10
 }) {
-  const leads = useMemo((): LeadCola[] => enviados.map(({ r, ...l }) => ({ ...l, respuestas: descompactarRespuestas(preguntas, r) })), [enviados, preguntas]);
+  const servidor = useMemo((): LeadCola[] => enviados.map(({ r, ...l }) => ({ ...l, respuestas: descompactarRespuestas(preguntas, r) })), [enviados, preguntas]);
+  // C1/R2/C13: un resultado cambia el lead en pantalla al momento (mientras guarda); al responder el servidor manda lo suyo.
+  // Si falla, React lo devuelve solo a como estaba. Deshacer lo trae de vuelta igual (por eso se guarda el lead entero).
+  const [cambios, cambiar] = useOptimistic(SIN_CAMBIOS, (s, l: LeadCola) => ({ ...s, [l.id]: l }));
+  const leads = useMemo(() => {
+    const vistos = servidor.map((l) => cambios[l.id] ?? l);
+    const vuelven = Object.values(cambios).filter((c) => !servidor.some((l) => l.id === c.id));
+    if (!vuelven.length) return vistos;
+    const todos = [...vistos, ...vuelven];
+    return orden ? ordenarCola(todos, orden) : todos.sort((a, b) => b.creado_en.localeCompare(a.creado_en)); // el orden de siempre (lib/cola)
+  }, [servidor, cambios, orden]);
   const elegido = useSearchParams().get("lead");
-  const [busca, setBusca] = useState("");
+  const router = useRouter();
+  const [busca, setBusca] = useState(busqueda);
+  const [busquedaVista, setBusquedaVista] = useState(busqueda);
+  if (busqueda !== busquedaVista) {
+    setBusquedaVista(busqueda); // al cambiar de pastilla (sin ?q=) el buscador se vacía
+    if (busqueda.trim() !== busca.trim()) setBusca(busqueda);
+  }
   const [guionDe, setGuionDe] = useState<string | null>(null); // lead con el guion abierto
   const posicion = useRef(0); // dónde estaba en la lista el lead del guion (por si sale de ella al cambiar de columna)
   const ficha = useRef<HTMLDivElement>(null);
-  const q = busca.trim().toLowerCase();
-  const filas = useMemo(() => (q ? leads.filter((l) => nombreDe(l).toLowerCase().includes(q) || (l.telefono ?? "").replace(/\s/g, "").includes(q.replace(/\s/g, ""))) : leads), [leads, q]);
+  const q = busca.trim();
+  // Con ?q= la lista trae todas las columnas; sin él, solo la de la pastilla (un lead que cambia de columna sale al momento)
+  const filas = useMemo(() => leads.filter((l) => (busqueda || l.estado_caller === pestana) && buscaCola(l, q)), [leads, busqueda, pestana, q]);
   // Revisión del 7 nov: si el lead elegido sale de la lista al cambiarlo de columna (p. ej. con la pastilla «Leads
   // nuevos» puesta), se queda en pantalla (y su guion abierto) en vez de saltar a otro a mitad de la llamada
   const [ultimo, setUltimo] = useState<LeadCola | null>(null);
@@ -90,8 +117,21 @@ export function ColaCaller({
     const p = new URLSearchParams();
     if (callerId) p.set("caller", callerId);
     p.set("columna", pestana);
+    if (busqueda) p.set("q", busqueda);
     return p;
   };
+  // R8: lo escrito va a la dirección (?q=) tras una pausa y el servidor busca en todos los leads del caller
+  useEffect(() => {
+    if (q === busqueda.trim()) return;
+    const t = setTimeout(() => {
+      const p = parametros();
+      if (orden) (p.set("orden", orden.campo), p.set("dir", orden.dir === 1 ? "asc" : "desc"));
+      p.delete("q"); // al vaciar el buscador, fuera la búsqueda vieja
+      if (q) p.set("q", q);
+      startTransition(() => router.replace(`/caller?${p.toString()}`, { scroll: false }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]); // eslint-disable-line react-hooks/exhaustive-deps -- solo al escribir
   const enlace = (leadId: string) => {
     const p = parametros();
     if (orden) {
@@ -149,14 +189,14 @@ export function ColaCaller({
 
   return (
     <div className="grid items-start gap-[18px] min-[1100px]:grid-cols-[492px_minmax(0,1fr)]">
-      <aside className="tarjeta flex flex-col overflow-hidden min-[1100px]:sticky min-[1100px]:top-4 min-[1100px]:max-h-[calc(100vh-32px)]">
+      <aside className="group/cola tarjeta flex flex-col overflow-hidden min-[1100px]:sticky min-[1100px]:top-4 min-[1100px]:max-h-[calc(100vh-32px)]">
         {pestanas}
         {/* Revisión en la app (7 nov): sin shrink-0, la columna aplastaba las pastillas y el buscador a 1440 px */}
         <div className="relative shrink-0 border-b border-borde px-2.5 py-2">
           <Search className="pointer-events-none absolute left-[21px] top-1/2 h-4 w-4 -translate-y-1/2 text-texto-3" />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} className="campo pl-[34px]" placeholder="Buscar por nombre o teléfono…" aria-label="Buscar por nombre o teléfono" />
         </div>
-        <div className="max-h-[70vh] flex-1 overflow-auto min-[1100px]:max-h-none">
+        <div className="max-h-[70vh] flex-1 overflow-auto transition-opacity group-has-[[data-cargando]]/cola:opacity-50 min-[1100px]:max-h-none">
           <table className="w-full min-w-[470px] table-fixed border-collapse text-[13px]">
             <thead>
               <tr>
@@ -204,7 +244,7 @@ export function ColaCaller({
           </table>
         </div>
         {/* F7: avisa cuando no se pintan todos */}
-        <div className="shrink-0 border-t border-borde px-3.5 py-2.5 text-xs text-texto-3">{total} leads{total > leads.length ? ` · se ven los ${leads.length} primeros: ordena o filtra para ver otros` : ""}{q ? ` · ${filas.length} con «${busca.trim()}»` : ""}</div>
+        <div className="shrink-0 border-t border-borde px-3.5 py-2.5 text-xs text-texto-3">{total} leads{busqueda ? " en todas las columnas" : ""}{total > servidor.length ? ` · se ven los ${servidor.length} primeros: ordena o filtra para ver otros` : ""}{q ? ` · ${filas.length} con «${q}»` : ""}</div>
       </aside>
 
       <div ref={ficha} className="flex min-w-0 scroll-mt-4 flex-col gap-4">
@@ -224,6 +264,11 @@ export function ColaCaller({
               nombreLead={nombreDe(seleccionado)}
               miNombre={miNombre}
               estado={seleccionado.estado_caller}
+              onCambio={(c) => {
+                // A4-01: sin ?lead= la pantalla saltaría al siguiente al salir el lead de la lista
+                if (location.pathname === "/caller" && !new URLSearchParams(location.search).get("lead")) window.history.replaceState(null, "", enlace(seleccionado.id)); // revisor: no si se deshace desde otra pantalla
+                cambiar({ ...seleccionado, ...c });
+              }}
               respuestas={seleccionado.respuestas}
               guionAbierto={guionDe === seleccionado.id}
               onGuionAbierto={abrirGuion}

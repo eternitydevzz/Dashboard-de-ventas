@@ -14,12 +14,12 @@ import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { rangoDe, porcentaje, pct, dinero, hoyEnZona, nombresCortos } from "@/lib/formato";
 import { kpisHoyCola, llamadasHoyCola } from "@/lib/kpis-cola";
 import type { Pesos } from "@/lib/cualificacion";
-import { colaCaller, compactarRespuestas, cuentaPorEstado, leerOrden, ordenarCola } from "@/lib/cola";
+import { buscaCola, colaCaller, compactarRespuestas, cuentaPorEstado, leerOrden, ordenarCola } from "@/lib/cola";
 import { ESTADOS_CALLER } from "@/lib/estados-caller";
 import { Cabecera, Contenido, Vacio, Avatar } from "@/components/ui";
 import type { LucideIcon } from "lucide-react";
 import type { Lead, Producto } from "@/lib/tipos";
-import { ColaCaller } from "./cola";
+import { CargandoColumna, ColaCaller } from "./cola";
 import { BarraDeslizable } from "@/components/barra-deslizable";
 
 // C11 (7c.1): una pastilla por columna; la primera, «Leads» = toda la cola (no hay una solo para los nuevos)
@@ -55,7 +55,6 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const filtroM = jefe ? mercadoValido(sp.mercado) : null; // 13 nov: el jefe elige callers de España o de Latam
   const callers = gente.filter((g) => g.rol === "caller" && entraEnMercado(mercados, g.id, filtroM));
   const caller = jefe ? callers.find((c) => c.id === sp.caller) ?? callers[0] : perfil;
-  const filtro = typeof sp.columna === "string" && FILTROS.some((f) => f.v === sp.columna) ? sp.columna : "nuevo";
   const orden = leerOrden(sp.orden, sp.dir); // C2: orden de las cabeceras, en el servidor
 
   if (!caller) {
@@ -89,8 +88,13 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const whatsapps = acts.filter((a) => a.tipo === "whatsapp").length;
   const confirmadas = acts.filter((a) => a.tipo === "cambio_etapa" && a.resultado === "confirma_agenda").length;
 
+  // A3-01: «Abrir lead» desde Grabaciones llega con ?lead= sin columna: la columna es la del propio lead (antes, «Leads» y otro lead)
+  const pedidoSinColumna = typeof sp.lead === "string" && typeof sp.columna !== "string" ? leads.find((l) => l.id === sp.lead) : undefined;
+  const filtro = typeof sp.columna === "string" && FILTROS.some((f) => f.v === sp.columna) ? sp.columna : pedidoSinColumna?.estado_caller ?? "nuevo";
+  // R8: con ?q= se busca en todos los leads del caller (todas las columnas), no solo en los 300 que se ven
+  const q = typeof sp.q === "string" ? sp.q.slice(0, 100) : "";
   const cuenta = cuentaPorEstado(leads);
-  const filtrados = ordenarCola(colaCaller(leads, filtro, pesos), orden); // C2: antes del corte de 300
+  const filtrados = ordenarCola(q ? colaCaller(leads.filter((l) => buscaCola(l, q)), "todos", pesos) : colaCaller(leads, filtro, pesos), orden); // C2: antes del corte de 300
   // Al navegador van los 300 primeros (los que se enseñan) y, si la dirección pide otro (?lead=), también ese
   const visibles = filtrados.slice(0, 300);
   const pedido = filtrados.find((l) => l.id === sp.lead);
@@ -139,7 +143,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
             <BarraDeslizable className="flex shrink-0 gap-1.5 border-b border-borde p-2" role="group" aria-label="Filtrar por columna">
               {FILTROS.map((f) => (
                 <Link prefetch={false} key={f.v} href={enlaceFiltro(f.v)} aria-pressed={filtro === f.v} className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold ${filtro === f.v ? "border-transparent bg-primario-suave text-primario" : "border-borde bg-panel-2 text-texto-2 hover:text-texto"}`}>
-                  {f.t}<span className={`ml-1.5 rounded-full px-1.5 text-[11px] tabular-nums ${filtro === f.v ? "bg-primario-boton text-white" : "bg-panel text-texto-2"}`}>{cuenta[f.v] ?? 0}</span>
+                  {f.t}<span className={`ml-1.5 rounded-full px-1.5 text-[11px] tabular-nums ${filtro === f.v ? "bg-primario-boton text-white" : "bg-panel text-texto-2"}`}>{cuenta[f.v] ?? 0}</span><CargandoColumna />
                 </Link>
               ))}
             </BarraDeslizable>
@@ -150,6 +154,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           asignados={leads.length}
           callerId={jefe ? caller.id : null}
           pestana={filtro}
+          busqueda={q}
           orden={orden}
           zona={zonaPersona(perfil, proyecto)}
           conIA={!!pesos}

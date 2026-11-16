@@ -64,3 +64,15 @@ export function ordenarCola<T extends Pick<Lead, "nombre" | "apellido" | "pais" 
   };
   return [...leads].sort((a, b) => dir * comparar(a, b));
 }
+
+// R8 / A3-02 (Fase 1): el buscador de Mis leads, igual en el servidor (?q=) y en la pantalla. Sin tildes ni mayúsculas
+// (como mismoNombre de formato.ts), sin espacios de más, y en teléfonos da igual «00» o «+», espacios o guiones.
+const sinTildes = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const digitos = (s: string) => s.replace(/\D/g, "").replace(/^00/, "");
+export function buscaCola(l: Pick<Lead, "nombre" | "apellido" | "telefono">, q: string) {
+  const t = sinTildes(q);
+  if (!t) return true;
+  if (sinTildes(`${l.nombre} ${l.apellido}`).includes(t)) return true;
+  const d = /^[\d\s()+.-]+$/.test(t) ? digitos(t) : "";
+  return !!d && digitos(l.telefono ?? "").includes(d);
+}

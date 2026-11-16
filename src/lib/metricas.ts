@@ -21,7 +21,7 @@ export function enRango(iso: string, r: { desde: Date | null; hasta: Date | null
 // Cristian, 14 nov: cualquier botón de resultado de la cola es una llamada, también «Wsp enviado». Cada botón guarda
 // (leads/acciones.ts): «Link de agenda» y «Wsp enviado» → llamada (+ whatsapp), «Agendado» → cita «agendada», el resto
 // → cambio_etapa con su resultado. Las «llamada» de antes del 7 nov también cuentan.
-const BOTONES: ReadonlySet<string | null> = new Set(BOTONES_RESULTADO);
+const BOTONES: ReadonlySet<string | null> = new Set([...BOTONES_RESULTADO, "no_responde"]); // N1: el botón se quitó el 16 nov; su historial sigue contando
 export function esLlamada(a: { tipo: string; resultado: string | null }) {
   return a.tipo === "llamada" || a.tipo === "whatsapp" || (a.tipo === "cambio_etapa" && BOTONES.has(a.resultado)) || (a.tipo === "cita" && a.resultado === "agendada");
 }

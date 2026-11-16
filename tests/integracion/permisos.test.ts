@@ -41,12 +41,14 @@ describe("Caller", () => {
     const { data } = await db.from("leads").select("estado_caller").eq("id", e.leads.LeadA).single();
     expect(data?.estado_caller).toBe("link_enviado");
   });
-  it("no registra ventas, ni siquiera de productos low ticket (Cristian, 12 oct)", async () => {
+  it("N1 (Cristian, 16 nov): registra cualquier venta de sus leads (antes, 12 oct, no podía); sin cita, a su nombre", async () => {
     como(e, e.p.callerA);
     const fd = formulario({ producto: e.productos["Mentoría grupal"], facturacion: "1997", cash: "1997", tipo_pago: "completo", metodo: "stripe" });
-    await falla(registrarVenta(e.leads.LeadA, fd), /no registra ventas/);
-    const low = formulario({ producto: e.productos["Low ticket"], facturacion: "47", cash: "47", tipo_pago: "completo", metodo: "stripe" });
-    await falla(registrarVenta(e.leads.LeadA, low), /no registra ventas/);
+    await ok(registrarVenta(e.leads.LeadA, fd));
+    const { data: venta } = await db.from("ventas").select("vendedor_id, facturacion").eq("lead_id", e.leads.LeadA).single();
+    expect(venta).toMatchObject({ vendedor_id: e.p.callerA.id, facturacion: 1997 });
+    // un lead de otro caller, no
+    await falla(registrarVenta(e.leads.LeadB, fd));
   });
   it("no puede subir CSV, crear pipelines, recursos, usuarios ni productos", async () => {
     como(e, e.p.callerA);

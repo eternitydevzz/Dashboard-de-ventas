@@ -61,8 +61,8 @@ describe("MCP: crear, estado y nota", () => {
   });
 
   it("cambia el estado como el botón de la ficha y apunta la nota", async () => {
-    await como(e.p.director, () => herramientaEstado({ leadId: e.leads.LeadLibre, estado: "no_responde" }));
-    expect((await lead(e.leads.LeadLibre))!.estado_caller).toBe("no_responde");
+    await como(e.p.director, () => herramientaEstado({ leadId: e.leads.LeadLibre, estado: "wsp_enviado" })); // 16 nov: ya no hay «No responde»
+    expect((await lead(e.leads.LeadLibre))!.estado_caller).toBe("wsp_enviado");
     await como(e.p.director, () => herramientaNota({ leadId: e.leads.LeadLibre, nota: "nota desde el MCP" }));
     const { data } = await db.from("actividades").select("nota").eq("lead_id", e.leads.LeadLibre).eq("tipo", "nota");
     expect(data!.map((x) => x.nota)).toContain("nota desde el MCP");

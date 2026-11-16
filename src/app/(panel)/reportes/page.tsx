@@ -48,8 +48,6 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
       rol === "caller"
         ? {
             llamadas: llamadasHoyCola(a), // Cristian, 14 nov: cualquier botón, 1 por lead y día (igual que Mis leads y KPIs)
-            // C11: «No responde» (y «No contesta» del historial de antes del 7 nov)
-            no_responden: a.filter((x) => x.resultado === "no_responde" || (x.tipo === "llamada" && x.resultado === "no_contesta")).length,
             agendas: agendas ?? 0,
             whatsapps: a.filter((x) => x.tipo === "whatsapp").length,
             seguimientos: a.filter((x) => x.resultado === "seguimiento" || x.resultado === "llamar_luego").length, // C11: Seguimiento y Llamar luego

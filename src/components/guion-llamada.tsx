@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, ClipboardList, Copy, Lightbulb, MessageSquare, Search, ShieldQuestion, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowRight, ClipboardList, Copy, Lightbulb, MessageSquare, Search, ShieldQuestion, ShoppingCart, X } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { useToast } from "@/components/toasts";
 import { PanelFicha, useFicha } from "@/components/ficha-cualificacion";
@@ -81,6 +81,7 @@ export function GuionLlamada({
   grabador,
   onResultado,
   onSiguiente,
+  onVenta,
   onCerrar,
 }: {
   leadId: string;
@@ -94,6 +95,7 @@ export function GuionLlamada({
   grabador?: ReactNode; // C10: «Grabar» con su contador
   onResultado: (clave: string) => void;
   onSiguiente?: () => void;
+  onVenta?: () => void; // N1: «Venta» (verde) justo antes de «Siguiente»
   onCerrar: () => void;
 }) {
   const toast = useToast();
@@ -103,6 +105,19 @@ export function GuionLlamada({
   const [aviso, setAviso] = useState("");
   const pulsado = useRef<string | null>(null); // último resultado pulsado en esta ventana
   const ficha = useFicha(leadId);
+  // A3b-03: con el guion abierto, Tab no llega a los botones de detrás (se podía guardar un resultado sin verlo).
+  // El foco solo vale dentro de una ventana (el guion o la que se abre encima); si sale, vuelve al guion.
+  const dentro = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const guion = dentro.current?.closest('[role="dialog"]') as HTMLElement | null;
+    if (!guion) return;
+    const alEntrar = (e: FocusEvent) => {
+      if (e.target instanceof Element && e.target.closest('[role="dialog"], [role="listbox"]')) return; // la lista de un desplegable va en un portal
+      (guion.querySelector<HTMLElement>("button, a[href], input, textarea, select") ?? guion).focus();
+    };
+    document.addEventListener("focusin", alEntrar);
+    return () => document.removeEventListener("focusin", alEntrar);
+  }, []);
   const datos = { nombre: nombreLead.split(" ")[0], "tu nombre": miNombre.split(" ")[0] }; // solo el primer nombre, como el del lead
   const telWsp = (telefono ?? "").replace(/[^\d]/g, ""); // como en acciones-lead: wa.me quiere solo dígitos
   const objeciones = useMemo(() => {
@@ -168,7 +183,7 @@ export function GuionLlamada({
         </header>
       }
     >
-      <div className="grid min-h-0 flex-1 items-start gap-4 overflow-y-auto overscroll-contain p-3 sm:p-5 md:grid-cols-[minmax(0,1fr)_330px]">
+      <div ref={dentro} className="grid min-h-0 flex-1 items-start gap-4 overflow-y-auto overscroll-contain p-3 sm:p-5 md:grid-cols-[minmax(0,1fr)_330px]">
         {/* Todo el guion en una tarjeta, solo bajar (Cristian, 10 nov: sin pasos que abrir ni cerrar) */}
         <article className="rounded-2xl border border-borde bg-panel px-[18px] pb-6 pt-1 shadow-[0_6px_20px_-14px_rgb(15_26_51/0.25)] sm:px-7 sm:pb-7 sm:pt-2">
           {guion.pasos.map((p, i) => (
@@ -246,6 +261,15 @@ export function GuionLlamada({
               </button>
             );
           })}
+          {onVenta && (
+            <button
+              type="button"
+              className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border border-[#15924a] bg-[#15924a] px-2 text-[11px] font-semibold text-white hover:brightness-110 sm:min-h-9 sm:flex-row sm:text-xs"
+              onClick={() => void conFichaGuardada(() => { pulsado.current = "vendido"; onVenta(); })}
+            >
+              <ShoppingCart className="h-4 w-4" /> Venta
+            </button>
+          )}
           {onSiguiente && (
             <button
               type="button"
