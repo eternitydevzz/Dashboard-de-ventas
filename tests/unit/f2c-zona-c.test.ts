@@ -70,6 +70,21 @@ describe("A5-03 · Ranking de closers: cerradas y facturación cuentan las misma
     expect([a.cerradas, a.facturacion, a.cierreSobreAsistencia]).toEqual([1, 1000, 100]);
   });
 
+  it("% de cierre con tope de 100 % (ventas sin cita)", () => {
+    const b = base();
+    b.ventas.push({ id: "v3", lead_id: "l9", vendedor_id: "ana", fecha: "2026-11-11T20:00:00Z", facturacion: 500, cash_collected: 500 } as Base["ventas"][number]);
+    const a = calcularRanking(b, todo, NY, { perfil: thiago, jefe: true, mercados: {}, pedido: null, proyecto: {} }).closers!.find((c) => c.perfil.id === "ana")!;
+    expect([a.cerradas, a.cierreSobreAsistencia]).toEqual([2, 100]);
+  });
+
+  it("un CEO o director nunca sale en closers, aunque sea también closer", () => {
+    const b = base();
+    b.gente.push({ ...persona("jefa", "ceo"), tambien_closer: true }, { ...persona("dire", "director"), tambien_closer: true });
+    b.ventas.push({ id: "v4", lead_id: "l8", vendedor_id: "jefa", fecha: "2026-11-11T20:00:00Z", facturacion: 3000, cash_collected: 3000 } as Base["ventas"][number]);
+    const ids = calcularRanking(b, todo, NY, { perfil: thiago, jefe: true, mercados: {}, pedido: null, proyecto: {} }).closers!.map((c) => c.perfil.id);
+    expect(ids.sort()).toEqual(["ana", "thiago"]);
+  });
+
   it("KPIs → Por persona no cambia: sigue contando la cita cerrada", () => {
     expect(calcularKpis(base(), todo, NY).closers.find((c) => c.perfil.id === "thiago")!.cerradas).toBe(1);
   });
