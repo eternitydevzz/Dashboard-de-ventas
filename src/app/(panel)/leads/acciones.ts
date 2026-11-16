@@ -176,6 +176,27 @@ export async function anadirNota(leadId: string, nota: string) {
 }
 
 // F1b (botón «Deshacer» y Ctrl+Z de «Nota guardada»): borra solo una nota mía, de este proyecto y de hace 15 min o menos
+// N2: deshacer «Pipeline y columna» de la ficha sin dejar historial: vuelve a la columna de antes solo si el lead
+// sigue en la que puso ese clic, y borra la línea «Movido a …» de ese clic (propia, de este lead y de los últimos 15 min)
+export async function deshacerEtapaLead(leadId: string, etapaAntes: string, etapaPuesta: string) {
+  return seguro(async () => {
+    await exigirSeccion("cola", "crm", "agendas", "clientes");
+    const { lead, perfil, proyecto } = await leadPermitido(leadId);
+    if (!esJefe(perfil)) throw new ErrorUsuario("Solo el director o el CEO mueven leads en el CRM.");
+    if (lead.etapa_id !== etapaPuesta) throw new ErrorUsuario("Este lead cambió después: ya no se puede deshacer.");
+    const { data: etapas } = await db().from("etapas").select("id, nombre, pipeline_id, pipelines!inner(proyecto_id, tipo)").in("id", [etapaAntes, etapaPuesta]).eq("pipelines.proyecto_id", proyecto.id).eq("pipelines.tipo", "normal");
+    const antes = (etapas ?? []).find((e) => e.id === etapaAntes);
+    const puesta = (etapas ?? []).find((e) => e.id === etapaPuesta);
+    if (!antes || !puesta) throw new ErrorUsuario("Columna no encontrada.");
+    const { data: movido } = await escribir(db().from("leads").update({ etapa_id: antes.id, pipeline_id: antes.pipeline_id }).eq("id", lead.id).eq("etapa_id", etapaPuesta).select("id"), "leads");
+    if (!movido?.length) throw new ErrorUsuario("Este lead cambió después: ya no se puede deshacer.");
+    const desde = new Date(Date.now() - 15 * 60_000).toISOString();
+    const { data: linea } = await db().from("actividades").select("id").eq("lead_id", lead.id).eq("perfil_id", perfil.id).eq("proyecto_id", proyecto.id).eq("tipo", "cambio_etapa").eq("nota", `Movido a «${puesta.nombre}»`).gte("creado_en", desde).order("creado_en", { ascending: false }).limit(1).maybeSingle();
+    if (linea) await escribir(db().from("actividades").delete().eq("id", (linea as { id: string }).id), "actividades");
+    refrescar();
+  });
+}
+
 export async function borrarNotaReciente(actividadId: string) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigirSeccion("cola", "crm", "agendas", "clientes");

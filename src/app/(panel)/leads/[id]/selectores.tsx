@@ -1,6 +1,6 @@
 "use client";
 
-import { asignarDesdeFicha, cambiarEtapaLead } from "../acciones";
+import { asignarDesdeFicha, cambiarEtapaLead, deshacerEtapaLead } from "../acciones";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
 import type { Etapa, Pipeline } from "@/lib/tipos";
 import { Desplegable } from "@/components/eleccion";
@@ -42,7 +42,10 @@ export function SelectoresLead({
     <div className="space-y-3">
       <div>
         <label className="etiqueta-campo" htmlFor="selectores-pipeline-y-columna">Pipeline y columna</label>
-        <Desplegable id="selectores-pipeline-y-columna" className="campo" value={etapaId ?? ""} disabled={pendiente} onChange={(e) => ejecutar(() => cambiarEtapaLead(leadId, e.target.value), "Lead movido", etapaId ? volver(() => cambiarEtapaLead(leadId, etapaId), "Lead vuelto a su columna") : undefined)}>
+        <Desplegable id="selectores-pipeline-y-columna" className="campo" value={etapaId ?? ""} disabled={pendiente} onChange={(e) => {
+          const puesta = e.target.value;
+          ejecutar(() => cambiarEtapaLead(leadId, puesta), "Lead movido", etapaId ? volver(() => deshacerEtapaLead(leadId, etapaId, puesta), "Lead vuelto a su columna") : undefined); // sin dejar «Movido a …» en el historial
+        }}>
           {!etapaId && <option value="">Sin columna</option>}
           {pipelines.map((p) => (
             <optgroup key={p.id} label={p.nombre}>

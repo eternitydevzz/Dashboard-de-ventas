@@ -26,6 +26,7 @@ const crm = vi.hoisted(() => ({ asignarLeads: vi.fn(async (..._a: unknown[]) => 
 vi.mock("@/app/(panel)/crm/acciones", () => crm);
 const fichas = vi.hoisted(() => ({
   cambiarEtapaLead: vi.fn(async (..._a: unknown[]) => undefined),
+  deshacerEtapaLead: vi.fn(async (..._a: unknown[]) => undefined),
   asignarDesdeFicha: vi.fn(async (..._a: unknown[]) => undefined),
   borrarNotaReciente: vi.fn(async (..._a: unknown[]) => undefined),
 }));
@@ -143,14 +144,14 @@ function selectores(o: { etapaId?: string | null; callerId?: string | null; clos
 const cambiar = (el: ReactNode, id: string, v: string) => (buscar(el, (e) => e.props.id === id)[0].props.onChange as (e: unknown) => void)({ target: { value: v } });
 
 describe("2 y 5 · ficha: etapa, caller y closer se deshacen con su acción de siempre", () => {
-  it("etapa: Deshacer vuelve a la columna de antes con cambiarEtapaLead", async () => {
+  it("etapa: Deshacer vuelve a la columna de antes con deshacerEtapaLead (sin dejar historial)", async () => {
     cambiar(selectores(), "selectores-pipeline-y-columna", "e-nueva");
     await esperar();
     const paso = pasoDe(avisos.toast.mock.calls.find((c) => pasoDe(c)));
     expect(paso).toBeDefined();
     paso!.deshacer();
     await esperar();
-    expect(fichas.cambiarEtapaLead).toHaveBeenLastCalledWith("L", "e-antes");
+    expect(fichas.deshacerEtapaLead).toHaveBeenLastCalledWith("L", "e-antes", "e-nueva");
   });
 
   it("etapa: sin columna antes, no ofrece Deshacer", async () => {
