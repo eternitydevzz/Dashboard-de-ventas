@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { vaciarDeshacer } from "@/lib/deshacer";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -161,6 +162,7 @@ export function BarraLateral({
             onChange={(e) => {
               const id = e.target.value;
               iniciar(async () => {
+                vaciarDeshacer(); // revisor 1b: los pasos de otro proyecto no se deshacen aquí
                 await cambiarProyecto(id);
               });
             }}

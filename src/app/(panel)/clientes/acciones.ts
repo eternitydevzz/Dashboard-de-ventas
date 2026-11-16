@@ -50,7 +50,7 @@ export async function anotarSeguimiento(leadId: string, nota: string, proximo: s
     if (nota.trim()) {
       const { data } = await escribir(db().from("seguimientos_cliente").insert({ proyecto_id: proyecto.id, lead_id: leadId, nota: nota.trim(), perfil_id: perfil.id }).select("id").single(), "seguimientos_cliente");
       seguimientoId = (data as { id: string }).id;
-      const inicio = new Date().toISOString();
+      const inicio = new Date(Date.now() - 1000).toISOString(); // margen: creado_en lo pone el reloj de la base
       const texto = `Seguimiento de cliente: ${nota.trim()}`;
       await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "nota", resultado: null, nota: texto });
       // registrarActividad no devuelve el id: se busca la que acaba de escribir (como actividadesDelClic en leads)

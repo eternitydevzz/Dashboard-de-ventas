@@ -43,7 +43,7 @@ beforeEach(() => {
 
 describe("anotarSeguimiento", () => {
   it("devuelve el id del seguimiento y el de su línea del historial (buscada desde el inicio de la acción)", async () => {
-    const antes = new Date().toISOString();
+    const antes = new Date(Date.now() - 1000).toISOString(); // la acción busca con 1 s de margen de reloj
     expect(await anotarSeguimiento("l1", "Hablamos", "2026-11-25")).toEqual({ seguimientoId: "s1", actividadId: "a1" });
     const c = consultas.find((x) => x.tabla === "actividades")!;
     expect(op(c, "eq")).toEqual(expect.arrayContaining([["proyecto_id", "p1"], ["lead_id", "l1"], ["perfil_id", "u1"], ["tipo", "nota"], ["nota", "Seguimiento de cliente: Hablamos"]]));

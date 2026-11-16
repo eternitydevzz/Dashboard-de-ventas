@@ -39,3 +39,21 @@ describe("N2 · Ctrl+Z / Cmd+Z", () => {
     expect(n).toBe(20);
   });
 });
+
+describe("revisor 1b · los pasos caducan a los 15 min", () => {
+  beforeEach(vaciarDeshacer);
+  it("Ctrl+Z ya no deshace un paso de hace más de 15 min (ni con su botón)", () => {
+    vi.useFakeTimers();
+    const viejo = { texto: "viejo", deshacer: vi.fn() };
+    apuntarDeshacer(viejo);
+    vi.advanceTimersByTime(15 * 60_000 + 1);
+    const nuevo = { texto: "nuevo", deshacer: vi.fn() };
+    apuntarDeshacer(nuevo);
+    expect(sacarDeshacer()).toBe(nuevo);
+    expect(sacarDeshacer()).toBeUndefined();
+    apuntarDeshacer(viejo);
+    vi.advanceTimersByTime(15 * 60_000 + 1);
+    expect(sacarDeshacer(viejo)).toBeUndefined();
+    vi.useRealTimers();
+  });
+});
