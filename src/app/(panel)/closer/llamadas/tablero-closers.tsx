@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { cambiarEstadoCita, reagendarCita } from "../acciones";
+import { cambiarEstadoCita, moverVenta, reagendarCita, type MovimientoVenta } from "../acciones";
 import { registrarVenta } from "@/app/(panel)/leads/acciones";
 import { moverCitaColumna } from "@/app/(panel)/crm/acciones";
-import { borrarVenta, cambiarFormaPago, registrarCobro } from "@/app/(panel)/ventas/acciones";
+import { cambiarFormaPago, registrarCobro } from "@/app/(panel)/ventas/acciones";
 import { FilaVentaAcciones } from "@/app/(panel)/ventas/fila-acciones";
 import { useAccion, Mensajes, FormVenta } from "@/components/acciones-lead";
 import { Modal } from "@/components/modal";
@@ -84,12 +84,11 @@ export function TableroClosers({
     ejecutar(() => registrarVenta(leadId, fd).finally(() => (ventaEnCurso.current = false)), "Venta registrada");
   }
 
-  // Borra la venta y devuelve su cita (la que estaba «cerrada»), o avisa si no hay
-  async function quitarVenta(venta: TarjetaVentaC) {
-    const r = (await exigirOk(borrarVenta(venta.id))) as { aviso: string | null; citaId: string | null };
+  // Fase 2 (S1-2): borra la venta y mueve su cita (la que estaba «cerrada») en el servidor; si la cita no se puede
+  // mover (hora ocupada, otra venta…), no se borra nada
+  async function quitarVenta(venta: TarjetaVentaC, mov: MovimientoVenta) {
+    const r = (await exigirOk(moverVenta(venta.id, mov))) as { aviso: string | null };
     if (r.aviso) toast(r.aviso, "error");
-    if (!r.citaId) throw new Error("Venta borrada. Su cita no se ha movido: el lead tiene otra venta o no tenía cita cerrada.");
-    return r.citaId;
   }
 
   // N2: Deshacer = la misma acción con lo de antes. Cambiar el estado saca la cita de su columna libre (trigger
@@ -126,7 +125,7 @@ export function TableroClosers({
     if (esClavePrecall(clave)) {
       if (item.clase === "cita") cambiarEstado(item.cita, item.origen, clave, `${item.cita.nombre} → ${destino.t}`);
       else void confirmar(`¿Borrar la venta de ${item.venta.nombre} (${item.venta.facturacionTxt}) y pasar su cita a «${destino.t}»? Se borran también sus cobros y plazos; no se puede deshacer.`).then((ok) => {
-        if (ok) ejecutar(async () => exigirOk(cambiarEstadoCita(await quitarVenta(item.venta), clave, "")), `${item.venta.nombre} → ${destino.t}`);
+        if (ok) ejecutar(() => quitarVenta(item.venta, { estado: clave }), `${item.venta.nombre} → ${destino.t}`);
       });
       return;
     }
@@ -148,7 +147,7 @@ export function TableroClosers({
     if (estado) {
       if (item.clase === "cita") cambiarEstado(item.cita, item.origen, estado, `${item.cita.nombre} → ${destino.t}`);
       else void confirmar(`¿Borrar la venta de ${item.venta.nombre} (${item.venta.facturacionTxt}) y pasar su cita a «${destino.t}»? Se borran también sus cobros y plazos; no se puede deshacer.`).then((ok) => {
-        if (ok) ejecutar(async () => exigirOk(cambiarEstadoCita(await quitarVenta(item.venta), estado, "")), `${item.venta.nombre} → ${destino.t}`);
+        if (ok) ejecutar(() => quitarVenta(item.venta, { estado }), `${item.venta.nombre} → ${destino.t}`);
       });
       return;
     }
@@ -170,8 +169,9 @@ export function TableroClosers({
     else if (venta) mover({ clase: "venta", venta, origen: d.origen! }, destino);
   }
 
-  // Lo que hace el formulario de la ventana: si la tarjeta es una venta, primero se borra
-  const citaDe = async (i: Item) => (i.clase === "cita" ? i.cita.id : await quitarVenta(i.venta));
+  // Lo que hace el formulario de la ventana: si la tarjeta es una venta, se borra y se mueve su cita (quitarVenta)
+  const moverItem = (i: Item, mov: MovimientoVenta) =>
+    i.clase === "venta" ? quitarVenta(i.venta, mov) : exigirOk("estado" in mov ? cambiarEstadoCita(i.cita.id, mov.estado, mov.nota ?? "", mov.estrellas) : reagendarCita(i.cita.id, mov.fechaLocal));
   const avisoBorrar = (i: Item) =>
     i.clase === "venta" ? <p className="rounded-lg bg-mal-suave px-3 py-2 text-xs text-mal">Se borrará la venta de {i.venta.nombre} ({i.venta.facturacionTxt}) con sus cobros y plazos. No se puede deshacer.</p> : null;
   const claveV = ventana?.destino.clave;
@@ -259,7 +259,7 @@ export function TableroClosers({
             action={(fd) => {
               const { item } = ventana;
               const e = claveV as "seguimiento" | "perdida";
-              ejecutar(async () => exigirOk(cambiarEstadoCita(await citaDe(item), e, String(fd.get("nota") ?? ""), Number(fd.get("estrellas")))), ventana.destino.t);
+              ejecutar(() => moverItem(item, { estado: e, nota: String(fd.get("nota") ?? ""), estrellas: Number(fd.get("estrellas")) }), ventana.destino.t);
               setVentana(null);
             }}
           >
@@ -276,7 +276,7 @@ export function TableroClosers({
             className="space-y-3"
             action={(fd) => {
               const { item } = ventana;
-              ejecutar(async () => exigirOk(reagendarCita(await citaDe(item), String(fd.get("fecha")))), "Cita reagendada");
+              ejecutar(() => moverItem(item, { fechaLocal: String(fd.get("fecha")) }), "Cita reagendada");
               setVentana(null);
             }}
           >

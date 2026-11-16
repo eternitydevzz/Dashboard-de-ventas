@@ -122,24 +122,18 @@ export async function borrarVenta(ventaId: string) {
     // Paso H6 (Cristian, 10 oct 2026): el closer también puede borrar sus propias ventas (ventaPermitida ya
     // comprueba que es suya); el caller no. Fase 10 (Cristian, 14 nov): el caller «también closer» sí.
     if (!esJefe(perfil) && !esCloser(perfil)) throw new ErrorUsuario("Solo el director, el CEO o el closer de la venta pueden borrarla.");
-    await escribir(db().from("ventas").delete().eq("id", ventaId), "ventas"); // sus cobros y plazos se borran con ella
-    // Arreglo 26 (decisión de Cristian): si al lead no le queda otra venta, la cita que se cerró vuelve a
-    // «seguimiento» y el lead deja de estar «vendido» (vuelve a «agendado» si tiene cita; si no, a «nuevo»).
-    const { count: otras } = await db().from("ventas").select("id", { count: "exact", head: true }).eq("lead_id", venta.lead_id);
-    let citaId: string | null = null;
-    if (!otras) {
-      const { data: cerrada } = await db().from("citas").select("id").eq("lead_id", venta.lead_id).eq("estado", "cerrada").order("fecha", { ascending: false }).limit(1).maybeSingle();
-      if (cerrada) await escribir(db().from("citas").update({ estado: "seguimiento" }).eq("id", cerrada.id), "citas");
-      citaId = cerrada?.id ?? null;
-      const { count: citas } = await db().from("citas").select("id", { count: "exact", head: true }).eq("lead_id", venta.lead_id);
-      await escribir(db().from("leads").update({ estado_caller: citas ? "agendado" : "nuevo" }).eq("id", venta.lead_id), "leads");
-    }
+    // Fase 2 (S2-8): todo o nada en la base (borrar_venta). Se borran sus cobros y plazos y, arreglo 26 (decisión de
+    // Cristian), si al lead no le queda otra venta, la cita que se cerró vuelve a «seguimiento» y el lead deja de estar
+    // «vendido» (vuelve a «agendado» si tiene cita; si no, a «nuevo»). Devuelve esa cita.
+    const { data: citaId, error } = await db().rpc("borrar_venta", { p_proyecto: proyecto.id, p_venta: ventaId });
+    if (error?.message.includes("venta no encontrada")) throw new ErrorUsuario("Venta no encontrada.");
+    if (error) throw new Error(`No se pudo borrar la venta: ${error.message}`);
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "nota", nota: "Venta borrada" });
     // Si ese mes ya se calcularon comisiones, hay que recalcularlas (las pagadas no se tocan solas)
     const mes = diaEnZona(venta.fecha, proyecto.zona_horaria).slice(0, 7);
     const { count: liqs } = await db().from("liquidaciones").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).eq("mes", mes);
     revalidatePath("/", "layout");
-    return { aviso: liqs ? `Las comisiones de ${mes} ya estaban calculadas: recalcúlalas en Finanzas → Liquidaciones.` : null, citaId };
+    return { aviso: liqs ? `Las comisiones de ${mes} ya estaban calculadas: recalcúlalas en Finanzas → Liquidaciones.` : null, citaId: (citaId as string | null) ?? null };
   });
 }
 

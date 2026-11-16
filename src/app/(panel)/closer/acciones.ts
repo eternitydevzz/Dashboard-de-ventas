@@ -3,7 +3,8 @@
 import { closerLibreA } from "@/lib/agenda-libre";
 import { TEXTO_MOTIVO } from "@/lib/disponibilidad";
 import { exigirSeccion } from "@/lib/permisos";
-import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
+import { ErrorUsuario, esError, notaValida, seguro } from "@/lib/resultado";
+import { borrarVenta } from "@/app/(panel)/ventas/acciones";
 import { refrescarPantalla } from "@/lib/refrescar";
 import { getSesion, esJefe, exigir } from "@/lib/auth";
 import { descifrar } from "@/lib/cifrado";
@@ -114,6 +115,43 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
   });
 }
 
+// Fase 2 (S1-2): en Agendas, mover una venta = borrarla y mover su cita. Antes de borrar se comprueba que la cita se
+// podrá mover (estado válido, estrellas, hora libre); si no, no se borra nada. La cita es la que devolverá borrar_venta.
+export type MovimientoVenta = { estado: EstadoCita; nota?: string; estrellas?: number } | { fechaLocal: string };
+export async function moverVenta(ventaId: string, mov: MovimientoVenta) {
+  return seguro(async () => {
+    await exigirSeccion("agendas");
+    const { proyecto } = await getSesion();
+    const { data: venta, error } = await db().from("ventas").select("lead_id").eq("id", ventaId).eq("proyecto_id", proyecto.id).maybeSingle();
+    if (error) throw new Error(`No se pudo leer la venta: ${error.message}`);
+    if (!venta) throw new ErrorUsuario("Venta no encontrada.");
+    const [{ count: ventas }, { data: cerrada }] = await Promise.all([
+      db().from("ventas").select("id", { count: "exact", head: true }).eq("lead_id", venta.lead_id),
+      db().from("citas").select("id").eq("lead_id", venta.lead_id).eq("estado", "cerrada").order("fecha", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    if (ventas !== 1 || !cerrada) throw new ErrorUsuario("No se ha borrado nada: el lead tiene otra venta o no tenía cita cerrada, así que su cita no se puede mover.");
+    const { cita, perfil } = await citaPermitida(cerrada.id);
+    if ("estado" in mov) {
+      if (!PERMITIDOS.includes(mov.estado)) throw new ErrorUsuario("Estado no válido.");
+      notaValida(mov.nota);
+      if (PIDEN_ESTRELLAS.includes(mov.estado)) estrellasEntre(mov.estrellas, 1, 5);
+    } else {
+      if (!mov.fechaLocal) throw new ErrorUsuario("Elige la nueva fecha.");
+      if (cita.closer_id) {
+        const libre = await closerLibreA(proyecto, cita.closer_id, new Date(localAIso(mov.fechaLocal, zonaPersona(perfil, proyecto))), { sinCita: cita.id, sinHorarioLibre: true });
+        if (!libre.libre) throw new ErrorUsuario(`No está libre a esa hora: ${TEXTO_MOTIVO[libre.motivo].toLowerCase()}. Elige otra hora.`);
+      }
+    }
+    const borrada = await borrarVenta(ventaId);
+    if (esError(borrada)) throw new ErrorUsuario(borrada.error);
+    // shortcut: si a la vez otro ocupa la hora o cambia la cita, la venta ya está borrada; se avisa y la cita queda en «seguimiento»
+    const citaId = borrada.citaId ?? cita.id;
+    const movida = "estado" in mov ? await cambiarEstadoCita(citaId, mov.estado, mov.nota ?? "", mov.estrellas) : await reagendarCita(citaId, mov.fechaLocal);
+    if (esError(movida)) throw new ErrorUsuario(`Venta borrada, pero su cita no se movió (quedó en «Seguimiento»): ${movida.error}`);
+    return { aviso: borrada.aviso };
+  });
+}
+
 // Cristian (10 nov 2026): el CEO cambia el closer de una cita o la borra. Si la cita está en GHL, primero se escribe
 // allí (si GHL falla, la app no cambia): si no, la lectura de cada minuto la devolvería al closer anterior o la traería otra vez.
 async function citaDelCeo(citaId: string) {
@@ -134,6 +172,7 @@ const errorGhl = (e: unknown) => new ErrorUsuario(`GHL no lo aceptó, no se ha c
 export async function cambiarCloserCita(citaId: string, closerId: string) {
   return seguro(async () => {
     const { cita, proyecto, perfil, token } = await citaDelCeo(citaId);
+    if (cita.estado === "cerrada") throw new ErrorUsuario("Esta cita tiene su venta: no se le puede cambiar el closer."); // S1-9
     if (cita.closer_id === closerId) throw new ErrorUsuario("Ya es su closer.");
     const { data: m } = await db().from("miembros_proyecto").select("ghl_user_id, ghl_calendar_id, perfiles!inner(nombre, rol, tambien_closer)").eq("proyecto_id", proyecto.id).eq("perfil_id", closerId).maybeSingle();
     const nuevo = m as unknown as { ghl_user_id: string | null; ghl_calendar_id: string | null; perfiles: { nombre: string; rol: string; tambien_closer: boolean } } | null;
