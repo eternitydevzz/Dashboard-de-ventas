@@ -119,14 +119,19 @@ describe("S2-2 · borrar el ingreso de un cobro", () => {
 
 describe("S2-3 · importar el extracto", () => {
   const csv = "fecha,descripcion,importe\n2026-11-01,café,-3\n2026-11-01,café,-3\n2026-11-02,cliente,100\n2026-13-45,mala,5\n31/02/2026,mala,5";
-  it("salta las filas repetidas (en la base y en el archivo) y rechaza fechas que no existen", async () => {
+  it("salta lo que ya está en la base, deja entrar dos pagos iguales del archivo y rechaza fechas que no existen", async () => {
     // Ya existe el «cliente 100» del 2-nov en esta cuenta (sin cuenta = null)
     base["movimientos:select"] = { data: [{ tipo: "ingreso", importe: "100.00", fecha: "2026-11-02T17:00:00+00:00", descripcion: "cliente", cuenta_id: null }], error: null };
     const r = await fin.importarMovimientos(csv, null);
-    expect(r).toMatchObject({ importados: 1, saltadas: 2 });
+    expect(r).toMatchObject({ importados: 2, saltadas: 1 });
     expect((r as { fallos: string[] }).fallos).toEqual(["Fila 5: fecha o importe no válidos", "Fila 6: fecha o importe no válidos"]); // las saltadas van aparte, no como fallo
     const filas = arg(de("movimientos", "insert")[0], "insert")?.[0] as { descripcion: string; importe: number }[];
-    expect(filas.map((f) => [f.descripcion, f.importe])).toEqual([["café", 3]]);
+    expect(filas.map((f) => [f.descripcion, f.importe])).toEqual([["café", 3], ["café", 3]]); // dos cafés reales el mismo día
+  });
+  it("reimportar: si la base ya tiene 1 igual y el archivo trae 2, entra 1", async () => {
+    base["movimientos:select"] = { data: [{ tipo: "egreso", importe: 50, fecha: "2026-11-01T17:00:00Z", descripcion: "Bizum Juan", cuenta_id: null }], error: null };
+    const r = await fin.importarMovimientos("fecha,descripcion,importe\n2026-11-01,Bizum Juan,-50\n2026-11-01,Bizum Juan,-50", null);
+    expect(r).toMatchObject({ importados: 1, saltadas: 1 });
   });
   it("lo mismo en otra cuenta no es repetido", async () => {
     base["movimientos:select"] = { data: [{ tipo: "egreso", importe: 3, fecha: "2026-11-01T17:00:00Z", descripcion: "café", cuenta_id: "otra" }], error: null };

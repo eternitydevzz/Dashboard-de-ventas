@@ -10,6 +10,7 @@ import { diaEnZona } from "@/lib/llamadas";
 import { leerNumero } from "@/lib/numero";
 import { esCloser } from "@/lib/tipos";
 import { telefonoClave } from "@/lib/leads";
+import { asegurarPlazosMensuales } from "@/lib/finanzas-datos";
 import { crearLeadManual } from "@/app/(panel)/crm/acciones";
 
 // ---------- Nueva venta (Cristian, 14 nov): solo CEO y directores; buscar o crear el lead y luego registrarVenta ----------
@@ -82,6 +83,8 @@ export async function registrarCobro(ventaId: string, importeTxt: string, metodo
       if (fechaTxt < diaEnZona(venta.fecha, proyecto.zona_horaria)) throw new ErrorUsuario("La fecha del cobro no puede ser anterior a la venta.");
       if (fechaTxt !== hoyEnZona(proyecto.zona_horaria)) fecha = localAIso(`${fechaTxt}T12:00`, proyecto.zona_horaria);
     }
+    // A5-01 (revisor fase 2): el tope de una membresía suma sus plazos, que solo se crean al abrir Finanzas; se crean aquí antes
+    if (venta.tipo_pago === "mensual") await asegurarPlazosMensuales(proyecto.id);
     // Ola 6 (C6): la base bloquea la venta, suma lo cobrado y solo entonces guarda: dos cobros a la vez no pasan de lo facturado
     const { error } = await db().rpc("registrar_cobro", { p_proyecto: proyecto.id, p_venta: ventaId, p_importe: importe, p_metodo: metodo, p_registrado_por: perfil.id, p_fecha: fecha });
     if (error?.message.includes("excede_facturacion")) throw new ErrorUsuario("Con ese importe se cobraría más que la facturación.");

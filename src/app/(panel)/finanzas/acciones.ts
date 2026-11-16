@@ -227,19 +227,23 @@ export async function importarMovimientos(texto: string, cuentaId: string | null
       }
       leidas.push({ tipo: v > 0 ? "ingreso" : "egreso", importe: Math.abs(Math.round(v * 100) / 100), fecha: localAIso(`${ymd}T12:00`, proyecto.zona_horaria), descripcion: (f.descripcion ?? f.concepto ?? "").trim() || null });
     });
-    // S2-3: importar dos veces el mismo extracto no duplica: se salta lo que ya está en esta cuenta (misma fecha,
-    // importe y descripción) y lo repetido dentro del archivo
+    // S2-3: importar dos veces el mismo extracto no duplica. Se cuentan las veces: si en esta cuenta ya hay N movimientos
+    // iguales (fecha, importe y descripción), se saltan los N primeros del archivo; dos pagos iguales el mismo día sí entran
+    // (revisor fase 2: antes se perdía el segundo «Bizum 50 €»)
     const clave = (x: { tipo: string; importe: number | string; fecha: string; descripcion: string | null }) => `${x.tipo}|${Number(x.importe).toFixed(2)}|${new Date(x.fecha).getTime()}|${x.descripcion ?? ""}`;
-    const vistas = new Set<string>();
+    const yaHay = new Map<string, number>();
     if (leidas.length) {
       const fechas = leidas.map((x) => x.fecha).sort();
       const ya = await todas<{ tipo: string; importe: number; fecha: string; descripcion: string | null; cuenta_id: string | null }>((a, b) => db().from("movimientos").select("tipo, importe, fecha, descripcion, cuenta_id").eq("proyecto_id", proyecto.id).gte("fecha", fechas[0]).lte("fecha", fechas.at(-1)!).order("id").range(a, b));
-      for (const x of ya) if ((x.cuenta_id ?? null) === cuentaId) vistas.add(clave(x));
+      for (const x of ya) if ((x.cuenta_id ?? null) === cuentaId) yaHay.set(clave(x), (yaHay.get(clave(x)) ?? 0) + 1);
     }
     const nuevas = leidas.filter((x) => {
       const k = clave(x);
-      if (vistas.has(k)) return false;
-      vistas.add(k);
+      const quedan = yaHay.get(k) ?? 0;
+      if (quedan > 0) {
+        yaHay.set(k, quedan - 1);
+        return false;
+      }
       return true;
     });
     const filas = nuevas.map((x) => ({ ...x, proyecto_id: proyecto.id, cuenta_id: cuentaId, origen: "importado", conciliado: false, creado_por: perfil.id }));
