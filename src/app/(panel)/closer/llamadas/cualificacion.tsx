@@ -92,7 +92,7 @@ export async function Cualificacion({ proyecto, sp, baseQs }: { proyecto: Proyec
                       <td className="text-right tabular-nums">{f.cerradas}</td>
                       <td className="text-right tabular-nums">{f.llamadas ? `${pct(f.cierre)}` : "—"}</td>
                       <td className="text-right tabular-nums">{$(f.cash)}</td>
-                      <td><div className="flex items-center gap-2"><div className="h-2 flex-1 rounded-full bg-panel-2"><div className="h-2 rounded-full bg-primario" style={{ width: `${pct((f.cashPorLlamada / max) * 100)}` }} /></div><span className="w-20 text-right text-xs tabular-nums">{f.llamadas ? $(f.cashPorLlamada) : "—"}</span></div></td>
+                      <td><div className="flex items-center gap-2"><div className="h-2 flex-1 rounded-full bg-panel-2"><div className="h-2 rounded-full bg-primario" style={{ width: `${Math.round((f.cashPorLlamada / max) * 100)}%` }} /></div><span className="w-20 text-right text-xs tabular-nums">{f.llamadas ? $(f.cashPorLlamada) : "—"}</span></div></td>
                     </tr>
                   ))}
                 </tbody>
