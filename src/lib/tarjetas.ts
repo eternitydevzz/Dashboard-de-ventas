@@ -2,10 +2,7 @@ import "server-only";
 import { db, escribir } from "@/lib/datos";
 
 // Fase 4: tarjetas de un lead en pipelines que no son el suyo principal (tabla `tarjetas_extra`).
-// Si la base todavía no tiene la tabla (migración sin aplicar), todo esto no hace nada y la app sigue como antes.
 type TarjetaExtra = { lead_id: string; pipeline_id: string; etapa_id: string | null };
-
-const sinTabla = (e: { code?: string; message?: string } | null) => !!e && (e.code === "42P01" || e.code === "PGRST205" || /tarjetas_extra/.test(e.message ?? ""));
 
 export async function tarjetaDe(leadId: string, pipelineId: string): Promise<TarjetaExtra | null> {
   const { data, error } = await db().from("tarjetas_extra").select("lead_id, pipeline_id, etapa_id").eq("lead_id", leadId).eq("pipeline_id", pipelineId).maybeSingle();
@@ -22,10 +19,7 @@ export async function anadirTarjetas(proyectoId: string, filas: { lead_id: strin
       .from("tarjetas_extra")
       .upsert(filas.slice(i, i + 500).map((f) => ({ ...f, proyecto_id: proyectoId })), { onConflict: "lead_id,pipeline_id", ignoreDuplicates: true })
       .select("id");
-    if (error) {
-      if (sinTabla(error)) return 0;
-      throw new Error(`Error creando tarjetas: ${error.message}`);
-    }
+    if (error) throw new Error(`Error creando tarjetas: ${error.message}`);
     creadas += data?.length ?? 0;
   }
   return creadas;
