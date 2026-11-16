@@ -212,7 +212,7 @@ function servidor(perfilId: string) {
   server.registerTool(
     "cambiar_estado",
     {
-      description: "Cambia el estado de un lead con los mismos botones de la ficha: nuevo, link_enviado, wsp_enviado, no_responde, no_interesa, seguimiento, llamar_luego, descartado, reagendado o confirma_agenda. Para «Agendado» usa agendar_cita.",
+      description: "Cambia el estado de un lead con los mismos botones de la ficha: nuevo, link_enviado, wsp_enviado, no_interesa, seguimiento, llamar_luego, descartado, reagendado o confirma_agenda. Para «Agendado» usa agendar_cita.",
       inputSchema: { proyecto: PROYECTO, leadId: z.string().uuid(), estado: z.enum(ESTADOS as [string, ...string[]]), nota: z.string().max(4000).optional(), estrellas: z.number().int().min(2).max(5).optional().describe("Para no_interesa, seguimiento y llamar_luego."), llamarEn: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).optional().describe("Para llamar_luego: AAAA-MM-DDTHH:MM, hora del proyecto.") },
     },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaEstado(a as Parameters<typeof herramientaEstado>[0]))

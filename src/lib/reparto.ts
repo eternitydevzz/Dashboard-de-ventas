@@ -10,7 +10,7 @@ export const MODOS_REPARTO: { v: ModoReparto; t: string; d: string }[] = [
 ];
 // Estados que cuentan como «sin trabajar» para el tope (criterio de Claude, apuntado en el plan)
 // C11 (7 nov): los que aún hay que trabajar (llamar o escribir); criterio de Claude, apuntado en el plan
-export const SIN_TRABAJAR = ["nuevo", "wsp_enviado", "no_responde", "seguimiento", "llamar_luego", "link_enviado"]; // 10 nov: sin «Llamado»; «Link enviado» sigue siendo del caller
+export const SIN_TRABAJAR = ["nuevo", "wsp_enviado", "seguimiento", "llamar_luego", "link_enviado"]; // 10 nov: sin «Llamado»; 16 nov: sin «No responde»; «Link enviado» sigue siendo del caller
 
 type OpcionesReparto = { modo: ModoReparto; n?: number; porPersona?: number; tope?: number };
 

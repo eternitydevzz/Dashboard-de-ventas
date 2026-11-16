@@ -40,7 +40,7 @@ import {
 import { confirmarAgenda, registrarLlamada, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
 import { etiquetaEstado } from "@/lib/estados-caller";
 import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "./ventanas-estado";
-import { CLAVES_CLOSER } from "@/lib/llamadas";
+import { CLAVES_CLOSER, normal } from "@/lib/llamadas";
 import { TableroClosers, type ColumnaC } from "@/app/(panel)/closer/llamadas/tablero-closers";
 import { ETIQUETA_ESTADO_CALLER, SIN_PAIS, nombrePais } from "@/lib/formato";
 import { OfertaChip } from "@/components/oferta-chip";
@@ -94,6 +94,22 @@ const POR_COLUMNA = 40;
 // A2-07 (Fase 0): lo marcado que la búsqueda o un filtro esconde no se cuenta ni recibe acciones masivas
 export const marcadosVisibles = (marcados: Set<string>, leads: { id: string }[]) => new Set(leads.filter((l) => marcados.has(l.id)).map((l) => l.id));
 
+// A3-02: buscar sin tildes, sin mayúsculas y con los espacios normalizados («peru» encuentra «Perú»)
+const limpio = (s: string | null | undefined) => normal(s ?? "").replace(/\s+/g, " ").trim();
+export function pasaBusqueda(l: LeadTarjeta, q: string) {
+  const t = limpio(q);
+  return (
+    !t ||
+    limpio(`${l.nombre} ${l.apellido}`).includes(t) ||
+    limpio(l.email).includes(t) ||
+    (l.telefono ?? "").replace(/\s/g, "").includes(t.replace(/\s/g, "")) ||
+    limpio(nombrePais(l.pais)).includes(t)
+  );
+}
+
+// S1-21: día «YYYY-MM-DD» en la zona del proyecto (como hoyEnZona); sin zona, UTC como antes (igual en servidor y navegador)
+export const diaEn = (iso: string, zona = "UTC") => new Intl.DateTimeFormat("en-CA", { timeZone: zona }).format(new Date(iso));
+
 export function TableroCrm({
   pipelines: pipelinesServidor,
   pipeline,
@@ -116,6 +132,7 @@ export function TableroCrm({
   ahora,
   tableroClosers,
   permisos,
+  zona,
 }: {
   pipelines: Pipeline[];
   pipeline: Pipeline | null;
@@ -138,12 +155,14 @@ export function TableroCrm({
   ahora: number; // D43: momento de la petición, del servidor, para «hace X d»
   tableroClosers: { columnas: ColumnaC[]; sinColumna: number; soloMirar: boolean } | null;
   permisos: { filas: FilaPermiso[]; gente: { id: string; nombre: string; rol: string }[] } | null;
+  zona?: string; // S1-21: zona del proyecto para la fecha «Entró»
 }) {
   const router = useRouter();
   const [pendiente, iniciar] = useTransition();
   const [vista, setVista] = useState<"tablero" | "lista">("tablero");
   const [q, setQ] = useState("");
-  const [moviendo, setMoviendo] = useState<Record<string, string>>({}); // optimista: leadId -> etapaId
+  // optimista: leadId -> etapa; con «base» (A4-04) ya lo confirmó el servidor y vale solo hasta que lleguen datos nuevos
+  const [moviendo, setMoviendo] = useState<Record<string, { etapa: string; base?: LeadsCrm }>>({});
   const [arrastrando, setArrastrando] = useState<string | null>(null);
   // Velocidad (13 oct 2026): la pestaña pulsada se marca al momento y el tablero se atenúa hasta que llega el nuevo;
   // las pestañas se precargan al pasar el ratón (o tocarlas) por encima
@@ -199,29 +218,22 @@ export function TableroCrm({
     [pipeline, tableroClosers, columnasClosers]
   );
   const leads = useMemo(() => {
-    const t = q.trim().toLowerCase();
+    const vale = (m?: { base?: LeadsCrm }) => m && (!m.base || m.base === leadsCompactos);
     return leadsIniciales
-      .map((l) => (moviendo[l.id] ? { ...l, etapa_id: moviendo[l.id] } : l))
+      .map((l) => (vale(moviendo[l.id]) ? { ...l, etapa_id: moviendo[l.id].etapa } : l))
       .filter((l) => !canal || (canal === SIN_CANAL ? !l.etiquetas.some((e) => e.startsWith(PREFIJO_ETIQUETA)) : l.etiquetas.includes(canal)))
       .filter((l) => !pais || (l.pais ?? SIN_PAIS) === pais)
-      .filter(
-        (l) =>
-          !t ||
-          `${l.nombre} ${l.apellido}`.toLowerCase().includes(t) ||
-          (l.email ?? "").includes(t) ||
-          (l.telefono ?? "").replace(/\s/g, "").includes(t.replace(/\s/g, "")) ||
-          nombrePais(l.pais).toLowerCase().includes(t)
-      );
-  }, [leadsIniciales, moviendo, q, canal, pais]);
+      .filter((l) => pasaBusqueda(l, q));
+  }, [leadsIniciales, leadsCompactos, moviendo, q, canal, pais]);
   const seleccion = useMemo(() => marcadosVisibles(marcados, leads), [marcados, leads]);
 
   const toast = useToast();
-  function ejecutar(fn: () => Promise<unknown>, mensaje?: string) {
+  function ejecutar(fn: () => Promise<unknown>, mensaje?: string, deshacer?: () => unknown) {
     setError("");
     iniciar(async () => {
       try {
         const r = await fn();
-        if (mensaje) toast(mensaje);
+        if (mensaje) toast(mensaje, "ok", deshacer ? { deshacer: { texto: mensaje, deshacer } } : undefined);
         const aviso = avisoDe(r);
         if (aviso) toast(aviso, "error");
       } catch (e) {
@@ -255,15 +267,22 @@ export function TableroCrm({
       mover(id, etapaId, () => (unido === "confirma_agenda" ? confirmarAgenda(id) : registrarLlamada(id, unido as ResultadoSimple, "")), `${nombre} → ${etiquetaEstado(unido)}`);
       return;
     }
-    mover(id, etapaId, () => moverLead(id, etapaId));
+    // A3b-02: se guarda y se puede deshacer (botón y Ctrl+Z) volviendo a la columna de antes con la misma acción
+    const antes = lead.etapa_id;
+    const nombre = (n?: string | null) => etapas.find((e) => e.id === n)?.nombre ?? "otra columna";
+    mover(id, etapaId, () => moverLead(id, etapaId), `Movido a «${nombre(etapaId)}»`, antes ? () => mover(id, antes, () => moverLead(id, antes), `Vuelto a «${nombre(antes)}»`) : undefined);
   }
 
   // Mueve en pantalla al momento y deshace si el servidor falla
-  function mover(id: string, etapaId: string, accion: () => Promise<unknown>, mensaje?: string) {
-    setMoviendo((m) => ({ ...m, [id]: etapaId }));
+  function mover(id: string, etapaId: string, accion: () => Promise<unknown>, mensaje?: string, deshacer?: () => unknown) {
+    const base = leadsCompactos;
+    setMoviendo((m) => ({ ...m, [id]: { etapa: etapaId } }));
     ejecutar(async () => {
       try {
-        return await exigirOk(accion());
+        const r = await exigirOk(accion());
+        // A4-04: confirmado; deja de valer en cuanto lleguen datos nuevos (los de este cambio u otro posterior)
+        setMoviendo((m) => (m[id]?.etapa === etapaId ? { ...m, [id]: { etapa: etapaId, base } } : m));
+        return r;
       } catch (e) {
         setMoviendo((m) => {
           const c = { ...m };
@@ -272,7 +291,7 @@ export function TableroCrm({
         });
         throw e;
       }
-    }, mensaje);
+    }, mensaje, deshacer);
   }
 
   function soltarColumna(desde: string, hasta: string) {
@@ -467,6 +486,7 @@ export function TableroCrm({
           ejecutar={ejecutar}
           limpiar={() => setSeleccion(new Set())}
           ceo={ceo}
+          zona={zona}
         />
       )}
 
@@ -549,6 +569,7 @@ export function TableroCrm({
                       caller={l.caller_id ? nombrePorId[l.caller_id] : null}
                       closer={l.closer_id ? nombrePorId[l.closer_id] : null}
                       ahora={ahora}
+                      zona={zona}
                       onDrag={soloMirar ? undefined : () => setArrastrando(l.id)}
                       arrastrando={arrastrando === l.id}
                       marcada={seleccion.has(l.id)}
@@ -587,6 +608,7 @@ export function TableroCrm({
           nombrePorId={nombrePorId}
           seleccion={seleccion}
           setSeleccion={setSeleccion}
+          zona={zona}
         />
       )}
       </div>
@@ -651,6 +673,7 @@ function Tarjeta({
   caller,
   closer,
   ahora,
+  zona,
   onDrag,
   arrastrando,
   marcada,
@@ -660,6 +683,7 @@ function Tarjeta({
   caller: string | null;
   closer: string | null;
   ahora: number;
+  zona?: string;
   onDrag?: () => void; // sin él, la tarjeta no se arrastra (solo abre su popup)
   arrastrando: boolean;
   marcada: boolean;
@@ -676,7 +700,7 @@ function Tarjeta({
       arriba={
         <span className="flex shrink-0 items-center gap-1 text-[11px] text-texto-3">
           {lead.otroPipeline && <span title="También está en otro pipeline (su pipeline principal es otro)">🔗</span>}
-          <span title={`Entró el ${lead.creado_en.slice(0, 10)}`}>{haceDias(lead.creado_en, ahora)}</span>
+          <span title={`Entró el ${diaEn(lead.creado_en, zona)}`}>{haceDias(lead.creado_en, ahora)}</span>
         </span>
       }
       arrastrable={!!onDrag}
@@ -825,12 +849,14 @@ function VistaLista({
   nombrePorId,
   seleccion,
   setSeleccion,
+  zona,
 }: {
   leads: LeadTarjeta[];
   etapas: Etapa[];
   nombrePorId: Record<string, string>;
   seleccion: Set<string>;
   setSeleccion: (s: Set<string>) => void;
+  zona?: string;
 }) {
   const [limite, setLimite] = useState(100);
   const etapaNombre = Object.fromEntries(etapas.map((e) => [e.id, e]));
@@ -886,7 +912,7 @@ function VistaLista({
                   <td className="text-texto-2">{l.caller_id ? nombrePorId[l.caller_id] : "—"}</td>
                   <td className="text-texto-2">{l.closer_id ? nombrePorId[l.closer_id] : "—"}</td>
                   <td className="text-texto-2">{ETIQUETA_ESTADO_CALLER[l.estado_caller]}</td>
-                  <td className="whitespace-nowrap text-xs text-texto-3">{l.creado_en.slice(0, 10)}</td>
+                  <td className="whitespace-nowrap text-xs text-texto-3">{diaEn(l.creado_en, zona)}</td>
                 </tr>
               );
             })}

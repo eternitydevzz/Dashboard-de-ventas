@@ -12,7 +12,7 @@ import { exigirOk } from "@/lib/resultado-cliente";
 export type LeadDup = { id: string; nombre: string; apellido: string; email: string | null; telefono: string | null; ghl_contact_id: string | null; creado_en: string };
 const nombreDe = (l: LeadDup) => `${l.nombre} ${l.apellido}`.trim() || l.email || "Sin nombre";
 
-export function ListaDuplicados({ grupos }: { grupos: { clave: string; leads: LeadDup[] }[] }) {
+export function ListaDuplicados({ grupos, zona = "UTC" }: { grupos: { clave: string; leads: LeadDup[] }[]; zona?: string }) {
   const toast = useToast();
   const [pendiente, empezar] = useTransition();
   const [resultado, setResultado] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export function ListaDuplicados({ grupos }: { grupos: { clave: string; leads: Le
                     <tr key={l.id}>
                       <td><Link href={`/leads/${l.id}`} className="font-medium hover:text-primario">{nombreDe(l)}</Link><div className="text-xs text-texto-3">{l.email}</div></td>
                       <td>{l.telefono}</td>
-                      <td>{l.creado_en.slice(0, 10)}</td>
+                      <td>{new Intl.DateTimeFormat("en-CA", { timeZone: zona }).format(new Date(l.creado_en)) /* S1-21: día en la zona del proyecto */}</td>
                       <td className="text-xs text-texto-3">{l.ghl_contact_id ?? "—"}</td>
                       <td className="text-right">
                         {i === 0 ? <span className="text-xs font-medium text-texto-2">Se queda (el más antiguo)</span> : (

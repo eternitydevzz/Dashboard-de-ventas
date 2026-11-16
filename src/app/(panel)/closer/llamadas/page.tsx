@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Inbox, Download, ChevronLeft, ChevronRight, List, CalendarDays, Columns3 } from "lucide-react";
+import { Inbox, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { db, equipo } from "@/lib/datos";
@@ -17,7 +17,7 @@ import { Grabaciones } from "./grabaciones";
 import { RevisionIa } from "./revision-ia";
 import { Cualificacion } from "./cualificacion";
 import { TableroClosers } from "./tablero-closers";
-import { BuscadorUrl, CrearLlamada, FilaSinUnir, ImportarCitas, SincronizarGhl } from "./cliente";
+import { BuscadorUrl, CrearLlamada, FilaSinUnir, ImportarCitas, SincronizarGhl, VistasCalendario } from "./cliente";
 import type { Producto } from "@/lib/tipos";
 import { SIN_CANAL, opcionesCanal, origenCitaGhl } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
@@ -34,15 +34,6 @@ const TABS = [
   { v: "revision", t: "Revisión IA" },
   { v: "cualificacion", t: "Cualificación", soloJefe: true },
 ] as const;
-const FILTROS_ESTADO = [
-  { v: "", t: "Todos" },
-  { v: "abiertas", t: "Pendientes" },
-  { v: "cerrada", t: "Cerradas" },
-  { v: "perdida", t: "Perdidas" },
-  { v: "no_show", t: "No-show" },
-  { v: "reagendada", t: "Reagendadas" },
-  { v: "cancelada", t: "Canceladas" },
-];
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const tonoEstado = (e: string) => (e === "cerrada" ? "ok" : e === "confirmada" ? "primario" : ["no_show", "perdida", "cancelada", "no_califica"].includes(e) ? "mal" : "aviso");
@@ -193,8 +184,8 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   );
 
   // ---------- 01 · Agendas (calendario y lista) ----------
+  // R9: se pintan las 4 vistas y el navegador enseña la elegida (VistasCalendario); flechas y días llevan su vista
   function VistaAgendas() {
-    const vista = ["mes", "semana", "dia", "lista"].includes(str("vista")) ? str("vista") : "mes";
     const estado = str("estado");
     const filtradas = citas.filter((c) => !estado || (estado === "abiertas" ? (ABIERTAS as readonly string[]).includes(c.estado) : c.estado === estado));
     const hoy = hoyEnZona(zonaVer);
@@ -205,12 +196,6 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
       const d = diaEnZona(c.fecha, zonaVer);
       porDia.set(d, [...(porDia.get(d) ?? []), c]);
     }
-    const vistas = [
-      { v: "mes", t: "Mes", i: CalendarDays },
-      { v: "semana", t: "Semana", i: Columns3 },
-      { v: "dia", t: "Día", i: CalendarDays },
-      { v: "lista", t: "Lista", i: List },
-    ];
     const lunes = (() => {
       const d = new Date(`${dia}T12:00:00Z`);
       d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
@@ -218,26 +203,25 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     })();
     const semana = Array.from({ length: 7 }, (_, i) => new Date(lunes.getTime() + i * 86_400_000).toISOString().slice(0, 10));
     const moverDia = (n: number) => new Date(new Date(`${dia}T12:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
-    return (
-      <div className="tarjeta overflow-hidden">
-        <div className="flex flex-wrap items-center gap-2 border-b border-borde p-2">
-          {FILTROS_ESTADO.map((f) => (
-            <Link prefetch={false} key={f.v} href={baseQs({ estado: f.v || null })} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.t}</Link>
-          ))}
-          <div className="ml-auto flex rounded-lg border border-borde bg-panel-2 p-0.5">
-            {vistas.map((v) => (
-              <Link prefetch={false} key={v.v} href={baseQs({ vista: v.v })} className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs ${vista === v.v ? "bg-primario text-white" : "text-texto-2"}`}><v.i className="h-3.5 w-3.5" />{v.t}</Link>
-            ))}
-          </div>
+    const cabeceraDia = (
+      <div className="flex items-center justify-between border-b border-borde px-4 py-2">
+        <h2 className="font-semibold">{soloFecha(`${dia}T12:00:00Z`, proyecto)}</h2>
+        <div className="flex gap-1">
+          <Link prefetch={false} href={baseQs({ vista: "dia", d: moverDia(-1) })} className="btn-secundario p-2" aria-label="Día anterior"><ChevronLeft className="h-4 w-4" /></Link>
+          <Link prefetch={false} href={baseQs({ vista: "dia", d: moverDia(1) })} className="btn-secundario p-2" aria-label="Día siguiente"><ChevronRight className="h-4 w-4" /></Link>
         </div>
-
-        {vista === "mes" && (
+      </div>
+    );
+    return (
+      <VistasCalendario
+        estado={estado}
+        mes={
           <div className="p-3">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold">{MESES[Number(ym.slice(5)) - 1].replace(/^./, (x) => x.toUpperCase())} de {ym.slice(0, 4)} <span className="ml-2 rounded-full bg-oro-suave px-2 py-0.5 text-xs font-medium text-oro">{(() => { const n = filtradas.filter((c) => diaEnZona(c.fecha, zonaVer).startsWith(ym)).length; return `${n} ${n === 1 ? "llamada" : "llamadas"}`; })()}</span></h2>
               <div className="flex gap-1">
-                <Link prefetch={false} href={baseQs({ m: sumarMes(ym, -1) })} className="btn-secundario p-2" aria-label="Mes anterior"><ChevronLeft className="h-4 w-4" /></Link>
-                <Link prefetch={false} href={baseQs({ m: sumarMes(ym, 1) })} className="btn-secundario p-2" aria-label="Mes siguiente"><ChevronRight className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ vista: "mes", m: sumarMes(ym, -1) })} className="btn-secundario p-2" aria-label="Mes anterior"><ChevronLeft className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ vista: "mes", m: sumarMes(ym, 1) })} className="btn-secundario p-2" aria-label="Mes siguiente"><ChevronRight className="h-4 w-4" /></Link>
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-xs text-texto-3">{DIAS.map((d) => <div key={d} className="py-1">{d}</div>)}</div>
@@ -262,15 +246,14 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
             </div>
             <p className="mt-2 flex flex-wrap gap-3 text-xs text-texto-3"><span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-aviso" />Por hacer o en seguimiento</span><span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-ok" />Cerrada</span><span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-mal" />Perdida, no-show, cancelada o no califica</span> · Pulsa un día para ver sus llamadas.</p>
           </div>
-        )}
-
-        {vista === "semana" && (
+        }
+        semana={
           <div className="p-3">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">Semana del {soloFecha(`${semana[0]}T12:00:00Z`, proyecto)}</h2>
               <div className="flex gap-1">
-                <Link prefetch={false} href={baseQs({ d: moverDia(-7) })} className="btn-secundario p-2" aria-label="Semana anterior"><ChevronLeft className="h-4 w-4" /></Link>
-                <Link prefetch={false} href={baseQs({ d: moverDia(7) })} className="btn-secundario p-2" aria-label="Semana siguiente"><ChevronRight className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ vista: "semana", d: moverDia(-7) })} className="btn-secundario p-2" aria-label="Semana anterior"><ChevronLeft className="h-4 w-4" /></Link>
+                <Link prefetch={false} href={baseQs({ vista: "semana", d: moverDia(7) })} className="btn-secundario p-2" aria-label="Semana siguiente"><ChevronRight className="h-4 w-4" /></Link>
               </div>
             </div>
             <div className="grid gap-2 md:grid-cols-7">
@@ -290,23 +273,10 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
               ))}
             </div>
           </div>
-        )}
-
-        {(vista === "dia" || vista === "lista") && (
-          <div>
-            {vista === "dia" && (
-              <div className="flex items-center justify-between border-b border-borde px-4 py-2">
-                <h2 className="font-semibold">{soloFecha(`${dia}T12:00:00Z`, proyecto)}</h2>
-                <div className="flex gap-1">
-                  <Link prefetch={false} href={baseQs({ d: moverDia(-1) })} className="btn-secundario p-2" aria-label="Día anterior"><ChevronLeft className="h-4 w-4" /></Link>
-                  <Link prefetch={false} href={baseQs({ d: moverDia(1) })} className="btn-secundario p-2" aria-label="Día siguiente"><ChevronRight className="h-4 w-4" /></Link>
-                </div>
-              </div>
-            )}
-            <ListaCitas filas={vista === "dia" ? porDia.get(dia) ?? [] : [...filtradas].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 300)} />
-          </div>
-        )}
-      </div>
+        }
+        dia={<div>{cabeceraDia}<ListaCitas filas={porDia.get(dia) ?? []} /></div>}
+        lista={<ListaCitas filas={[...filtradas].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 300)} />}
+      />
     );
   }
 
