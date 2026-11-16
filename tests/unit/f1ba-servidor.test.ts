@@ -27,7 +27,7 @@ vi.mock("@/lib/datos", async (original) => ({
   equipo: async () => [{ id: "c1", rol: "caller", nombre: "Caller 1" }],
 }));
 const { getSesion } = await import("@/lib/sesion");
-const { anadirNota, borrarNotaReciente, volverANuevo } = await import("@/app/(panel)/leads/acciones");
+const { anadirNota, borrarNotaReciente, volverANuevo, deshacerEtapaLead } = await import("@/app/(panel)/leads/acciones");
 const { repartirLeads } = await import("@/app/(panel)/crm/reparto");
 
 const de = (t: string, op: string) => consultas.filter((c) => c.tabla === t && c.ops.some(([o]) => o === op));
@@ -88,5 +88,29 @@ describe("3 · repartir devuelve a quién tenía cada lead antes", () => {
     };
     const r = await repartirLeads({ origen: "seleccion", leadIds: ["l1", "l2", "l3"], callers: ["c1"], modo: "equitativo", n: 3 });
     expect(r).toEqual({ repartidos: 3, antes: { viejo: ["l1"], "": ["l2"] } });
+  });
+});
+
+describe("deshacerEtapaLead · vuelve a la columna de antes sin dejar historial", () => {
+  const etapas = { data: [{ id: "e-ini", nombre: "Form completo", pipeline_id: "pip" }, { id: "e-nueva", nombre: "Biblioteca", pipeline_id: "pip2" }], error: null };
+  it("mueve solo si sigue en la columna puesta y borra la línea «Movido a …» de ese clic", async () => {
+    respuesta["leads:select"] = { data: { ...lead, etapa_id: "e-nueva" }, error: null };
+    respuesta["etapas:select"] = etapas;
+    respuesta["leads:update"] = { data: [{ id: "l1" }], error: null };
+    respuesta["actividades:select"] = { data: { id: "a9" }, error: null };
+    expect(await deshacerEtapaLead("l1", "e-ini", "e-nueva")).toBeUndefined();
+    const up = de("leads", "update")[0].ops;
+    expect(up).toContainEqual(["update", [{ etapa_id: "e-ini", pipeline_id: "pip" }]]);
+    expect(up).toContainEqual(["eq", ["etapa_id", "e-nueva"]]);
+    const busca = consultas.find((c) => c.tabla === "actividades" && !c.ops.some(([o]) => o === "delete"))!.ops;
+    expect(busca).toEqual(expect.arrayContaining([["eq", ["perfil_id", "u1"]], ["eq", ["proyecto_id", "p1"]], ["eq", ["tipo", "cambio_etapa"]], ["eq", ["nota", "Movido a «Biblioteca»"]]]));
+    expect(busca.some(([o, a]) => o === "gte" && a[0] === "creado_en")).toBe(true);
+    expect(de("actividades", "delete")[0].ops).toContainEqual(["eq", ["id", "a9"]]);
+  });
+  it("si el lead cambió después, no toca nada", async () => {
+    respuesta["leads:select"] = { data: { ...lead, etapa_id: "otra" }, error: null };
+    expect(await deshacerEtapaLead("l1", "e-ini", "e-nueva")).toMatchObject({ error: expect.stringMatching(/cambió/) });
+    expect(de("leads", "update")).toHaveLength(0);
+    expect(de("actividades", "delete")).toHaveLength(0);
   });
 });
