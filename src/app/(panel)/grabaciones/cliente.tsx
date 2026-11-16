@@ -36,6 +36,12 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
   const [popup, setPopup] = useState<GrabacionFila | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
   const pendiente = useRef(false);
+  // R16 parte 2: si el audio falla (p. ej. «demuxer seek failed» al saltar a un trozo no descargado: el webm de
+  // MediaRecorder no tiene índice), el contador vuelve a lo que de verdad sonó y «Reintentar» pide otro enlace firmado.
+  const [fallo, setFallo] = useState(false);
+  const [intento, setIntento] = useState(0);
+  const sono = useRef(0); // último punto que sonó (no cuenta los saltos a medio cargar)
+  const volver = useRef<number | null>(null);
   const g = filas.find((f) => f.id === sel) ?? filas[0];
   const fecha = useMemo(() => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: zona }), [zona]);
   const diaDe = useMemo(() => new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "short", timeZone: zona }), [zona]);
@@ -57,6 +63,9 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
     setSel(id);
     setT(0);
     setSonando(false);
+    setFallo(false);
+    sono.current = 0;
+    volver.current = null;
     window.history.replaceState(null, "", `/grabaciones?g=${id}`);
   };
   const tocar = (id: string) => {
@@ -81,9 +90,14 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
   }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps -- solo al cambiar de grabación
   const saltar = (s: number) => {
     const a = audio.current;
-    if (!a) return;
+    if (!a || fallo) return; // con el audio roto no se mueve nada
     a.currentTime = Math.max(0, dur ? Math.min(dur, s) : s);
     setT(a.currentTime);
+  };
+  const reintentar = () => {
+    volver.current = sono.current;
+    setFallo(false);
+    setIntento((i) => i + 1); // otra URL: /api/grabaciones/<id> firma un enlace nuevo en cada petición
   };
   const cambiarVel = () => {
     const v = vel === 1 ? 1.5 : vel === 1.5 ? 2 : 1;
@@ -166,13 +180,29 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
           {/* El audio llega por /api/grabaciones/<id> (enlace firmado de Supabase, 1 hora) */}
           <audio
             ref={audio}
-            src={`/api/grabaciones/${g.id}`}
+            src={`/api/grabaciones/${g.id}${intento ? `?r=${intento}` : ""}`}
             preload="metadata"
-            onTimeUpdate={(e) => setT(e.currentTarget.currentTime)}
+            onTimeUpdate={(e) => {
+              if (fallo) return;
+              const a = e.currentTarget;
+              if (!a.seeking) sono.current = a.currentTime;
+              setT(a.currentTime);
+            }}
+            onLoadedMetadata={(e) => {
+              if (volver.current === null) return;
+              e.currentTarget.playbackRate = vel;
+              e.currentTarget.currentTime = volver.current;
+              volver.current = null;
+            }}
             onPlay={() => setSonando(true)}
             onPause={() => setSonando(false)}
             onEnded={() => setSonando(false)}
-            onError={() => toast("No se pudo cargar el audio de esta grabación.", "error")}
+            onError={() => {
+              setFallo(true);
+              setSonando(false);
+              setT(sono.current);
+              toast("No se pudo cargar el audio de esta grabación.", "error");
+            }}
           />
           <div className="mt-4 rounded-2xl bg-gradient-to-br from-[#1c2350] to-primario p-4 text-white">
             <div
@@ -193,6 +223,12 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
               {BARRAS.map((h, i) => <b key={i} className={`flex-1 rounded-sm ${dur && i / BARRAS.length < t / dur ? "bg-white" : "bg-white/35"}`} style={{ height: `${h}%` }} />)}
             </div>
             <div className="mt-2 flex justify-between text-sm tabular-nums opacity-90"><span>{duracionTexto(t)}</span><span>{duracionTexto(dur)}</span></div>
+            {fallo && (
+              <p role="alert" className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-mal px-3 py-1.5 text-sm font-semibold">
+                El audio se cortó en {duracionTexto(t)}.
+                <button type="button" onClick={reintentar} className="rounded-full bg-white px-3 py-1 text-xs text-mal">Reintentar</button>
+              </p>
+            )}
             <div className="mt-2.5 flex items-center justify-center gap-3">
               <button type="button" onClick={() => saltar(t - 10)} className="rounded-full bg-white/15 px-3 py-2 text-sm hover:bg-white/25">−10 s</button>
               <button type="button" onClick={() => tocar(g.id)} aria-label={sonando ? "Pausar" : "Escuchar"} className="grid h-14 w-14 place-items-center rounded-full bg-white text-primario shadow">{sonando ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}</button>
