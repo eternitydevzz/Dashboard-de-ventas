@@ -146,6 +146,7 @@ export async function guardarLinkPago(productoId: string, url: string, campo: "l
 // 13 nov: con mercado «es», la versión de España (vacía = el equipo de España ve la de Latam)
 export async function guardarLinksPago(productoId: string, links: unknown, mercado: Mercado = "latam") {
   return seguro(async () => {
+    await exigirSeccion("recursos", "programas"); // S2-6: también se edita desde Programas (programas/page.tsx:93, 113)
     const { proyecto } = await exigir(puedeRecursos);
     const lista = linksValidos(links);
     const entraron = Array.isArray(links) ? links.filter((x) => x && typeof x === "object" && String((x as { url?: string }).url ?? "").trim()).length : 0;
@@ -160,6 +161,7 @@ export async function guardarLinksPago(productoId: string, links: unknown, merca
 
 export async function guardarLinkReserva(url: string, mercado: Mercado = "latam") {
   return seguro(async () => {
+    await exigirSeccion("recursos", "programas"); // S2-6: también se edita desde Programas (programas/page.tsx:93, 113)
     const { proyecto } = await exigir(puedeRecursos);
     const limpio = url.trim();
     if (limpio && !esHttps(limpio)) throw new ErrorUsuario("Pon un enlace válido que empiece por https://");

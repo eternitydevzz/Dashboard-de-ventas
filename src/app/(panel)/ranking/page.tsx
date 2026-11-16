@@ -45,7 +45,7 @@ export default async function RankingPage({ searchParams }: PageProps<"/ranking"
                         <span className="flex items-center gap-1.5 font-medium">{c.perfil.nombre}{c.perfil.id === perfil.id && <span className="text-primario"> (tú)</span>}<EtiquetaMercado m={mercados[c.perfil.id]} /></span>
                         <span className="font-semibold tabular-nums">{c.agendados} agendados</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fondo-2"><div className="h-full rounded-full bg-primario" style={{ width: `${pct((c.agendados / maxAg) * 100)}` }} /></div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fondo-2"><div className="h-full rounded-full bg-primario" style={{ width: `${Math.round((c.agendados / maxAg) * 100)}%` }} /></div>
                       <div className="mt-1 text-xs text-texto-3">{c.llamadas} llamadas · {c.contactados} contactados · {c.cerrados} cerrados · {c.lowTicketVentas} low ticket</div>
                     </div>
                   </li>
@@ -65,7 +65,7 @@ export default async function RankingPage({ searchParams }: PageProps<"/ranking"
                         <span className="flex items-center gap-1.5 font-medium">{c.perfil.nombre}{c.perfil.id === perfil.id && <span className="text-primario"> (tú)</span>}<EtiquetaMercado m={mercados[c.perfil.id]} /></span>
                         <span className="font-semibold tabular-nums text-oro-texto">{dinero(c.facturacion, proyecto)}</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fondo-2"><div className="h-full rounded-full bg-oro" style={{ width: `${pct((c.facturacion / maxFac) * 100)}` }} /></div>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-fondo-2"><div className="h-full rounded-full bg-oro" style={{ width: `${Math.round((c.facturacion / maxFac) * 100)}%` }} /></div>
                       <div className="mt-1 text-xs text-texto-3">{c.cerradas} cerradas · {pct(c.cierreSobreAsistencia)} cierre/asist. · {c.asistidas} asistidas · {c.noShow} no show</div>
                     </div>
                   </li>

@@ -195,12 +195,12 @@ export function EditorWorkflow({
           <p className="text-xs text-texto-3">Versión {w.version}{enCurso ? ` · ${enCurso === 1 ? "1 lead en curso termina" : `${enCurso} leads en curso terminan`} con la versión ${w.version}` : ""}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-sm font-medium">
+          <label className="flex items-center gap-2 text-sm font-medium" title={real && !cita && w.encendido ? "Para apagarlo, pulsa primero «Volver a lo de hoy»." : undefined}>
             <input
               type="checkbox"
               className="interruptor"
               checked={w.encendido}
-              disabled={pendiente || sinGuardar}
+              disabled={pendiente || sinGuardar || (real && !cita && w.encendido)}
               onChange={(e) => {
                 const on = e.target.checked;
                 void confirmar(on ? `¿Encender el workflow? Empieza a recibir ${quien}.` : `¿Apagar el workflow? Deja de recibir ${quien}.`).then((ok) => ok && ejecutar(() => (on ? encenderWorkflow(w.id) : pararWorkflow(w.id)), on ? "Encendido" : "Apagado"));

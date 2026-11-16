@@ -1,6 +1,5 @@
 "use client";
 
-import Papa from "papaparse";
 import { Download } from "lucide-react";
 import { MARCA, type LeadVista } from "@/lib/leads-vista";
 import { ETIQUETA_ESTADO_CALLER, hoyEnZona, nombrePais } from "@/lib/formato";
@@ -8,6 +7,7 @@ import { enZona } from "@/lib/horarios";
 import { ETIQUETA_OFERTA, PREGUNTAS_BIBLIOTECA, preguntaCanonica, respuestasBiblioteca, type Oferta } from "@/lib/oferta";
 import { PREFIJO_ETIQUETA } from "@/lib/canal";
 import { RepartirLeads } from "@/components/repartir-leads";
+import { csvExcel } from "@/lib/csv-excel";
 
 type Nombrado = { id: string; nombre: string };
 // Títulos cortos de las 6 preguntas de la Biblioteca (los usa también la tabla de leads.tsx)
@@ -53,8 +53,8 @@ export function AccionesLeads({ leads, pipelines, etapas, gente, fuente, callers
         Etiquetas: l.etiquetas.join(", "),
       };
     });
-    // Con BOM para que Excel lea bien las tildes (como «Exportar» del CRM)
-    const csv = "﻿" + Papa.unparse(filas);
+    // csvExcel: BOM para las tildes y neutraliza fórmulas (=HYPERLINK…) de nombres que vienen de formularios públicos
+    const csv = csvExcel(Object.keys(filas[0] ?? {}), filas.map((f) => Object.values(f)));
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   BookOpen,
@@ -106,24 +106,28 @@ export function BarraLateral({
   // abrir la app (cada pestaña preparaba Funnel, KPIs, Ranking… cada 5 min). Solo la que se señala con el ratón,
   // el dedo o el teclado, justo antes de pulsar (como antes del 17 oct), y completa.
   // 11 nov 2026 (Cristian: «solo las 3 secciones más usadas por cada rol»): esas 3 sí se precargan al abrir la app,
-  // completas, desde el primer pintado (prefetch={true} fijo; desde el 14 nov, al quitarse la bienvenida: abajo). Medido en la app publicada (11 nov): con el enlace que empezaba
-  // con prefetch={false} y pasaba a true después, Next no precargó nada (0 peticiones en 10 s; causa probable, sin aislar). Las demás, al señalarlas.
-  // Límite conocido: en el móvil el menú está escondido y Next solo precarga los enlaces que se ven.
-  // Cristian, 14 nov (Ola 2): las 3 empiezan al quitarse la bienvenida, con la pantalla abierta ya cargada. Antes salían
-  // desde el primer pintado (la guía de Next: un enlace se precarga al entrar en pantalla, prefetching.md:66-75) y
-  // competían con ella (la de /crm, 241 KB, acababa a ~5,4 s). Siguen completas (prefetch={true}, link.md:303): la
-  // precarga por defecto de una página dinámica con loading.tsx solo trae hasta la pantalla de carga (link.md:302).
-  // El enlace se vuelve a montar con la precarga ya puesta (key), como el caso medido que sí precargaba (arriba).
-  const [trasBienvenida, setTrasBienvenida] = useState(false);
+  // completas. Medido en la app publicada (11 nov): con el enlace que empezaba con prefetch={false} y pasaba a true
+  // después, Next no precargó nada (0 peticiones en 10 s; causa probable, sin aislar). Las demás, al señalarlas.
+  // Cristian, 14 nov (Ola 2): las 3 empiezan al quitarse la bienvenida, con la pantalla abierta ya cargada (antes
+  // competían con ella: la de /crm, 241 KB, acababa a ~5,4 s).
+  // R15 (Fase 0): antes la precarga cambiaba la key del enlace y React lo montaba de nuevo; un clic que caía justo
+  // entonces no navegaba (0 de 5 sin pasar el ratón antes). Ahora el enlace no cambia nunca (prefetch={false} fijo) y se
+  // precarga a mano con router.prefetch (prefetching.md, «Manual prefetch»), completa con kind "full" (prefetch.js:
+  // PrefetchKind.FULL; la de por defecto en una página dinámica con loading.tsx solo trae la pantalla de carga, link.md:302).
+  // La sección en la que ya estás no se precarga. En el móvil el menú está escondido: las 3 de entrada no se precargan
+  // (como antes con <Link>, que solo precarga lo que se ve), para no cargar más la base.
+  const router = useRouter();
+  const precargar = (href: string) => {
+    if (href !== ruta) router.prefetch(href, { kind: "full" as never }); // el tipo es un enum interno de Next
+  };
   useEffect(() => {
-    const ya = () => setTrasBienvenida(true);
+    const ya = () => {
+      if (!matchMedia("(min-width: 1024px)").matches) return; // lg: el menú solo se ve desde ahí
+      for (const h of precarga) if (h !== location.pathname) router.prefetch(h, { kind: "full" as never });
+    };
     window.addEventListener(FIN_BIENVENIDA, ya);
     return () => window.removeEventListener(FIN_BIENVENIDA, ya);
-  }, []);
-  const deEntrada = (href: string) => trasBienvenida && precarga.includes(href);
-  const [precargadas, setPrecargadas] = useState<Set<string>>(() => new Set());
-  const precargar = (href: string) => setPrecargadas((s) => (s.has(href) ? s : new Set(s).add(href)));
-  const conPrecarga = (href: string) => deEntrada(href) || precargadas.has(href);
+  }, [precarga, router]);
   const [yendo, setYendo] = useState<{ a: string; desde: string } | null>(null);
   const destino = yendo && yendo.desde === ruta ? yendo.a : null;
   const [abierto, setAbierto] = useState(false);
@@ -182,10 +186,9 @@ export function BarraLateral({
                 return (
                   <li key={it.href}>
                     <Link
-                      key={conPrecarga(it.href) ? "precarga" : "normal"} // también al pasar el ratón: si solo cambia el prop, Next no precarga (medido el 11 nov)
                       href={it.href}
                       data-activo={activo || undefined}
-                      prefetch={ruta !== it.href && conPrecarga(it.href)} // la sección en la que ya estás no se vuelve a precargar en cada guardado
+                      prefetch={false} // R15: fijo; la precarga va por router.prefetch (arriba) para no montar el enlace de nuevo
                       onMouseEnter={() => precargar(it.href)}
                       onFocus={() => precargar(it.href)}
                       onTouchStart={() => precargar(it.href)}
@@ -218,7 +221,7 @@ export function BarraLateral({
       <div className="border-t border-borde p-3">
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
           {/* Bloque 1 de 1.0: tocar tu nombre abre «Mi perfil» */}
-          <Link href="/perfil" prefetch={precargadas.has("/perfil")} onMouseEnter={() => precargar("/perfil")} onClick={() => setAbierto(false)} className={`-m-1 flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 hover:bg-panel-2 ${ruta === "/perfil" ? "bg-panel-2" : ""}`} title="Mi perfil" aria-label="Mi perfil">
+          <Link href="/perfil" prefetch={false} onMouseEnter={() => precargar("/perfil")} onClick={() => setAbierto(false)} className={`-m-1 flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 hover:bg-panel-2 ${ruta === "/perfil" ? "bg-panel-2" : ""}`} title="Mi perfil" aria-label="Mi perfil">
             <Avatar nombre={perfil.nombre} foto={perfil.foto} tamano="h-9 w-9 text-xs" />
             <div className="min-w-0 flex-1 leading-tight">
               <div className="truncate text-sm font-medium">{perfil.nombre}</div>

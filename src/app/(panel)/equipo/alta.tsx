@@ -114,7 +114,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
 
         {/* Paso actual */}
         <section className="flex min-w-0 flex-1 flex-col">
-          <div className="h-1 bg-panel-2"><div className="h-full bg-oro transition-all" style={{ width: `${pct(((paso + 1) / PASOS.length) * 100)}` }} /></div>
+          <div className="h-1 bg-panel-2"><div className="h-full bg-oro transition-all" style={{ width: `${Math.round(((paso + 1) / PASOS.length) * 100)}%` }} /></div>
           <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-7">
             <div className="font-mono text-xs text-oro-texto">0{paso + 1} · {PASOS[paso].t.toUpperCase()}</div>
             {paso === 0 && (
