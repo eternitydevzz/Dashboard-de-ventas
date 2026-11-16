@@ -48,10 +48,8 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
         return fila as FilaPermisoPipeline;
       })
     ),
-    // «Vendido» abre la venta: el caller no registra ventas (Cristian, 12 oct). Misma clave que Mis leads (caller/page.tsx).
-    perfil.rol === "caller"
-      ? Promise.resolve([] as Producto[])
-      : deMemoria(`productos-activos:${proyecto.id}`, () => db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")),
+    // «Vendido» abre la venta. N1 (Cristian, 16 nov): el caller también registra ventas. Misma clave que Mis leads (caller/page.tsx).
+    deMemoria(`productos-activos:${proyecto.id}`, () => db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")),
     // Las columnas de todos los pipelines: las del elegido y las de las acciones masivas
     deMemoria(`crm-etapas:${proyecto.id}`, () => db().from("etapas").select("*, pipelines!inner(proyecto_id)").eq("pipelines.proyecto_id", proyecto.id).order("orden")),
     enMemoria(`canales:${proyecto.id}`, UN_MINUTO, () => canalesDe(proyecto.id)), // B2b: los canales del proyecto (filtro de canal y origen de las citas)
@@ -150,6 +148,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
         {/* 25 oct 2026 (Cristian): sin refresco automático cada 60 s; la base se saturaba con el equipo trabajando */}
         <TableroCrm
           key={pipeline?.id} // A4-08: otro pipeline = tablero nuevo (sin selección ni filtros del anterior)
+          zona={proyecto.zona_horaria} // S1-21
           pipelines={pipelines}
           pipeline={pipeline}
           etapas={etapas}

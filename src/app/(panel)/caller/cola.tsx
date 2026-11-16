@@ -104,17 +104,6 @@ export function ColaCaller({
   const q = busca.trim();
   // Con ?q= la lista trae todas las columnas; sin él, solo la de la pastilla (un lead que cambia de columna sale al momento)
   const filas = useMemo(() => leads.filter((l) => (busqueda || l.estado_caller === pestana) && buscaCola(l, q)), [leads, busqueda, pestana, q]);
-  // R8: lo escrito va a la dirección (?q=) tras una pausa y el servidor busca en todos los leads del caller
-  useEffect(() => {
-    if (q === busqueda.trim()) return;
-    const t = setTimeout(() => {
-      const p = parametros();
-      if (orden) (p.set("orden", orden.campo), p.set("dir", orden.dir === 1 ? "asc" : "desc"));
-      if (q) p.set("q", q);
-      startTransition(() => router.replace(`/caller?${p.toString()}`, { scroll: false }));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [q]); // eslint-disable-line react-hooks/exhaustive-deps -- solo al escribir
   // Revisión del 7 nov: si el lead elegido sale de la lista al cambiarlo de columna (p. ej. con la pastilla «Leads
   // nuevos» puesta), se queda en pantalla (y su guion abierto) en vez de saltar a otro a mitad de la llamada
   const [ultimo, setUltimo] = useState<LeadCola | null>(null);
@@ -131,6 +120,18 @@ export function ColaCaller({
     if (busqueda) p.set("q", busqueda);
     return p;
   };
+  // R8: lo escrito va a la dirección (?q=) tras una pausa y el servidor busca en todos los leads del caller
+  useEffect(() => {
+    if (q === busqueda.trim()) return;
+    const t = setTimeout(() => {
+      const p = parametros();
+      if (orden) (p.set("orden", orden.campo), p.set("dir", orden.dir === 1 ? "asc" : "desc"));
+      p.delete("q"); // al vaciar el buscador, fuera la búsqueda vieja
+      if (q) p.set("q", q);
+      startTransition(() => router.replace(`/caller?${p.toString()}`, { scroll: false }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]); // eslint-disable-line react-hooks/exhaustive-deps -- solo al escribir
   const enlace = (leadId: string) => {
     const p = parametros();
     if (orden) {

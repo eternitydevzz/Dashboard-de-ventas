@@ -37,7 +37,7 @@ import {
   unirEstado,
   guardarPermisoPipeline,
 } from "./acciones";
-import { confirmarAgenda, registrarLlamada, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
+import { confirmarAgenda, deshacerResultado, registrarLlamada, type PasoResultado, type ResultadoSimple } from "@/app/(panel)/leads/acciones";
 import { etiquetaEstado } from "@/lib/estados-caller";
 import { CON_VENTANA, VentanaEstado, type DestinoConVentana } from "./ventanas-estado";
 import { CLAVES_CLOSER, normal } from "@/lib/llamadas";
@@ -233,7 +233,10 @@ export function TableroCrm({
     iniciar(async () => {
       try {
         const r = await fn();
-        if (mensaje) toast(mensaje, "ok", deshacer ? { deshacer: { texto: mensaje, deshacer } } : undefined);
+        // A3b-02 + N2: un resultado del caller (columna con estado, con o sin ventana) se deshace con deshacerResultado
+        const paso = (r as { deshacer?: PasoResultado } | undefined)?.deshacer;
+        const atras = deshacer ?? (paso ? () => ejecutar(() => exigirOk(deshacerResultado(paso)), "Deshecho") : undefined);
+        if (mensaje) toast(mensaje, "ok", atras ? { deshacer: { texto: mensaje, deshacer: atras } } : undefined);
         const aviso = avisoDe(r);
         if (aviso) toast(aviso, "error");
       } catch (e) {
@@ -255,7 +258,7 @@ export function TableroCrm({
     const unido = etapas.find((e) => e.id === etapaId)?.estado_caller as EstadoCaller | null | undefined;
     if (unido && unido !== lead.estado_caller) {
       if (unido === "vendido" && !productos.length) {
-        toast("El caller no registra ventas: las cierra el closer.", "error");
+        toast("No hay programas activos para registrar la venta.", "error");
         return;
       }
       // C11 (7 nov): las que piden datos abren su ventana; las demás, un clic (antes, cualquier otra = «No contesta»)
