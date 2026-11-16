@@ -113,14 +113,13 @@ export async function enviarPendientesGhl(
       continue;
     }
     try {
-      const nuevas = await enviarLead(proyecto.id, proyecto.ghl_location_id, token, entrada, lead_id, opciones.fetchImpl, cache);
+      const { nuevas, leidos } = await enviarLead(proyecto.id, proyecto.ghl_location_id, token, entrada, lead_id, opciones.fetchImpl, cache);
       if (nuevas.length) r.nuevas.push({ leadId: lead_id, etiquetas: nuevas });
-      // Todos sus envíos a esta Entrada que esperaban (también los que aún no tocaban) han ido en este envío
+      // Solo los envíos que se leyeron y han ido en este envío; uno que llegó entre medias sigue «esperando» (S3-5)
       const { error: errOk } = await db()
         .from("webhook_eventos")
         .update({ ghl_estado: "ok", ghl_error: null })
-        .eq("entrada_id", entrada.id)
-        .eq("lead_id", lead_id)
+        .in("id", leidos)
         .eq("ghl_estado", "esperando");
       if (errOk) throw new Error(`No se pudo marcar el envío como hecho: ${errOk.message}`);
       r.enviados++;
@@ -152,7 +151,7 @@ async function marcar(ids: string[], cambios: Json) {
 
 async function enviarLead(proyectoId: string, locationId: string, token: string, entrada: EntradaGhl, leadId: string, fetchImpl?: Fetch, cache?: CacheGhl) {
   // Todos los envíos del lead a esta Entrada, en orden de llegada (registro, cuestionario, uno tardío…)
-  const { data: evs, error } = await db().from("webhook_eventos").select("payload").eq("entrada_id", entrada.id).eq("lead_id", leadId).eq("procesado", true).order("recibido_en");
+  const { data: evs, error } = await db().from("webhook_eventos").select("id, payload").eq("entrada_id", entrada.id).eq("lead_id", leadId).eq("procesado", true).order("recibido_en");
   if (error) throw new Error(`No se pudieron leer los envíos del lead: ${error.message}`);
   const envio = armarEnvioGhl(
     (evs ?? []).map((x) => (x.payload ?? {}) as Json),
@@ -166,7 +165,8 @@ async function enviarLead(proyectoId: string, locationId: string, token: string,
       campoCompleto: entrada.ghl_campo_completo ?? "",
     }
   );
-  return mandarEnvioGhl({ proyectoId, locationId, token, envio, leadId, fetchImpl, cache });
+  const nuevas = await mandarEnvioGhl({ proyectoId, locationId, token, envio, leadId, fetchImpl, cache });
+  return { nuevas, leidos: (evs ?? []).map((x) => x.id as string) };
 }
 
 // Lo que se hace en GHL con un envío ya calculado (hoy, desde la Entrada; desde la 4a-2, también desde un workflow en
