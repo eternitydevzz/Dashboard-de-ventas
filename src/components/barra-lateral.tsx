@@ -250,7 +250,7 @@ export function BarraLateral({
                 if (!grabadora?.grabando) return;
                 e.preventDefault();
                 const form = e.currentTarget.form;
-                void confirmar("Hay una grabación en curso: si sales se pierde. ¿Salir igualmente?", { boton: "Salir" }).then((si) => si && form?.requestSubmit());
+                void confirmar("Hay una grabación en curso: párala y espera a que se guarde antes de salir. ¿Salir igualmente?", { boton: "Salir" }).then((si) => si && form?.requestSubmit());
               }}
               className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2 hover:text-mal"
               title="Cerrar sesión"

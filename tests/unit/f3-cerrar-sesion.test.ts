@@ -56,7 +56,7 @@ describe("cerrar sesión", () => {
     d.confirmar.mockResolvedValueOnce(false);
     const ev = await clic();
     expect(ev.preventDefault).toHaveBeenCalled();
-    expect(d.confirmar).toHaveBeenCalledWith("Hay una grabación en curso: si sales se pierde. ¿Salir igualmente?", expect.anything());
+    expect(d.confirmar).toHaveBeenCalledWith("Hay una grabación en curso: párala y espera a que se guarde antes de salir. ¿Salir igualmente?", expect.anything());
     expect(ev.currentTarget.form.requestSubmit).not.toHaveBeenCalled();
   });
 
