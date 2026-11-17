@@ -14,7 +14,7 @@ import { miMercado } from "@/lib/mercado-datos";
 import { huecosEnZona, zonaPersona } from "@/lib/zona-persona";
 
 // Al elegir la hora en una ventana de agendar a mano: si el closer elegido está libre (si no, se avisa y se puede
-// agendar igual). La rotación de closers se quitó el 11 oct (4.4): el closer de las citas por link lo pone GHL.
+// agendar igual). El closer de las citas por link lo pone GHL; el del caller, la rotación (huecosAgendaRotacion, abajo).
 export async function consultarAgenda(fechaLocal: string, closerId: string | null) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes");

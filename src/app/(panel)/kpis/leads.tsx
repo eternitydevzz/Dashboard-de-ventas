@@ -27,7 +27,7 @@ import { PopupLead } from "@/components/popup-lead";
 import { Modal } from "@/components/modal";
 import { MapaPaises } from "@/components/mapa-paises";
 import { GraficosLeads } from "./leads-graficos";
-import { AccionesLeads, CORTO } from "./leads-acciones";
+import { AccionesLeads, CORTO, DE_BIBLIOTECA } from "./leads-acciones";
 
 // 1c (Cristian, 26 oct 2026): KPIs → «Leads». Todos los leads del proyecto para decidir a quién llamar, ver cómo rinde
 // cada fuente (pipeline, con sus 🔗) y conocer al público. Los datos llegan compactos desde el servidor (page.tsx; Cristian,
@@ -205,7 +205,6 @@ function Contenido({ barra, vista, desde, hasta, zona, ofertas, csv }: { barra: 
 const POR_PAGINA = 100;
 // Títulos cortos (CORTO, en leads-acciones.tsx), como en la tabla de la Biblioteca; la pregunta entera, al pasar el ratón
 const NOMBRE_PREGUNTA = Object.fromEntries(PREGUNTAS_BIBLIOTECA.map((p) => [p.clave, p.texto]));
-const DE_BIBLIOTECA = new Set(PREGUNTAS_BIBLIOTECA.map((p) => p.texto));
 // Las 6 del formulario en el orden de la tabla de la Biblioteca
 const PREGUNTAS_COLUMNAS = (["situacion", "experiencia", "objetivo", "tiempo", "inversion", "inicio"] as const).map((k) => PREGUNTAS_BIBLIOTECA.find((p) => p.clave === k)!);
 const ORDEN_OFERTA = Object.fromEntries(OFERTAS.map((o) => [o.v, o.orden])) as Record<Oferta, number>;

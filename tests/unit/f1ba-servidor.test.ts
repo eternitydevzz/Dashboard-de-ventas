@@ -27,7 +27,7 @@ vi.mock("@/lib/datos", async (original) => ({
   equipo: async () => [{ id: "c1", rol: "caller", nombre: "Caller 1" }],
 }));
 const { getSesion } = await import("@/lib/sesion");
-const { anadirNota, borrarNotaReciente, volverANuevo, deshacerEtapaLead } = await import("@/app/(panel)/leads/acciones");
+const { anadirNota, borrarNotaReciente, deshacerEtapaLead } = await import("@/app/(panel)/leads/acciones");
 const { repartirLeads } = await import("@/app/(panel)/crm/reparto");
 
 const de = (t: string, op: string) => consultas.filter((c) => c.tabla === t && c.ops.some(([o]) => o === op));
@@ -66,13 +66,6 @@ describe("4 · nota: devuelve su id y se puede borrar (solo la mía, reciente, d
     respuesta["actividades:delete"] = { data: [], error: null };
     expect(await borrarNotaReciente("n1")).toMatchObject({ error: expect.stringMatching(/ya no se puede deshacer/i) });
     expect(await borrarNotaReciente("" as never)).toMatchObject({ error: expect.any(String) });
-  });
-});
-
-describe("5 · «Volver a nuevo» devuelve cómo estaba (para deshacerResultado)", () => {
-  it("devuelve el paso con el estado, columna, estrellas y llamar_en de antes", async () => {
-    const r = await volverANuevo("l1");
-    expect(r).toEqual({ deshacer: { leadId: "l1", despues: "nuevo", antes: { estado_caller: "seguimiento", etapa_id: "e-ini", estrellas_caller: 3, llamar_en: null }, actividades: [] } });
   });
 });
 

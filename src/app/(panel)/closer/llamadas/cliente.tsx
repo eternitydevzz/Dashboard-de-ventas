@@ -130,15 +130,21 @@ export function BuscadorUrl({ placeholder }: { placeholder: string }) {
   const [q, setQ] = useState(params.get("q") ?? "");
   const [, iniciar] = useTransition();
   const aplicar = () => {
+    if (q.trim() === (params.get("q") ?? "")) return;
     const p = new URLSearchParams(params.toString());
     if (q.trim()) p.set("q", q.trim());
     else p.delete("q");
     iniciar(() => router.replace(`${ruta}?${p}`, { scroll: false }));
   };
+  // A4-11: se aplica al escribir, tras una pausa de 300 ms (como caller/cola.tsx); Intro lo aplica ya
+  useEffect(() => {
+    const t = setTimeout(aplicar, 300);
+    return () => clearTimeout(t);
+  }, [q]); // eslint-disable-line react-hooks/exhaustive-deps -- solo al escribir
   return (
     <form className="relative min-w-56 flex-1" onSubmit={(e) => { e.preventDefault(); aplicar(); }}>
       <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-texto-3" />
-      <input value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => q !== (params.get("q") ?? "") && aplicar()} placeholder={placeholder} className="campo pl-9" aria-label="Buscar" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} className="campo pl-9" aria-label="Buscar" />
     </form>
   );
 }

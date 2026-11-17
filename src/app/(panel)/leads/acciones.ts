@@ -219,7 +219,7 @@ export async function zonasDeAgendar() {
 
 // C11 (Cristian, 7 nov, punto 13): el caller vuelve a agendar a mano (fecha y hora); su closer lo pone la rotación
 // (lib/rotacion.ts), aunque se intente otro. Directores, CEO y closers eligen el closer, como siempre.
-// La cita en GHL la crea la sesión de GHL (pendiente, plan Callers): hasta entonces, solo en la app.
+// La cita también se crea en el calendario de GHL del closer (abajo); si GHL falla, se queda solo en la app y se avisa.
 export async function agendarCita(leadId: string, closerId: string, fechaLocal: string, nota: string, estrellas?: number) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
@@ -401,23 +401,10 @@ export async function asignarDesdeFicha(leadId: string, campo: "caller_id" | "cl
       const { data } = await db().from("miembros_proyecto").select("perfil_id").eq("proyecto_id", proyecto.id).eq("perfil_id", personaId).maybeSingle();
       if (!data) throw new ErrorUsuario("Esa persona no está en el proyecto.");
     }
+    if (campo !== "caller_id" && campo !== "closer_id") throw new ErrorUsuario("Campo no válido."); // S2-20: llega del navegador
     await escribir(db().from("leads").update({ [campo]: personaId || null }).eq("id", leadId), "leads");
     const { data: p } = personaId ? await db().from("perfiles").select("nombre").eq("id", personaId).single() : { data: null };
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "asignacion", nota: `${campo === "caller_id" ? "Caller" : "Closer"}: ${p?.nombre ?? "sin asignar"}` });
     refrescar();
-  });
-}
-
-// Tablero del caller: devolver un lead a «Nuevo» (por ejemplo, si se marcó por error).
-export async function volverANuevo(leadId: string) {
-  return seguro(async () => {
-    await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
-    const { lead, perfil, proyecto } = await leadPermitido(leadId);
-    await escribir(db().from("leads").update({ estado_caller: "nuevo", llamar_en: null }).eq("id", leadId), "leads"); // C11: «Leads»
-    await moverAColumna(lead, "nuevo", ["nuevos", "nuevo"]);
-    await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "nota", nota: "Devuelto a «Nuevo» en el tablero del caller" });
-    refrescar();
-    // F1b: se deshace con deshacerResultado (su nota del historial se queda: es tipo «nota», que ese no borra)
-    return { deshacer: { leadId, despues: "nuevo", antes: antesDe(lead), actividades: [] } satisfies PasoResultado };
   });
 }
