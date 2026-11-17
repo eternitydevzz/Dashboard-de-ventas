@@ -24,7 +24,7 @@
 | `node_modules` | instalado (17 nov, `npm ci`, código 0); `node_modules/next/dist/docs/` existe | `npm ci`; `ls node_modules/next/dist/docs` |
 | Supabase enlazado | sí: `crbwqaxpeexeonffuiyo` (`eternity-dashboard-ventas`). La sesión ya existía | `supabase projects list`; `supabase link --project-ref crbwqaxpeexeonffuiyo` |
 | Es la base buena | 87 migraciones aplicadas = 87 archivos del repo; última `20261123100000`; 1 proyecto con `ghl_location_id = 'ZGWJLBH58RJtl2iGhykp'` | `db query --linked --read-only` |
-| CLI Supabase 3.2.0 | las consultas exigen `--read-only`; un cambio (`db push`) en modo agente exige `--yes` | error `HostedMutationConsentRequiredError` sin `--read-only` |
+| CLI Supabase | **Lecturas:** `npx supabase@3.2.0 db query --linked --read-only` (sin `--read-only` no ejecuta: seguro contra escrituras). **Migraciones:** `npx supabase@2.90.0` (la del CI, `tests.yml:47`); la 3.2.0 no lee `supabase/config.toml` (`inbucket` ya no vale) | `HostedMutationConsentRequiredError`; `DbConfigLoadError` con 3.2.0; dry-run con 2.90.0 correcto |
 | `.env.local` | no hay (no hace falta para tests) | `test -f .env.local` |
 | GitHub | sesión de `eternitydevzz` | `gh auth status` |
 | Vercel CLI | **sin sesión y no se usa**: los emails de Vercel no llegan a info@ (Jose, 17 nov). Sustituto: el estado «Vercel» de cada commit en GitHub | `npx vercel@65.17.0 whoami` → «Logged out»; `gh api repos/eternitydevzz/Dashboard-de-ventas/commits/d541a40/status` → `Vercel: success` |
@@ -113,7 +113,7 @@ Todo en PowerShell, desde `C:\Users\Usuario\Desktop\VENTAS`.
   - `alter table public.perfiles add column if not exists pais text check (pais is null or char_length(pais) between 1 and 80);`
   - Bloque `do $$` que borra todo CHECK de `public.perfiles` cuya definición (`pg_get_constraintdef`) contenga `zona_horaria`.
   - `alter table public.perfiles add constraint perfiles_zona_horaria_formato check (zona_horaria is null or zona_horaria ~ '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$');` (la zona exacta la valida la app con `Intl`).
-- [ ] `npx supabase db push --linked --dry-run` → solo `20261124100000_zona_otro.sql`.
+- [x] `npx supabase@2.90.0 db push --linked --dry-run` → solo `20261124100000_zona_otro.sql` (17 nov).
 - [ ] Commit en `fase-a`: `git add supabase/migrations/20261124100000_zona_otro.sql src/lib/tipos.ts; git commit -m "feat: columna perfiles.pais y zona horaria libre (migración)"`.
 - No depende de nada. A-4 depende de esto.
 
@@ -178,7 +178,7 @@ Todo en PowerShell, desde `C:\Users\Usuario\Desktop\VENTAS`.
 - [ ] 3. Al volver cada agente: `git -C ..\VENTAS-copias\<x> diff --stat <base>..HEAD`. Si hay un archivo fuera de su lista, se rechaza ese cambio (`git checkout <base> -- <archivo>` en su rama, nuevo commit) y se avisa a Jose.
 - [ ] 4. Integrar en el orden de la tabla: `git merge --no-ff fase-x-<x>`. Después de cada uno: `npx next typegen; npx tsc --noEmit; npx eslint .; npx vitest run tests/unit`.
 - [ ] 5. Revisor de solo lectura (prompt R) sobre `git diff origin/main...fase-x`. Corregir lo grave (ORQ, o el mismo agente con su lista).
-- [ ] 6. Migraciones: `npx supabase db push --linked --dry-run`, enseñar la salida a Jose y, con su OK, `npx supabase db push --linked --yes` **antes** de fusionar (en modo agente la CLI exige `--yes`). Comprobar en la base, con `--read-only`, que existe lo nuevo.
+- [ ] 6. Migraciones: `npx supabase@2.90.0 db push --linked --dry-run`, enseñar la salida a Jose y, con su OK, `npx supabase@2.90.0 db push --linked` **antes** de fusionar. Comprobar en la base, con `--read-only`, que existe lo nuevo.
 - [ ] 7. `git push -u origin fase-x`; `gh pr create`. Esperar los 4 checks en verde sobre el mismo commit. «invalid response from the upstream server» → `gh run rerun <id> --failed`.
 - [ ] 8. Fusionar. Esperar producción lista: `gh api repos/eternitydevzz/Dashboard-de-ventas/commits/<sha de main>/status --jq '.statuses[] | select(.context=="Vercel") | .state'` → `success`, y `gh api "repos/eternitydevzz/Dashboard-de-ventas/deployments?per_page=1" --jq '.[0] | .environment, .sha'` → `Production` y ese sha.
 - [ ] 9. Comprobar en https://dashboard.eternity.llc cada tarea (tabla de cada fase) y los errores de los últimos 30 min en `errores_app` (sección 2).

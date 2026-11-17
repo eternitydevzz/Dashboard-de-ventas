@@ -19,6 +19,7 @@ export type Perfil = {
   activo: boolean;
   foto?: string | null; // N3: ruta en el espacio «fotos» (null = sin foto; undefined = la base aún no tiene la columna)
   zona_horaria?: string | null; // N2: zona de cada caller y closer (mismo criterio)
+  pais?: string | null; // A5 (17 nov): con la zona «Otro», de dónde es la persona (texto libre)
 };
 
 export type Proyecto = {
