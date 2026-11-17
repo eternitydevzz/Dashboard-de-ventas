@@ -4,6 +4,7 @@ import { db, equipo } from "@/lib/datos";
 import { fechaHora, ETIQUETA_ESTADO_CALLER } from "@/lib/formato";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import type { Lead, Respuesta } from "@/lib/tipos";
+import { cargarEnviosLead, type EnvioFormulario } from "@/lib/formularios-lead";
 
 // Popup de la card del lead (Cristian, 13 oct 2026): contacto, dónde está, equipo, etiquetas, oferta y respuestas
 // del formulario. Lo ve quien puede ver su ficha (el jefe, o su caller o su closer), con la misma regla que /leads/[id].
@@ -22,6 +23,7 @@ export type ResumenLead = {
   etiquetas: string[];
   oferta: Lead["oferta"];
   respuestas: Respuesta[];
+  formularios: EnvioFormulario[]; // Fase B: cada envío, del más nuevo; `fecha` ya en la zona del proyecto
 };
 
 // Cristian, 14 nov (Ola 2): el popup lo pide por GET (api/leads/[id]/resumen) y no como acción del servidor: Next manda
@@ -45,9 +47,11 @@ export async function resumenLead(leadId: string) {
     if (eExtra) throw new Error(`Popup del lead (tarjetas_extra): ${eExtra.message}`);
     const tarjetas = [{ pipeline_id: lead.pipeline_id, etapa_id: lead.etapa_id }, ...(extra ?? [])].filter((t) => t.pipeline_id);
     const ids = (k: "pipeline_id" | "etapa_id") => tarjetas.map((t) => t[k]).filter((x): x is string => !!x);
-    const [{ data: pipes, error: ePipes }, { data: etapas, error: eEtapas }] = await Promise.all([
+    // Fase B: sus formularios, ya con permiso y a la vez que los nombres (si falla, lanza: error genérico)
+    const [{ data: pipes, error: ePipes }, { data: etapas, error: eEtapas }, envios] = await Promise.all([
       ids("pipeline_id").length ? db().from("pipelines").select("id, nombre").in("id", ids("pipeline_id")) : Promise.resolve({ data: [], error: null }),
       ids("etapa_id").length ? db().from("etapas").select("id, nombre").in("id", ids("etapa_id")) : Promise.resolve({ data: [], error: null }),
+      cargarEnviosLead(proyecto.id, lead.id),
     ]);
     const eNombres = ePipes ?? eEtapas;
     if (eNombres) throw new Error(`Popup del lead (pipelines/etapas): ${eNombres.message}`);
@@ -68,6 +72,7 @@ export async function resumenLead(leadId: string) {
       etiquetas: lead.etiquetas ?? [],
       oferta: lead.oferta ?? null,
       respuestas: lead.respuestas ?? [],
+      formularios: envios.map((e) => ({ ...e, fecha: fechaHora(e.fecha, proyecto) })),
     };
   });
 }

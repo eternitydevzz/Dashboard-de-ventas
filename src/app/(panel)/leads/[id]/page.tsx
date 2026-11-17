@@ -16,6 +16,8 @@ import { SelectoresLead } from "./selectores";
 import { VerEstrellas } from "@/components/estrellas";
 import { esCloser, type Actividad, type Cita, type Etapa, type Lead, type Pipeline, type Producto, type Venta } from "@/lib/tipos";
 import { ABIERTAS } from "@/lib/llamadas";
+import { cargarEnviosLead } from "@/lib/formularios-lead";
+import { FormulariosLead } from "@/components/formularios-lead";
 
 const ICONO_ACT: Record<string, string> = {
   llamada: "📞",
@@ -62,7 +64,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
   const jefe = esJefe(perfil);
   if (!jefe && lead.caller_id !== perfil.id && lead.closer_id !== perfil.id) notFound();
 
-  const [acts, citas, ventas, gente, productos, pipelines, etapas, fichaFila, mercados] = await Promise.all([
+  const [acts, citas, ventas, gente, productos, pipelines, etapas, fichaFila, mercados, envios] = await Promise.all([
     db().from("actividades").select("*").eq("lead_id", id).order("creado_en", { ascending: false }).limit(100),
     db().from("citas").select("*").eq("lead_id", id).order("fecha", { ascending: false }),
     db().from("ventas").select("*, productos(nombre)").eq("lead_id", id).order("fecha", { ascending: false }),
@@ -72,7 +74,9 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
     db().from("etapas").select("*, pipelines!inner(proyecto_id, tipo)").eq("pipelines.proyecto_id", proyecto.id).eq("pipelines.tipo", "normal").order("orden"),
     db().from("cualificaciones").select("campos").eq("lead_id", id).maybeSingle(), // C6 (sin la tabla todavía: vacía)
     mercadosDelProyecto(proyecto.id),
+    cargarEnviosLead(proyecto.id, id), // Fase B: cada formulario que llegó (si falla, lanza)
   ]);
+  const formularios = envios.map((e) => ({ ...e, fecha: fechaHora(e.fecha, proyecto) }));
   // Moneda (Cristian, 14 nov): cada venta en la de su vendedor (€ si es de España), mire quien mire
   const monedaDe = (pid: string | null) => contenidoMercado(pid ? mercados[pid] ?? null : null).moneda(proyecto);
   const dineroDe = (n: number, pid: string | null) => dinero(n, { moneda: monedaDe(pid) });
@@ -131,6 +135,11 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                   ))}
                 </dl>
               )}
+            </Seccion>
+
+            {/* Fase B (17 nov): cada envío por separado; arriba, la lista unida de siempre */}
+            <Seccion titulo={`Formularios (${formularios.length})`}>
+              <FormulariosLead envios={formularios} />
             </Seccion>
 
             {/* C6 (plan Callers, 7 nov): lo que apuntó el caller en el guion (la ven el closer y los jefes) */}
