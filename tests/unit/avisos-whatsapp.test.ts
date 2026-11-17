@@ -229,8 +229,21 @@ describe("las acciones llaman a los avisos", () => {
       expect(leer(r), r).toContain("avisarCita(");
       expect(leer(r), r).toMatch(/after\(\(\) => avisarCita\(/);
     }
-    // importarCitas y unirCitaSinLead. reagendarCita (el 3.º) queda pendiente de decidir: su insert no devuelve el id
-    expect(leer("src/app/(panel)/closer/acciones.ts").match(/avisarCita\(/g)).toHaveLength(2);
+    // reagendarCita y unirCitaSinLead (importarCitas no: ver abajo)
+    const closer = leer("src/app/(panel)/closer/acciones.ts");
+    expect(closer.match(/avisarCita\(/g)).toHaveLength(2);
+    expect(closer).toMatch(/avisarCita\(nueva\.id, "reagendada"\)/);
     expect(leer("src/app/(panel)/leads/acciones.ts")).toMatch(/after\(\(\) => avisarVenta\(/);
+  });
+
+  it("importarCitas (CSV) no avisa por WhatsApp: un CSV puede traer cientos (orquestador, 17 nov)", () => {
+    const closer = leer("src/app/(panel)/closer/acciones.ts");
+    const inicio = closer.indexOf("export async function importarCitas(");
+    const fin = closer.indexOf("\nexport async function", inicio + 1);
+    expect(inicio).toBeGreaterThan(-1);
+    const funcion = closer.slice(inicio, fin);
+    expect(funcion).toContain('db().from("citas").insert('); // es la función de verdad
+    expect(funcion).not.toContain("avisarCita(");
+    expect(funcion).not.toContain("after(");
   });
 });

@@ -98,7 +98,7 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
     // C9: solo si la cita sigue como se leyó (2 reagendados a la vez creaban 2 citas nuevas)
     const { data: cambiada } = await escribir(db().from("citas").update({ estado: "reagendada" }).eq("id", citaId).eq("estado", cita.estado).select("id"), "citas");
     if (cambiada?.length !== 1) throw new ErrorUsuario("Esta cita acaba de cambiar. Recarga la página y vuelve a intentarlo.");
-    const { error: errNueva } = await db().from("citas").insert({
+    const { data: nueva, error: errNueva } = await db().from("citas").insert({
       proyecto_id: proyecto.id,
       lead_id: cita.lead_id,
       closer_id: cita.closer_id,
@@ -106,13 +106,14 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
       fecha,
       nota: cita.nota,
       canal: cita.canal ?? null, // A5-04: sigue siendo del mismo canal
-    });
+    }).select("id").single();
     if (errNueva) {
       // Si la nueva no entra (otro cogió ese hueco a la vez), la de antes vuelve a como estaba: ninguna cita se pierde
       await escribir(db().from("citas").update({ estado: cita.estado }).eq("id", citaId), "citas");
       if (chocaHora(errNueva)) throw new ErrorUsuario("Ese hueco acaba de ocuparse, elige otro.");
       throw new Error(`No se pudo guardar en «citas»: ${errNueva.message}`);
     }
+    if (nueva) after(() => avisarCita(nueva.id, "reagendada")); // Fase D-3: WhatsApp al equipo (sin esperar)
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "reagendada", nota: "Cita reagendada" });
     refrescarPantalla();
   });
@@ -273,11 +274,9 @@ export async function importarCitas(texto: string) {
       // Fase 3: con una cita abierta, se junta con ella (sin avisos: un CSV puede traer cientos)
       const notaFila = (fila.nota ?? "").trim() || null;
       const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId, ghlCitaId: null, origen: "manual", agendadaPor: perfil.id, extra: notaFila ? { nota: notaFila } : {} }, { perfilId: perfil.id, sinAviso: true });
-      const { data: citaFila, error: errFila } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: notaFila }).select("id").single());
+      const { error: errFila } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: notaFila }));
       if (chocaHora(errFila)) { fallos.push(`Fila ${n}: ese closer ya tiene otra cita a esa hora`); continue; }
       if (errFila) throw new Error(`No se pudo guardar en «citas»: ${errFila.message}`);
-      // Fase D-3: WhatsApp al equipo; avisarCita solo manda si la cita es futura (un CSV de citas viejas no avisa)
-      if (citaFila) after(() => avisarCita(citaFila.id, junta ? "reagendada" : "agendada"));
       await escribir(db().from("leads").update({ estado_caller: "agendado", closer_id: closerId }).eq("id", leadId), "leads");
       creadas++;
     }
