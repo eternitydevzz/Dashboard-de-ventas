@@ -145,6 +145,11 @@ Todo en PowerShell, desde `C:\Users\Usuario\Desktop\VENTAS`.
 - [ ] Test que falla: la consulta de «citas sin closer» de `avisosCeo` filtra `fecha >= ahora`; ninguna línea que no sea comentario de esos archivos dice «Latam» o «LATAM»; `MERCADOS` y `OPCIONES_FILTRO_MERCADO` dicen `"USA"`; los valores internos `"latam"` siguen igual.
 - [ ] Verlo fallar → implementar → verlo pasar → verificación → commit.
 
+### Añadido el 17 nov tras la ronda 1 (OK de Jose)
+
+- **A-3** suma 2 cosas: (1) `src/lib/mcp/lectura.ts:254-259` (herramienta `agenda` del MCP) usa `doble`/`mirar` y el modo «o», como Agendas: tras A-2, Facu solo veía las citas que agendó Y en las que es closer; (2) `tests/unit/ola-arreglos.test.ts:41` usa `fileURLToPath` en vez de `URL.pathname` (falla en Windows desde `35b348b`, 15 nov; en Linux pasa).
+- **A-2b** (el agente de A-2, en su copia, después de A-3 y A-4 por el tope de 2): `src/app/(panel)/crm/tablero.tsx` reenvía `soloMirarIds` al `TableroClosers` (Facu ve en su CRM las que agendó con otro closer, solo mirar) y `src/app/(panel)/kpis/page.tsx:287-297` usa `doble` y el modo «o» (sus métricas de Agendas vuelven a contar las que agendó). Test en `tests/unit/a2-caller-closer.test.ts`.
+
 ### Tarea A-4 (agente): zona «Otro»
 
 **Archivos:** `src/app/(panel)/perfil/foto-zona.ts`, `src/lib/zona-persona.ts`, `src/app/onboarding/zona/page.tsx`, `src/app/(panel)/perfil/acciones.ts` (incluye el texto «Latam» de `:80`), `src/app/(panel)/perfil/cliente.tsx`, `src/app/(panel)/perfil/page.tsx`; crear `tests/unit/a5-zona-otro.test.ts`; solo si se rompen: `tests/unit/foto-zona.test.ts`, `z5b-arreglos.test.ts`, `z8d-limpieza.test.ts`.
