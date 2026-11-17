@@ -235,6 +235,16 @@ export async function guardarLeads(
     if (error) throw new Error(`Error leyendo leads: ${error.message}`);
     for (const d of (data ?? []) as Antes[]) previos.set(d.id, d);
   }
+  // F4 A1-01 (14 nov): un email que ya es de otro lead del proyecto no se pone (chocaba con el índice único
+  // (proyecto_id, lower(email)) y paraba la lectura de GHL). Pocos casos: solo los que no tenían email.
+  const emailAjeno = new Set<string>();
+  for (const { id, e } of actualizar) {
+    if (!e.email || previos.get(id)?.email) continue;
+    const { data, error } = await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("email", e.email.toLowerCase()).neq("id", id).limit(1);
+    if (error) throw new Error(`Error leyendo leads: ${error.message}`);
+    if (data?.length) emailAjeno.add(id);
+  }
+  const emailPuesto = new Set<string>(); // y dos de la misma tanda con el mismo email: solo el primero
   const historial: { proyecto_id: string; lead_id: string; perfil_id: string | null; tipo: string; nota: string }[] = [];
   const tarjetasNuevas: { lead_id: string; pipeline_id: string; etapa_id: string | null }[] = [];
   const cambiosPorLead = actualizar.map(({ id, e }) => {
@@ -247,7 +257,10 @@ export async function guardarLeads(
     if (oferta !== (antes?.oferta ?? null)) cambianOferta++;
     const cambios: Record<string, unknown> = { etiquetas, respuestas, oferta };
     if (e.telefono) Object.assign(cambios, { telefono: e.telefono, ...conPais(e.telefono) });
-    if (e.email && !antes?.email) cambios.email = e.email;
+    if (e.email && !antes?.email && !emailAjeno.has(id) && !emailPuesto.has(e.email.toLowerCase())) {
+      cambios.email = e.email;
+      emailPuesto.add(e.email.toLowerCase());
+    }
     if (e.nombre) cambios.nombre = e.nombre;
     if (e.apellido) cambios.apellido = e.apellido;
     if (e.ghl_contact_id) cambios.ghl_contact_id = e.ghl_contact_id;
@@ -389,9 +402,11 @@ export async function juntarConCitaAbierta(proyectoId: string, leadId: string, e
   const closerId = e.closerId ?? vieja.closer_id;
   // Agendar a mano: la misma cita otra vez (doble clic) da el aviso de siempre, sin tocar GHL
   if (o.noRepetir && closerId === vieja.closer_id && new Date(e.fecha).getTime() === new Date(vieja.fecha).getTime()) return { data: null, error: { code: "23505", message: "citas_app_unica: misma cita" }, ghlViejo: null };
+  // F4 A5-04: un origen vacío en la que entra (p. ej. canal null de la lectura) no borra el de la que se queda
+  const extra = Object.fromEntries(Object.entries(e.extra ?? {}).filter(([k, v]) => !(["canal", "ghl_calendario", "origen_url"].includes(k) && !v)));
   const { data, error } = await db()
     .from("citas")
-    .update({ ...e.extra, fecha: e.fecha, closer_id: closerId, ghl_cita_id: e.ghlCitaId, origen: e.origen, agendada_por: e.agendadaPor ?? vieja.agendada_por })
+    .update({ ...extra, fecha: e.fecha, closer_id: closerId, ghl_cita_id: e.ghlCitaId, origen: e.origen, agendada_por: e.agendadaPor ?? vieja.agendada_por })
     .eq("id", vieja.id)
     .in("estado", [...ABIERTAS]) // una que se cerró mientras tanto no se toca
     .select(CAMPOS_CITA)

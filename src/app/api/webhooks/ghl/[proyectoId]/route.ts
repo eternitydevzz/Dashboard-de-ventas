@@ -135,7 +135,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       let closerId: string | null = null;
       // Arreglo 20: el closer se busca solo entre los miembros de este proyecto
       if (closerEmail) {
-        const { data: c } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(email, rol)").eq("proyecto_id", proyecto.id).eq("perfiles.email", closerEmail).eq("perfiles.rol", "closer").limit(1).maybeSingle();
+        const { data: c, error: errCloser } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(email, rol)").eq("proyecto_id", proyecto.id).eq("perfiles.email", closerEmail).eq("perfiles.rol", "closer").limit(1).maybeSingle();
+        if (errCloser) throw new Error(`No se pudo buscar el closer: ${errCloser.message}`);
         closerId = c?.perfil_id ?? null;
       }
       // Si GHL reenvía la misma cita, se actualiza la que ya existe (no se duplica)
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       const { data: yaExiste } = ghlCitaId
         ? await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ghlCitaId).maybeSingle()
         : await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("lead_id", lead.id).eq("fecha", fecha.toISOString()).neq("estado", "reagendada").limit(1).maybeSingle();
-      if (yaExiste) await db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id);
+      if (yaExiste) await escribir(db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id), "citas");
       else {
         // Fase 3: el aviso del workflow no trae el canal, así que no hay crédito de caller; con una cita abierta, se junta
         const agenda = await datosAgendaGhl(lead.id, null);
@@ -157,7 +158,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       }
       // F21 y C11 punto 15 (Callers, 7 nov): la misma regla que la lectura de cada minuto. Vendido no se toca;
       // confirma agenda o descartado → «reagendado» con su etiqueta; el resto → «agendado».
-      const { data: actual } = await db().from("leads").select("estado_caller").eq("id", lead.id).maybeSingle();
+      const { data: actual, error: errActual } = await db().from("leads").select("estado_caller").eq("id", lead.id).maybeSingle();
+      if (errActual) throw new Error(`No se pudo leer el estado del lead: ${errActual.message}`);
       const tras = estadoTrasCitaGhl(actual?.estado_caller);
       if (tras) {
         await escribir(db().from("leads").update({ estado_caller: tras.estado, llamar_en: null, ...(closerId ? { closer_id: closerId } : {}) }).eq("id", lead.id), "leads");
@@ -186,6 +188,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error";
+    console.error("[webhook ghl]", tipo, msg);
     if (evento) await db().from("webhook_eventos").update({ error: msg.slice(0, 300) }).eq("id", evento.id);
     return NextResponse.json({ ok: false, error: msg }, { status: 422 });
   }

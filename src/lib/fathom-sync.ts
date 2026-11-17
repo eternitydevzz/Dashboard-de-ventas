@@ -22,7 +22,8 @@ export async function sincronizarFathom(proyectoId: string, o: { perfilIds?: str
       const existentes = new Set((ya ?? []).map((x) => Number(x.recording_id)));
       if (reuniones.length) {
         // Solo los datos de Fathom: la conciliación (cita_id, conciliacion) no se pisa
-        await db().from("grabaciones").upsert(
+        // Si falla, error y no se avanza sincronizado_en: así se vuelven a pedir (S3-9)
+        const { error: errUp } = await db().from("grabaciones").upsert(
           reuniones.map((r) => ({
             proyecto_id: proyectoId,
             cuenta_id: c.id,
@@ -40,6 +41,7 @@ export async function sincronizarFathom(proyectoId: string, o: { perfilIds?: str
           })),
           { onConflict: "proyecto_id,recording_id" }
         );
+        if (errUp) throw new Error(`No se pudieron guardar las grabaciones: ${errUp.message}`);
       }
       const conciliadas = await conciliarPendientes(proyectoId, c.perfil_id, c.formato_titulo);
       const resultado = `${reuniones.length - existentes.size} nuevas · ${conciliadas} conciliadas solas`;

@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/lib/datos";
+import { db, porTrozos } from "@/lib/datos";
 import { descifrar } from "@/lib/cifrado";
 import { grabacionGhl, llamadasGhl, textoLineas, transcribirDeepgram, transcripcionGhl, type Linea } from "@/lib/ghl-llamadas";
 import { configPara, hayClaveIa, pedirJson, peticion, type LlamarClaude } from "@/lib/ia";
@@ -17,12 +17,13 @@ export async function sincronizarLlamadasGhl(proyectoId: string, o: Opciones = {
   if (ms.length) {
     const contactos = [...new Set(ms.map((m) => m.contactId).filter((x): x is string => !!x))];
     const usuarios = [...new Set(ms.map((m) => m.userId).filter((x): x is string => !!x))];
-    const [{ data: leads }, { data: miembros }, { data: ya }] = await Promise.all([
-      db().from("leads").select("id, ghl_contact_id").eq("proyecto_id", proyectoId).in("ghl_contact_id", contactos.length ? contactos : ["-"]),
-      db().from("miembros_proyecto").select("perfil_id, ghl_user_id").eq("proyecto_id", proyectoId).in("ghl_user_id", usuarios.length ? usuarios : ["-"]),
-      db().from("llamadas_ghl").select("ghl_message_id").eq("proyecto_id", proyectoId).in("ghl_message_id", ms.map((m) => m.id)),
+    // En trozos (muchos ids no caben en la petición) y si una lectura falla, lanza (S3-9)
+    const [leads, miembros, ya] = await Promise.all([
+      porTrozos<{ id: string; ghl_contact_id: string }>(contactos, (t, a, b) => db().from("leads").select("id, ghl_contact_id").eq("proyecto_id", proyectoId).in("ghl_contact_id", t).order("id").range(a, b)),
+      porTrozos<{ perfil_id: string; ghl_user_id: string }>(usuarios, (t, a, b) => db().from("miembros_proyecto").select("perfil_id, ghl_user_id").eq("proyecto_id", proyectoId).in("ghl_user_id", t).order("perfil_id").range(a, b)),
+      porTrozos<{ ghl_message_id: string }>(ms.map((m) => m.id), (t, a, b) => db().from("llamadas_ghl").select("ghl_message_id").eq("proyecto_id", proyectoId).in("ghl_message_id", t).order("ghl_message_id").range(a, b)),
     ]);
-    const existentes = new Set((ya ?? []).map((x) => x.ghl_message_id));
+    const existentes = new Set(ya.map((x) => x.ghl_message_id));
     const filas = ms
       .filter((m) => !existentes.has(m.id))
       .map((m) => ({
@@ -30,8 +31,8 @@ export async function sincronizarLlamadasGhl(proyectoId: string, o: Opciones = {
         ghl_message_id: m.id,
         ghl_contact_id: m.contactId ?? null,
         ghl_user_id: m.userId ?? null,
-        lead_id: leads?.find((l) => l.ghl_contact_id === m.contactId)?.id ?? null,
-        perfil_id: miembros?.find((x) => x.ghl_user_id === m.userId)?.perfil_id ?? null,
+        lead_id: leads.find((l) => l.ghl_contact_id === m.contactId)?.id ?? null,
+        perfil_id: miembros.find((x) => x.ghl_user_id === m.userId)?.perfil_id ?? null,
         fecha: m.dateAdded ?? null,
         duracion: Math.round(Number(m.meta?.callDuration ?? 0)),
         direccion: m.direction ?? null,

@@ -169,7 +169,8 @@ export function columnasEnOrdenGhl<T extends { id: string; position?: number }>(
 export function primeraColumnaGhl(pipelines: PipelineGhl[], pipelineId: string): string | null {
   return columnasEnOrdenGhl(pipelines.find((p) => p.id === pipelineId)?.stages)[0]?.id ?? null;
 }
-export async function oportunidadesDePipelineGhl(o: { token: string; locationId: string; pipelineId: string; maxPaginas?: number; fetchImpl?: Fetch }): Promise<OportunidadGhl2[]> {
+// F4 S3-11: `alTope` se llama si quedan más páginas al llegar a `maxPaginas` (se corta ahí)
+export async function oportunidadesDePipelineGhl(o: { token: string; locationId: string; pipelineId: string; maxPaginas?: number; fetchImpl?: Fetch; alTope?: () => void }): Promise<OportunidadGhl2[]> {
   const todas: OportunidadGhl2[] = [];
   let despues = "";
   for (let i = 0; i < (o.maxPaginas ?? 20); i++) {
@@ -178,9 +179,10 @@ export async function oportunidadesDePipelineGhl(o: { token: string; locationId:
     const ops: OportunidadGhl2[] = Array.isArray(j?.opportunities) ? j.opportunities : [];
     todas.push(...ops.filter((x) => x?.id));
     const m = j?.meta;
-    if (!ops.length || !m?.startAfterId || m.startAfter == null) break;
+    if (!ops.length || !m?.startAfterId || m.startAfter == null) return todas;
     despues = `&startAfter=${encodeURIComponent(String(m.startAfter))}&startAfterId=${encodeURIComponent(String(m.startAfterId))}`;
   }
+  o.alTope?.();
   return todas;
 }
 export async function camposGhl(o: { token: string; locationId: string; fetchImpl?: Fetch }): Promise<{ id: string; name: string }[]> {
