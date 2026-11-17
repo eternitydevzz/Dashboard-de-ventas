@@ -1,11 +1,10 @@
 // Bloque 6 (Cristian, 11 oct 2026): emails con Resend. En lugar de Resend se usa un servidor local que guarda lo
-// que recibe (nunca se manda un email de verdad). Cubre: el envío (cabeceras, remitente, destinatarios), el aviso
-// de reporte por email a CEO y directores, y el enlace mágico que manda un administrador desde la ficha.
+// que recibe (nunca se manda un email de verdad). Cubre: el envío (cabeceras, remitente, destinatarios) y el enlace
+// mágico que manda un administrador desde la ficha. (Fase C: fuera el aviso del reporte de fin de día, pantalla quitada.)
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { borrarEscenario, como, crearEscenario, falla, formulario, ok, type Escenario } from "../apoyo/escenario";
+import { borrarEscenario, como, crearEscenario, falla, ok, type Escenario } from "../apoyo/escenario";
 import { enviarEmail } from "@/lib/email";
-import { enviarReporte } from "@/app/(panel)/reportes/acciones";
 import { enviarEnlaceMagico } from "@/app/(panel)/admin/acciones";
 
 let e: Escenario;
@@ -54,28 +53,6 @@ describe("Enviar un email con Resend", () => {
       process.env.RESEND_API_KEY = clave;
     }
     expect(recibidos.length).toBe(n);
-  });
-});
-
-describe("Aviso del reporte por email", () => {
-  it("al enviar un reporte, el CEO y los directores reciben un email con el texto del reporte", async () => {
-    como(e, e.p.closerA);
-    const n = recibidos.length;
-    const r = await enviarReporte(
-      null,
-      formulario({ fecha: "2026-10-08", llamadas_realizadas: "8", llamadas_agendadas: "6", no_responden: "1", no_show: "1", ventas: "2", puntos_mejora: "Cerrar antes", inconvenientes: "Ninguno" })
-    );
-    expect(r?.ok).toMatch(/aviso/);
-    const email = recibidos.slice(n).find((x) => String(x.cuerpo.subject).includes("Reporte"))!;
-    expect(email).toBeDefined();
-    const para = email.cuerpo.to as string[];
-    expect(para).toEqual(expect.arrayContaining([e.p.ceo.email, e.p.director.email, e.p.directorAdmin.email]));
-    expect(para).not.toContain(e.p.closerA.email);
-    expect(String(email.cuerpo.text)).toContain(e.p.closerA.nombre);
-    // Versión con el diseño glass: título, respuestas y botón a la app
-    expect(String(email.cuerpo.html)).toContain(`Reporte de ${e.p.closerA.nombre}`);
-    expect(String(email.cuerpo.html)).toContain("Cerrar antes");
-    expect(String(email.cuerpo.html)).toContain("/reportes");
   });
 });
 

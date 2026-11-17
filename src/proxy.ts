@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
   // F2: el email diario del CEO lo llama el programador igual (cada 15 min de 6:00 a 7:45 UTC)
   // MCP, Fase 2 (11 nov 2026): Claude Code llama sin sesión del navegador; la ruta comprueba la clave personal.
   const ruta0 = request.nextUrl.pathname;
-  if (ruta0.startsWith("/api/ghl/leer/") || ruta0.startsWith("/api/avisos/diario/") || ruta0 === "/api/mcp") return NextResponse.next();
+  if (ruta0.startsWith("/api/ghl/leer/") || ruta0.startsWith("/api/avisos/diario/") || ruta0.startsWith("/api/avisos/reporte/") || ruta0 === "/api/mcp") return NextResponse.next();
   // Arreglo 36: un nonce nuevo en cada petición; Next lo lee de la cabecera CSP de la petición
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = politicaCsp(nonce);

@@ -20,7 +20,6 @@ const SIN_ACCESO = /No tienes acceso|necesita Administración/;
 
 // Productos: desde V2-5 se crean en Programas (sección «programas», solo el CEO por defecto)
 const programa = (nombre: string, precio: string): DatosPrograma => ({ id: null, nombre, descripcion: "", categoria: "", color: "#7c3aed", activo: true, backend_offer: false, vende_caller: false, modo_pago: "unico", num_cuotas: null, precio, precios_divisa: {}, comisiones: {}, link_pago: "" });
-import { enviarReporte } from "@/app/(panel)/reportes/acciones";
 
 let e: Escenario;
 beforeAll(async () => {
@@ -162,17 +161,5 @@ describe("Proyectos ajenos", () => {
     } finally {
       await borrarEscenario(otro);
     }
-  });
-});
-
-describe("Reportes", () => {
-  it("el director no hace reportes de fin de día (son de callers y closers)", async () => {
-    como(e, e.p.director);
-    expect((await enviarReporte(null, new FormData()))?.error).toMatch(/callers y closers/);
-  });
-  it("un número negativo se rechaza", async () => {
-    como(e, e.p.callerA);
-    const fd = formulario({ llamadas: "-3", no_responden: "0", agendas: "0", whatsapps: "0", seguimientos: "0", inconvenientes: "x", mejoras: "x", otros: "x" });
-    expect((await enviarReporte(null, fd))?.error).toMatch(/número entero/);
   });
 });

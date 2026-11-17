@@ -41,7 +41,7 @@ beforeEach(() => {
 const destino = (r: Response) => (r.headers.get("location") ? new URL(r.headers.get("location")!).pathname + new URL(r.headers.get("location")!).search : null);
 
 describe("proxy: quién pasa sin sesión", () => {
-  for (const ruta of ["/login", "/login?error=enlace", "/api/webhooks/entrada/abc", "/auth/confirm", "/api/ghl/leer/p1", "/api/avisos/diario/x", "/api/mcp"])
+  for (const ruta of ["/login", "/login?error=enlace", "/api/webhooks/entrada/abc", "/auth/confirm", "/api/ghl/leer/p1", "/api/avisos/diario/x", "/api/avisos/reporte/x", "/api/mcp"])
     it(`${ruta} pasa`, async () => expect(destino(await proxy(new NextRequest(`http://x${ruta}`)))).toBeNull());
 
   for (const ruta of ["/", "/crm", "/onboarding", "/api/grabaciones/1", "/api/mcp/otra", "/auth/confirmar", "/admin"])

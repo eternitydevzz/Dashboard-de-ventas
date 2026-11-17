@@ -39,6 +39,8 @@ import { ajustesValidos } from "@/lib/disponibilidad";
 import { EnviarAccesos } from "./enviar-accesos";
 import { Popups } from "./popups";
 import type { Popup } from "@/lib/popups";
+import { PantallaReporte } from "./reporte";
+import { leerConfigsReporte } from "@/lib/reporte-config";
 
 const PESTANAS = [
   { v: "equipo", t: "Equipo" },
@@ -46,6 +48,7 @@ const PESTANAS = [
   { v: "productos", t: "Productos" },
   { v: "comisiones", t: "Comisiones" }, // 1.0 bloque 4: tramos
   { v: "reportes", t: "Reportes" }, // 1.0 bloque 7: preguntas del reporte
+  { v: "reporte", t: "Reporte" }, // Fase C: el reporte diario de España y USA (hora, emails, WhatsApp, partes)
   { v: "entradas", t: "Entradas (landings)" },
   { v: "workflows", t: "Workflows" }, // Plan de workflows 4b-4c (7 nov 2026): lista, lienzo y editor
   { v: "etiquetas-utms", t: "Etiquetas y UTMs" }, // Plan GHL B2b
@@ -218,6 +221,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   let diasDe = new Map<string, number[]>(); // Rediseño (11 nov 2026): envíos por día de cada Entrada
   const canales = tab === "etiquetas-utms" ? await canalesDe(proyecto.id) : null; // B2b
   const popups = tab === "popups" ? await todas<Popup>((desde, hasta) => db().from("popups").select("*").eq("proyecto_id", proyecto.id).order("id").range(desde, hasta)) : null;
+  const configsReporte = tab === "reporte" ? await leerConfigsReporte(proyecto.id) : null; // Fase C
   const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined, sp.editar === "1") : null;
   if (tab === "entradas") {
     const [ren, rpl, { data: pg }] = await Promise.all([
@@ -370,6 +374,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
             ))}
           </div>
         )}
+
+        {tab === "reporte" && configsReporte && <PantallaReporte configs={configsReporte} />}
 
         {tab === "comisiones" && (
           <div className="space-y-5">

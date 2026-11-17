@@ -132,12 +132,21 @@ Decisión de Cristian:
   - Se enseñan como mucho 50 envíos por lead (hoy el máximo real es 9).
   - Faltan tests del componente y de que `resumenLead` no lea envíos sin permiso (el orden en el código está bien).
   - Un envío sin respuestas dice «0 respuestas» y debajo «no trae respuestas» (redundante).
+- **Apuntado en la Fase C (17 nov, revisión; decisión de Jose: apuntar):**
+  - Reporte diario: si la función se corta a mitad (más de 60 s), la fecha queda reservada en `reporte_envios` y ese día no sale, sin aviso (igual que el email de las 8:00).
+  - Con la hora del reporte a las 00:00 (o de madrugada), sale el reporte del día que empieza, casi vacío.
+  - Si Resend tarda más de 10 s en responder pero sí manda, el reporte puede llegar 2 veces.
+  - «Lo que va mal» es de todo el proyecto, no de cada país (igual en España y USA).
+  - El símbolo de moneda del reporte va fijo (€ España, $ USA); hoy los 2 proyectos son USD. Debería leerse de `proyecto.moneda`.
+  - `ZONA_REPORTE` está repetido en `src/lib/reporte-diario.ts` y `src/lib/reporte-config.ts`.
+  - «Webhook de avisos» (Administración → Proyecto) ya no se usa: `enviarAviso` (`src/lib/avisos.ts`) no tiene llamadas desde que se quitó la pantalla Reportes. El campo dice «Sin uso por ahora». Código muerto también en `src/lib/reportes.ts` (`rolDeReporte`, `tasasCloser`, `PREGUNTAS`) y el icono `reportes` de `barra-lateral.tsx`.
+  - Se perdió en integración la prueba de `guardarPreguntasReporte(rol, null)` (volver a las preguntas de siempre), que sigue en el producto.
 
 ## 8. Hecho (rellenar al terminar cada fase)
 
 | Fase | PR | Commit | Notas |
 |---|---|---|---|
 | A | #198 | `cfddb2a` | 17 nov. Migración `20261124100000_zona_otro` subida antes de fusionar. Unitarios 1413/1413, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): enlace sin gastar al abrir, campana sin citas pasadas, sin «Latam» visible, CRM de Facu con las que agendó. Sin ver: la zona «Otro» (no la tiene el CEO) y la vista propia de Facu. |
-| B | | | |
+| B | #199 | `8713bbe` | 17 nov. Sin migración. Unitarios 1420/1420, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): el lead con más envíos enseña «Formularios (9)» en la ficha y en el popup, con su Entrada en los 9; respuestas en 2 de 9 (en la base, justo los 2 que traen preguntas). La fecha sale sin año (apuntado). |
 | C | | | |
 | D | | | |
