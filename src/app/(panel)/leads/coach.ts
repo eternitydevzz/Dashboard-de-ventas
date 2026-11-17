@@ -16,9 +16,9 @@ export async function coachIa(leadId: string | null, loQueDice: string, llamar?:
     const texto = loQueDice.trim();
     if (texto.length < 3) throw new ErrorUsuario("Escribe lo que ha dicho el lead.");
     if (texto.length > 2000) throw new ErrorUsuario("Demasiado largo: resúmelo en unas frases.");
-    // S2-20: cada consulta gasta IA; 60 por persona y hora sobra para llamadas en directo
+    // S2-20: cada consulta gasta IA; 30 por persona y hora (Cristian, 17 nov) sobra para llamadas en directo
     const clave = `coach:${perfil.id}`;
-    if (await bloqueado(clave, 60, 3_600_000)) throw new ErrorUsuario("Demasiadas consultas al coach en la última hora. Espera un poco.");
+    if (await bloqueado(clave, 30, 3_600_000)) throw new ErrorUsuario("Demasiadas consultas al coach en la última hora. Espera un poco.");
     await anotar(clave);
     let respuestas = "";
     if (leadId) {

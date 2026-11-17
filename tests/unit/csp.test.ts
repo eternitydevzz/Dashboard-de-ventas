@@ -13,7 +13,8 @@ describe("Política de seguridad (CSP) con nonce", () => {
     const p = politicaCsp("ABC123", false);
     const script = p.match(/script-src[^;]*/)![0];
     expect(script).toBe("script-src 'self' 'nonce-ABC123' 'strict-dynamic'");
-    expect(p).toContain("connect-src 'self' https://abcd.supabase.co wss://abcd.supabase.co;"); // wss: avisos en vivo (17 oct)
+    expect(p).toContain("connect-src 'self' https://abcd.supabase.co;"); // sin wss: nada usa el tiempo real (17 nov)
+    expect(p).not.toContain("wss:");
     expect(p).toContain("frame-ancestors 'none'");
     expect(p).toContain("upgrade-insecure-requests");
     expect(p).toContain("style-src 'self' 'unsafe-inline'"); // el nonce no cubre los atributos style="…"

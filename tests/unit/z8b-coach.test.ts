@@ -1,9 +1,9 @@
 // Fase 8 zona B · S2-20: el coach de IA tiene límite de uso por persona (como el login, con limite.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ bloqueado: false, anotados: [] as string[] }));
+const h = vi.hoisted(() => ({ bloqueado: false, anotados: [] as string[], limites: [] as unknown[][] }));
 vi.mock("@/lib/limite", () => ({
-  bloqueado: async () => h.bloqueado,
+  bloqueado: async (...a: unknown[]) => (h.limites.push(a), h.bloqueado),
   anotar: async (clave: string) => void h.anotados.push(clave),
 }));
 vi.mock("@/lib/permisos", () => ({ exigirSeccion: async () => ({}) }));
@@ -21,12 +21,17 @@ const { coachIa } = await import("@/app/(panel)/leads/coach");
 beforeEach(() => {
   h.bloqueado = false;
   h.anotados = [];
+  h.limites = [];
 });
 
 describe("S2-20 · coach de IA con límite", () => {
   it("dentro del límite responde y apunta el uso de esa persona", async () => {
     expect(await coachIa(null, "es muy caro")).toMatchObject({ idea: "i" });
     expect(h.anotados).toEqual(["coach:u1"]);
+  });
+  it("el límite es 30 consultas por persona y hora (17 nov)", async () => {
+    await coachIa(null, "es muy caro");
+    expect(h.limites).toEqual([["coach:u1", 30, 3_600_000]]);
   });
   it("pasado el límite no llama a la IA", async () => {
     h.bloqueado = true;

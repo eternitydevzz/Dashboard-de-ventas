@@ -231,7 +231,7 @@ export function EditorWorkflow({
             ))}
           </div>
           <button type="button" className="btn-secundario" disabled={!sinGuardar || pendiente} onClick={() => { setPasos(w.pasos); setSel(null); setMenu(null); }}>Descartar</button>
-          <button type="button" className="btn-primario" disabled={!sinGuardar || pendiente} onClick={() => ejecutar(() => guardarWorkflow(w.id, pasos), `Guardada la versión ${w.version + 1}`)}>
+          <button type="button" className="btn-primario" disabled={!sinGuardar || pendiente} onClick={() => ejecutar(() => guardarWorkflow(w.id, pasos, w.version), `Guardada la versión ${w.version + 1}`)}>
             <Save className="h-4 w-4" /> {pendiente ? "Guardando…" : `Guardar versión ${w.version + 1}`}
           </button>
         </div>
