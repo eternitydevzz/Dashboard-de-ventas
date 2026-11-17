@@ -14,6 +14,7 @@ import { BuscadorUrl } from "../llamadas/cliente";
 import { PestanasAgendas } from "../pestanas";
 import { AnalizarPendientes, ConfigurarIa, EvaluarManual } from "./cliente";
 import type { ConfigAgentes } from "@/lib/ia-agentes";
+import { esCloser } from "@/lib/tipos";
 
 type Fila = { id: string; closer_id: string | null; lead_id: string | null; estado: string; puntuacion: number | null; resultado: string | null; resumen: string | null; error: string | null; evaluacion_manual: number | null; evaluacion_nota: string | null; grabaciones: { titulo: string | null; inicio: string | null } | null; leads: { nombre: string; apellido: string } | null };
 const RES = { cerrado: ["Cerrado", "ok"], no_cerrado: ["No cerrado", "mal"], seguimiento: ["Seguimiento", "aviso"] } as const;
@@ -22,8 +23,10 @@ export default async function AnalisisPage({ searchParams }: PageProps<"/closer/
   const { perfil, proyecto } = await exigirPagina("agendas"); // H5
   const jefe = esJefe(perfil);
   // H5 (caso 1): un caller con «Agendas» ve solo los análisis de las citas que agendó él, solo mirar
-  const mirar = perfil.rol === "caller";
-  const citasMias = mirar ? (await todas<{ id: string }>((a, b) => db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("agendada_por", perfil.id).order("id").range(a, b))).map((c) => c.id) : null;
+  // A2 (17 nov): el caller con «También closer», los suyos como closer y, además, los de las citas que agendó
+  const doble = perfil.rol === "caller" && esCloser(perfil);
+  const mirar = perfil.rol === "caller" && !esCloser(perfil);
+  const citasMias = mirar || doble ? (await todas<{ id: string }>((a, b) => db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("agendada_por", perfil.id).order("id").range(a, b))).map((c) => c.id) : null;
   const sp = await searchParams;
   const s = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const sub = ["llamadas", "manual"].includes(s("sub")) ? s("sub") : "resumen";
@@ -34,8 +37,11 @@ export default async function AnalisisPage({ searchParams }: PageProps<"/closer/
   const ids = vis.ids.length ? vis.ids : ["00000000-0000-0000-0000-000000000000"];
   const [filas, configs, productos] = await Promise.all([
     todas<Fila>((a, b) => {
-      const q = db().from("analisis_llamadas").select("*, grabaciones(titulo, inicio), leads(nombre, apellido)").eq("proyecto_id", proyecto.id).in("closer_id", ids);
-      return (citasMias ? q.in("cita_id", citasMias.length ? citasMias : ["00000000-0000-0000-0000-000000000000"]) : q).order("creado_en", { ascending: false }).order("id").range(a, b);
+      const base = db().from("analisis_llamadas").select("*, grabaciones(titulo, inicio), leads(nombre, apellido)").eq("proyecto_id", proyecto.id);
+      const deCitas = citasMias?.length ? citasMias : ["00000000-0000-0000-0000-000000000000"];
+      // (los filtros cambian la consulta: «o» se monta solo sobre la base)
+      const filtrada = doble ? base.or(`closer_id.in.(${ids.join(",")}),cita_id.in.(${deCitas.join(",")})`) : citasMias ? base.in("closer_id", ids).in("cita_id", deCitas) : base.in("closer_id", ids);
+      return filtrada.order("creado_en", { ascending: false }).order("id").range(a, b);
     }),
     jefe ? db().from("config_ia").select("producto_id, contexto, agentes").eq("proyecto_id", proyecto.id) : Promise.resolve({ data: [] }),
     jefe ? db().from("productos").select("id, nombre").eq("proyecto_id", proyecto.id).order("orden") : Promise.resolve({ data: [] }),

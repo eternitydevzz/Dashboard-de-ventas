@@ -17,14 +17,19 @@ const NADIE = "00000000-0000-0000-0000-000000000000";
 // N5 (13 nov): con `equipoActivo`, el jefe mirando a todos ve también las de closers de baja (desactivados o fuera del
 // proyecto); `gente` = el equipo más ellos, con «(baja)» en el nombre. Las de perfiles de prueba siguen fuera.
 // Cristian, 14 nov: `conVentas` = false cuando la pantalla no enseña ventas (Agendas → Agendas): una lectura menos.
-export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null, conSinCloser = false, equipoActivo: Perfil[] = [], conVentas = true) {
+// A2 (17 nov): `modo` «o» = las de esos closers O las que agendó `agendadasPor` (el caller que también es closer); sus
+// ventas, las suyas como vendedor (como a un closer). «y» (por defecto) = lo de siempre: de esos closers Y agendadas por él.
+export async function cargarCitasVentas(proyectoId: string, closerIds: string[], agendadasPor: string | null, conSinCloser = false, equipoActivo: Perfil[] = [], conVentas = true, modo: "y" | "o" = "y") {
   const ids = closerIds.length ? closerIds : [NADIE];
   const conBaja = conSinCloser && equipoActivo.length > 0;
+  const o = modo === "o" && !!agendadasPor;
   const [citasTodas, ventasTodas] = await Promise.all([
     todas<CitaFila>((a, b) => {
       const base = db().from("citas").select("*, leads(id, nombre, apellido, telefono, pais, email, seguimiento)").eq("proyecto_id", proyectoId);
       const deBaja = conBaja ? `,closer_id.not.in.(${equipoActivo.map((g) => g.id).join(",")})` : "";
-      const q = conSinCloser ? base.or(`closer_id.in.(${ids.join(",")}),closer_id.is.null${deBaja}`) : base.in("closer_id", ids);
+      const deCloser = `closer_id.in.(${ids.join(",")})${conSinCloser ? `,closer_id.is.null${deBaja}` : ""}`;
+      if (o) return base.or(`${deCloser},agendada_por.eq.${agendadasPor}`).order("fecha").order("id").range(a, b);
+      const q = conSinCloser ? base.or(deCloser) : base.in("closer_id", ids);
       return (agendadasPor ? q.eq("agendada_por", agendadasPor) : q).order("fecha").order("id").range(a, b);
     }),
     conVentas ? todas<VentaFila>((a, b) => db().from("ventas").select("*, pagos(importe), leads(nombre, apellido), productos(nombre)").eq("proyecto_id", proyectoId).in("vendedor_id", ids).order("id").range(a, b)) : ([] as VentaFila[]),
@@ -32,11 +37,11 @@ export async function cargarCitasVentas(proyectoId: string, closerIds: string[],
   const gente = await conBajas(equipoActivo, conBaja ? citasTodas.map((c) => c.closer_id) : []);
   const bajas = new Set(gente.filter((g) => g.baja).map((g) => g.id));
   const delEquipo = new Set(ids);
-  const citas = conBaja ? citasTodas.filter((c) => !c.closer_id || delEquipo.has(c.closer_id) || bajas.has(c.closer_id)) : citasTodas;
-  // H5: al caller, solo las ventas de los leads que agendó
+  const citas = conBaja ? citasTodas.filter((c) => !c.closer_id || delEquipo.has(c.closer_id) || bajas.has(c.closer_id) || (o && c.agendada_por === agendadasPor)) : citasTodas;
+  // H5: al caller, solo las ventas de los leads que agendó (A2: con «o», las suyas como vendedor, como a un closer)
   const leadsSuyos = new Set(citas.map((c) => c.lead_id));
   const ventas = ventasTodas
-    .filter((v) => !agendadasPor || leadsSuyos.has(v.lead_id))
+    .filter((v) => !agendadasPor || o || leadsSuyos.has(v.lead_id))
     .map((v) => ({ ...v, pendiente: Math.max(0, Number(v.facturacion) - Number(v.cash_collected) - v.pagos.reduce((s, p) => s + Number(p.importe), 0)) }));
   return { citas, ventas, gente };
 }
