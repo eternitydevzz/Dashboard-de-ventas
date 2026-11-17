@@ -355,11 +355,7 @@ export async function moverAAgendadosOrganico(proyectoId: string, leadId: string
     return;
   }
   const creadas = await anadirTarjetas(proyectoId, [{ lead_id: leadId, pipeline_id: destino.pipeline_id, etapa_id: destino.id }]);
-  if (!creadas) {
-    const { error } = await db().from("tarjetas_extra").update({ etapa_id: destino.id }).eq("lead_id", leadId).eq("pipeline_id", destino.pipeline_id);
-    // Sin la tabla (migración sin aplicar): como antes, se mueve el lead
-    if (error) await escribir(db().from("leads").update({ pipeline_id: destino.pipeline_id, etapa_id: destino.id }).eq("id", leadId), "leads");
-  }
+  if (!creadas) await escribir(db().from("tarjetas_extra").update({ etapa_id: destino.id }).eq("lead_id", leadId).eq("pipeline_id", destino.pipeline_id), "tarjetas_extra");
 }
 
 // Workflows, «Mover en el dashboard» en modo real (Cristian, 7 nov 2026): lleva el lead a una columna de un pipeline del

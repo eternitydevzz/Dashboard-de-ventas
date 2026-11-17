@@ -143,9 +143,16 @@ async function etapaEditable(etapaId: string) {
   return e;
 }
 
+// S1-23: el color llega del navegador y se pinta en el tablero: solo «#rrggbb» o un color del tema
+// («var(--oro)»: así están 26 de 103 columnas en producción, 17 nov)
+const colorValido = (color: string) => {
+  if (!/^(#[0-9a-fA-F]{6}|var\(--[a-z0-9-]+\))$/.test(color)) throw new ErrorUsuario("Color no válido.");
+};
+
 export async function crearEtapa(pipelineId: string, nombre: string, color: string) {
   return seguro(async () => {
     await exigirSeccion("crm"); // H5
+    colorValido(color);
     const { perfil, proyecto } = await getSesion();
     await exigirNivel(perfil, proyecto.id, pipelineId, "editar");
     const { count } = await db().from("etapas").select("id", { count: "exact", head: true }).eq("pipeline_id", pipelineId);
@@ -157,6 +164,7 @@ export async function crearEtapa(pipelineId: string, nombre: string, color: stri
 export async function editarEtapa(etapaId: string, nombre: string, color: string) {
   return seguro(async () => {
     await exigirSeccion("crm"); // H5
+    colorValido(color);
     await etapaEditable(etapaId);
     await escribir(db().from("etapas").update({ nombre: nombre.trim(), color }).eq("id", etapaId), "etapas");
     refrescar();

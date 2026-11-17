@@ -47,7 +47,7 @@ const PESTANAS = [
   { v: "comisiones", t: "Comisiones" }, // 1.0 bloque 4: tramos
   { v: "reportes", t: "Reportes" }, // 1.0 bloque 7: preguntas del reporte
   { v: "entradas", t: "Entradas (landings)" },
-  { v: "workflows", t: "Workflows" }, // Plan de workflows 4b (7 nov 2026): solo lectura
+  { v: "workflows", t: "Workflows" }, // Plan de workflows 4b-4c (7 nov 2026): lista, lienzo y editor
   { v: "etiquetas-utms", t: "Etiquetas y UTMs" }, // Plan GHL B2b
   { v: "integraciones", t: "Integraciones GHL" },
   { v: "permisos", t: "Permisos" }, // H5: también el director con Administración

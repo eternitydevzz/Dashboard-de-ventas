@@ -77,7 +77,7 @@ export function TableroClosers({
   const [colSobre, setColSobre] = useState<string | null>(null);
   const [ventana, setVentana] = useState<Ventana | null>(null);
   const nombre = (i: Item) => (i.clase === "cita" ? i.cita.nombre : i.venta.nombre);
-  // Doble clic en «Registrar venta» = dos ventas: la ventana no se cierra hasta que responde el servidor (como en acciones-lead)
+  // Doble clic en «Registrar venta» = dos ventas: el segundo envío se ignora hasta que responde el servidor (la ventana se cierra al enviar)
   const ventaEnCurso = useRef(false);
   function registrarUnaVez(leadId: string, fd: FormData) {
     if (ventaEnCurso.current) return;
@@ -348,12 +348,12 @@ export function TableroClosers({
 }
 
 // Sin botones (Cristian, 13 oct 2026): la cita se mueve arrastrando; el clic abre el popup del lead.
-// N10: en pantallas pequeñas (sin arrastrar), «Mover a…».
+// N10: donde no se arrastra (móvil y tablet, pantalla táctil), «Mover a…»; con ratón se arrastra (A4-16)
 function TarjetaCita({ c, origen, soloMirar, columnas, ocupado, onMover }: { c: TarjetaCitaC; origen: string; soloMirar: boolean; columnas: ColumnaC[]; ocupado: boolean; onMover: (destino: ColumnaC) => void }) {
   const moverA = !soloMirar && (
     <select
       aria-label={`Mover a ${c.nombre} a otra columna`}
-      className="campo py-1.5 text-xs sm:hidden"
+      className="campo py-1.5 text-xs pointer-fine:hidden"
       value=""
       disabled={ocupado}
       onChange={(e) => {

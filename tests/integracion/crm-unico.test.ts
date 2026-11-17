@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { borrarEscenario, como, crearEscenario, db, falla, ok, type Escenario } from "../apoyo/escenario";
 import { borrarPipeline, crearEtapa, guardarPermisoPipeline, moverCitaColumna, moverLead, unirEstado } from "@/app/(panel)/crm/acciones";
-import { agendarCita, registrarLlamada, volverANuevo } from "@/app/(panel)/leads/acciones";
+import { agendarCita, registrarLlamada } from "@/app/(panel)/leads/acciones";
 import { cambiarEstadoCita } from "@/app/(panel)/closer/acciones";
 
 let e: Escenario;
@@ -58,7 +58,7 @@ describe("Los botones del caller", () => {
     como(e, e.p.callerA);
     await ok(registrarLlamada(e.leads.LeadA, "link_enviado", ""));
     expect(await lead(e.leads.LeadA)).toEqual({ etapa_id: e.etapas.Nuevos, etapa_callers_id: await col(callers, "Link enviado") });
-    await ok(volverANuevo(e.leads.LeadA));
+    await ok(registrarLlamada(e.leads.LeadA, "nuevo", "")); // S2-20: volverANuevo no se usaba; «Leads» es este botón
     expect((await lead(e.leads.LeadA)).etapa_callers_id).toBe(await col(callers, "Leads"));
     // C11: «Seguimiento» (el de origen no tiene esa columna) y agenda un jefe
     await ok(registrarLlamada(e.leads.LeadA, "seguimiento", "", 4));

@@ -53,7 +53,7 @@ export function AccionesCita({
     if (!seDeshaceEstado(antes, e)) return ejecutar(() => cambiarEstadoCita(cita.id, e, ""), msg);
     ejecutar(conDeshacer(toast, () => cambiarEstadoCita(cita.id, e, ""), msg, () => ejecutar(() => cambiarEstadoCita(cita.id, antes, "", undefined, e), "Deshecho")));
   };
-  // Doble clic en «Registrar venta» = dos ventas: la ventana no se cierra hasta que responde el servidor (como en acciones-lead)
+  // Doble clic en «Registrar venta» = dos ventas: el segundo envío se ignora hasta que responde el servidor (la ventana se cierra al enviar)
   const ventaEnCurso = useRef(false);
 
   return (

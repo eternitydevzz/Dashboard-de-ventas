@@ -61,7 +61,7 @@ export function soloLoSuyo(perfil: Perfil, seccion: Seccion) {
 }
 
 // Página de inicio: la de su rol si la tiene; si no, la primera sección que tenga permitida
-// Cristian, 14 nov: agendas → /closer/llamadas (/closer es «Métricas», oculta con METRICAS_VISIBLE)
+// Cristian, 14 nov: agendas → /closer/llamadas (/closer ya solo redirige a /closer/llamadas: Métricas se borró el 17 nov)
 const RUTA: Record<Seccion, string> = {
   funnel: "/kpis?vista=funnel", mi_funnel: "/mi-funnel", kpis: "/kpis", crm: "/crm", cola: "/caller", agendas: "/closer/llamadas", grabadas: "/caller/grabadas",
   ventas: "/ventas", ranking: "/ranking", recursos: "/recursos", reportes: "/reportes", manuales: "/manuales", grabaciones: "/grabaciones", equipo: "/equipo", programas: "/programas", finanzas: "/finanzas", clientes: "/clientes",

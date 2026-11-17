@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Form from "next/form";
 import { FileText, Link2, ScrollText, Video, FolderOpen, Package, Search, ExternalLink } from "lucide-react";
 import { puedeRecursos } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
@@ -32,7 +33,8 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
     db().from("recursos").select("*").eq("proyecto_id", proyecto.id).order("creado_en", { ascending: false }),
   ]);
   // Bloque 7: con buscador (por título)
-  const recursos = recursosVisibles(c.filas((recursosData ?? []) as Recurso[]), perfil, tipo).filter((r) => !q || sinTildes(r.titulo).includes(sinTildes(q)));
+  const visibles = recursosVisibles(c.filas((recursosData ?? []) as Recurso[]), perfil);
+  const recursos = visibles.filter((r) => (!tipo || r.tipo === tipo) && (!q || sinTildes(r.titulo).includes(sinTildes(q))));
 
   // Enlaces firmados (1 hora) para los PDF privados
   const firmados = new Map<string, string>();
@@ -76,14 +78,15 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
             </div>
           }
         >
-          <form className="relative mb-4" action="/recursos">
+          {/* A3b-04 (17 nov): next/form busca sin recargar toda la página */}
+          <Form className="relative mb-4" action="/recursos">
             {tipo && <input type="hidden" name="tipo" value={tipo} />}
             {editor && c.mercado === "es" && <input type="hidden" name="mercado" value="es" />}
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-3" />
             <input name="q" defaultValue={q} className="campo pl-9" placeholder="Buscar un recurso por su nombre…" aria-label="Buscar un recurso" />
-          </form>
+          </Form>
           {recursos.length === 0 ? (
-            <Vacio icono={FolderOpen} texto={q ? `Ningún recurso con «${q}».` : editor ? "Todavía no hay recursos. Añade el primero con «Nuevo recurso»." : "Tu director todavía no ha subido recursos."} />
+            <Vacio icono={FolderOpen} texto={q ? `Ningún recurso con «${q}».` : visibles.length ? "No hay recursos en esta pestaña." : editor ? "Todavía no hay recursos. Añade el primero con «Nuevo recurso»." : "Tu director todavía no ha subido recursos."} />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {recursos.map((r) => {

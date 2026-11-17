@@ -46,13 +46,14 @@ export function elegirCloserParaCaller(closers: (MiembroRotacion & { mercado?: s
 
 export async function closerDeLaRotacion(proyectoId: string, pais?: string | null, mercadoCaller: Mercado | null = null) {
   const es = mercadoCaller === "es";
-  const { data } = await db()
+  const { data, error } = await db()
     .from("miembros_proyecto")
     // `mercado` solo si hace falta: con «es» la columna ya existe (si no, nadie podría tener «es»)
     .select(`perfil_id, rotacion_pct, rotacion_cuenta, paises_closer, ${es ? "mercado, " : ""}perfiles!inner(rol, activo)`)
     .eq("proyecto_id", proyectoId)
     .or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }) // Plan GHL E1: también closer
     .eq("perfiles.activo", true);
+  if (error) throw error; // S3-12: un fallo de la base no es «no hay closers»
   const filas = (data ?? []) as unknown as { perfil_id: string; rotacion_pct: number; rotacion_cuenta: number; paises_closer: string[] | null; mercado?: string | null }[];
   const elegido = elegirCloserParaCaller(
     filas.map((c) => ({ perfil_id: c.perfil_id, rotacion_pct: Number(c.rotacion_pct), rotacion_cuenta: c.rotacion_cuenta, paises_closer: c.paises_closer ?? [], mercado: c.mercado })),

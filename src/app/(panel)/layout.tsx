@@ -4,7 +4,6 @@ import { BarraLateral, type ItemMenu } from "@/components/barra-lateral";
 import { ProveedorToasts } from "@/components/toasts";
 import { ProveedorGrabadora } from "@/components/grabadora";
 import { Dialogos } from "@/components/dialogos";
-import { AvisosEnVivo } from "@/components/avisos-en-vivo";
 import { Bienvenida } from "@/components/bienvenida";
 import { VentanaEntrada } from "@/components/ventana-entrada";
 import { avisosCeo } from "@/lib/avisos-ceo";
@@ -98,7 +97,6 @@ export default async function PanelLayout({ children }: LayoutProps<"/">) {
       </div>
       </ProveedorGrabadora>
       <Dialogos />
-      <AvisosEnVivo proyectoId={proyecto.id} />
       {/* 11 nov 2026: vuelve la bienvenida, solo visual (no espera a nada); la ventana sale cuando se quita */}
       <Bienvenida nombre={nombre} secciones={precarga.map((it) => it.texto)} />
       <VentanaEntrada rol={perfil.rol} nombre={nombre} avisos={avisos} />

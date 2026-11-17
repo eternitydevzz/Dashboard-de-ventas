@@ -67,7 +67,7 @@ describe("Fase 9 · velocidad", () => {
       expect(existsSync(new URL(`../../${PANEL}/${s}/loading.tsx`, import.meta.url)), s).toBe(false);
   });
 
-  it("KPIs → Leads pide a la base lo mismo que antes: 4 lecturas (leads, tarjetas, pipelines, etapas)", async () => {
+  it("KPIs → Leads pide a la base lo mismo que antes: 4 tablas (leads, tarjetas, pipelines, etapas), 6 peticiones", async () => {
     const { cargarLeadsKpis } = await import("@/lib/leads-kpis");
     await cargarLeadsKpis({ id: "p1" } as Parameters<typeof cargarLeadsKpis>[0]);
     // 14 nov (noche): leads y tarjetas llevan además su cuenta (petición sin filas) para pedir las páginas juntas

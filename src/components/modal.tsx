@@ -7,6 +7,10 @@ import { Portal } from "@/components/portal";
 // Ventanas abiertas, de la de abajo a la de encima: Escape cierra solo la de encima (Cristian, 26 oct 2026)
 const abiertas: string[] = [];
 
+// S4-11 (17 nov): el fondo cierra solo con un clic simple que empezó y acabó en él. Antes, el 2.º clic de un doble clic
+// en el botón que abre la ventana caía en el fondo y la cerraba al momento; y arrastrar desde dentro hacia fuera, también.
+export const clicCierra = (empezoEnFondo: boolean, acabaEnFondo: boolean, clics: number) => empezoEnFondo && acabaEnFondo && clics <= 1;
+
 // `cabecera` y `claseVentana` (C5, plan Callers, 7 nov): la ventana del guion pone su propia cabecera (con su X) y
 // su tamaño (solo se desplaza el centro; en el móvil, pantalla completa)
 export function Modal({
@@ -27,6 +31,7 @@ export function Modal({
   claseFondo?: string;
 }) {
   const id = useId();
+  const empezoEnFondo = useRef(false);
   // La última onCerrar, sin volver a apuntar la ventana en cada pintado
   const cerrar = useRef(onCerrar);
   useEffect(() => {
@@ -50,7 +55,10 @@ export function Modal({
 
   return (
     <Portal>
-    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-md ${claseFondo}`} onClick={onCerrar}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-md ${claseFondo}`}
+      onMouseDown={(e) => { empezoEnFondo.current = e.target === e.currentTarget; }}
+      onClick={(e) => clicCierra(empezoEnFondo.current, e.target === e.currentTarget, e.detail) && onCerrar()}
+    >
       {/* Prueba en la app (7 nov): una ventana más alta que la pantalla (p. ej. «Agendado» con el calendario) se cortaba
           y no bajaba; ahora nunca pasa del alto de la pantalla y se desplaza por dentro */}
       <div className={`tarjeta ventana ${claseVentana ?? `max-h-[calc(100dvh-2rem)] w-full overflow-y-auto overscroll-contain ${ancho} p-5`}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={titulo}>

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { PASSWORD, borrarEscenario, como, crearEscenario, db, falla, formulario, ok, type Escenario } from "../apoyo/escenario";
 import { crearPipeline, renombrarPipeline, borrarPipeline, crearEtapa, borrarEtapa, ordenarEtapas, importarCsv, prepararSubidaCsv } from "@/app/(panel)/crm/acciones";
 import { subirDelFormulario } from "@/lib/subir-cliente";
-import { registrarLlamada, registrarVenta, agendarCita, volverANuevo } from "@/app/(panel)/leads/acciones";
+import { registrarLlamada, registrarVenta, agendarCita } from "@/app/(panel)/leads/acciones";
 import { reagendarCita, cambiarEstadoCita } from "@/app/(panel)/closer/acciones";
 import { registrarCobro, borrarVenta } from "@/app/(panel)/ventas/acciones";
 import { guardarLinkPago, crearRecurso, borrarRecurso } from "@/app/(panel)/recursos/acciones";
@@ -99,7 +99,7 @@ describe("Caller: llamar luego y volver a nuevo", () => {
     let l = await leerLead(e.leads.LeadA);
     expect(l.estado_caller).toBe("llamar_luego");
     expect(l.llamar_en).toBeNull();
-    await ok(volverANuevo(e.leads.LeadA));
+    await ok(registrarLlamada(e.leads.LeadA, "nuevo", "")); // S2-20: volverANuevo no se usaba; «Leads» es este botón
     l = await leerLead(e.leads.LeadA);
     expect(l.estado_caller).toBe("nuevo");
     expect(l.llamar_en).toBeNull();

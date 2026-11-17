@@ -123,9 +123,10 @@ export function rangoDe(periodo: Periodo, zona: string, desdeTxt?: string, hasta
     h = sumarDias(d, 7);
     etiqueta = "Esta semana";
   } else if (periodo === "rango" && fechaReal(desdeTxt) && fechaReal(hastaTxt)) {
-    d = desdeTxt;
-    h = sumarDias(hastaTxt, 1);
-    etiqueta = `Del ${desdeTxt} al ${hastaTxt}`;
+    const [a, b] = desdeTxt <= hastaTxt ? [desdeTxt, hastaTxt] : [hastaTxt, desdeTxt]; // A2-02 (Cristian, 17 nov): al revés, se dan la vuelta
+    d = a;
+    h = sumarDias(b, 1);
+    etiqueta = `Del ${a} al ${b}`;
   } else {
     d = `${hoy.slice(0, 8)}01`;
     const sig = new Date(`${d}T12:00:00Z`);

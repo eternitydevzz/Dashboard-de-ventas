@@ -5,6 +5,7 @@ import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { db } from "@/lib/datos";
 import { getSesion, esJefe } from "@/lib/auth";
 import { configPara, pedirJson, peticion, type LlamarClaude } from "@/lib/ia";
+import { anotar, bloqueado } from "@/lib/limite";
 
 // Coach de IA, versión sencilla (decisión de Cristian, V2-11): quien llama escribe lo que dice el lead
 // y Claude responde al momento cómo manejarlo. Sin audio. A Claude no se le mandan email ni teléfono.
@@ -15,6 +16,10 @@ export async function coachIa(leadId: string | null, loQueDice: string, llamar?:
     const texto = loQueDice.trim();
     if (texto.length < 3) throw new ErrorUsuario("Escribe lo que ha dicho el lead.");
     if (texto.length > 2000) throw new ErrorUsuario("Demasiado largo: resúmelo en unas frases.");
+    // S2-20: cada consulta gasta IA; 60 por persona y hora sobra para llamadas en directo
+    const clave = `coach:${perfil.id}`;
+    if (await bloqueado(clave, 60, 3_600_000)) throw new ErrorUsuario("Demasiadas consultas al coach en la última hora. Espera un poco.");
+    await anotar(clave);
     let respuestas = "";
     if (leadId) {
       const { data: l } = await db().from("leads").select("caller_id, closer_id, respuestas").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle();

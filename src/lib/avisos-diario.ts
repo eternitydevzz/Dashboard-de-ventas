@@ -1,11 +1,12 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enviarEmail } from "@/lib/email";
+import { EMAIL_AVISO_GHL } from "@/lib/ghl-envios";
 import { ZONA_CEO, avisosCeo, reporteDia } from "@/lib/avisos-ceo";
 
 // Plan GHL F2 (Cristian, 8 nov 2026): email diario a las 8:00 de Madrid. El programador llama cada 15 min de 06:00 a 07:45 UTC
 // (cae en la franja 8:00-8:59 de Madrid en verano y en invierno); solo manda la llamada que cae a las 8 de Madrid, y la tabla avisos_diario evita el segundo email.
-const DESTINO = "info@eternity.llc";
+const DESTINO = EMAIL_AVISO_GHL; // una sola copia del email (ghl-envios.ts)
 
 type ResultadoDiario = { estado: "fuera_de_hora" | "ya_enviado" | "enviado" } | { estado: "fallo"; motivo: string };
 

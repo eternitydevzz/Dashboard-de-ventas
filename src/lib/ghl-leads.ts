@@ -67,8 +67,7 @@ export async function leerLeadsGhl(proyecto: Proyecto & { ghl_location_id: strin
   const ahora = (opciones.ahora ?? new Date()).getTime();
   const r: ResultadoLeads = { nuevos: 0, actualizados: 0, completados: 0, cambiados: 0, puestosAlDia: 0, avisos: [], errores: [] };
   const locationId = proyecto.ghl_location_id;
-  // Sin la migración 20261017130000 el campo no viene: no se hace nada
-  if (!locationId || !("ghl_leads_hasta" in proyecto)) return r;
+  if (!locationId) return r;
   // Sin fecha de inicio: se empieza ahora (lo anterior entra con el repaso único)
   const hasta = proyecto.ghl_leads_hasta ? new Date(proyecto.ghl_leads_hasta).getTime() : ahora;
 

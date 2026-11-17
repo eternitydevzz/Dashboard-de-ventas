@@ -68,11 +68,15 @@ for (const p of personas) {
       continue;
     }
     // Perfil de prueba: ve «Llamadas de GHL» aunque su rol no la vea
-    if (p.prueba) await db.from("permisos_persona").upsert({ proyecto_id: proyecto.id, perfil_id: id, seccion: "grabadas", permitido: true });
+    if (p.prueba) {
+      const { error: e3 } = await db.from("permisos_persona").upsert({ proyecto_id: proyecto.id, perfil_id: id, seccion: "grabadas", permitido: true });
+      if (e3) console.log(`  ✗ permiso «grabadas»: ${e3.message}`);
+    }
     salida.push({ nombre: p.nombre, email: p.email, rol: p.rol, contrasena_temporal: password });
   }
   const { count } = await db.from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-  await db.from("miembros_proyecto").upsert({ proyecto_id: proyecto.id, perfil_id: id, orden: count ?? 0 }, { onConflict: "proyecto_id,perfil_id", ignoreDuplicates: true });
+  const { error: e4 } = await db.from("miembros_proyecto").upsert({ proyecto_id: proyecto.id, perfil_id: id, orden: count ?? 0 }, { onConflict: "proyecto_id,perfil_id", ignoreDuplicates: true });
+  if (e4) console.log(`  ✗ no se pudo añadir al proyecto: ${e4.message}`);
 }
 
 if (confirmar && salida.length) {

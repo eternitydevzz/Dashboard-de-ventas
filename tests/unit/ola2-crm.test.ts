@@ -1,5 +1,6 @@
 // Ola 2 · carril V3 (Cristian, 14 nov: «enfócate en mejorar la velocidad como sea»): CRM, popup del lead y Mis leads.
-// Base simulada; sin nombres reales ("caller-1", "Lead A"). La memoria del servidor (lib/memoria.ts) va de verdad aquí.
+// Base simulada; sin nombres reales ("caller-1", "Lead A"). La memoria del servidor (lib/memoria.ts) va simulada
+// con un Map que sí guarda (la de verdad no guarda nada en los tests).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 
@@ -39,7 +40,7 @@ const base = () => ({
 });
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: base }));
 
-// La memoria de verdad (en los tests normales no guarda nada: process.env.VITEST)
+// Memoria simulada que sí guarda (la de verdad, en los tests, no guarda nada: process.env.VITEST)
 const memoria = vi.hoisted(() => {
   const m = new Map<string, Promise<unknown>>();
   return {

@@ -22,8 +22,8 @@ import type { Lead, Producto } from "@/lib/tipos";
 import { CargandoColumna, ColaCaller } from "./cola";
 import { BarraDeslizable } from "@/components/barra-deslizable";
 
-// C11 (7c.1): una pastilla por columna; la primera, «Leads» = toda la cola (no hay una solo para los nuevos)
-// «Leads» = solo los que siguen en «Leads» (Cristian, 10 nov: antes salían todos y el equipo se liaba); cada estado, en su pestaña
+// C11 (7c.1): una pastilla por columna. «Leads» = solo los que siguen en «Leads» (Cristian, 10 nov: antes salían
+// todos y el equipo se liaba); cada estado, en su pestaña
 const FILTROS = ESTADOS_CALLER.map((e) => ({ v: e.v, t: e.t }));
 
 // Cristian, 14 nov (Ola 2): sin `etiquetas` (la cola no las enseña)
@@ -69,13 +69,15 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const hoy = rangoDe("hoy", proyecto.zona_horaria);
   // Velocidad (17 oct 2026): los objetivos van con el resto de consultas (antes, después)
   // Velocidad (28 oct 2026, Cristian): solo las columnas que usa la cola (sin `datos` de GHL): 395 → 180 KB por carga
-  const [leads, kpis, productos, scoring, panel, pipelines] = await Promise.all([
+  const [leads, kpis, productos, scoring, panel, pipelines, linkAgenda, moneda] = await Promise.all([
     todas<LeadCola>((a, b) => db().from("leads").select(CAMPOS_COLA).eq("proyecto_id", proyecto.id).eq(comoCloser ? "closer_id" : "caller_id", caller.id).order("id").range(a, b)),
     kpisHoyCola(proyecto.id, caller.id, hoy.desde!.toISOString()), // F4: solo de este proyecto
     deMemoria(`productos-activos:${proyecto.id}`, () => db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")),
     deMemoria(`scoring:${proyecto.id}`, () => db().from("scoring_ia").select("pesos").eq("proyecto_id", proyecto.id).maybeSingle()),
     panelObjetivos(proyecto, caller), // objetivos del caller que se está viendo, su racha y el del equipo (H3-H4)
     deMemoria(`pipelines-nombres:${proyecto.id}`, () => db().from("pipelines").select("id, nombre").eq("proyecto_id", proyecto.id)), // C5: nombre del pipeline de origen
+    miLinkAgenda(proyecto, perfil.id), // S2-20: antes, dos await sueltos al pintar
+    miMoneda(proyecto, perfil.id),
   ]);
   const nombresPipeline = Object.fromEntries((pipelines ?? []).map((x) => [x.id, x.nombre.replace(/^\d+\.\s*/, "")]));
   const pesos = ((scoring as { pesos?: unknown } | null)?.pesos ?? null) as Pesos | null; // priorización con IA (V2-11)
@@ -102,7 +104,8 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
   const { preguntas, filas: enviados } = compactarRespuestas(visibles); // Ola 2: cada pregunta, una vez
   const closers = gente.filter((g) => g.rol === "closer").map((g) => ({ id: g.id, nombre: g.nombre }));
   const cortos = nombresCortos(callers); // F13: dos callers con el mismo nombre se distinguen
-  const enlaceFiltro = (v: string) => `/caller?${new URLSearchParams({ ...(jefe ? { caller: caller.id } : {}), ...(filtroM ? { mercado: filtroM } : {}), columna: v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`;
+  // A2-09: cambiar de caller (vista de jefe) conserva la columna y el orden, como las pestañas
+  const enlaceFiltro = (v: string, callerId = caller.id) => `/caller?${new URLSearchParams({ ...(jefe ? { caller: callerId } : {}), ...(filtroM ? { mercado: filtroM } : {}), columna: v, ...(orden ? { orden: orden.campo, dir: orden.dir === 1 ? "asc" : "desc" } : {}) })}`;
 
   return (
     <>
@@ -115,7 +118,7 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
             {jefe && (
               <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
                 {callers.map((c) => (
-                  <Link prefetch={false} key={c.id} href={`/caller?caller=${c.id}${filtroM ? `&mercado=${filtroM}` : ""}`} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
+                  <Link prefetch={false} key={c.id} href={enlaceFiltro(filtro, c.id)} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm ${c.id === caller.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>
                     <Avatar nombre={c.nombre} foto={c.foto} tamano="h-6 w-6 text-[9px]" />{cortos.get(c.id)}<EtiquetaMercado m={mercados[c.id]} />
                   </Link>
                 ))}
@@ -161,8 +164,8 @@ export default async function CallerPage({ searchParams }: PageProps<"/caller">)
           closers={closers}
           productos={(productos ?? []) as Producto[]}
           rol={perfil.rol}
-          linkAgenda={await miLinkAgenda(proyecto, perfil.id)}
-          moneda={await miMoneda(proyecto, perfil.id)}
+          linkAgenda={linkAgenda}
+          moneda={moneda}
           guion={guion}
           miNombre={perfil.nombre}
           nombresPipeline={nombresPipeline}

@@ -1,6 +1,6 @@
 // Periodos navegables (v2): Día / Semana / Mes / Año / Personalizado, con ‹ › para ir atrás y adelante.
 // `n` = cuántos periodos se mueve respecto al actual (0 = el actual, -1 = el anterior…).
-import { fechaReal, hoyEnZona, inicioDia, type Rango } from "@/lib/formato";
+import { fechaReal, hoyEnZona, inicioDia, sumarDias, type Rango } from "@/lib/formato";
 
 export type PeriodoNav = "dia" | "semana" | "mes" | "anio" | "rango";
 export const PERIODOS_NAV: { v: PeriodoNav; t: string }[] = [
@@ -13,11 +13,6 @@ export const PERIODOS_NAV: { v: PeriodoNav; t: string }[] = [
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
-function sumarDias(ymd: string, dias: number) {
-  const d = new Date(`${ymd}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + dias);
-  return d.toISOString().slice(0, 10);
-}
 function sumarMeses(ymd: string, meses: number) {
   const d = new Date(`${ymd.slice(0, 8)}01T12:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() + meses);
@@ -37,14 +32,29 @@ export function leerPeriodo(sp: Record<string, string | string[] | undefined>, p
 
 export function rangoNav(periodo: PeriodoNav, n: number, zona: string, desdeTxt?: string, hastaTxt?: string): Rango {
   const hoy = hoyEnZona(zona);
+  const t = tramo(periodo, n, hoy, desdeTxt, hastaTxt);
+  const desde = inicioDia(t.d, zona);
+  const hasta = inicioDia(t.h, zona);
+  // A5-07 (17 nov): el anterior de un mes es el mes anterior entero (con la duración, junio comparaba desde el 2 de mayo).
+  // Un rango personalizado no tiene «anterior» natural: la misma duración justo antes.
+  const previo = t.personalizado
+    ? new Date(desde.getTime() - (hasta.getTime() - desde.getTime()))
+    : inicioDia(tramo(periodo, n - 1, hoy).d, zona);
+  return { desde, hasta, etiqueta: t.etiqueta, previo: { desde: previo, hasta: desde } };
+}
+
+function tramo(periodo: PeriodoNav, n: number, hoy: string, desdeTxt?: string, hastaTxt?: string) {
   let d: string;
   let h: string;
   let etiqueta: string;
   // El MCP llama aquí sin pasar por leerPeriodo: también se comprueba la fecha
-  if (periodo === "rango" && fechaReal(desdeTxt) && fechaReal(hastaTxt) && desdeTxt <= hastaTxt) {
-    d = desdeTxt;
-    h = sumarDias(hastaTxt, 1);
-    etiqueta = `Del ${corta(desdeTxt)} al ${corta(hastaTxt)}`;
+  let personalizado = false;
+  if (periodo === "rango" && fechaReal(desdeTxt) && fechaReal(hastaTxt)) {
+    personalizado = true;
+    const [a, b] = desdeTxt <= hastaTxt ? [desdeTxt, hastaTxt] : [hastaTxt, desdeTxt]; // A2-02 (Cristian, 17 nov): al revés, se dan la vuelta
+    d = a;
+    h = sumarDias(b, 1);
+    etiqueta = `Del ${corta(a)} al ${corta(b)}`;
   } else if (periodo === "dia") {
     d = sumarDias(hoy, n);
     h = sumarDias(d, 1);
@@ -65,10 +75,7 @@ export function rangoNav(periodo: PeriodoNav, n: number, zona: string, desdeTxt?
     const nombre = MESES[Number(d.slice(5, 7)) - 1];
     etiqueta = n === 0 ? "Este mes" : `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${d.slice(0, 4)}`;
   }
-  const desde = inicioDia(d, zona);
-  const hasta = inicioDia(h, zona);
-  const dur = hasta.getTime() - desde.getTime();
-  return { desde, hasta, etiqueta, previo: { desde: new Date(desde.getTime() - dur), hasta: desde } };
+  return { d, h, etiqueta, personalizado };
 }
 
 export function enRango(iso: string | null | undefined, r: { desde: Date | null; hasta: Date | null }) {

@@ -1,12 +1,11 @@
 // Cualificación (V2-10). Estudio: por cada respuesta del formulario, cuántos leads llegaron a llamada,
 // cuántos cerraron y cuánto cash entró por llamada. Scoring: puntos por respuesta → nota de cada lead.
 import { normal } from "@/lib/llamadas";
+import { ASISTIDAS as ASISTIDA } from "@/lib/metricas-agendas"; // hubo llamada (igual que en Métricas)
 
 export type LeadQ = { id: string; respuestas: { pregunta: string; respuesta: string }[] | null };
 type CitaQ = { lead_id: string; estado: string };
 type VentaQ = { lead_id: string; cash_collected: number; devuelto: number | null; pagado: number };
-
-const ASISTIDA = ["cerrada", "seguimiento", "perdida"]; // hubo llamada (igual que en Métricas)
 
 type FilaEstudio = { pregunta: string; respuesta: string; leads: number; llamadas: number; cerradas: number; cierre: number; cash: number; cashPorLlamada: number };
 

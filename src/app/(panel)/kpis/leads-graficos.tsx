@@ -5,7 +5,8 @@ import { preguntasDe, repartir, respuestasA, serieLeads } from "@/lib/leads-cifr
 import { GraficoLeads } from "@/components/grafico-leads";
 import type { LeadVista } from "@/lib/leads-vista";
 import { ETIQUETA_ESTADO_CALLER, SIN_PAIS, nombrePais, pct } from "@/lib/formato";
-import { ETIQUETA_OFERTA, PREGUNTAS_BIBLIOTECA, preguntaCanonica, type Oferta } from "@/lib/oferta";
+import { ETIQUETA_OFERTA, preguntaCanonica, type Oferta } from "@/lib/oferta";
+import { DE_BIBLIOTECA } from "./leads-acciones";
 import type { EscalonOferta, resumenBiblioteca } from "@/lib/biblioteca";
 import { PREFIJO_ETIQUETA } from "@/lib/canal";
 import { Seccion } from "@/components/ui";
@@ -28,7 +29,6 @@ export function GraficosLeads({ leads, formulario, ofertas, pipelines, etapas, g
 
   // Formularios: las 6 de la Biblioteca van en su bloque (con `formulario`); aquí, el resto, eligiendo la pregunta
   const preguntas = useMemo(() => preguntasDe(leads, preguntaCanonica), [leads]);
-  const DE_BIBLIOTECA = new Set(PREGUNTAS_BIBLIOTECA.map((p) => p.texto));
   const otras = preguntas.filter((p) => !DE_BIBLIOTECA.has(p.pregunta));
   const [elegida, setElegida] = useState("");
   const pregunta = otras.some((p) => p.pregunta === elegida) ? elegida : otras[0]?.pregunta ?? "";

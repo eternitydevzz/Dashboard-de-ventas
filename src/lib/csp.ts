@@ -6,7 +6,7 @@
 // 17 oct 2026, para los avisos en vivo (WebSocket, sin datos).
 export function politicaCsp(nonce: string, desarrollo = process.env.NODE_ENV === "development") {
   const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : "";
-  // Velocidad (17 oct 2026): el tiempo real (avisos-en-vivo.tsx) habla con Supabase por WebSocket (wss://)
+  // Velocidad (17 oct 2026): permite el tiempo real de Supabase por WebSocket (wss://); avisos-en-vivo.tsx se borró el 17 nov y no se ha comprobado si algo más lo usa
   const supabaseWs = supabase.replace(/^http/, "ws");
   return [
     "default-src 'self'",

@@ -12,7 +12,8 @@ import { csvExcel } from "@/lib/csv-excel";
 type Nombrado = { id: string; nombre: string };
 // Títulos cortos de las 6 preguntas de la Biblioteca (los usa también la tabla de leads.tsx)
 export const CORTO: Record<string, string> = { situacion: "Situación", experiencia: "Experiencia con AI", objetivo: "Objetivo 90 días", tiempo: "Tiempo / semana", inversion: "Puede invertir", inicio: "Cuándo empezar" };
-const DE_BIBLIOTECA = new Set(PREGUNTAS_BIBLIOTECA.map((p) => p.texto));
+// Las preguntas de la Biblioteca (las usan también leads.tsx y leads-graficos.tsx)
+export const DE_BIBLIOTECA = new Set(PREGUNTAS_BIBLIOTECA.map((p) => p.texto));
 const si = (l: LeadVista, m: number) => ((l.marcas & m) === m ? "Sí" : "No");
 
 // 1c · L6 (Cristian, 26 oct 2026): sobre lo que se ve en la pestaña «Leads» (fuente, periodo, país, sin caller y búsqueda):

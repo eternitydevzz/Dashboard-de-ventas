@@ -122,8 +122,8 @@ export async function ok<T>(promesa: Promise<T>): Promise<Exclude<T, { error: st
   return r as Exclude<T, { error: string }>;
 }
 
-// C11 (7 nov): sin «Link enviado». Simula una cita que llega de GHL, como la crea el webhook: a nombre del caller del
-// lead (punto 10) y con las estrellas que el caller puso en «Seguimiento».
+// C11 (7 nov): simula una cita que llega de GHL, como la crea el webhook (sin pasar por «Link enviado», que volvió el
+// 10 nov): a nombre del caller del lead (punto 10) y con las estrellas que el caller puso en «Seguimiento».
 export async function agendaPorLink(e: Escenario, leadId: string, caller: Perfil, closerId: string, fechaLocal: string, estrellas = 4) {
   const { registrarLlamada } = await import("@/app/(panel)/leads/acciones");
   const { datosAgendaGhl } = await import("@/lib/leads");

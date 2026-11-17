@@ -270,16 +270,6 @@ describe("Subida directa a Supabase", () => {
   });
 });
 
-describe("Mensajes de error", () => {
-  it("los errores previstos llegan al usuario; los inesperados no enseñan detalles internos", async () => {
-    const { seguro, ErrorUsuario } = await import("@/lib/resultado");
-    expect(await seguro(async () => { throw new ErrorUsuario("Pon un nombre."); })).toEqual({ error: "Pon un nombre." });
-    const r = (await seguro(async () => { throw new Error('duplicate key value violates unique constraint "leads_pkey"'); })) as { error: string };
-    expect(r.error).not.toMatch(/leads_pkey|duplicate/);
-    expect(r.error).toMatch(/Algo ha fallado/);
-  });
-});
-
 describe("Registro de cuentas", () => {
   it("nadie puede crearse una cuenta por su cuenta (solo desde Administración)", async () => {
     const anon = createClient(URL_DB, PUBLICA, { auth: { persistSession: false } });

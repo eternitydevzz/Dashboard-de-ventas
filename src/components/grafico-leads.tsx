@@ -21,7 +21,7 @@ export function GraficoLeads({ puntos, porHoras }: { puntos: PuntoSerie[]; porHo
   const y = (n: number) => H - PAD - (n / max) * (H - PAD * 2 - 10);
   const linea = puntos.map((p, k) => `${k ? "L" : "M"}${x(k).toFixed(1)},${y(p.total).toFixed(1)}`).join(" ");
   const area = puntos.length ? `${linea} L${x(puntos.length - 1)},${H} L${x(0)},${H} Z` : "";
-  // Las fuentes, siempre con el mismo color en todos los puntos (las más grandes del periodo primero)
+  // Las fuentes, siempre con el mismo color en todos los puntos (por orden de primera aparición en el periodo)
   const orden = [...new Map(puntos.flatMap((p) => p.fuentes).map((f) => [f.t, 0])).keys()];
   const colorDe = (t: string) => COLORES[orden.indexOf(t) % COLORES.length];
 

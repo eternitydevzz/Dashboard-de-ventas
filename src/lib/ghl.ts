@@ -5,6 +5,7 @@
 // · GET /opportunities/pipelines?locationId y GET /opportunities/search?location_id&contact_id · Version 2021-07-28 · permiso opportunities.readonly (13 oct)
 // Autenticación: «Private Integration Token» de la subcuenta en Authorization: Bearer.
 import { mismoNombre } from "@/lib/formato";
+import { ABIERTAS } from "@/lib/llamadas";
 
 export const GHL_BASE = "https://services.leadconnectorhq.com";
 
@@ -431,7 +432,7 @@ export function estadoDesdeGhl(s: string | undefined): "confirmada" | "cancelada
 
 // Un estado de GHL solo cambia una cita que aún está abierta (no pisa lo que ya registró el closer)
 export function nuevoEstado(actual: string, deGhl: ReturnType<typeof estadoDesdeGhl>) {
-  const abierta = ["pendiente", "confirmacion_pendiente", "confirmada"].includes(actual);
+  const abierta = (ABIERTAS as readonly string[]).includes(actual);
   if (!abierta || !deGhl || deGhl === "invalida") return actual;
   // 16 oct (Cristian): GHL marca «confirmed» toda reserva del widget, así que no pisa «Confirmación pendiente»,
   // que lo pone el equipo a mano. Una cancelación o un no show de GHL sí cuentan.

@@ -18,7 +18,8 @@ type Pipe = { id: string; nombre: string; etapas: { id: string; nombre: string }
 export type OpcionesEditor = { camposGhl: { id: string; name: string }[]; pipelinesGhl: Pipe[]; pipelinesDashboard: Pipe[]; errorGhl: string | null };
 type Rama = Extract<Paso, { tipo: "rama" }>;
 
-const ICONOS: Record<Icono, { C: typeof Zap; color: string }> = {
+// También los usa la vista de solo mirar (workflows.tsx)
+export const ICONOS: Record<Icono, { C: typeof Zap; color: string }> = {
   rayo: { C: Zap, color: "from-[#5b78ff] to-[#2341c8]" },
   reloj: { C: Clock, color: "from-[#9aa3b8] to-[#5d6679]" },
   persona: { C: User, color: "from-[#ffb35c] to-[#e46a00]" },
@@ -27,7 +28,7 @@ const ICONOS: Record<Icono, { C: typeof Zap; color: string }> = {
   rama: { C: GitBranch, color: "from-[#a78bfa] to-[#6d28d9]" },
   mover: { C: MoveRight, color: "from-[#5ec8ff] to-[#0b72c4]" },
 };
-function Cuadro({ icono }: { icono: Icono }) {
+export function Cuadro({ icono }: { icono: Icono }) {
   const { C, color } = ICONOS[icono];
   return (
     <span aria-hidden className={`grid h-8 w-8 flex-none place-items-center rounded-[10px] bg-gradient-to-b text-white shadow-sm ${color}`}>

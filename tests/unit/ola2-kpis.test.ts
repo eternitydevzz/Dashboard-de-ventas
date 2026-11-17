@@ -119,7 +119,7 @@ describe("abrir KPIs → Leads lee menos la base", () => {
     tablas.length = 0;
   });
 
-  it("los leads y los pipelines se leen una sola vez (antes, 2 y 2: 11 lecturas → 9)", async () => {
+  it("los leads y los pipelines se leen una sola vez (antes, 2 y 2; hoy 12 peticiones contando las de cuenta)", async () => {
     const { default: KpisPage } = await import("@/app/(panel)/kpis/page");
     await KpisPage({ searchParams: Promise.resolve({}) } as never);
     const veces = (t: string) => tablas.filter((x) => x === t).length;

@@ -1,6 +1,6 @@
 import { libreA, type AjustesCalendario } from "@/lib/disponibilidad";
 import { enZona, tramosDelDia, type Horario } from "@/lib/horarios";
-import { localAIso } from "@/lib/formato";
+import { localAIso, sumarDias } from "@/lib/formato";
 
 // Ventana de «Agendado» como la maqueta (plan Callers 7c.3; Cristian, 7 nov: «las horas libres del closer»).
 // Recorre los próximos días y devuelve, por día, las horas en las que el closer está libre según libreA (su horario,
@@ -8,7 +8,6 @@ import { localAIso } from "@/lib/formato";
 // Sin base de datos: los datos los pone quien llama (leads/agenda.ts).
 const minutos = (hm: string) => Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5));
 const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-const sumarDias = (ymd: string, n: number) => new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10) + n)).toISOString().slice(0, 10);
 
 export function huecosLibres(o: { horario: Horario; ajustes: AjustesCalendario; citas: string[]; ahora: Date; zona: string; dias: number }) {
   if (!o.horario) return [];
