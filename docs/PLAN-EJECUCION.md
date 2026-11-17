@@ -323,7 +323,7 @@ Todo en PowerShell, desde `C:\Users\Usuario\Desktop\VENTAS`.
 - Sin verificar: la RAM real de GOWS con 1 número (medirla al montarlo) y los pasos exactos de Render para una imagen Docker.
 
 ### Tarea D-0 (Jose o Cristian, a mano; el orquestador no tiene acceso a Render ni a Vercel)
-- [ ] Base PostgreSQL para la sesión (DD1).
+- [ ] Base PostgreSQL para la sesión en Render (DD1): Render Postgres **de pago** (Basic), en la misma región que el servicio de WAHA.
 - [ ] Render: servicio web Starter con la imagen `devlikeapro/waha` (versión fija), variables `WHATSAPP_DEFAULT_ENGINE=GOWS`, `WHATSAPP_SESSIONS_POSTGRESQL_URL`, `WAHA_API_KEY` (mejor `sha512:…`), `WAHA_DASHBOARD_USERNAME/PASSWORD`, `WHATSAPP_SWAGGER_USERNAME/PASSWORD`. Nombres de variables a confirmar en la documentación de WAHA al montarlo.
 - [ ] Escanear el QR con el número del equipo (DD2) en la sesión `default`.
 - [ ] Vercel: `WAHA_URL` y `WAHA_API_KEY` (la clave en claro, solo ahí). Nunca en el código ni en el chat.
@@ -358,7 +358,7 @@ Todo en PowerShell, desde `C:\Users\Usuario\Desktop\VENTAS`.
 - `whatsapp_envios` sin fallos, y `errores_app` sin errores nuevos.
 
 ### Dudas de la Fase D (hay que contestarlas antes de «empieza»)
-- **DD1 · PostgreSQL para la sesión:** (a) Render Postgres, aparte y junto al servidor (precio sin verificar); (b) un proyecto nuevo de Supabase, solo para WAHA; (c) la base del dashboard. **Recomiendo (b)**: queda separado del dashboard (la sesión de WhatsApp es un dato delicado) y no mezcla tablas de WAHA con las nuestras. La (c) no la recomiendo.
+- **DD1 · PostgreSQL para la sesión — DECIDIDO (Jose, 17 nov): todo en Render**, servicio Starter + **Render Postgres de pago (Basic)**, unos $13/mes en total (Render calcula ~$13 para esta pareja; Postgres Basic, $6 o $7 según la fuente, sin verificar). La base **gratis** de Render no vale: caduca a los 30 días y se borra ([Render · Free](https://render.com/docs/free)). Supabase aparte saldría ~$10/mes más si la cuenta es de pago, o con pausa a la semana si es gratis ([Supabase · Billing FAQ](https://supabase.com/docs/guides/platform/billing-faq)).
 - **DD2 · Número y cuentas:** ¿qué número de WhatsApp (que no sea el principal)? ¿Quién crea la cuenta de Render, paga los $7 y pone las variables en Vercel?
 - **DD3 · Recordatorio:** ¿cuánto antes de la cita (por ejemplo, 60 min)? ¿A quién: closer, caller y CEO, o solo al closer?
 - **DD4 · CEO o grupo:** ¿los avisos del CEO van a su WhatsApp personal o a un grupo? Si es un grupo, hace falta su id (`…@g.us`); lo da WAHA tras unir el número al grupo.
