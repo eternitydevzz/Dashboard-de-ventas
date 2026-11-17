@@ -4,7 +4,7 @@ import { enviosEnRojo } from "@/lib/entradas-datos";
 import { inicioDia, sumarDias } from "@/lib/formato";
 import { ABIERTAS } from "@/lib/llamadas";
 
-// Avisos del CEO (plan GHL F1a, Cristian 8 nov 2026): se calculan al momento, sin tabla. Los usan la campana (F1b)
+// Avisos del CEO (plan GHL F1a, Cristian 8 nov 2026): se calculan al momento, sin tabla propia. Los usan la campana (F1b)
 // y el email diario de las 8:00 de Madrid (F2). F3: más los «otros errores» de la app (tabla errores_app).
 export const ZONA_CEO = "Europe/Madrid";
 
@@ -30,8 +30,8 @@ export async function avisosCeo(proyectoId: string): Promise<AvisoCeo[]> {
   for (const [que, r] of [["citas sin closer", citas], ["entradas", entradas], ["workflows con error", workflows], ["última lectura de GHL", proyecto], ["otros errores", errores]] as const)
     if (r.error) throw new Error(`avisos del CEO (${que}): ${r.error.message}`);
   const rojos = await enviosEnRojo(((entradas.data ?? []) as { id: string }[]).map((e) => e.id));
-  // La lectura de calendarios solo guarda el resumen («… · 2 calendario(s) sin leer», ghl-sync.ts:~289); «N con error»
-  // cuenta también citas y workflows, que van a «otros errores»
+  // La lectura de calendarios solo guarda el resumen («… · 2 calendario(s) sin leer», `resumen` al final de sincronizarCalendarios en ghl-sync.ts); «N con error»
+  // cuenta también citas y workflows, que la ruta /api/ghl/leer guarda en errores_app («otros errores»)
   const resumen = (proyecto.data as { ghl_ultimo_resultado: string | null } | null)?.ghl_ultimo_resultado ?? "";
   const errLectura = Number(resumen.match(/(\d+) calendario\(s\) sin leer/)?.[1] ?? 0);
 

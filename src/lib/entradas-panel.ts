@@ -66,11 +66,6 @@ export function haceCuanto(fecha: string | null, ahora = new Date()) {
   return d === 1 ? "hace 1 día" : `hace ${d} días`;
 }
 
-// «1 lead recibido» / «22 leads recibidos» (la cifra va en negrita, el resto no)
-export function leadsRecibidos(n: number) {
-  return n === 1 ? { cifra: "1 lead", texto: "recibido" } : { cifra: `${n} leads`, texto: "recibidos" };
-}
-
 // El estado de la Entrada en palabras, y la frase de GHL (null = no se dice nada)
 // Workflows 4a-2: `por_workflow` = su workflow en modo real manda a GHL (con «Mandar a GHL» apagado)
 export function estadoEntrada(x: { activa: boolean; ghl_activo: boolean; envios: number; rojos: number; por_workflow?: boolean }) {

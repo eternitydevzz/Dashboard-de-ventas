@@ -19,7 +19,7 @@ type Vista = { vistaPrevia: true; haria: string; leads?: { id: string; nombre: s
 const vista = (haria: string, extra: Partial<Vista> = {}): Vista => ({ vistaPrevia: true, haria, ...extra, paraHacerlo: "No se ha cambiado nada. Si está bien, vuelve a llamar igual con confirmar: true." });
 
 // Una acción de la app devuelve { error } en vez de lanzarlo: aquí se convierte en error de la herramienta
-function ok<T>(r: T | ConError): T {
+export function ok<T>(r: T | ConError): T {
   if (esError(r)) throw new ErrorUsuario(r.error);
   return r as T;
 }

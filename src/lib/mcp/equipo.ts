@@ -10,24 +10,12 @@ import { esCloser, type Rol } from "@/lib/tipos";
 import { crearMiembro } from "@/app/(panel)/equipo/acciones";
 import { actualizarMiembro, enviarEnlaceMagico } from "@/app/(panel)/admin/acciones";
 import { asignarLeads } from "@/app/(panel)/crm/acciones";
+import { elegir } from "@/lib/mcp/lectura";
+import { ok } from "@/lib/mcp/cambiar";
 
 // MCP (Cristian, 13 nov 2026): crear, dar de baja y borrar personas del equipo desde Claude Code. Usan las mismas
 // acciones que la pantalla Equipo y Administración (permisos y validaciones de la app). Nadie ve contraseñas: la cuenta
 // se crea con una al azar que no se devuelve y a la persona le llega el email con el enlace para crear la suya.
-
-const exigirOk = <T>(r: T) => {
-  if (r && typeof r === "object" && "error" in r) throw new ErrorUsuario(String((r as { error: unknown }).error));
-  return r;
-};
-
-// Por nombre (sin distinguir mayúsculas) o id. Con dos del mismo nombre, no elige.
-async function elegir<T extends { id: string; nombre: string }>(lista: T[], quien: string, que: string): Promise<T> {
-  const q = quien.trim().toLowerCase();
-  const hay = lista.filter((x) => x.id === quien.trim() || x.nombre.trim().toLowerCase() === q);
-  if (hay.length === 1) return hay[0];
-  if (hay.length > 1) throw new ErrorUsuario(`Hay ${hay.length} ${que} con ese nombre: ${hay.map((x) => `${x.nombre} (${x.id})`).join(", ")}. Di cuál.`);
-  throw new ErrorUsuario(`No hay ningún ${que.replace(/s$/, "")} «${quien}». Los que hay: ${lista.map((x) => x.nombre).join(", ") || "ninguno"}.`);
-}
 
 async function personasDelProyecto(proyectoId: string) {
   const { data, error } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(nombre, email, rol, activo, tambien_closer)").eq("proyecto_id", proyectoId);
@@ -63,7 +51,7 @@ export async function herramientaCrearMiembro(a: ArgsCrearMiembro) {
 
   // Contraseña al azar que no se guarda ni se devuelve: la persona crea la suya con el enlace
   const password = randomBytes(24).toString("base64url");
-  exigirOk(await crearMiembro({ nombres: [resumen.nombre], area_id: area?.id ?? null, puesto_id: puesto?.id ?? null, comision: null, acceso: { modo: "crear", email: resumen.email, password, rol, mercado, telefono: resumen.telefono }, lider: false }));
+  ok(await crearMiembro({ nombres: [resumen.nombre], area_id: area?.id ?? null, puesto_id: puesto?.id ?? null, comision: null, acceso: { modo: "crear", email: resumen.email, password, rol, mercado, telefono: resumen.telefono }, lider: false }));
   const { data: nuevo } = await db().from("perfiles").select("id").eq("email", resumen.email).single();
   const enlace = await enviarEnlaceMagico(nuevo!.id);
   return { creado: resumen, id: nuevo!.id, email: esError(enlace) ? `Creado, pero NO se pudo mandar el email: ${enlace.error}. Mándalo desde su ficha («Enviar enlace mágico»).` : `Email con el enlace enviado a ${resumen.email}.` };
@@ -109,8 +97,8 @@ async function prepararSalida(a: ArgsBaja, borrar: boolean) {
 
 async function moverLeads(s: Awaited<ReturnType<typeof prepararSalida>>) {
   const a = s.destino?.id ?? null;
-  if (s.callerIds.length) exigirOk(await asignarLeads(s.callerIds, a, undefined));
-  if (s.closerIds.length) exigirOk(await asignarLeads(s.closerIds, undefined, a));
+  if (s.callerIds.length) ok(await asignarLeads(s.callerIds, a, undefined));
+  if (s.closerIds.length) ok(await asignarLeads(s.closerIds, undefined, a));
 }
 
 const textoLeads = (s: Awaited<ReturnType<typeof prepararSalida>>) => (s.total ? `${s.total} leads → ${s.destino?.nombre ?? "sin asignar"}` : "No tiene leads");
@@ -119,7 +107,7 @@ export async function herramientaDarDeBaja(a: ArgsBaja) {
   const s = await prepararSalida(a, false);
   if (!a.confirmar) return { vistaPrevia: true as const, daria_de_baja: `${s.p.nombre} (${s.p.rol}, ${s.p.email})`, leads: textoLeads(s), efecto: "No podrá entrar, sale del equipo y pasa a «Ver inactivos». Se conserva su historial. Se puede deshacer.", paraHacerlo: "No se ha cambiado nada. Si está bien, vuelve a llamar igual con confirmar: true." };
   await moverLeads(s);
-  exigirOk(await actualizarMiembro(s.p.id, { activo: false }));
+  ok(await actualizarMiembro(s.p.id, { activo: false }));
   const { proyecto } = await getSesion();
   await escribir(db().from("miembros_equipo").update({ activo: false }).eq("proyecto_id", proyecto.id).eq("perfil_id", s.p.id), "miembros_equipo");
   return { dadoDeBaja: s.p.nombre, leads: textoLeads(s) };
