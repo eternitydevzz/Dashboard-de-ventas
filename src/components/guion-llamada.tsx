@@ -158,13 +158,20 @@ export function GuionLlamada({
       claseVentana="flex h-dvh w-full flex-col [--panel:#ffffff]! dark:[--panel:#121c3a]! overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-[920px] sm:rounded-[20px]"
       cabecera={
         // Cristian, 10 nov: cualquier botón de arriba (wsp, Recursos, grabar, copiar) también guarda la ficha al pulsarlo
-        <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-4 py-3 sm:px-5" onClickCapture={() => void ficha.guardar()}>
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:gap-y-2 border-b border-borde px-4 py-2 sm:px-5 sm:py-3" onClickCapture={() => void ficha.guardar()}>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[17px] font-semibold">Guion · {nombreLead}</h2>
             <div className="mt-0.5 flex items-center gap-2">
               <b className="whitespace-nowrap text-lg tabular-nums">{telefono ?? "Sin teléfono"}</b>
               {telefono && (
-                <button type="button" className="inline-flex items-center gap-1.5 rounded-lg border border-borde bg-panel-2 px-2 py-1 text-xs font-semibold text-texto-2 hover:text-texto" onClick={() => void navigator.clipboard?.writeText(telefono).then(() => toast("Número copiado"))} aria-label="Copiar número">
+                <button type="button" className="inline-flex items-center gap-1.5 rounded-lg border border-borde bg-panel-2 px-2 py-1 text-xs font-semibold text-texto-2 hover:text-texto" onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(telefono);
+                    toast("Número copiado");
+                  } catch {
+                    toast(`No se pudo copiar el número. Cópialo a mano: ${telefono}`, "error");
+                  }
+                }} aria-label="Copiar número">
                   <Copy className="h-3.5 w-3.5" /><span className="hidden sm:inline">Copiar número</span>
                 </button>
               )}
@@ -243,10 +250,11 @@ export function GuionLlamada({
         </div>
       </div>
 
-      <footer className="border-t border-borde px-3 pb-3 pt-2.5 sm:px-5">
+      <footer className="border-t border-borde px-2 pb-2 pt-1.5 sm:px-5 sm:pb-3 sm:pt-2.5">
         {aviso && <p className="mb-2 rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal" role="alert">{aviso}</p>}
-        <p className="titulo-seccion mb-2">¿Cómo ha ido?</p>
-        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+        <p className="titulo-seccion mb-1 sm:mb-2">¿Cómo ha ido?</p>
+        {/* 17 nov (Cristian): en el móvil, una sola fila fina con scroll para que el guion gane alto */}
+        <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain sm:grid sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:overflow-visible">
           {resultados.map((r) => {
             // Sin remarcar la columna actual (Cristian, 10 nov: «quita el remarcado»)
             return (
@@ -254,7 +262,7 @@ export function GuionLlamada({
                 key={r.clave}
                 type="button"
                 aria-current={actual === r.clave ? "true" : undefined}
-                className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border border-borde bg-panel px-1 py-1.5 text-center text-[11px] font-semibold leading-tight hover:border-borde-fuerte sm:min-h-9 sm:flex-row sm:justify-start sm:gap-2 sm:px-2.5 sm:text-left sm:text-xs"
+                className="flex min-h-9 shrink-0 items-center justify-start gap-1.5 whitespace-nowrap rounded-xl border border-borde bg-panel px-2.5 py-1 text-left text-xs font-semibold leading-tight hover:border-borde-fuerte sm:gap-2 sm:whitespace-normal sm:py-1.5"
                 onClick={() => void conFichaGuardada(() => { pulsado.current = r.clave; onResultado(r.clave); })}
               >
                 {r.icono} {r.texto}
@@ -264,7 +272,7 @@ export function GuionLlamada({
           {onVenta && (
             <button
               type="button"
-              className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border border-[#15924a] bg-[#15924a] px-2 text-[11px] font-semibold text-white hover:brightness-110 sm:min-h-9 sm:flex-row sm:text-xs"
+              className="flex min-h-9 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-[#15924a] bg-[#15924a] px-2.5 text-xs font-semibold text-white hover:brightness-110 sm:whitespace-normal sm:px-2"
               onClick={() => void conFichaGuardada(() => { pulsado.current = "vendido"; onVenta(); })}
             >
               <ShoppingCart className="h-4 w-4" /> Venta
@@ -273,7 +281,7 @@ export function GuionLlamada({
           {onSiguiente && (
             <button
               type="button"
-              className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-primario-boton px-2 text-[11px] font-semibold text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)] hover:bg-primario-2 sm:min-h-9 sm:flex-row sm:text-xs"
+              className="flex min-h-9 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl bg-primario-boton px-2.5 text-xs font-semibold text-white shadow-[0_6px_20px_-8px_rgb(43_89_209/0.6)] hover:bg-primario-2 sm:whitespace-normal sm:px-2"
               title="Guarda los datos de este lead y abre el siguiente de la lista"
               onClick={() => {
                 if (!pulsado.current) return setAviso("Antes de pasar al siguiente, marca cómo ha ido con este lead.");

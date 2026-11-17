@@ -1,11 +1,15 @@
 // Plan GHL, fase 3 (16 oct): la dirección que llama el programador de Supabase cada 30 s.
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { crearEscenario, borrarEscenario, db, type Escenario } from "../apoyo/escenario";
 import { POST } from "@/app/api/ghl/leer/[proyectoId]/route";
+import { reiniciarLimites } from "@/lib/limite";
 
 let e: Escenario;
 let secreto: string;
+// Límites a cero en cada prueba: muchas pasadas seguidas en local no deben dar 429
+beforeEach(() => reiniciarLimites());
+
 beforeAll(async () => {
   e = await crearEscenario();
   secreto = (await db.from("proyectos").select("webhook_secreto").eq("id", e.proyecto.id).single()).data!.webhook_secreto;

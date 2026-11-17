@@ -1,16 +1,20 @@
 // Plan GHL F2: email diario del CEO. En lugar de Resend, un servidor local guarda lo que recibe (nunca sale un email real).
 import { createServer, type Server } from "node:http";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { borrarEscenario, crearEscenario, db, type Escenario } from "../apoyo/escenario";
 import { enviarDiario } from "@/lib/avisos-diario";
 import { POST } from "@/app/api/avisos/diario/[proyectoId]/route";
+import { reiniciarLimites } from "@/lib/limite";
 
 let e: Escenario;
 let servidor: Server;
 let secreto: string;
 const recibidos: Record<string, unknown>[] = [];
 const antes = { url: process.env.RESEND_API_URL, clave: process.env.RESEND_API_KEY };
+
+// Límites a cero en cada prueba: muchas pasadas seguidas en local no deben dar 429
+beforeEach(() => reiniciarLimites());
 
 beforeAll(async () => {
   e = await crearEscenario();

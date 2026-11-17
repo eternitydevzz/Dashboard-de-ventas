@@ -44,6 +44,18 @@ describe("guardarWorkflow", () => {
     respuesta["workflows:update"] = { data: [], error: null };
     expect(await guardarWorkflow("w1", pasos)).toEqual({ error: expect.stringMatching(/Otra persona/) });
   });
+  it("usa la versión que cargó el editor, no la que lee en la misma petición (17 nov)", async () => {
+    respuesta["workflows:select"] = { data: { id: "w1", pasos: [], version: 4, modo: "prueba" }, error: null }; // otro admin ya guardó la 4
+    respuesta["workflows:update"] = { data: [], error: null };
+    expect(await guardarWorkflow("w1", pasos, 3)).toEqual({ error: expect.stringMatching(/Otra persona/) });
+    expect(updates("workflows")[0].ops).toContainEqual(["eq", ["version", 3]]);
+  });
+  it("con la versión cargada al día, guarda la siguiente", async () => {
+    respuesta["workflows:select"] = { data: { id: "w1", pasos: [], version: 3, modo: "prueba" }, error: null };
+    respuesta["workflows:update"] = { data: [{ id: "w1" }], error: null };
+    expect(await guardarWorkflow("w1", pasos, 3)).toEqual({ ok: true, version: 4 });
+    expect(updates("workflows")[0].ops).toContainEqual(["eq", ["version", 3]]);
+  });
 });
 
 describe("guardarCalendarioCloser", () => {

@@ -13,7 +13,7 @@ import { pctDeTramo, porcentajeComision, redondear, TRAMOS_DEFECTO, type Comisio
 type R = { desde: Date | null; hasta: Date | null };
 export type VentaF = { id: string; lead_id: string; producto_id: string | null; vendedor_id: string | null; facturacion: number; cash_collected: number; fecha: string; metodo: string; tipo_pago: string; devuelto: number | null; devuelto_en: string | null };
 export type PagoF = { id: string; venta_id: string; importe: number; fecha: string; metodo: string };
-export type MovF = { id: string; tipo: "ingreso" | "egreso" | "transferencia"; importe: number; fecha: string; categoria_id: string | null; cuenta_id: string | null; cuenta_destino_id: string | null; conciliado: boolean };
+export type MovF = { id: string; tipo: "ingreso" | "egreso" | "transferencia"; importe: number; fecha: string; categoria_id: string | null; cuenta_id: string | null; cuenta_destino_id: string | null; conciliado: boolean; moneda?: "USD" | "EUR" | null };
 export type CatF = { id: string; tipo: "ingreso" | "egreso"; nombre: string; en_profit: boolean };
 export type CuentaF = { id: string; nombre: string; metodos: string[]; por_defecto: boolean };
 export type Cobro = { fecha: string; importe: number; venta_id: string; metodo: string; clase: "venta_nueva" | "cuota" | "backend" };
@@ -36,9 +36,10 @@ export function pendienteDe(v: VentaF, pagos: PagoF[]) {
 // A2-03 (Cristian, 16 nov): en Finanzas se elige € o $ y se FILTRA, sin convertir. Cada venta va en la moneda de su
 // vendedor (como en Ventas) y arrastra sus cobros y plazos. Lo puesto a mano (movimientos, gastos programados, deudores
 // sin venta) no tiene moneda propia: se da por hecho que va en la del proyecto y solo sale al ver esa.
+// Cristian (17 nov): un movimiento con `moneda` (p. ej. la comisión pagada) sale solo en la vista de esa moneda.
 type Moneda = "USD" | "EUR";
 export const monedaDeLaVista = (param: unknown, delProyecto: Moneda): Moneda => (param === "eur" ? "EUR" : param === "usd" ? "USD" : delProyecto);
-export function filtrarPorMoneda<D extends { ventas: { id: string; vendedor_id: string | null }[]; pagos: { venta_id: string }[]; vencimientos: { venta_id: string | null }[]; movimientos: unknown[]; programados?: unknown[] }>(d: D, moneda: Moneda, monedaDe: (vendedor: string | null) => Moneda, delProyecto: Moneda): D {
+export function filtrarPorMoneda<D extends { ventas: { id: string; vendedor_id: string | null }[]; pagos: { venta_id: string }[]; vencimientos: { venta_id: string | null }[]; movimientos: { id: string; moneda?: Moneda | null }[]; programados?: unknown[] }>(d: D, moneda: Moneda, monedaDe: (vendedor: string | null) => Moneda, delProyecto: Moneda): D {
   const ventas = d.ventas.filter((v) => monedaDe(v.vendedor_id) === moneda);
   const quedan = new Set(ventas.map((v) => v.id));
   const manual = moneda === delProyecto;
@@ -47,7 +48,7 @@ export function filtrarPorMoneda<D extends { ventas: { id: string; vendedor_id: 
     ventas,
     pagos: d.pagos.filter((p) => quedan.has(p.venta_id)),
     vencimientos: d.vencimientos.filter((v) => (v.venta_id ? quedan.has(v.venta_id) : manual)),
-    movimientos: manual ? d.movimientos : [],
+    movimientos: d.movimientos.filter((m) => (m.moneda ?? delProyecto) === moneda),
     ...(d.programados ? { programados: manual ? d.programados : [] } : {}),
   };
 }

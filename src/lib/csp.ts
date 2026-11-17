@@ -2,12 +2,10 @@
 // Arreglo 36: los scripts solo se ejecutan si llevan el nonce de esa petición (ya no 'unsafe-inline');
 // Next pone el nonce solo en sus scripts porque todas las páginas se generan en cada petición.
 // Los estilos mantienen 'unsafe-inline': el nonce no cubre los atributos style="…" que usa la app.
-// El navegador solo habla con Supabase para subir archivos (PDF y CSV) con un enlace firmado y, desde el
-// 17 oct 2026, para los avisos en vivo (WebSocket, sin datos).
+// El navegador solo habla con Supabase para subir archivos (PDF y CSV) con un enlace firmado.
+// 17 nov 2026: sin wss:// — avisos-en-vivo.tsx se borró y nada en src/ usa el tiempo real de Supabase.
 export function politicaCsp(nonce: string, desarrollo = process.env.NODE_ENV === "development") {
   const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : "";
-  // Velocidad (17 oct 2026): permite el tiempo real de Supabase por WebSocket (wss://); avisos-en-vivo.tsx se borró el 17 nov y no se ha comprobado si algo más lo usa
-  const supabaseWs = supabase.replace(/^http/, "ws");
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${desarrollo ? " 'unsafe-eval'" : ""}`,
@@ -17,7 +15,7 @@ export function politicaCsp(nonce: string, desarrollo = process.env.NODE_ENV ===
     // C10: escuchar una grabación (enlace firmado de Supabase) y la que se acaba de grabar (blob:)
     `media-src 'self' blob:${supabase ? ` ${supabase}` : ""}`,
     "font-src 'self'",
-    `connect-src 'self'${supabase ? ` ${supabase} ${supabaseWs}` : ""}`,
+    `connect-src 'self'${supabase ? ` ${supabase}` : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

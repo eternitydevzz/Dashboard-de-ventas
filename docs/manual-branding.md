@@ -86,8 +86,8 @@ En todas sus apariciones, el logo de Eternity lleva esquinas redondeadas (nunca 
 ### 4.3 Fondo con luz de marca
 
 Cuatro manchas radiales en claro (azul arriba a la izquierda, granate arriba a la derecha, azul abajo, oro tenue en
-el centro) y tres en oscuro (sin la de oro), con `background-attachment: fixed`. La clase `.fondo-app` pone el mismo
-fondo a una capa (se usa en la pantalla de bienvenida). Código exacto en el apartado 8.
+el centro) y tres en oscuro (sin la de oro), con `background-attachment: fixed`. La pantalla de bienvenida usa su propio fondo (`.capa-bienvenida`, un
+degradado azul suave). Código exacto en el apartado 8.
 
 ## 5. Letra
 
@@ -117,9 +117,9 @@ fondo a una capa (se usa en la pantalla de bienvenida). Código exacto en el apa
 | Fondo detrás de ventanas | `bg-black/35 backdrop-blur-md` |
 | Barra lateral | 256 px (`w-64`); en móvil se esconde y sale con un botón de vidrio arriba a la izquierda |
 
-Animaciones (en `globals.css`): `.entrada-logo` (latido del logo, 1,6 s en bucle, con un halo azul),
-`.entrada-texto` (aparece subiendo 8 px en 0,6 s), `.barra-carga` (barra fina azul arriba que avanza en 1,1 s) y
-`.celebracion-pieza` (confeti que cae en 2,6 s).
+Animaciones (en `globals.css`): `.capa-bienvenida` (el logo, el título y el texto aparecen subiendo 8 px con
+`@keyframes entra`; `.capa-pista` es su barra fina que se llena en 2 s; al salir, fundido de 0,3 s),
+`.barra-carga` (barra fina azul arriba que avanza en 1,1 s) y `.celebracion-pieza` (confeti que cae en 2,6 s).
 
 ## 7. Piezas (clases) y cuándo usarlas
 
@@ -137,7 +137,6 @@ Animaciones (en `globals.css`): `.entrada-logo` (latido del logo, 1,6 s en bucle
 | `tabla` | Tabla con cabecera en mayúsculas `text-texto-3` y filas separadas por `border-borde` |
 | `interruptor` | `<input type="checkbox" class="interruptor">`: sí/no estilo iOS, verde encendido |
 | `pastilla` / `grupo-pastillas` | Radios que se ven como pastillas; la elegida en verde |
-| `fondo-app` | El fondo de marca en una capa |
 
 Patrón de tonos (de `ui.tsx`): cada tono es la pareja `bg-<tono>-suave text-<tono>` (primario, oro, ok, mal, aviso;
 el morado usa `bg-primario-suave text-morado`). El neutro es `bg-panel-2 text-texto-2 ring-1 ring-borde`.
@@ -364,20 +363,21 @@ export function Avatar({ nombre, tamano = "h-8 w-8 text-[11px]" }: { nombre: str
 
 ### 8.8 Pantalla de ejemplo: bienvenida (de `src/components/bienvenida.tsx`, solo lo visual)
 
+Las clases `.capa-bienvenida` y `.capa-pista` están en `globals.css` (apartado 8.1).
+
 ```tsx
 return (
-  <div id="entrada" className="fondo-app fixed inset-0 z-[100] flex items-center justify-center p-4" role="status" aria-live="polite">
-    <div className="tarjeta w-full max-w-sm p-8 text-center">
-      <div className="entrada-logo mx-auto mb-6 w-fit rounded-2xl">
-        <Image src="/marca/eternity.png" alt="Eternity" width={72} height={72} className="rounded-2xl" priority />
-      </div>
-      <h1 className="entrada-texto text-2xl font-semibold tracking-tight">Hola, {nombre}</h1>
-      <p key={avance < 50 ? 0 : 1} className="entrada-texto mt-2 text-sm text-texto-2">{avance < 50 ? "Comprobando tu acceso…" : "Cargando tu panel…"}</p>
-      <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-panel-2">
-        <div className="h-full rounded-full bg-primario transition-[width] duration-300 ease-out" style={{ width: `${Math.max(avance, 8)}%` }} />
-      </div>
+  <div className={`capa-bienvenida${fase === "saliendo" ? " saliendo" : ""}`} role="status" aria-live="polite">
+    <div className="logo flex h-14 w-14 items-center justify-center rounded-2xl bg-primario shadow-[0_8px_30px_rgb(43_89_209/0.35)]">
+      <img src={M_MAESTRIA} alt="Maestria" width={34} height={25} />
     </div>
+    <h1 className="px-6 text-center text-[clamp(26px,4.2vw,40px)] font-bold tracking-[-0.03em]">
+      Bienvenido <b className="text-primario">{nombre}</b>
+    </h1>
+    <div className="capa-pista"><i /></div>
+    {lista && <p className="text-sm text-texto-3">Preparando {lista}…</p>}
   </div>
+);
 ```
 
 ### 8.9 Aviso flotante (de `src/components/toasts.tsx`)

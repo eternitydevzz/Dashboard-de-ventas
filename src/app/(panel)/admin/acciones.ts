@@ -553,16 +553,18 @@ export async function borrarWorkflow(workflowId: string) {
 // ---------- Workflows, 4c: guardar desde el editor y encender (Cristian, 7 nov 2026) ----------
 // Guardar: valida los pasos (pasosValidos) y, si cambian, sube la versión. Las ejecuciones en curso terminan con los
 // pasos que guardaron al empezar (columna `pasos` de workflow_ejecuciones).
-export async function guardarWorkflow(workflowId: string, pasos: unknown) {
+// versionCargada: la que tenía el editor al abrirse (17 nov); sin ella, la leída aquí (como antes)
+export async function guardarWorkflow(workflowId: string, pasos: unknown, versionCargada?: unknown) {
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     const { data: w } = await db().from("workflows").select("id, pasos, version, modo").eq("id", workflowId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!w) throw new ErrorUsuario("Workflow no encontrado.");
     const limpios = pasosValidos(pasos);
     if (mismoContenido(limpios, w.pasos)) return { ok: true as const, version: w.version as number };
-    const version = (w.version as number) + 1;
-    // Solo si nadie lo guardó entre la lectura y ahora (si no, se pisarían los pasos de otro admin)
-    const { data: hecho } = await escribir(db().from("workflows").update({ pasos: limpios, version, actualizado_en: new Date().toISOString() }).eq("id", w.id).eq("version", w.version).select("id"), "workflows");
+    const base = Number.isInteger(versionCargada) ? (versionCargada as number) : (w.version as number);
+    const version = base + 1;
+    // Solo si nadie lo guardó desde que el editor lo cargó (si no, se pisarían los pasos de otro admin)
+    const { data: hecho } = await escribir(db().from("workflows").update({ pasos: limpios, version, actualizado_en: new Date().toISOString() }).eq("id", w.id).eq("version", base).select("id"), "workflows");
     if (!hecho?.length) throw new ErrorUsuario("Otra persona acaba de guardar este workflow. Recarga la página para ver sus cambios.");
     refrescar();
     return { ok: true as const, version };

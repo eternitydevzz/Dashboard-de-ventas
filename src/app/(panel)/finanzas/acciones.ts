@@ -11,6 +11,8 @@ import { liquidacionesMes, type CitaL, type PersonaL } from "@/lib/finanzas";
 import { cargarEquipo } from "@/lib/equipo";
 import { modoComision, tramosDe, type ComisionProducto } from "@/lib/comisiones";
 import { leerNumero } from "@/lib/numero";
+import { mercadosDelProyecto } from "@/lib/mercado-datos";
+import { contenidoMercado } from "@/lib/mercado";
 
 const refrescar = () => revalidatePath("/", "layout");
 const METODOS = ["stripe", "transferencia", "otro"];
@@ -312,7 +314,9 @@ export async function pagarLiquidacion(id: string, cuentaId: string | null) {
     let movimiento: string | null = null;
     if (Number(l.comision_cobrado) > 0) {
       const { data: cat } = await db().from("categorias_finanzas").select("id").eq("proyecto_id", proyecto.id).eq("tipo", "egreso").eq("nombre", "Comisiones").maybeSingle();
-      const { data: m } = await escribir(db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "egreso", importe: l.comision_cobrado, categoria_id: cat?.id ?? null, cuenta_id: cuentaId, descripcion: `Comisiones ${l.mes} · ${(l.perfiles as { nombre: string } | null)?.nombre ?? ""}`, origen: "liquidacion", creado_por: perfil.id }).select("id").single(), "movimientos");
+      // Cristian (17 nov): el gasto va en la moneda de la persona, con la misma regla que Finanzas usa para sus ventas
+      const moneda = contenidoMercado((await mercadosDelProyecto(proyecto.id, true))[l.perfil_id] ?? null).moneda(proyecto);
+      const { data: m } = await escribir(db().from("movimientos").insert({ proyecto_id: proyecto.id, tipo: "egreso", importe: l.comision_cobrado, moneda, categoria_id: cat?.id ?? null, cuenta_id: cuentaId, descripcion: `Comisiones ${l.mes} · ${(l.perfiles as { nombre: string } | null)?.nombre ?? ""}`, origen: "liquidacion", creado_por: perfil.id }).select("id").single(), "movimientos");
       movimiento = m?.id ?? null;
     }
     // C9: solo si sigue pendiente (otra persona pudo pagarla a la vez)
