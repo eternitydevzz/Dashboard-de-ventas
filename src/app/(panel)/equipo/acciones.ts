@@ -144,14 +144,20 @@ export async function crearMiembro(a: AltaMiembro) {
 export async function actualizarMiembroEquipo(id: string, c: { nombre: string; area_id: string | null; puesto_id: string | null; lider: boolean; activo: boolean; comision: ComisionPersona }) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigirSeccion("equipo");
-    const { data: m } = await db().from("miembros_equipo").select("perfil_id, comision").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
+    const { data: m } = await db().from("miembros_equipo").select("perfil_id, comision, nombre").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!m) throw new ErrorUsuario("Ese dato no es de este proyecto.");
     await deEsteProyecto("areas", c.area_id, proyecto.id);
     await deEsteProyecto("puestos", c.puesto_id, proyecto.id);
-    if (!c.nombre.trim()) throw new ErrorUsuario("Pon el nombre.");
+    const nombre = c.nombre.trim();
+    if (!nombre) throw new ErrorUsuario("Pon el nombre.");
     const comision = await comisionValida(proyecto.id, c.comision);
     if (!mismaComision(comision, m.comision as ComisionPersona)) exigirCambiarComisionPersona(perfil, m.perfil_id);
-    await escribir(db().from("miembros_equipo").update({ nombre: c.nombre.trim(), area_id: c.area_id, puesto_id: c.puesto_id, lider: c.lider, activo: c.activo, comision }).eq("id", id), "miembros_equipo");
+    await escribir(db().from("miembros_equipo").update({ nombre, area_id: c.area_id, puesto_id: c.puesto_id, lider: c.lider, activo: c.activo, comision }).eq("id", id), "miembros_equipo");
+    // S2-18 (Cristian, 17 nov): un solo nombre en toda la app; KPIs y Ventas leen perfiles.nombre
+    if (m.perfil_id && nombre !== m.nombre) {
+      await escribir(db().from("perfiles").update({ nombre }).eq("id", m.perfil_id), "perfiles");
+      await escribir(db().from("miembros_equipo").update({ nombre }).eq("perfil_id", m.perfil_id), "miembros_equipo");
+    }
     refrescar();
   });
 }
