@@ -5,11 +5,14 @@ import { leerConfigsReporte, ZONA_REPORTE } from "@/lib/reporte-config";
 import { datosReporte } from "@/lib/reporte-diario-datos";
 import { fechaReporte, textoReporte } from "@/lib/reporte-diario";
 import type { MercadoReporte, Proyecto } from "@/lib/tipos";
+import { chatIdDe, enviarWhatsapp, whatsappConfigurado } from "@/lib/whatsapp";
 
 // Fase C: el envío del reporte diario por email (mismo patrón que el email de las 8:00, avisos-diario.ts).
 // El cron llama cada 15 min todo el día (migración 20261125100000_reporte_diario.sql). Se manda si el reporte está
 // encendido y en su zona (Madrid para «es», Nueva York para «latam») ya es su hora o más tarde; la fila de
-// reporte_envios (proyecto, mercado, fecha de su zona) evita el segundo envío del día. WhatsApp: Fase D, aún no.
+// reporte_envios (proyecto, mercado, fecha de su zona) evita el segundo envío del día.
+// Fase D: si el email salió y WhatsApp está configurado, el mismo texto va a los números de la config.
+// WhatsApp nunca cambia el resultado (que es el del email) ni suelta la reserva.
 
 type ResultadoReporte = { estado: "apagado" | "fuera_de_hora" | "ya_enviado" | "enviado" } | { estado: "fallo"; motivo: string };
 
@@ -24,6 +27,32 @@ async function leerProyecto(proyectoId: string): Promise<Proyecto> {
   if (error) throw new Error(`reporte diario (leer proyecto): ${error.message}`);
   if (!data) throw new Error("reporte diario: el proyecto no existe");
   return data;
+}
+
+type FilaWhatsapp = { destino: string; estado: "enviado" | "fallo"; error: string | null };
+
+// Cada destino queda apuntado en whatsapp_envios (único por evento, origen y destino). Nunca lanza.
+async function reporteAlWhatsapp(proyectoId: string, origenId: string, numeros: string[], texto: string) {
+  if (!whatsappConfigurado() || !numeros.length) return;
+  try {
+    const chatIds = [...new Set(numeros.map(chatIdDe).filter((c): c is string => c !== null))];
+    const invalidos: FilaWhatsapp[] = [...new Set(numeros.filter((n) => chatIdDe(n) === null))].map((destino) => ({
+      destino,
+      estado: "fallo",
+      error: "Número no válido",
+    }));
+    const r = chatIds.length ? await enviarWhatsapp(chatIds, texto) : { enviados: [], fallos: [] };
+    const validos: FilaWhatsapp[] = chatIds.map((destino) =>
+      r.enviados.includes(destino)
+        ? { destino, estado: "enviado", error: null }
+        : { destino, estado: "fallo", error: r.fallos.find((f) => f.destino === destino)?.motivo ?? "Sin respuesta de WhatsApp" },
+    );
+    const filas = [...validos, ...invalidos].map((f) => ({ proyecto_id: proyectoId, evento: "reporte", origen_id: origenId, ...f }));
+    const { error } = await db().from("whatsapp_envios").upsert(filas, { onConflict: "evento,origen_id,destino", ignoreDuplicates: true });
+    if (error) console.error("[reporte-whatsapp]", proyectoId, origenId, `apuntar envíos: ${error.message}`);
+  } catch (e) {
+    console.error("[reporte-whatsapp]", proyectoId, origenId, mensaje(e));
+  }
 }
 
 export async function enviarReporte(proyectoId: string, mercado: MercadoReporte, ahora = new Date()): Promise<ResultadoReporte> {
@@ -47,14 +76,20 @@ export async function enviarReporte(proyectoId: string, mercado: MercadoReporte,
   if (!data?.length) return { estado: "ya_enviado" };
 
   let motivo = "";
+  let textoEnviado: string | null = null;
   try {
     const proyecto = await leerProyecto(proyectoId);
     const { asunto, texto, html } = textoReporte(await datosReporte(proyecto, mercado, ahora), config.partes);
     const r = await enviarEmail({ para: config.emails, asunto, texto, html });
-    if (r.enviado) return { estado: "enviado" };
-    motivo = r.motivo;
+    if (r.enviado) textoEnviado = texto;
+    else motivo = r.motivo;
   } catch (e) {
     motivo = mensaje(e);
+  }
+  // Fuera del try: lo que pase con WhatsApp no puede soltar la reserva del email que ya salió
+  if (textoEnviado !== null) {
+    await reporteAlWhatsapp(proyectoId, `${mercado}:${fecha}`, config.whatsapps, textoEnviado);
+    return { estado: "enviado" };
   }
   // Si falla, se suelta la fecha: la siguiente llamada del cron (a los 15 min) puede reintentar
   const { error: errorSoltar } = await tabla().delete().eq("proyecto_id", proyectoId).eq("mercado", mercado).eq("fecha", fecha);
