@@ -15,7 +15,7 @@ afterAll(async () => {
   if (e) await borrarEscenario(e);
 });
 
-// Un navegador con la sesión de esta persona (como avisos-en-vivo.tsx)
+// Un navegador con la sesión de esta persona (como lo hacía avisos-en-vivo.tsx, borrado el 17 nov)
 async function navegadorDe(email: string) {
   const c = createClient(URL_DB, PUBLICA, { auth: { persistSession: false } });
   const { error } = await c.auth.signInWithPassword({ email, password: PASSWORD });

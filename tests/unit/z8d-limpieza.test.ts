@@ -33,6 +33,7 @@ describe("campana de avisos", () => {
 describe("ventana (Modal)", () => {
   it("el fondo cierra solo si el clic empezó y acabó en él", () => {
     expect(clicCierra(true, true, 1)).toBe(true);
+    expect(clicCierra(true, true, 2)).toBe(false); // el 2.º clic de un doble clic no cierra (S4-11)
     expect(clicCierra(false, true, 1)).toBe(false); // arrastrar desde dentro hacia fuera
     expect(clicCierra(true, false, 1)).toBe(false);
   });

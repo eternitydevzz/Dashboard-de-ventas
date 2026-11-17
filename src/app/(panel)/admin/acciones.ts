@@ -7,7 +7,7 @@ import { olvidarTodo } from "@/lib/memoria";
 import { exigir, exigirCambiarComisionRol, puedeAdmin, puedeCrearProyectos } from "@/lib/auth";
 import { tramosDe, tramosValidos } from "@/lib/comisiones";
 import { preguntasValidas } from "@/lib/reportes";
-import { db, equipo, escribir } from "@/lib/datos";
+import { db, equipo, escribir, porTrozos, trozos } from "@/lib/datos";
 import { cifrar, descifrar } from "@/lib/cifrado";
 import { reglasValidas } from "@/lib/entrada";
 import { datosLandingValidos, type DatosLanding } from "@/lib/entradas-panel";
@@ -641,11 +641,12 @@ export async function devolverAHoy(workflowId: string) {
     const { data: pend } = await db().from("workflow_ejecuciones").select("lead_id").eq("workflow_id", w.id).eq("estado", "esperando");
     const leads = [...new Set((pend ?? []).map((x) => x.lead_id as string))];
     if (leads.length) {
-      // Una lectura para todos (del más nuevo al más viejo) y el último envío de cada lead
-      const { data: evs } = await db().from("webhook_eventos").select("id, lead_id").eq("entrada_id", w.entrada_id).in("lead_id", leads).eq("procesado", true).order("recibido_en", { ascending: false });
+      // Por trozos y por páginas (del más nuevo al más viejo; un lead cae en un solo trozo): el último envío de cada lead.
+      // porTrozos lanza si la lectura falla (antes, una lectura fallida dejaba los leads sin reenviar sin avisar)
+      const evs = await porTrozos<{ id: string; lead_id: string }>(leads, (t, d, h) => db().from("webhook_eventos").select("id, lead_id").eq("entrada_id", w.entrada_id!).in("lead_id", t).eq("procesado", true).order("recibido_en", { ascending: false }).order("id").range(d, h));
       const ultimo = new Map<string, string>();
-      for (const e of evs ?? []) if (!ultimo.has(e.lead_id as string)) ultimo.set(e.lead_id as string, e.id as string);
-      if (ultimo.size) await escribir(db().from("webhook_eventos").update({ ghl_estado: "esperando", ghl_intentos: 0, ghl_error: null, ghl_enviar_en: ahora }).in("id", [...ultimo.values()]), "webhook_eventos");
+      for (const e of evs) if (!ultimo.has(e.lead_id)) ultimo.set(e.lead_id, e.id);
+      for (const t of trozos([...ultimo.values()])) await escribir(db().from("webhook_eventos").update({ ghl_estado: "esperando", ghl_intentos: 0, ghl_error: null, ghl_enviar_en: ahora }).in("id", t), "webhook_eventos");
     }
     refrescar();
     return { ok: true as const };

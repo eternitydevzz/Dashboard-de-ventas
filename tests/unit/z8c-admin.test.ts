@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/admin", () => ({
       consultas.push(c);
       const tipo = () => (c.ops.some(([o]) => o === "update") ? "update" : "select");
       const q: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "neq", "in", "or", "order", "limit", "update", "maybeSingle", "single"]) q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
+      for (const m of ["select", "eq", "neq", "in", "or", "order", "range", "limit", "update", "maybeSingle", "single"]) q[m] = (...a: unknown[]) => (c.ops.push([m, a]), q);
       q.then = (r: (v: Resp) => unknown) => Promise.resolve(respuesta[`${tabla}:${tipo()}`] ?? { data: null, error: null }).then(r);
       return q;
     },
@@ -75,6 +75,14 @@ describe("devolverAHoy con Entrada", () => {
     const u = updates("webhook_eventos");
     expect(u).toHaveLength(1);
     expect(u[0].ops).toContainEqual(["in", ["id", ["e3", "e2"]]]);
+  });
+  it("si la lectura de envíos falla, da error y no marca nada (antes callaba y no reenviaba)", async () => {
+    respuesta["workflows:select"] = { data: { id: "w1", entrada_id: "en1", modo: "real", encendido: true }, error: null };
+    respuesta["entradas:select"] = { data: { nombre: "Web", envia_desde: "web", ghl_activo: false }, error: null };
+    respuesta["workflow_ejecuciones:select"] = { data: [{ lead_id: "a" }], error: null };
+    respuesta["webhook_eventos:select"] = { data: null, error: { message: "URI too long" } };
+    expect(await devolverAHoy("w1")).toEqual({ error: expect.any(String) });
+    expect(updates("webhook_eventos")).toHaveLength(0);
   });
   it("sin nada esperando no lee ni escribe envíos", async () => {
     respuesta["workflows:select"] = { data: { id: "w1", entrada_id: "en1", modo: "real", encendido: true }, error: null };
