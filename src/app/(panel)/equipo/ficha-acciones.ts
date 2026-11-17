@@ -9,7 +9,7 @@ import { cargarDatosPermisos } from "@/lib/permisos-datos";
 import { calcularNivel, filasPermisoPipeline, nivelDefecto, type Nivel } from "@/lib/pipelines";
 import { horarioValido } from "@/lib/horarios";
 import { ajustesValidos } from "@/lib/disponibilidad";
-import type { Perfil, TipoPipeline } from "@/lib/tipos";
+import { esCloser, type Perfil, type TipoPipeline } from "@/lib/tipos";
 
 // Ficha completa de cada persona (bloque 5 de 1.0, Cristian 11 oct 2026). Lo que va más allá de «datos y comisión»
 // (acceso, permisos, horario, integraciones) es solo para el CEO y los directores con Administración.
@@ -52,7 +52,9 @@ export async function cargarFicha(perfilId: string) {
       permisos,
       pipelines: (pipes ?? []).map((p) => {
         const propio = filas.find((f) => f.pipeline_id === p.id && f.perfil_id === perfilId)?.nivel ?? null;
-        const delRol = filas.find((f) => f.pipeline_id === p.id && f.rol === persona.rol)?.nivel ?? nivelDefecto(p.tipo as TipoPipeline, persona.rol);
+        // A2c: la misma regla que calcularNivel: en «Closers», a quien es closer (también con «También closer») la fila del rol «closer»
+        const rol = p.tipo === "closers" && esCloser(persona) ? "closer" : persona.rol;
+        const delRol = filas.find((f) => f.pipeline_id === p.id && f.rol === rol)?.nivel ?? nivelDefecto(p.tipo as TipoPipeline, persona.rol, !!persona.tambien_closer);
         return { id: p.id as string, nombre: p.nombre as string, propio, delRol, efectivo: calcularNivel(persona, { id: p.id, tipo: p.tipo as TipoPipeline, solo_jefes: !!p.solo_jefes }, filas) as Nivel };
       }),
     };
