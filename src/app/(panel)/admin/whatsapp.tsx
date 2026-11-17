@@ -8,11 +8,19 @@ import { guardarConfigWhatsapp, guardarGrupoWhatsapp } from "./acciones-whatsapp
 
 // Fase D (Jose, 17 nov 2026): avisos por WhatsApp al equipo. Al lead no se le escribe (lo hace GHL).
 const NOMBRE: Record<EventoWhatsapp, string> = { cita: "Cita agendada", venta: "Venta cerrada" };
-const DESTINOS: { v: "a_closer" | "a_caller" | "a_grupo"; t: string }[] = [
-  { v: "a_closer", t: "Al closer" },
-  { v: "a_caller", t: "Al caller que la agendó" },
-  { v: "a_grupo", t: "Al grupo de los CEO" },
-];
+type Destino = { v: "a_closer" | "a_caller" | "a_grupo"; t: string };
+const DESTINOS: Record<EventoWhatsapp, Destino[]> = {
+  cita: [
+    { v: "a_closer", t: "Al closer" },
+    { v: "a_caller", t: "Al caller que la agendó" },
+    { v: "a_grupo", t: "Al grupo de los CEO" },
+  ],
+  venta: [
+    { v: "a_closer", t: "Al que vendió" },
+    { v: "a_caller", t: "Al caller que agendó la cita" },
+    { v: "a_grupo", t: "Al grupo de los CEO" },
+  ],
+};
 
 function FormAviso({ inicial }: { inicial: ConfigWhatsapp }) {
   const { evento } = inicial;
@@ -30,7 +38,7 @@ function FormAviso({ inicial }: { inicial: ConfigWhatsapp }) {
         <fieldset>
           <legend className="mb-1 font-medium">A quién se manda</legend>
           <div className="flex flex-col gap-1.5">
-            {DESTINOS.map((d) => (
+            {DESTINOS[evento].map((d) => (
               <label key={d.v} className="flex items-center gap-1.5">
                 <input type="checkbox" className="accent-[var(--primario)]" checked={c[d.v]} onChange={(e) => setC({ ...c, [d.v]: e.target.checked })} />
                 {d.t}
@@ -56,7 +64,7 @@ function FormGrupo({ inicial }: { inicial: string | null }) {
     <Seccion titulo="Grupo de los CEO">
       <div className="space-y-4 text-sm">
         <div>
-          <label htmlFor="whatsapp-grupo" className="mb-1 block font-medium">Id del grupo de WhatsApp (termina en @g.us; te lo da WAHA cuando el número está en el grupo)</label>
+          <label htmlFor="whatsapp-grupo" className="mb-1 block font-medium">Código del grupo de WhatsApp de los CEO (termina en @g.us; te lo da WAHA cuando el número del equipo está en el grupo)</label>
           <input id="whatsapp-grupo" className="campo w-full" value={grupo} placeholder="120363012345678901@g.us" onChange={(e) => setGrupo(e.target.value)} />
         </div>
         {error && <p className="text-xs text-mal">{error}</p>}
@@ -73,7 +81,8 @@ export function PantallaWhatsapp({ configs, grupo }: { configs: Record<EventoWha
   return (
     <div className="space-y-5">
       <p className="text-sm text-texto-2">Los avisos por WhatsApp al equipo cuando se agenda una cita y cuando se cierra una venta. Para cada uno, si está encendido y a quién le llega.</p>
-      <p className="text-sm text-aviso-texto">Los mensajes salen del número del equipo conectado en WAHA. Si WAHA no está conectado, no se manda nada.</p>
+      <p className="text-sm text-aviso-texto">Los mensajes salen del número del equipo conectado en WAHA. Viene apagado: enciéndelo cuando esté conectado. Si el número se desconecta, no llegan y el fallo sale en la campana.</p>
+      <p className="text-xs text-texto-3">Apagado por defecto</p>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         {(["cita", "venta"] as const).map((ev) => (
           <FormAviso key={`${ev}-${JSON.stringify(configs[ev])}`} inicial={configs[ev]} />

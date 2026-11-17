@@ -3,7 +3,8 @@ import { ErrorUsuario } from "@/lib/resultado";
 import type { ConfigWhatsapp, EventoWhatsapp } from "@/lib/tipos";
 
 // Fase D (Jose, 17 nov 2026): los avisos por WhatsApp al equipo (tabla whatsapp_config, una fila por proyecto y evento).
-// «cita» = cita agendada, «venta» = venta cerrada. Sin fila = encendido y a los tres (closer, caller y grupo de los CEO).
+// «cita» = cita agendada, «venta» = venta cerrada. Sin fila = apagado (Jose lo enciende proyecto a proyecto
+// cuando WAHA está conectado) y, al encenderlo, a los tres (closer, caller y grupo de los CEO).
 export const EVENTOS_WHATSAPP: EventoWhatsapp[] = ["cita", "venta"];
 
 const GRUPO = /^[0-9-]+@g\.us$/; // el mismo CHECK que proyectos.whatsapp_grupo en la base
@@ -11,7 +12,7 @@ const CAMPOS = ["activo", "a_closer", "a_caller", "a_grupo"] as const;
 
 // Lo mismo que «sin fila» en la tabla
 export function configWhatsappPorDefecto(evento: EventoWhatsapp): ConfigWhatsapp {
-  return { evento, activo: true, a_closer: true, a_caller: true, a_grupo: true };
+  return { evento, activo: false, a_closer: true, a_caller: true, a_grupo: true };
 }
 
 const esEvento = (x: unknown): x is EventoWhatsapp => EVENTOS_WHATSAPP.includes(x as EventoWhatsapp);
