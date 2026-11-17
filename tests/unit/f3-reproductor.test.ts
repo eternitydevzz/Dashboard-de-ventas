@@ -99,3 +99,25 @@ describe("reproductor: error del audio", () => {
     expect(a.currentTime).toBe(30);
   });
 });
+
+// 17 nov (producción caída para jefes): una grabación cuya persona se borró llega con callerId null
+// (grabaciones_caller.perfil_id «on delete set null») y colorDe hacía [...null] → «a is not iterable»
+describe("grabación de una persona borrada", () => {
+  it("la lista de un jefe se pinta sin error", () => {
+    h.i = 0;
+    h.slots = [];
+    const huerfana = { ...filas[0], id: "g2", callerId: null as unknown as string, caller: "Persona borrada" };
+    expect(() => ListaGrabaciones({ filas: [filas[0], huerfana], elegida: null, jefe: true, zona: "Europe/Madrid" })).not.toThrow();
+  });
+});
+
+describe("grabaciones de personas borradas, en el selector de perfiles", () => {
+  it("salen en un perfil «Persona borrada» y no se mezclan con «Todos»", () => {
+    h.i = 0;
+    h.slots = [];
+    const huerfana = { ...filas[0], id: "g2", callerId: null as unknown as string, caller: "Persona borrada" };
+    const arbol = ListaGrabaciones({ filas: [filas[0], huerfana], elegida: null, jefe: true, zona: "Europe/Madrid" }) as ReactNode;
+    const chips = buscar(arbol, (el) => el.type === "button" && el.props["aria-pressed"] !== undefined);
+    expect(chips.map((c) => c.key).slice(0, 3)).toEqual(["todos", "c1", "persona-borrada"]); // después van los filtros (todas, sin, largas)
+  });
+});

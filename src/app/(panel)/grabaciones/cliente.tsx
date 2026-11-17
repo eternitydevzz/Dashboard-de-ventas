@@ -13,13 +13,15 @@ import { duracionTexto, urlConGrabacion } from "@/lib/grabaciones";
 import type { Proyecto } from "@/lib/tipos";
 import { borrarGrabacion, guardarTranscripcion } from "./acciones";
 
-export type GrabacionFila = { id: string; leadId: string | null; lead: string; callerId: string; caller: string; duracion: number; transcripcion: string | null; creado_en: string };
+export type GrabacionFila = { id: string; leadId: string | null; lead: string; callerId: string | null; caller: string; duracion: number; transcripcion: string | null; creado_en: string };
 
 // Maqueta «Grabaciones» (Cristian, 11 nov): perfiles arriba, lista por día y reproductor propio. El <audio> nativo
 // no sirve: las grabaciones webm de MediaRecorder no guardan su duración (el navegador lee Infinity y se queda en 0:00),
 // así que el total sale de duracion_seg de la base de datos.
 const COLORES = ["#e8590c", "#0ca678", "#7048e8", "#1971c2", "#c2255c", "#2b8a3e", "#e67700", "#5f3dc4"];
-const colorDe = (id: string) => COLORES[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORES.length];
+const BORRADA = "persona-borrada";
+// `?? ""`: la grabación de una persona borrada llega sin id (perfil_id «on delete set null»)
+const colorDe = (id: string | null) => COLORES[[...(id ?? "")].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORES.length];
 const iniciales = (n: string) => inicialesDe(n);
 const BARRAS = Array.from({ length: 64 }, (_, i) => 20 + Math.abs(Math.sin(i * 1.7) * 60 + Math.cos(i * 0.6) * 20)); // decorativas, no es la onda real
 const FILTROS = [["todas", "Todas"], ["sin", "Sin transcripción"], ["largas", "Más de 3 min"]] as const;
@@ -49,13 +51,14 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
   const perfiles = useMemo(() => {
     const m = new Map<string, { id: string; nombre: string; n: number; seg: number }>();
     for (const f of filas) {
-      const p = m.get(f.callerId) ?? { id: f.callerId, nombre: f.caller, n: 0, seg: 0 };
-      m.set(f.callerId, { ...p, n: p.n + 1, seg: p.seg + f.duracion });
+      const id = f.callerId ?? BORRADA; // las de personas borradas, juntas en un perfil propio (no en «Todos»)
+      const p = m.get(id) ?? { id, nombre: f.caller, n: 0, seg: 0 };
+      m.set(id, { ...p, n: p.n + 1, seg: p.seg + f.duracion });
     }
     return [...m.values()].sort((a, b) => b.n - a.n);
   }, [filas]);
   const busca = q.trim().toLowerCase();
-  const visibles = filas.filter((f) => (!perfil || f.callerId === perfil) && (filtro !== "sin" || !f.transcripcion) && (filtro !== "largas" || f.duracion > 180) && f.lead.toLowerCase().includes(busca));
+  const visibles = filas.filter((f) => (!perfil || (f.callerId ?? BORRADA) === perfil) && (filtro !== "sin" || !f.transcripcion) && (filtro !== "largas" || f.duracion > 180) && f.lead.toLowerCase().includes(busca));
 
   const dur = g.duracion > 0 ? g.duracion : 0;
   const elegir = (id: string) => {
