@@ -7,7 +7,8 @@ import { iniciarSesion, pedirEnlace } from "./acciones";
 export function FormularioLogin() {
   const [estado, accion, enviando] = useActionState(iniciarSesion, { error: "", email: "" });
   return (
-    <form onSubmit={sinVaciar(accion)} className="space-y-4">
+    // S4-4 (17 nov): method="post" para que, si se envía antes de que cargue React, la contraseña no vaya en la URL
+    <form method="post" onSubmit={sinVaciar(accion)} className="space-y-4">
       <div>
         <label className="etiqueta-campo" htmlFor="email">Email</label>
         <input id="email" name="email" type="email" required autoComplete="email" className="campo" />

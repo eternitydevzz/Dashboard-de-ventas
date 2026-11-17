@@ -44,10 +44,12 @@ async function completar(formData: FormData) {
   }
   const { error: errPass } = await createAdminClient().auth.admin.updateUserById(perfil.id, { password });
   if (errPass) redirect("/onboarding?error=password");
-  await createAdminClient()
+  const { error: errPerfil } = await createAdminClient()
     .from("perfiles")
     .update({ nombre, telefono: telefono || null, whatsapp: whatsapp || null, onboarding_completo: true })
     .eq("id", perfil.id);
+  // S4-5 (17 nov): sin esto, «/» volvía a mandar a /onboarding sin decir nada (bucle)
+  if (errPerfil) throw new Error(`No se pudo guardar el perfil: ${errPerfil.message}`);
   olvidarTodo(); // 25 oct 2026: borrar la memoria compartida (lib/memoria.ts)
   revalidatePath("/", "layout");
   redirect("/"); // H5: «/» elige la primera sección permitida

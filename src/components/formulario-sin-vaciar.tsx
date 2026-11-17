@@ -7,5 +7,6 @@ import { sinVaciar } from "@/components/sin-vaciar";
 // borra lo escrito tras cada envío, y quien se equivocaba en un campo tenía que escribir otra vez las contraseñas,
 // el teléfono y el WhatsApp.
 export function FormularioSinVaciar({ accion, className, children }: { accion: (fd: FormData) => void | Promise<void>; className?: string; children: ReactNode }) {
-  return <form onSubmit={sinVaciar(accion)} className={className}>{children}</form>;
+  // S4-4 (17 nov): method="post" para que, si se envía antes de que cargue React, las contraseñas no vayan en la URL
+  return <form method="post" onSubmit={sinVaciar(accion)} className={className}>{children}</form>;
 }
