@@ -46,8 +46,9 @@ describe("configWhatsappPorDefecto", () => {
   it("los 2 eventos, en orden", () => {
     expect(EVENTOS_WHATSAPP).toEqual(["cita", "venta"]);
   });
-  it("por defecto: encendido y a los tres", () => {
-    expect(configWhatsappPorDefecto("venta")).toEqual({ evento: "venta", activo: true, a_closer: true, a_caller: true, a_grupo: true });
+  it("por defecto: apagado (hasta que Jose lo encienda) y a los tres", () => {
+    expect(configWhatsappPorDefecto("venta")).toEqual({ evento: "venta", activo: false, a_closer: true, a_caller: true, a_grupo: true });
+    expect(configWhatsappPorDefecto("cita").activo).toBe(false);
   });
 });
 
@@ -83,8 +84,11 @@ describe("grupoValido", () => {
 });
 
 describe("leerConfigsWhatsapp", () => {
-  it("sin filas: las 2 por defecto", async () => {
-    expect(await leerConfigsWhatsapp("p1")).toEqual({ cita: configWhatsappPorDefecto("cita"), venta: configWhatsappPorDefecto("venta") });
+  it("sin filas: las 2 por defecto, apagadas", async () => {
+    const r = await leerConfigsWhatsapp("p1");
+    expect(r).toEqual({ cita: configWhatsappPorDefecto("cita"), venta: configWhatsappPorDefecto("venta") });
+    expect(r.cita.activo).toBe(false);
+    expect(r.venta.activo).toBe(false);
   });
   it("con una fila guardada, esa manda y la otra va por defecto", async () => {
     respuesta = { data: [{ evento: "venta", activo: false, a_closer: true, a_caller: false, a_grupo: true }], error: null };
@@ -105,7 +109,7 @@ describe("guardarConfigWhatsapp", () => {
     expect(escrituras).toHaveLength(0);
   });
   it("el CEO: guarda por proyecto y evento", async () => {
-    expect(await guardarConfigWhatsapp("venta", { ...configWhatsappPorDefecto("venta"), a_grupo: false })).toBeUndefined();
+    expect(await guardarConfigWhatsapp("venta", { ...configWhatsappPorDefecto("venta"), activo: true, a_grupo: false })).toBeUndefined();
     expect(escrituras).toHaveLength(1);
     const [fila, opciones] = escrituras[0].args as [Record<string, unknown>, Record<string, unknown>];
     expect(escrituras[0].tabla).toBe("whatsapp_config");
@@ -136,6 +140,18 @@ describe("guardarGrupoWhatsapp", () => {
       ["proyectos", "update", { whatsapp_grupo: "120363012345678901@g.us" }, [["id", "p1"]]],
       ["proyectos", "update", { whatsapp_grupo: null }, [["id", "p1"]]],
     ]);
+  });
+});
+
+describe("Pantalla «WhatsApp»: los textos", () => {
+  const pantalla = readFileSync(new URL("../../src/app/(panel)/admin/whatsapp.tsx", import.meta.url), "utf8");
+  it("venta: «Al que vendió» y «Al caller que agendó la cita»; cita: «Al closer» y «Al caller que la agendó»", () => {
+    for (const t of ["Al que vendió", "Al caller que agendó la cita", "Al closer", "Al caller que la agendó", "Al grupo de los CEO"]) expect(pantalla).toContain(t);
+  });
+  it("dice «Apagado por defecto», el aviso nuevo y la etiqueta del grupo", () => {
+    expect(pantalla).toContain("Apagado por defecto");
+    expect(pantalla).toContain("Los mensajes salen del número del equipo conectado en WAHA. Viene apagado: enciéndelo cuando esté conectado. Si el número se desconecta, no llegan y el fallo sale en la campana.");
+    expect(pantalla).toContain("Código del grupo de WhatsApp de los CEO (termina en @g.us; te lo da WAHA cuando el número del equipo está en el grupo)");
   });
 });
 
