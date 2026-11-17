@@ -127,6 +127,11 @@ Decisión de Cristian:
   - **Pregunta para Cristian:** en KPIs, las ventas de Facu (caller y closer) incluyen las que cerró otro closer sobre leads que agendó él; en Agendas solo cuentan las suyas como vendedor. ¿Cuál vale?
   - El PDF «Generar reporte» de KPIs, para Facu, cuenta solo sus citas como closer (no las que agendó con otro closer).
 - **Errores en la campana del CEO, de antes de la Fase A** (vistos el 17 nov con Playwright; `errores_app`): `/admin` · «Minified React error #441» (4 veces, 11:09-11:10 UTC) y `/grabaciones` · «TypeError: e is not iterable» (4 veces, 05:03-05:11 UTC). Sin causa buscada todavía; mirarlos después de la Fase B (decisión de Jose).
+- **Apuntado en la Fase B (17 nov, revisión):**
+  - «Formularios (N)»: la fecha de cada envío sale sin año («17 nov, 10:30», con `fechaHora`, como el resto de la ficha). Hoy todos son de 2026; desde enero de 2027 será ambiguo. Decidido no tocarlo ahora (Jose).
+  - Se enseñan como mucho 50 envíos por lead (hoy el máximo real es 9).
+  - Faltan tests del componente y de que `resumenLead` no lea envíos sin permiso (el orden en el código está bien).
+  - Un envío sin respuestas dice «0 respuestas» y debajo «no trae respuestas» (redundante).
 
 ## 8. Hecho (rellenar al terminar cada fase)
 
