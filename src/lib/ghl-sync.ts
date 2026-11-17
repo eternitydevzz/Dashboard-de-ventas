@@ -3,6 +3,8 @@ import { db } from "@/lib/datos";
 import { descifrar } from "@/lib/cifrado";
 import { CAMPOS_CITA, columnaCitasGhl, contactosPrincipales, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
+import { avisarCita } from "@/lib/avisos-whatsapp";
+import { after } from "next/server";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { GhlEsperar, cambiarUsuarioCitaGhl, contactoGhl, estadoCitaGhl, estadoDesdeGhl, eventosGhl, nombreCalendarioGhl, nuevoEstado, type ContactoGhl } from "@/lib/ghl";
 import { PIPELINE_GENERAL, canalDeOrigen, etiquetaCanal, limpiarUrl } from "@/lib/canal";
@@ -291,6 +293,8 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       if (abierta && new Date(fecha).getTime() >= ahora.getTime()) {
         await disparar(proyecto.id, leadId, { tipo: "cita", evento: "agendada", canal: origen?.canal ?? null, calendario, fecha }, r);
         if (!junta && closerFinal) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId: closerFinal, citaId: (creada as CitaApp).id, motivo: "nueva" });
+        const citaId = (creada as CitaApp).id;
+        after(() => avisarCita(citaId, junta ? "reagendada" : "agendada")); // Fase D-3: WhatsApp al equipo
       }
     }
 
