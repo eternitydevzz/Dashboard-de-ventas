@@ -8,10 +8,8 @@ import { esCloser, type Perfil } from "@/lib/tipos";
 
 let actualizado: Record<string, unknown> | null;
 let personaBD: { rol: Perfil["rol"] };
-let exigirImpl: () => Promise<unknown>;
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, refresh: () => undefined }));
 vi.mock("@/lib/memoria", () => ({ olvidarTodo: () => undefined }));
-vi.mock("@/lib/auth", async (orig) => ({ ...(await orig<object>()), exigir: () => exigirImpl() }));
 vi.mock("@/lib/datos", () => {
   // Cadena mínima: select/eq devuelven la misma; maybeSingle y single dan lo de cada tabla; update guarda lo escrito
   const tabla = (nombre: string) => {
@@ -25,6 +23,9 @@ vi.mock("@/lib/datos", () => {
   };
   return { db: () => ({ from: tabla }), escribir: async (p: unknown) => p };
 });
+// exigir y puedeAdmin son los de verdad: solo se simula la sesión (setup.ts), como en 6s-seguridad.test.ts
+const { getSesion } = await import("@/lib/sesion");
+const como = (perfil: object) => vi.mocked(getSesion).mockResolvedValue({ perfil, proyecto: { id: "p1" } } as never);
 const { guardarTambienCloser } = await import("@/app/(panel)/equipo/ficha-acciones");
 
 const NY = "America/New_York";
@@ -91,7 +92,7 @@ describe("guardarTambienCloser (servidor)", () => {
   beforeEach(() => {
     actualizado = null;
     personaBD = { rol: "caller" };
-    exigirImpl = async () => ({ perfil: { id: "ceo", rol: "ceo" }, proyecto: { id: "p1" } });
+    como({ id: "ceo", rol: "ceo", admin_activo: false });
   });
   it("quien edita fichas lo enciende y lo apaga en un caller", async () => {
     expect(await guardarTambienCloser("facu", true)).toBeUndefined();
@@ -99,11 +100,9 @@ describe("guardarTambienCloser (servidor)", () => {
     await guardarTambienCloser("facu", false);
     expect(actualizado).toEqual({ tambien_closer: false });
   });
-  it("sin permiso de admin, no guarda nada", async () => {
-    exigirImpl = async () => {
-      throw new Error("no admin");
-    };
-    expect(await guardarTambienCloser("facu", true)).toMatchObject({ error: expect.any(String) });
+  it("sin permiso de admin (director sin Administración), no guarda nada", async () => {
+    como({ id: "dir2", rol: "director", admin_activo: false });
+    expect(await guardarTambienCloser("facu", true)).toEqual({ error: "No tienes permiso para esto." });
     expect(actualizado).toBeNull();
   });
   it("solo para callers: un closer o un director, rechazado", async () => {

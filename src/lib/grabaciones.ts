@@ -32,3 +32,10 @@ export function transcripcionValida(t: unknown) {
   if (s.length > 200_000) throw new ErrorUsuario("La transcripción es demasiado larga (máximo 200.000 caracteres).");
   return s;
 }
+
+// Al elegir una grabación solo cambia ?g=; el periodo y los demás parámetros se quedan (antes se borraban)
+export function urlConGrabacion(ruta: string, busqueda: string, id: string) {
+  const sp = new URLSearchParams(busqueda);
+  sp.set("g", id);
+  return `${ruta}?${sp}`;
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { cambiarEstadoCita, moverVenta, reagendarCita, type MovimientoVenta } from "../acciones";
 import { registrarVenta } from "@/app/(panel)/leads/acciones";
 import { moverCitaColumna } from "@/app/(panel)/crm/acciones";
@@ -256,12 +257,12 @@ export function TableroClosers({
         <Modal titulo={`${nombre(ventana.item)} → ${ventana.destino.t}`} onCerrar={() => setVentana(null)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               const { item } = ventana;
               const e = claveV as "seguimiento" | "perdida";
               ejecutar(() => moverItem(item, { estado: e, nota: String(fd.get("nota") ?? ""), estrellas: Number(fd.get("estrellas")) }), ventana.destino.t);
               setVentana(null);
-            }}
+            })}
           >
             {avisoBorrar(ventana.item)}
             <SelectorEstrellas quien="closer" />
@@ -274,11 +275,11 @@ export function TableroClosers({
         <Modal titulo={`Reagendar a ${nombre(ventana.item)}`} onCerrar={() => setVentana(null)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               const { item } = ventana;
               ejecutar(() => moverItem(item, { fechaLocal: String(fd.get("fecha")) }), "Cita reagendada");
               setVentana(null);
-            }}
+            })}
           >
             {avisoBorrar(ventana.item)}
             <label className="block"><span className="etiqueta-campo">Nueva fecha y hora{horaDe ? ` (hora de ${horaDe})` : ""}</span><input type="datetime-local" name="fecha" required className="campo" /></label>
@@ -307,12 +308,12 @@ export function TableroClosers({
         <Modal titulo={`Cobrar lo que falta de ${ventana.item.venta.nombre}`} onCerrar={() => setVentana(null)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               if (ventana.item.clase !== "venta") return;
               const v = ventana.item.venta;
               ejecutar(() => registrarCobro(v.id, String(fd.get("importe")), String(fd.get("metodo")), String(fd.get("fecha") ?? "")), `${v.nombre} → ${ventana.destino.t}`);
               setVentana(null);
-            }}
+            })}
           >
             <p className="text-sm text-texto-2">«{ventana.destino.t}» son las ventas pagadas del todo. Para pasarla, registra el cobro de lo que falta: <b>{ventana.item.venta.faltaTxt}</b>.</p>
             <label className="block"><span className="etiqueta-campo">Importe cobrado</span><input name="importe" inputMode="decimal" required defaultValue={ventana.item.venta.pendiente.toFixed(2)} className="campo" /></label>
@@ -329,12 +330,12 @@ export function TableroClosers({
         <Modal titulo={`Pasar a cuotas la venta de ${ventana.item.venta.nombre}`} onCerrar={() => setVentana(null)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               if (ventana.item.clase !== "venta") return;
               const v = ventana.item.venta;
               ejecutar(() => cambiarFormaPago(v.id, "cuotas", String(fd.get("cuotas"))), `${v.nombre} → ${ventana.destino.t}`);
               setVentana(null);
-            }}
+            })}
           >
             <p className="text-sm text-texto-2">Falta por cobrar <b>{ventana.item.venta.faltaTxt}</b>. Se reparte en cuotas mensuales desde el mes que viene; lo ya cobrado se queda como está.</p>
             <label className="block"><span className="etiqueta-campo">¿En cuántas cuotas lo que falta?</span><input name="cuotas" type="number" min={1} max={60} required defaultValue={3} className="campo" /></label>

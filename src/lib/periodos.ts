@@ -1,6 +1,6 @@
 // Periodos navegables (v2): Día / Semana / Mes / Año / Personalizado, con ‹ › para ir atrás y adelante.
 // `n` = cuántos periodos se mueve respecto al actual (0 = el actual, -1 = el anterior…).
-import { hoyEnZona, inicioDia, type Rango } from "@/lib/formato";
+import { fechaReal, hoyEnZona, inicioDia, type Rango } from "@/lib/formato";
 
 export type PeriodoNav = "dia" | "semana" | "mes" | "anio" | "rango";
 export const PERIODOS_NAV: { v: PeriodoNav; t: string }[] = [
@@ -25,11 +25,13 @@ function sumarMeses(ymd: string, meses: number) {
 }
 const corta = (ymd: string) => `${Number(ymd.slice(8, 10))} ${MESES[Number(ymd.slice(5, 7)) - 1].slice(0, 3)}`;
 
+export { fechaReal }; // vive en formato.ts para que rangoDe también la use (sin importación circular)
+
 export function leerPeriodo(sp: Record<string, string | string[] | undefined>, porDefecto: PeriodoNav = "mes") {
   const v = typeof sp.p === "string" ? sp.p : porDefecto;
   const periodo = (PERIODOS_NAV.some((x) => x.v === v) ? v : porDefecto) as PeriodoNav;
   const n = Math.max(-600, Math.min(600, Math.trunc(Number(sp.n ?? 0)) || 0));
-  const fecha = (k: string) => (typeof sp[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp[k] as string) ? (sp[k] as string) : undefined);
+  const fecha = (k: string) => (fechaReal(sp[k]) ? (sp[k] as string) : undefined);
   return { periodo, n, desde: fecha("desde"), hasta: fecha("hasta") };
 }
 
@@ -38,7 +40,8 @@ export function rangoNav(periodo: PeriodoNav, n: number, zona: string, desdeTxt?
   let d: string;
   let h: string;
   let etiqueta: string;
-  if (periodo === "rango" && desdeTxt && hastaTxt && desdeTxt <= hastaTxt) {
+  // El MCP llama aquí sin pasar por leerPeriodo: también se comprueba la fecha
+  if (periodo === "rango" && fechaReal(desdeTxt) && fechaReal(hastaTxt) && desdeTxt <= hastaTxt) {
     d = desdeTxt;
     h = sumarDias(hastaTxt, 1);
     etiqueta = `Del ${corta(desdeTxt)} al ${corta(hastaTxt)}`;

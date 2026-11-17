@@ -1,6 +1,7 @@
 // Fase 1b · zona c: «Deshacer» (botón y Ctrl+Z) en Clientes (estado, seguimiento, onboarding) y en el onboarding de
 // los closers. Datos inventados ("l1", "p1"), sin nombres reales.
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { enviarSinVaciar } from "../apoyo/enviar-sin-vaciar";
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 
 // Los componentes se llaman como funciones: hooks mínimos con estado entre «pintados» (como f1b-zona-b.test.ts)
@@ -103,7 +104,7 @@ describe("Clientes · seguimiento", () => {
     const fd = new FormData();
     fd.set("nota", nota);
     fd.set("proximo", proximo);
-    (form.props.action as (f: FormData) => void)(fd);
+    enviarSinVaciar(form.props.onSubmit, fd); // A4-03: el formulario usa sinVaciar (onSubmit), ya no action={…}
     await esperar();
   };
 

@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { olvidarTodo } from "@/lib/memoria";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
-import { db, escribir } from "@/lib/datos";
+import { db, escribir, todas } from "@/lib/datos";
 import { getSesion, esJefe } from "@/lib/auth";
 import { AGENTES, type ConfigAgentes } from "@/lib/ia-agentes";
 import { hayClaveIa, encolarAnalisis, pedirJson, peticion, procesarPendientes, type LlamarClaude } from "@/lib/ia";
@@ -70,10 +70,10 @@ export async function analizarPendientesAhora() {
     await exigirSeccion("agendas"); // H5
     const { proyecto } = await jefe();
     if (!hayClaveIa()) throw new ErrorUsuario("Falta la clave de Claude en el servidor (ANTHROPIC_API_KEY).");
-    // Grabaciones conciliadas que aún no tienen análisis
-    const { data: gs } = await db().from("grabaciones").select("id, analisis_llamadas(id)").eq("proyecto_id", proyecto.id).not("cita_id", "is", null);
+    // Grabaciones conciliadas que aún no tienen análisis. S1-12: todas (Supabase corta en 1.000) y, si falla, se avisa
+    const gs = await todas<{ id: string; analisis_llamadas: unknown }>((a, b) => db().from("grabaciones").select("id, analisis_llamadas(id)").eq("proyecto_id", proyecto.id).not("cita_id", "is", null).order("id").range(a, b));
     let nuevas = 0;
-    for (const g of gs ?? []) if (!((g.analisis_llamadas as unknown as unknown[]) ?? []).length) {
+    for (const g of gs) if (!((g.analisis_llamadas as unknown as unknown[]) ?? []).length) {
       await encolarAnalisis(proyecto.id, g.id);
       nuevas++;
     }

@@ -98,6 +98,13 @@ export function sumarDias(ymd: string, dias: number) {
   return d.toISOString().slice(0, 10);
 }
 
+// A2-01 (17 nov): un día que existe de verdad. «2026-13-01» tumbaba la pantalla y «2026-02-31» pasaba a marzo.
+export function fechaReal(s: unknown): s is string {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
 export type Rango = { desde: Date | null; hasta: Date | null; etiqueta: string; previo: { desde: Date; hasta: Date } | null };
 
 export function rangoDe(periodo: Periodo, zona: string, desdeTxt?: string, hastaTxt?: string): Rango {
@@ -115,7 +122,7 @@ export function rangoDe(periodo: Periodo, zona: string, desdeTxt?: string, hasta
     d = sumarDias(hoy, -dow);
     h = sumarDias(d, 7);
     etiqueta = "Esta semana";
-  } else if (periodo === "rango" && desdeTxt && hastaTxt) {
+  } else if (periodo === "rango" && fechaReal(desdeTxt) && fechaReal(hastaTxt)) {
     d = desdeTxt;
     h = sumarDias(hastaTxt, 1);
     etiqueta = `Del ${desdeTxt} al ${hastaTxt}`;

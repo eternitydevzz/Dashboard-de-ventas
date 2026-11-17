@@ -3,7 +3,7 @@ import "server-only";
 // citas, se leen los contactos creados en GHL y cada uno entra en la app según su etiqueta. Se leen contactos, no
 // oportunidades: con el workflow apagado, GHL crea el contacto pero no la oportunidad (comprobado el 16 oct con el
 // test de Cristian). Decisiones de Cristian:
-// · los nuevos (lo de antes se trae una vez con scripts/igualar-ghl.mjs) y, desde el 17 oct, también los que
+// · los nuevos (lo de antes se trajo una vez, en oct 2026, con un script que ya no existe) y, desde el 17 oct, también los que
 //   ganan una etiqueta después (p. ej. uno de la Biblioteca que se apunta al Webinar: gana su tarjeta en el Webinar)
 // · si en GHL cambian los datos de un lead que ya está, la app se pone al día sin pisar lo suyo: nombre, apellido y
 //   teléfono solo si en la app están vacíos; respuestas y etiquetas nuevas se suman

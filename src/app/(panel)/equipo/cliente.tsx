@@ -1,6 +1,8 @@
 "use client";
 
+import { exigirOk } from "@/lib/resultado-cliente";
 import { useState } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { Save, Trash2, KeyRound, Plus } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
 import { actualizarMiembroEquipo, borrarArea, cambiarModoComision, darAccesoMiembro, guardarArea, guardarComisionRol } from "./acciones";
@@ -92,7 +94,7 @@ export function DatosYComision({ m, areas, puestos, productos, rolesQuePuedoDar,
           {!acceso ? (
             <button className="btn-secundario w-full" onClick={() => setAcceso(true)}><KeyRound className="h-4 w-4" /> Darle acceso a la app</button>
           ) : (
-            <form className="space-y-2" action={(fd) => ejecutar(() => darAccesoMiembro(m.id, String(fd.get("email")), String(fd.get("password")), String(fd.get("rol")) as Rol, mercado ?? "", String(fd.get("telefono"))), "Acceso creado")}>
+            <form className="space-y-2" onSubmit={sinVaciar((fd) => ejecutar(() => darAccesoMiembro(m.id, String(fd.get("email")), String(fd.get("password")), String(fd.get("rol")) as Rol, mercado ?? "", String(fd.get("telefono"))), "Acceso creado"))}>
               <input name="email" type="email" required className="campo" placeholder="Email de acceso" />
               <div role="radiogroup" aria-label="País" className="flex gap-2">
                 {MERCADOS.map((x) => (
@@ -123,7 +125,7 @@ export function ComisionRolForm({ rol, pctVenta, pctAgenda, editable }: { rol: R
       </div>
     );
   return (
-    <form className="grid grid-cols-[1fr_72px_72px_auto] items-center gap-2" action={(fd) => ejecutar(() => guardarComisionRol(rol, String(fd.get("venta")), String(fd.get("agenda") ?? "")), `Comisión de ${ROL_TXT[rol]} guardada`)}>
+    <form className="grid grid-cols-[1fr_72px_72px_auto] items-center gap-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarComisionRol(rol, String(fd.get("venta")), String(fd.get("agenda") ?? "")), `Comisión de ${ROL_TXT[rol]} guardada`))}>
       <div className="text-sm font-medium">{ROL_TXT[rol]}</div>
       <input name="venta" inputMode="decimal" defaultValue={pctVenta} className="campo px-2 py-1.5 text-right" aria-label={`% por venta de ${ROL_TXT[rol]}`} />
       {rol === "caller" ? <input name="agenda" inputMode="decimal" defaultValue={pctAgenda} className="campo px-2 py-1.5 text-right" aria-label="% por agenda cerrada del caller" /> : <span className="text-center text-xs text-texto-3">—</span>}
@@ -138,14 +140,14 @@ export function EditorAreas({ areas }: { areas: Area[] }) {
   return (
     <div className="space-y-2">
       {areas.map((a) => (
-        <form key={a.id} className="flex items-center gap-2" action={(fd) => ejecutar(() => guardarArea(a.id, String(fd.get("nombre")), String(fd.get("color"))), "Área guardada")}>
+        <form key={a.id} className="flex items-center gap-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarArea(a.id, String(fd.get("nombre")), String(fd.get("color"))), "Área guardada"))}>
           <input name="color" type="color" defaultValue={a.color} className="h-8 w-8 shrink-0 cursor-pointer rounded border border-borde bg-transparent" aria-label="Color" />
           <input name="nombre" defaultValue={a.nombre} className="campo py-1.5" aria-label="Nombre del área" />
           <button className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2" disabled={pendiente} title="Guardar"><Save className="h-4 w-4" /></button>
           <button type="button" className="rounded-md p-1.5 text-texto-3 hover:bg-mal-suave hover:text-mal" disabled={pendiente} title="Borrar" onClick={() => void confirmar(`¿Borrar el área «${a.nombre}»?`).then((ok) => ok && ejecutar(() => borrarArea(a.id), "Área borrada"))}><Trash2 className="h-4 w-4" /></button>
         </form>
       ))}
-      <form className="flex items-center gap-2" action={(fd) => ejecutar(() => guardarArea(null, String(fd.get("nombre")), String(fd.get("color"))), "Área creada")}>
+      <form className="flex items-center gap-2" onSubmit={sinVaciar((fd, form) => ejecutar(async () => { const r = await exigirOk(guardarArea(null, String(fd.get("nombre")), String(fd.get("color")))); form.reset(); /* vacío solo si se guardó bien */ return r; }, "Área creada"))}>
         <input name="color" type="color" defaultValue="#64748b" className="h-8 w-8 shrink-0 cursor-pointer rounded border border-borde bg-transparent" aria-label="Color" />
         <input name="nombre" required placeholder="Nueva área" className="campo py-1.5" />
         <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir área"><Plus className="h-4 w-4" /></button>

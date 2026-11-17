@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { useRouter } from "next/navigation";
 import { RefreshCw, Settings2, Plus, Trash2, Link2, X, PlugZap } from "lucide-react";
 import { Modal } from "@/components/modal";
@@ -55,13 +56,13 @@ export function CuentasFathom({ cuentas, closers, jefe, yo }: { cuentas: CuentaV
           {editando ? (
             <form
               className="space-y-3 text-sm"
-              action={(fd) =>
+              onSubmit={sinVaciar((fd) =>
                 ejecutar(async () => {
                   const r = await guardarCuentaFathom(editando === "nueva" ? null : editando.id, { nombre: String(fd.get("nombre") ?? ""), apiKey: String(fd.get("key") ?? ""), formato: String(fd.get("formato") ?? ""), perfilId: String(fd.get("closer") ?? yo) });
                   if (!(r && typeof r === "object" && "error" in r)) setEditando(null);
                   return r;
                 }, "Cuenta guardada")
-              }
+              )}
             >
               <div><label className="etiqueta-campo" htmlFor="fa-nombre">Nombre</label><input id="fa-nombre" name="nombre" required defaultValue={editando === "nueva" ? "" : editando.nombre} className="campo" placeholder="Ej. Fathom de Ana" /></div>
               {jefe && (

@@ -38,7 +38,9 @@ describe("guardarRotacion con un caller «también closer»", () => {
     expect(escrito.map((e) => [e.id, e.v.rotacion_pct])).toEqual([["closer-1", 93], ["caller-closer", 7]]);
   });
   it("un caller sin el interruptor no entra en la rotación", async () => {
-    await guardarRotacion({ "closer-1": 100, "caller-1": 50 });
-    expect(escrito.map((e) => e.id)).not.toContain("caller-1");
+    // caller-1 a 0: la suma sigue en 100, así que si el filtro esCloser se rompe, caller-1 se escribiría y la lista cambia
+    const r = await guardarRotacion({ "closer-1": 100, "caller-1": 0 });
+    expect(r).toBeUndefined();
+    expect(escrito.map((e) => [e.id, e.v.rotacion_pct])).toEqual([["closer-1", 100], ["caller-closer", 0]]);
   });
 });

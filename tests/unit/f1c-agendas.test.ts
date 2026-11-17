@@ -1,6 +1,7 @@
 // Fase 1 · zona C: R9 (Mes/Semana/Día/Lista sin ir al servidor) y S4-9 (no se agenda sin día y hora; «Crear llamada»
 // se cierra solo si salió bien). Datos inventados ("Lead 1", "Ana").
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { enviarSinVaciar } from "../apoyo/enviar-sin-vaciar";
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 
 // Los componentes se llaman como funciones: hooks mínimos con estado entre «pintados» (sin DOM en los tests)
@@ -100,7 +101,7 @@ describe("S4-9 · agendar sin día y hora", () => {
       const fd = new FormData();
       fd.set("closer", "c1");
       fd.set("fecha", "2026-11-20T10:00");
-      (form.props.action as (f: FormData) => void)(fd);
+      enviarSinVaciar(form.props.onSubmit, fd); // A4-03: el formulario usa sinVaciar (onSubmit), ya no action={…}
       await h.pendiente;
     };
     agendar.mockResolvedValue({ error: "Esa hora ya está ocupada." });

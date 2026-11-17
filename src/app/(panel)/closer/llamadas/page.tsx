@@ -275,7 +275,13 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
           </div>
         }
         dia={<div>{cabeceraDia}<ListaCitas filas={porDia.get(dia) ?? []} /></div>}
-        lista={<ListaCitas filas={[...filtradas].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 300)} />}
+        lista={
+          <>
+            {/* X5: la lista se corta a 300; el buscador y los filtros sí miran todas */}
+            {filtradas.length > 300 && <p className="border-b border-borde px-4 py-2 text-xs text-texto-3">Se ven las 300 más recientes de {filtradas.length}. Usa el buscador o los filtros para ver el resto.</p>}
+            <ListaCitas filas={[...filtradas].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 300)} />
+          </>
+        }
       />
     );
   }

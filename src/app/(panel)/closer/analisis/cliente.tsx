@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useTransition, type ReactNode } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { useRouter } from "next/navigation";
 import { Settings2, Sparkles, RefreshCw, Check, X } from "lucide-react";
 import { Modal } from "@/components/modal";
@@ -68,7 +69,7 @@ export function EvaluarManual({ id, nota, texto }: { id: string; nota: number | 
   const { pendiente, error, ejecutar } = useAccion();
   const [n, setN] = useState(nota ? String(nota) : "");
   return (
-    <form className="flex flex-wrap items-center gap-2" action={(fd) => ejecutar(() => evaluarManual(id, Number(n), String(fd.get("t") ?? "")), "Evaluación guardada")}>
+    <form className="flex flex-wrap items-center gap-2" onSubmit={sinVaciar((fd) => ejecutar(() => evaluarManual(id, Number(n), String(fd.get("t") ?? "")), "Evaluación guardada"))}>
       <Desplegable value={n} onChange={(e) => setN(e.target.value)} className="campo w-auto py-1" aria-label="Nota de 1 a 10"><option value="">Nota…</option>{Array.from({ length: 10 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</Desplegable>
       <input name="t" defaultValue={texto} className="campo w-56 py-1" placeholder="Comentario (opcional)" aria-label="Comentario" />
       <button className="btn-secundario px-2 py-1 text-xs" disabled={pendiente || !n}>Guardar</button>

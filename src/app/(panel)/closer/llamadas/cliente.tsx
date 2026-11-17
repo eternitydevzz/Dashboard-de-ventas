@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -50,7 +51,7 @@ export function CrearLlamada({ closers, soyCloser }: { closers: { id: string; no
           ) : (
             <form
               className="space-y-3"
-              action={(fd) =>
+              onSubmit={sinVaciar((fd) =>
                 // S4-9: se cierra solo si el servidor dice que sí; si falla, queda abierta con el error
                 ejecutar(async () => {
                   const r = await exigirOk(agendarCita(lead.id, String(fd.get("closer")), String(fd.get("fecha")), String(fd.get("nota") ?? ""), fd.get("estrellas") ? Number(fd.get("estrellas")) : undefined));
@@ -58,7 +59,7 @@ export function CrearLlamada({ closers, soyCloser }: { closers: { id: string; no
                   setLead(null);
                   return r;
                 }, "Llamada creada")
-              }
+              )}
             >
               <p className="text-sm">Lead: <b>{`${lead.nombre} ${lead.apellido}`.trim()}</b> <button type="button" className="text-xs text-primario hover:underline" onClick={() => setLead(null)}>cambiar</button></p>
               <CamposCita closers={closers} inicial={soyCloser ?? undefined} id="cliente-closer" />

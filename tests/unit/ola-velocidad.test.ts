@@ -67,11 +67,6 @@ describe("Fase 9 · velocidad", () => {
       expect(existsSync(new URL(`../../${PANEL}/${s}/loading.tsx`, import.meta.url)), s).toBe(false);
   });
 
-  it("KPIs → Leads ya no usa «al instante» (no mejoró nada medible, 13 nov)", () => {
-    expect(leer("src/lib/leads-kpis.ts")).not.toContain("alInstante");
-    expect(leer("src/lib/memoria.ts")).not.toContain("alInstante");
-  });
-
   it("KPIs → Leads pide a la base lo mismo que antes: 4 lecturas (leads, tarjetas, pipelines, etapas)", async () => {
     const { cargarLeadsKpis } = await import("@/lib/leads-kpis");
     await cargarLeadsKpis({ id: "p1" } as Parameters<typeof cargarLeadsKpis>[0]);

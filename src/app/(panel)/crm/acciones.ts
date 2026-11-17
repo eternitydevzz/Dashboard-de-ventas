@@ -10,7 +10,7 @@ import { after } from "next/server";
 import { exigir, esJefe, puedeAdmin, getSesion } from "@/lib/auth";
 import { CLAVES_CLOSER } from "@/lib/llamadas";
 import { exigirNivel } from "@/lib/pipelines";
-import type { EstadoCaller, TipoPipeline } from "@/lib/tipos";
+import { esCloser, type EstadoCaller, type Rol, type TipoPipeline } from "@/lib/tipos";
 import { db, registrarActividad, escribir, porTrozos, trozos } from "@/lib/datos";
 import { guardarLeads, igualarGhlTrasUnir, primeraEtapa, type UnionLeads } from "@/lib/leads";
 import { conPais } from "@/lib/pais";
@@ -163,20 +163,7 @@ export async function editarEtapa(etapaId: string, nombre: string, color: string
   });
 }
 
-export async function moverEtapa(etapaId: string, direccion: -1 | 1) {
-  return seguro(async () => {
-    await exigirSeccion("crm"); // H5
-    const e = await etapaEditable(etapaId);
-    const { data: etapas } = await db().from("etapas").select("id, orden").eq("pipeline_id", e.pipeline_id).order("orden");
-    const lista = etapas ?? [];
-    const i = lista.findIndex((x) => x.id === etapaId);
-    const j = i + direccion;
-    if (i < 0 || j < 0 || j >= lista.length) return;
-    [lista[i], lista[j]] = [lista[j], lista[i]];
-    await Promise.all(lista.map((x, k) => db().from("etapas").update({ orden: k }).eq("id", x.id)));
-    refrescar();
-  });
-}
+const guardarOrdenEtapas = (ids: string[]) => Promise.all(ids.map((id, k) => escribir(db().from("etapas").update({ orden: k }).eq("id", id), "etapas")));
 
 // Orden nuevo de las columnas al soltar una arrastrándola (Fase 4): llegan todas, en su orden
 export async function ordenarEtapas(pipelineId: string, ids: string[]) {
@@ -188,7 +175,7 @@ export async function ordenarEtapas(pipelineId: string, ids: string[]) {
     const actuales = new Set((data ?? []).map((x) => x.id));
     if (ids.length !== actuales.size || new Set(ids).size !== ids.length || !ids.every((id) => actuales.has(id)))
       throw new ErrorUsuario("Las columnas han cambiado. Recarga la página.");
-    await Promise.all(ids.map((id, k) => escribir(db().from("etapas").update({ orden: k }).eq("id", id), "etapas")));
+    await guardarOrdenEtapas(ids);
     refrescar();
   });
 }
@@ -360,27 +347,36 @@ export async function asignarLeads(leadIds: string[], callerId: string | null | 
     await exigirSeccion("crm"); // H5
     const { perfil, proyecto } = await exigir(esJefe);
     if (!leadIds.length) return;
-    // Arreglo 29: solo se asigna a callers/closers de este proyecto
+    // S1-6: sin repetidos. Sin tope (revisor F5-6): deshacer un reparto grande y dar de baja (MCP) pasan más de 2.000; escribe por trozos
+    const ids = [...new Set(leadIds.filter(Boolean))];
+    // Arreglo 29: solo se asigna a callers/closers de este proyecto. X3: como closer vale «también closer» (esCloser)
     for (const [id, rol] of [[callerId, "caller"], [closerId, "closer"]] as const) {
       if (!id) continue;
-      const { data } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", id).eq("perfiles.rol", rol).maybeSingle();
-      if (!data) throw new ErrorUsuario(`Esa persona no es ${rol} de este proyecto.`);
+      const { data, error } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol, tambien_closer)").eq("proyecto_id", proyecto.id).eq("perfil_id", id).maybeSingle();
+      if (error) throw new Error(`No se pudo leer el equipo: ${error.message}`);
+      const p = (data as unknown as { perfiles: { rol: Rol; tambien_closer: boolean } } | null)?.perfiles;
+      if (!p || (rol === "closer" ? !esCloser(p) : p.rol !== "caller")) throw new ErrorUsuario(`Esa persona no es ${rol} de este proyecto.`);
     }
     const cambios: Record<string, string | null> = {};
     if (callerId !== undefined) cambios.caller_id = callerId || null;
     if (closerId !== undefined) cambios.closer_id = closerId || null;
-    for (const t of trozos(leadIds)) await escribir(db().from("leads").update(cambios).in("id", t).eq("proyecto_id", proyecto.id), "leads");
+    const hechos: string[] = []; // solo los de este proyecto
+    for (const t of trozos(ids)) {
+      const { data } = await escribir(db().from("leads").update(cambios).in("id", t).eq("proyecto_id", proyecto.id).select("id"), "leads");
+      hechos.push(...(data ?? []).map((x) => x.id as string));
+    }
     const { data: personas } = await db().from("perfiles").select("id, nombre").in("id", [callerId, closerId].filter(Boolean) as string[]);
     const nombre = (id?: string | null) => personas?.find((p) => p.id === id)?.nombre ?? "nadie";
-    await db().from("actividades").insert(
-      leadIds.map((id) => ({
+    if (!hechos.length) return refrescar();
+    await escribir(db().from("actividades").insert(
+      hechos.map((id) => ({
         proyecto_id: proyecto.id,
         lead_id: id,
         perfil_id: perfil.id,
         tipo: "asignacion",
         nota: [callerId !== undefined && `Caller: ${nombre(callerId)}`, closerId !== undefined && `Closer: ${nombre(closerId)}`].filter(Boolean).join(" · "),
       }))
-    );
+    ), "actividades");
     refrescar();
   });
 }
@@ -458,19 +454,23 @@ export async function cambiarEtiquetas(leadIds: string[], anadir: string[], quit
     await exigirSeccion("crm");
     const { proyecto } = await exigir(esJefe);
     const ids = idsValidos(leadIds);
-    const limpia = (l: string[]) => [...new Set(l.map((x) => x.trim()).filter(Boolean))].slice(0, 20);
+    // S1-7: mismas reglas que Administración (admin/acciones.ts, etiquetaValida): minúsculas, sin comas, máx. 80
+    const limpia = (l: string[]) => [...new Set(l.map((x) => x.trim().toLowerCase()).filter(Boolean))].slice(0, 20);
     const mas = limpia(anadir);
-    const menos = new Set(limpia(quitar).map((x) => x.toLowerCase()));
+    const menos = new Set(limpia(quitar));
     if (!mas.length && !menos.size) throw new ErrorUsuario("Escribe alguna etiqueta.");
-    if (mas.some((x) => x.length > 60)) throw new ErrorUsuario("Etiqueta demasiado larga (máx. 60).");
+    if (mas.some((x) => x.length > 80 || x.includes(","))) throw new ErrorUsuario("Escribe la etiqueta (sin comas y de 80 letras como mucho).");
     const data = await porTrozos<{ id: string; etiquetas: string[] | null }>(ids, (t, d, h) => db().from("leads").select("id, etiquetas").in("id", t).eq("proyecto_id", proyecto.id).order("id").range(d, h));
-    await Promise.all(
-      data.map((l) => {
-        const actuales = ((l.etiquetas ?? []) as string[]).filter((x) => !menos.has(x.toLowerCase()));
-        const nuevas = [...actuales, ...mas.filter((x) => !actuales.some((a) => a.toLowerCase() === x.toLowerCase()))];
-        return escribir(db().from("leads").update({ etiquetas: nuevas }).eq("id", l.id), "leads");
-      })
-    );
+    // S1-7: los leads que acaban con las mismas etiquetas se escriben juntos, por trozos (antes, una escritura por lead a la vez)
+    const grupos = new Map<string, string[]>();
+    for (const l of data) {
+      const actuales = ((l.etiquetas ?? []) as string[]).filter((x) => !menos.has(x.toLowerCase()));
+      const nuevas = JSON.stringify([...actuales, ...mas.filter((x) => !actuales.some((a) => a.toLowerCase() === x))]);
+      grupos.set(nuevas, [...(grupos.get(nuevas) ?? []), l.id]);
+    }
+    // shortcut: leer y escribir no es atómico (dos cambios a la vez en el mismo lead se pisan); función SQL si pasa
+    for (const [nuevas, grupo] of grupos)
+      for (const t of trozos(grupo)) await escribir(db().from("leads").update({ etiquetas: JSON.parse(nuevas) }).in("id", t).eq("proyecto_id", proyecto.id), "leads");
     refrescar();
     return data.length;
   });

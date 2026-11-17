@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { Plus, Trash2, RefreshCw, Save, Power, ArrowUp, ArrowDown, X } from "lucide-react";
 import { sinVaciar } from "@/components/sin-vaciar";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
-import { Copiar } from "./cliente";
+import { Copiar, useAvisoSinGuardar } from "./cliente";
 import { borrarEntrada, cambiarActivaEntrada, crearEntrada, guardarEntradaCompleta, moverEntrada, nuevaDireccionEntrada } from "./acciones";
 import { OPERADORES, type Regla } from "@/lib/entrada";
 import { direccionCorta, estadoEntrada, jsonEjemplo, type DatosLanding, type EnviaDesde } from "@/lib/entradas-panel";
@@ -318,12 +318,7 @@ function AjustesEntrada({ entrada, pipelines, opciones }: { entrada: EntradaVist
   const pon = (c: Partial<EstadoAjustes>) => setS((x) => ({ ...x, ...c }));
   const sinGuardar = JSON.stringify(paraGuardar(s, !!opciones)) !== JSON.stringify(paraGuardar(inicial, !!opciones));
   // Con cambios sin guardar, el navegador avisa antes de salir o recargar (también si se recarga sola al publicar)
-  useEffect(() => {
-    if (!sinGuardar) return;
-    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", avisar);
-    return () => window.removeEventListener("beforeunload", avisar);
-  }, [sinGuardar]);
+  useAvisoSinGuardar(sinGuardar); // A4-07: también al usar el menú
 
   const cambiarRegla = (i: number, c: Partial<Regla>) => pon({ reglas: s.reglas.map((r, j) => (j === i ? { ...r, ...c } : r)) });
   const cambiarFila = (i: number, c: Partial<{ campo: string; id: string }>) => pon({ filas: s.filas.map((f, j) => (j === i ? { ...f, ...c } : f)) });

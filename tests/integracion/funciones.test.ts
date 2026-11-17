@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { PASSWORD, borrarEscenario, como, crearEscenario, db, falla, formulario, ok, type Escenario } from "../apoyo/escenario";
-import { crearPipeline, renombrarPipeline, borrarPipeline, crearEtapa, borrarEtapa, moverEtapa, importarCsv, prepararSubidaCsv } from "@/app/(panel)/crm/acciones";
+import { crearPipeline, renombrarPipeline, borrarPipeline, crearEtapa, borrarEtapa, ordenarEtapas, importarCsv, prepararSubidaCsv } from "@/app/(panel)/crm/acciones";
 import { subirDelFormulario } from "@/lib/subir-cliente";
 import { registrarLlamada, registrarVenta, agendarCita, volverANuevo } from "@/app/(panel)/leads/acciones";
 import { reagendarCita, cambiarEstadoCita } from "@/app/(panel)/closer/acciones";
@@ -126,7 +126,8 @@ describe("Pipelines y columnas", () => {
     // 13 oct: «Cerrados» nace unida a «Vendido» (cerrar soltando)
     expect((await db.from("etapas").select("estado_caller").eq("pipeline_id", id).eq("nombre", "Cerrados").single()).data!.estado_caller).toBe("vendido");
     const extra = lista.find((x) => x.nombre === "Extra")!;
-    await ok(moverEtapa(extra.id, -1));
+    const ids = lista.map((x) => x.id); // las flechas de la columna usan ordenarEtapas (S1-17): Extra sube una
+    await ok(ordenarEtapas(id, [...ids.slice(0, 3), extra.id, ids[3]]));
     lista = await etapas();
     expect(lista.map((x) => x.nombre)).toEqual(["Nuevos", "Agendados", "Cerrados", "Extra", "Descartados"]);
     await db.from("leads").update({ pipeline_id: id, etapa_id: extra.id }).eq("id", e.leads.LeadLibre);

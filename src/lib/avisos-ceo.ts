@@ -43,7 +43,7 @@ export async function avisosCeo(proyectoId: string): Promise<AvisoCeo[]> {
     { tipo: "workflow_error", cuantos: nWorkflows, texto: `${nWorkflows} ejecución(es) de workflow con error` },
     { tipo: "calendario", cuantos: errLectura, texto: `En la última lectura de GHL, ${errLectura} calendario(s) no se pudieron leer: ${resumen}` },
     // 1.7 (9 nov): los sin proyecto (las acciones) salen en todos los proyectos: se marcan para que se vea
-    ...((errores.data ?? []) as { sitio: string; texto: string; veces: number; proyecto_id?: string | null }[]).map((e) => ({ tipo: "otro_error" as const, cuantos: e.veces, texto: `${e.sitio}: ${e.texto} (${e.veces} ${e.veces === 1 ? "vez" : "veces"})${e.proyecto_id === null ? " · sin proyecto" : ""}` })),
+    ...((errores.data ?? []) as { sitio: string; texto: string; veces: number; proyecto_id?: string | null }[]).map((e) => ({ tipo: "otro_error" as const, cuantos: e.veces, texto: `${e.sitio === "navegador" ? "navegador (sin verificar)" : e.sitio}: ${e.texto} (${e.veces} ${e.veces === 1 ? "vez" : "veces"})${e.proyecto_id === null ? " · sin proyecto" : ""}` })),
   ];
   return avisos.filter((a) => a.cuantos > 0);
 }

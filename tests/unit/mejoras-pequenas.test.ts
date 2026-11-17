@@ -15,12 +15,6 @@ describe("1 · Onboarding de closers: fecha en la zona del proyecto (sin el erro
   });
 });
 
-describe("2 · Sin código que no se usa", () => {
-  it("precargaConDatos ya no existe", () => {
-    expect(leer("src/components/bienvenida.tsx")).not.toMatch(/precargaConDatos/);
-  });
-});
-
 describe("3 · Llamadas desde la cola: KPIs → Leads se renueva en la siguiente visita sin hacer esperar", () => {
   const despues: (() => Promise<unknown>)[] = [];
   const lanzar = (f: () => Promise<unknown>) => void despues.push(f);

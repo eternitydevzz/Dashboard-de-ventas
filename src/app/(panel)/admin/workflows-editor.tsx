@@ -3,10 +3,11 @@
 // Workflows 4c (boceto del editor aprobado por Cristian el 7 nov 2026): editar el workflow en el lienzo.
 // «+» entre cajas abre los tipos de paso; cada caja se elige (panel de la derecha; en el móvil, debajo) o se quita.
 // Un solo «Guardar versión N»; aviso de cambios sin guardar. Encender/apagar y prueba/real, con confirmación.
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import { Check, Clock, GitBranch, MoveRight, Pencil, Plus, Save, Tag, Target, Trash2, User, Zap } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
+import { useAvisoSinGuardar } from "./cliente";
 import { Desplegable } from "@/components/eleccion";
 import type { Disparador, Paso } from "@/lib/workflows";
 import { describirPaso, condicionTexto, disparadorTexto, type Icono, type Nombres } from "@/lib/workflows-vista";
@@ -96,12 +97,7 @@ export function EditorWorkflow({
   const [sel, setSel] = useState<Ruta | null>(null);
   const [menu, setMenu] = useState<{ lista: Ruta; en: number } | null>(null);
   const sinGuardar = !mismoContenido(pasos, w.pasos);
-  useEffect(() => {
-    if (!sinGuardar) return;
-    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", avisar);
-    return () => window.removeEventListener("beforeunload", avisar);
-  }, [sinGuardar]);
+  useAvisoSinGuardar(sinGuardar); // A4-07: también al usar el menú
 
   const elegido = sel ? verPaso(pasos, sel) : null;
   const poner = (p: Paso) => sel && setPasos((ps) => cambiarPaso(ps, sel, p));

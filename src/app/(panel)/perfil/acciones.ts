@@ -25,6 +25,8 @@ export async function guardarMiPerfil(datos: { nombre: string; telefono: string;
     if (!nombre) throw new ErrorUsuario("El nombre es obligatorio.");
     if (nombre.length > 120 || datos.telefono.length > 40 || datos.whatsapp.length > 40) throw new ErrorUsuario("Algún dato es demasiado largo.");
     await escribir(db().from("perfiles").update({ nombre, telefono: datos.telefono.trim() || null, whatsapp: datos.whatsapp.trim() || null }).eq("id", perfil.id), "perfiles");
+    // S2-18: el organigrama (Equipo) lee miembros_equipo.nombre; que diga lo mismo
+    await escribir(db().from("miembros_equipo").update({ nombre }).eq("perfil_id", perfil.id), "miembros_equipo");
     refrescar();
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { PlugZap, Save } from "lucide-react";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { exigirOk } from "@/lib/resultado-cliente";
@@ -13,10 +14,10 @@ export function ConexionGhl({ locationId, tieneToken }: { locationId: string; ti
   return (
     <form
       className="space-y-3"
-      action={(fd) => {
+      onSubmit={sinVaciar((fd) => {
         setOk("");
         ejecutar(() => guardarConexionGhl(String(fd.get("token") ?? ""), String(fd.get("location") ?? "")), "Conexión con GHL guardada");
-      }}
+      })}
     >
       <div>
         <label className="etiqueta-campo" htmlFor="ghl-private-integration-token-ajus">Private Integration Token (Ajustes → Private Integrations en GHL)</label>
@@ -49,7 +50,7 @@ export function ConexionGhl({ locationId, tieneToken }: { locationId: string; ti
 export function CalendariosProyecto({ ids }: { ids: string[] }) {
   const { pendiente, error, ejecutar } = useAccion();
   return (
-    <form className="space-y-2" action={(fd) => ejecutar(() => guardarCalendariosProyecto(String(fd.get("ids") ?? "").split("\n")), "Calendarios del proyecto guardados")}>
+    <form className="space-y-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarCalendariosProyecto(String(fd.get("ids") ?? "").split("\n")), "Calendarios del proyecto guardados"))}>
       <label className="block">
         <span className="etiqueta-campo">Calendarios de GHL del proyecto (un id por línea)</span>
         <textarea name="ids" rows={4} defaultValue={ids.join("\n")} className="campo font-mono text-xs" placeholder="Calendar ID" />
@@ -64,7 +65,7 @@ export function CalendariosProyecto({ ids }: { ids: string[] }) {
 export function CalendarioCloser({ perfilId, nombre, calendarId, userId }: { perfilId: string; nombre: string; calendarId: string; userId: string }) {
   const { pendiente, error, ejecutar } = useAccion();
   return (
-    <form className="grid gap-2 rounded-lg border border-borde bg-panel-2 p-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end" action={(fd) => ejecutar(() => guardarCalendarioCloser(perfilId, String(fd.get("cal") ?? ""), String(fd.get("user") ?? "")), `Calendario de ${nombre} guardado`)}>
+    <form className="grid gap-2 rounded-lg border border-borde bg-panel-2 p-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end" onSubmit={sinVaciar((fd) => ejecutar(() => guardarCalendarioCloser(perfilId, String(fd.get("cal") ?? ""), String(fd.get("user") ?? "")), `Calendario de ${nombre} guardado`))}>
       <div className="text-sm font-medium sm:pb-2">{nombre}</div>
       <label className="block"><span className="etiqueta-campo">Id del calendario</span><input name="cal" defaultValue={calendarId} className="campo" placeholder="Calendar ID" /></label>
       <label className="block"><span className="etiqueta-campo">o id de usuario de GHL</span><input name="user" defaultValue={userId} className="campo" placeholder="User ID" /></label>
@@ -78,7 +79,7 @@ export function CalendarioCloser({ perfilId, nombre, calendarId, userId }: { per
 export function UsuarioGhl({ perfilId, nombre, rol, userId }: { perfilId: string; nombre: string; rol: string; userId: string }) {
   const { pendiente, error, ejecutar } = useAccion();
   return (
-    <form className="flex flex-wrap items-center gap-2 rounded-lg border border-borde bg-panel-2 px-3 py-2 text-sm" action={(fd) => ejecutar(() => guardarUsuarioGhl(perfilId, String(fd.get("user") ?? "")), `Usuario de GHL de ${nombre} guardado`)}>
+    <form className="flex flex-wrap items-center gap-2 rounded-lg border border-borde bg-panel-2 px-3 py-2 text-sm" onSubmit={sinVaciar((fd) => ejecutar(() => guardarUsuarioGhl(perfilId, String(fd.get("user") ?? "")), `Usuario de GHL de ${nombre} guardado`))}>
       <span className="w-40 truncate font-medium">{nombre} <span className="text-xs text-texto-3">{rol}</span></span>
       <input name="user" defaultValue={userId} className="campo w-56 py-1" placeholder="User ID de GHL" aria-label={`Usuario de GHL de ${nombre}`} />
       <button className="btn-secundario px-2 py-1 text-xs" disabled={pendiente}>Guardar</button>

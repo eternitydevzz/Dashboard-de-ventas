@@ -26,6 +26,9 @@ vi.mock("next/server", async (original) => ({
 // para que los envíos fallidos de pasadas anteriores no acaben en «429». Sin base (unitarios), nada.
 beforeAll(async () => {
   if (!process.env.SUPABASE_SECRET_KEY) return;
+  // S5-11: misma guardia que escenario.ts; si .env.local apuntara a producción, no borrar sus límites
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  if (!url.includes("127.0.0.1") && !url.includes("localhost")) return;
   try {
     const { createClient } = await import("@supabase/supabase-js");
     await createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } }).from("limite_intentos").delete().gte("id", 0);

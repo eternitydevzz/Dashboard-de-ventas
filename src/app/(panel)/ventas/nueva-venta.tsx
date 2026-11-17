@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { Plus, Search, UserPlus } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { FormVenta, Mensajes, crearUnaVez, useAccion } from "@/components/acciones-lead";
@@ -48,7 +49,7 @@ export function NuevaVenta({ productos, vendedores, miId, moneda }: { productos:
             </div>
           ) : (
             <div className="space-y-3 text-sm">
-              <form className="flex gap-2" action={(fd) => ejecutar(async () => setEncontrados(await exigirOk(buscarLeadsVenta(String(fd.get("texto") ?? "")))))}>
+              <form className="flex gap-2" onSubmit={sinVaciar((fd) => ejecutar(async () => setEncontrados(await exigirOk(buscarLeadsVenta(String(fd.get("texto") ?? ""))))))}>
                 <input name="texto" minLength={3} required autoFocus className="campo" placeholder="Nombre, email o teléfono (mínimo 3 letras)" aria-label="Buscar lead" />
                 <button className="btn-secundario" disabled={pendiente} aria-label="Buscar"><Search className="h-4 w-4" /></button>
               </form>
@@ -71,14 +72,14 @@ export function NuevaVenta({ productos, vendedores, miId, moneda }: { productos:
               ) : (
                 <form
                   className="space-y-3 border-t border-borde pt-3"
-                  action={(fd) =>
+                  onSubmit={sinVaciar((fd) =>
                     ejecutar(async () => {
                       const r = await exigirOk(crearLeadVenta(fd));
                       if (r.lead) return setLead(r.lead);
                       // Ya hay un lead con ese email o teléfono: se ofrece ese en vez de crear un duplicado
                       if (r.existente && await confirmar(`Ya existe «${nombreDe(r.existente)}» (${contacto(r.existente)}) con ese email o teléfono. ¿Registrar la venta a ese lead?`, { boton: "Usar ese lead" })) setLead(r.existente!);
                     })
-                  }
+                  )}
                 >
                   <div><label className="etiqueta-campo" htmlFor="nv-nombre">Nombre y apellido</label><input id="nv-nombre" name="nombre" required className="campo" /></div>
                   <div className="grid grid-cols-2 gap-3">

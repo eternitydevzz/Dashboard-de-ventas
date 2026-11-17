@@ -35,14 +35,14 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
   const { token } = await ctx.params;
   if (!/^[0-9a-f]{48}$/.test(token)) return responder({ ok: false, error: "No encontrada" }, 404);
   if (Number(request.headers.get("content-length") ?? 0) > 500_000) return responder({ ok: false, error: "Demasiado grande" }, 413);
-  if (!(await dentroDelLimite(`entrada:${token}`, 300, 60_000))) return responder({ ok: false, error: "Demasiadas peticiones" }, 429);
-
+  // S4-2 (17 nov): primero se busca la Entrada; un token inventado solo cuenta en el límite por IP (no escribe su fila)
   const { data: entrada } = await db().from("entradas").select("*").eq("token", token).maybeSingle<Entrada>();
   if (!entrada || !entrada.activa) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
     if (!(await dentroDelLimite(`entrada-fallo:${ip}`, 30, 15 * 60_000))) return responder({ ok: false, error: "Demasiados intentos" }, 429);
     return responder({ ok: false, error: "No encontrada" }, 404);
   }
+  if (!(await dentroDelLimite(`entrada:${token}`, 300, 60_000))) return responder({ ok: false, error: "Demasiadas peticiones" }, 429);
 
   const texto = await request.text();
   if (texto.length > 500_000) return responder({ ok: false, error: "Demasiado grande" }, 413);

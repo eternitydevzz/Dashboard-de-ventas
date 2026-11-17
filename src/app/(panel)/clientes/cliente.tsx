@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { useRouter } from "next/navigation";
 import { Plus, Settings2, Trash2, Check, Star, CalendarClock, ListChecks, UserRound } from "lucide-react";
 import { Modal } from "@/components/modal";
@@ -55,7 +56,7 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
             </div>
 
             {tab === "seguimiento" && (
-              <form className="space-y-3" action={(fd) => {
+              <form className="space-y-3" onSubmit={sinVaciar((fd) => {
                 const proximo = String(fd.get("proximo") ?? "");
                 const antes = ficha.proximo_contacto ?? "";
                 conDeshacer(async () => cerrarSiOk(await anotarSeguimiento(leadId, String(fd.get("nota") ?? ""), proximo), () => setAbierto(false)), "Seguimiento guardado", (r) => {
@@ -64,7 +65,7 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
                   // Deshacer = borrar ese seguimiento (y su línea del historial) y, si cambió, volver a la fecha de antes (nota vacía = no crea otro)
                   return () => ejecutar(async () => { if (id) await exigirOk(borrarSeguimiento(id, actividadId)); if (proximo !== antes) await exigirOk(anotarSeguimiento(leadId, "", antes)); }, "Deshecho");
                 });
-              }}>
+              })}>
                 <div><label className="etiqueta-campo" htmlFor="seg-nota">Nota de este contacto (opcional)</label><textarea id="seg-nota" name="nota" rows={3} className="campo" placeholder="Cómo va, qué necesita…" /></div>
                 <div><label className="etiqueta-campo" htmlFor="seg-proximo">Próximo contacto</label><input id="seg-proximo" name="proximo" type="date" defaultValue={ficha.proximo_contacto ?? ""} className="campo" /></div>
                 <button className="btn-primario w-full" disabled={pendiente}>Guardar</button>
@@ -92,7 +93,7 @@ export function GestionarCliente({ leadId, nombre, ficha, pasos, notas, pestana 
             )}
 
             {tab === "caso" && (
-              <form className="space-y-3" action={(fd) => ejecutar(async () => cerrarSiOk(await guardarCasoExito(leadId, { caso, resultado: String(fd.get("resultado") ?? ""), enlace: String(fd.get("enlace") ?? ""), fecha: String(fd.get("fecha") ?? "") }), () => setAbierto(false)), "Caso de éxito guardado")}>
+              <form className="space-y-3" onSubmit={sinVaciar((fd) => ejecutar(async () => cerrarSiOk(await guardarCasoExito(leadId, { caso, resultado: String(fd.get("resultado") ?? ""), enlace: String(fd.get("enlace") ?? ""), fecha: String(fd.get("fecha") ?? "") }), () => setAbierto(false)), "Caso de éxito guardado"))}>
                 <label className="flex items-center gap-2"><input type="checkbox" className="interruptor" checked={caso} onChange={(e) => setCaso(e.target.checked)} /> Es un caso de éxito</label>
                 <div><label className="etiqueta-campo" htmlFor="caso-res">Resultado que consiguió</label><textarea id="caso-res" name="resultado" rows={3} defaultValue={ficha.caso_resultado ?? ""} className="campo" placeholder="Ej. Primer cliente de 3.000 € en 6 semanas" /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -121,13 +122,13 @@ export function EditorPasos({ pasos }: { pasos: Paso[] }) {
           <div className="space-y-2 text-sm">
             <p className="text-xs text-texto-3">Lo que hay que hacer con cada cliente nuevo. Si borras un paso, deja de contar en el % de todos.</p>
             {pasos.map((p) => (
-              <form key={p.id} className="flex items-center gap-2" action={(fd) => ejecutar(() => guardarPasoOnboarding(p.id, String(fd.get("nombre"))), "Paso guardado")}>
+              <form key={p.id} className="flex items-center gap-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarPasoOnboarding(p.id, String(fd.get("nombre"))), "Paso guardado"))}>
                 <input name="nombre" defaultValue={p.nombre} className="campo py-1.5" aria-label="Nombre del paso" />
                 <button className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2" disabled={pendiente} title="Guardar"><Check className="h-4 w-4" /></button>
                 <button type="button" className="rounded-md p-1.5 text-texto-3 hover:bg-mal-suave hover:text-mal" disabled={pendiente} title="Borrar" onClick={() => void confirmar(`¿Borrar el paso «${p.nombre}»?`).then((ok) => ok && ejecutar(() => borrarPasoOnboarding(p.id), "Paso borrado"))}><Trash2 className="h-4 w-4" /></button>
               </form>
             ))}
-            <form className="flex items-center gap-2 border-t border-borde pt-2" action={(fd) => ejecutar(() => guardarPasoOnboarding(null, String(fd.get("nombre"))), "Paso añadido")}>
+            <form className="flex items-center gap-2 border-t border-borde pt-2" onSubmit={sinVaciar((fd, form) => ejecutar(async () => { const r = await exigirOk(guardarPasoOnboarding(null, String(fd.get("nombre")))); form.reset(); /* vacío solo si se guardó bien */ return r; }, "Paso añadido"))}>
               <input name="nombre" required placeholder="Nuevo paso" className="campo py-1.5" aria-label="Nuevo paso" />
               <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir paso"><Plus className="h-4 w-4" /></button>
             </form>

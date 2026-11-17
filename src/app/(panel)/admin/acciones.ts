@@ -41,38 +41,7 @@ const refrescar = () => {
 const texto = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 // ---------- Equipo ----------
-export async function crearUsuario(_prev: Res, fd: FormData): Promise<Res> {
-  // Arreglo 30: mismo envoltorio que el resto (lo inesperado no enseña detalles internos)
-  return seguro(async () => {
-    const { perfil, proyecto } = await exigir(puedeAdmin);
-    const email = texto(fd, "email").toLowerCase();
-    const nombre = texto(fd, "nombre");
-    const rol = texto(fd, "rol") as Rol;
-    const password = String(fd.get("password") ?? "");
-    if (!nombre || !email) return { error: "Nombre y email son obligatorios." };
-    if (!ROLES.includes(rol)) return { error: "Rol no válido." };
-    if (rol === "ceo" && perfil.rol !== "ceo") return { error: "Solo el CEO puede crear otro CEO." };
-    if (password.length < 8) return { error: "La contraseña temporal necesita al menos 8 caracteres." };
-
-    const { data, error } = await db().auth.admin.createUser({ email, password, email_confirm: true });
-    if (error) return { error: error.message.includes("already") ? "Ya existe un usuario con ese email." : error.message };
-    const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre, email, rol });
-    if (e2) {
-      await db().auth.admin.deleteUser(data.user.id);
-      return { error: e2.message };
-    }
-    const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
-    // C9: si no entra en el proyecto, se borra el usuario (y su perfil con él): sin cuentas huérfanas
-    const { error: e3 } = await db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0 });
-    if (e3) {
-      await db().auth.admin.deleteUser(data.user.id);
-      throw new Error(`No se pudo guardar en «miembros_proyecto»: ${e3.message}`);
-    }
-    refrescar();
-    return { ok: `Usuario creado. Pásale su email y la contraseña temporal; la primera vez verá el onboarding.` };
-  });
-}
-
+// S1-22: las personas nuevas se crean solo en Equipo (equipo/acciones.ts, crearMiembro)
 export async function actualizarMiembro(perfilId: string, cambios: { rol?: Rol; activo?: boolean; admin_activo?: boolean }) {
   return seguro(async () => {
     const { perfil, proyecto } = await exigir(puedeAdmin);
@@ -180,6 +149,13 @@ export async function guardarReparto(r: { auto: boolean; soloHorario: boolean; p
   });
 }
 
+// S1-8: lo guardado al momento, no lo de la memoria de 1 minuto (lib/sesion.ts): al mezclar no se pisa un cambio reciente
+async function guardadoAhora(proyectoId: string, campo: "tramos_comision" | "preguntas_reporte"): Promise<unknown> {
+  const { data, error } = await db().from("proyectos").select(campo).eq("id", proyectoId).single();
+  if (error) throw new Error(`${campo}: ${error.message}`);
+  return (data as unknown as Record<string, unknown>)[campo];
+}
+
 // ---------- Tramos de comisión (bloque 4 de 1.0, Cristian 10 y 11 oct 2026) ----------
 // Los de callers o los de closers, en la moneda del proyecto. Mismas reglas que las comisiones por rol: solo el CEO o
 // un director (con Administración), y el director no los de su propio rol (aquí no aplica: son de callers y closers).
@@ -190,7 +166,7 @@ export async function guardarTramos(rol: "caller" | "closer", tramos: { desde: n
     exigirCambiarComisionRol(perfil, rol);
     const t = tramosValidos(tramos);
     if (!t) throw new ErrorUsuario("Revisa los tramos: el primero empieza en 0, cada uno en un importe distinto, y el % va de 0 a 100.");
-    const actuales = tramosDe(proyecto.tramos_comision);
+    const actuales = tramosDe(await guardadoAhora(proyecto.id, "tramos_comision")); // S1-8
     await escribir(db().from("proyectos").update({ tramos_comision: { ...actuales, [rol]: t } }).eq("id", proyecto.id), "proyectos");
     refrescar();
   });
@@ -202,7 +178,8 @@ export async function guardarPreguntasReporte(rol: "caller" | "closer", lista: u
   return seguro(async () => {
     const { proyecto } = await exigir(puedeAdmin);
     if (rol !== "caller" && rol !== "closer") throw new ErrorUsuario("Rol no válido.");
-    const actuales = (proyecto.preguntas_reporte && typeof proyecto.preguntas_reporte === "object" ? proyecto.preguntas_reporte : {}) as Record<string, unknown>;
+    const guardadas = await guardadoAhora(proyecto.id, "preguntas_reporte"); // S1-8
+    const actuales = (guardadas && typeof guardadas === "object" ? guardadas : {}) as Record<string, unknown>;
     let nuevas: Record<string, unknown>;
     if (lista === null) {
       nuevas = Object.fromEntries(Object.entries(actuales).filter(([k]) => k !== rol));

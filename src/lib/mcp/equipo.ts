@@ -6,7 +6,7 @@ import { db, escribir, todas } from "@/lib/datos";
 import { exigirSeccion } from "@/lib/permisos";
 import { ErrorUsuario, esError } from "@/lib/resultado";
 import { mercadoValido } from "@/lib/mercado";
-import type { Rol } from "@/lib/tipos";
+import { esCloser, type Rol } from "@/lib/tipos";
 import { crearMiembro } from "@/app/(panel)/equipo/acciones";
 import { actualizarMiembro, enviarEnlaceMagico } from "@/app/(panel)/admin/acciones";
 import { asignarLeads } from "@/app/(panel)/crm/acciones";
@@ -30,10 +30,10 @@ async function elegir<T extends { id: string; nombre: string }>(lista: T[], quie
 }
 
 async function personasDelProyecto(proyectoId: string) {
-  const { data, error } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(nombre, email, rol, activo)").eq("proyecto_id", proyectoId);
+  const { data, error } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(nombre, email, rol, activo, tambien_closer)").eq("proyecto_id", proyectoId);
   if (error) throw new Error(`No se pudo leer el equipo: ${error.message}`);
   return (data ?? []).map((m) => {
-    const p = m.perfiles as unknown as { nombre: string; email: string; rol: Rol; activo: boolean };
+    const p = m.perfiles as unknown as { nombre: string; email: string; rol: Rol; activo: boolean; tambien_closer: boolean };
     return { id: m.perfil_id as string, ...p };
   });
 }
@@ -103,7 +103,7 @@ async function prepararSalida(a: ArgsBaja, borrar: boolean) {
   // Cristian (13 nov): con leads, no se hace nada hasta que diga a quién van («nadie» = sin asignar)
   if (total && !a.leadsA) throw new ErrorUsuario(`${p.nombre} tiene ${total} leads (${callerIds.length} como caller, ${closerIds.length} como closer). Di a quién pasarlos con leadsA (nombre o id), o «nadie» para dejarlos sin asignar. No se ha cambiado nada.`);
   const nadie = !a.leadsA || a.leadsA.trim().toLowerCase() === "nadie";
-  const destino = nadie ? null : await elegir(gente.filter((g) => g.activo && g.id !== p.id && (callerIds.length ? g.rol === "caller" : true) && (closerIds.length ? g.rol === "closer" : true)), a.leadsA!, callerIds.length && closerIds.length ? "personas que sean caller y closer" : callerIds.length ? "callers" : "closers");
+  const destino = nadie ? null : await elegir(gente.filter((g) => g.activo && g.id !== p.id && (callerIds.length ? g.rol === "caller" : true) && (closerIds.length ? esCloser(g) : true)), a.leadsA!, callerIds.length && closerIds.length ? "personas que sean caller y closer" : callerIds.length ? "callers" : "closers");
   return { p, callerIds, closerIds, total, destino };
 }
 

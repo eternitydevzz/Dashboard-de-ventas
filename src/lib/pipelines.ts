@@ -40,7 +40,9 @@ export function nivelEnCrm(perfil: Perfil, pipeline: Pick<Pipeline, "id" | "tipo
 
 export async function filasPermisoPipeline(pipelineIds: string[]) {
   if (!pipelineIds.length) return [] as FilaPermisoPipeline[];
-  const { data } = await db().from("permisos_pipeline").select("pipeline_id, rol, perfil_id, nivel").in("pipeline_id", pipelineIds);
+  const { data, error } = await db().from("permisos_pipeline").select("pipeline_id, rol, perfil_id, nivel").in("pipeline_id", pipelineIds);
+  // S3-4 (17 nov): sin filas se aplicaría el nivel por defecto y un «Sin acceso» se abriría durante el fallo
+  if (error) throw new Error(`No se pudieron leer los permisos de pipeline: ${error.message}`);
   return (data ?? []) as FilaPermisoPipeline[];
 }
 
