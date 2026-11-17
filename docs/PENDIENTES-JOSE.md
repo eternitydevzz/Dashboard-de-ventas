@@ -138,6 +138,6 @@ Decisión de Cristian:
 | Fase | PR | Commit | Notas |
 |---|---|---|---|
 | A | #198 | `cfddb2a` | 17 nov. Migración `20261124100000_zona_otro` subida antes de fusionar. Unitarios 1413/1413, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): enlace sin gastar al abrir, campana sin citas pasadas, sin «Latam» visible, CRM de Facu con las que agendó. Sin ver: la zona «Otro» (no la tiene el CEO) y la vista propia de Facu. |
-| B | | | |
+| B | #199 | `8713bbe` | 17 nov. Sin migración. Unitarios 1420/1420, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): el lead con más envíos enseña «Formularios (9)» en la ficha y en el popup, con su Entrada en los 9; respuestas en 2 de 9 (en la base, justo los 2 que traen preguntas). La fecha sale sin año (apuntado). |
 | C | | | |
 | D | | | |

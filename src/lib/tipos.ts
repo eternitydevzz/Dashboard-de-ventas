@@ -198,3 +198,16 @@ export type Reporte = {
   preguntas?: unknown; // 1.0 bloque 7: las preguntas que tenía al enviarse
   creado_en: string;
 };
+
+// Fase C (Cristian, 17 nov 2026): reporte automático diario (tabla reporte_config, 20261125100000_reporte_diario.sql).
+// "es" = España (21:00 de Madrid) · "latam" = USA (21:00 de Nueva York); en pantalla, «España» y «USA».
+export type MercadoReporte = "es" | "latam";
+export type ParteReporte = "por_persona" | "totales_dia" | "totales_mes" | "va_mal" | "objetivos";
+export type ConfigReporte = {
+  mercado: MercadoReporte;
+  activo: boolean;
+  hora: string; // "HH:MM", en cuartos de hora (el cron llama cada 15 min)
+  emails: string[];
+  whatsapps: string[]; // se guardan; se mandan en la Fase D
+  partes: ParteReporte[];
+};
