@@ -31,15 +31,24 @@ async function leerProyecto(proyectoId: string): Promise<Proyecto> {
 
 type FilaWhatsapp = { destino: string; estado: "enviado" | "fallo"; error: string | null };
 
+// Por qué no se manda un número: no es un teléfono, o le falta el «+» del país (la pestaña Reporte ya lo exige,
+// pero hay números guardados sin él y sin prefijo WhatsApp lo leería como de otro país). null = se puede mandar.
+function motivoNoValido(numero: string): string | null {
+  if (chatIdDe(numero) === null) return "Número no válido";
+  if (!numero.replace(/\s/g, "").startsWith("+")) return "Sin prefijo de país (+)";
+  return null;
+}
+
 // Cada destino queda apuntado en whatsapp_envios (único por evento, origen y destino). Nunca lanza.
 async function reporteAlWhatsapp(proyectoId: string, origenId: string, numeros: string[], texto: string) {
   if (!whatsappConfigurado() || !numeros.length) return;
   try {
-    const chatIds = [...new Set(numeros.map(chatIdDe).filter((c): c is string => c !== null))];
-    const invalidos: FilaWhatsapp[] = [...new Set(numeros.filter((n) => chatIdDe(n) === null))].map((destino) => ({
+    const buenos = numeros.filter((n) => motivoNoValido(n) === null);
+    const chatIds = [...new Set(buenos.map(chatIdDe).filter((c): c is string => c !== null))];
+    const invalidos: FilaWhatsapp[] = [...new Set(numeros.filter((n) => motivoNoValido(n) !== null))].map((destino) => ({
       destino,
       estado: "fallo",
-      error: "Número no válido",
+      error: motivoNoValido(destino),
     }));
     const r = chatIds.length ? await enviarWhatsapp(chatIds, texto) : { enviados: [], fallos: [] };
     const validos: FilaWhatsapp[] = chatIds.map((destino) =>
@@ -88,7 +97,8 @@ export async function enviarReporte(proyectoId: string, mercado: MercadoReporte,
   }
   // Fuera del try: lo que pase con WhatsApp no puede soltar la reserva del email que ya salió
   if (textoEnviado !== null) {
-    await reporteAlWhatsapp(proyectoId, `${mercado}:${fecha}`, config.whatsapps, textoEnviado);
+    // El proyecto va en el origen: la clave única (evento, origen_id, destino) no lo lleva
+    await reporteAlWhatsapp(proyectoId, `${proyectoId}:${mercado}:${fecha}`, config.whatsapps, textoEnviado);
     return { estado: "enviado" };
   }
   // Si falla, se suelta la fecha: la siguiente llamada del cron (a los 15 min) puede reintentar

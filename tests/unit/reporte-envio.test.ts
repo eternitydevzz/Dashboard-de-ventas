@@ -186,7 +186,7 @@ describe("enviarReporte", () => {
 });
 
 describe("enviarReporte por WhatsApp (Fase D)", () => {
-  const ORIGEN = "es:2026-11-17";
+  const ORIGEN = `${P}:es:2026-11-17`; // lleva el proyecto: la clave única (evento, origen_id, destino) no lo tiene
   const OPCIONES_WA = { onConflict: "evento,origen_id,destino", ignoreDuplicates: true };
 
   beforeEach(() => {
@@ -209,6 +209,28 @@ describe("enviarReporte por WhatsApp (Fase D)", () => {
     );
     expect(waFilas).toHaveLength(2);
     expect(waOpciones.every((o) => JSON.stringify(o) === JSON.stringify(OPCIONES_WA))).toBe(true);
+  });
+
+  it("un número sin «+» (aunque tenga cifras): no se manda y se apunta «Sin prefijo de país (+)»", async () => {
+    waConfigurado = true;
+    config = [fila("es", { whatsapps: ["+34 600 111 222", "600111333"] })];
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(enviarWa.mock.calls[0][0]).toEqual(["34600111222@c.us"]);
+    expect(waFilas).toEqual(
+      expect.arrayContaining([
+        { proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "34600111222@c.us", estado: "enviado", error: null },
+        { proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "600111333", estado: "fallo", error: "Sin prefijo de país (+)" },
+      ]),
+    );
+    expect(waFilas).toHaveLength(2);
+  });
+
+  it("solo números sin «+»: no se llama a enviarWhatsapp, pero se apuntan los fallos", async () => {
+    waConfigurado = true;
+    config = [fila("es", { whatsapps: ["600111333"] })];
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(enviarWa).not.toHaveBeenCalled();
+    expect(waFilas).toEqual([{ proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "600111333", estado: "fallo", error: "Sin prefijo de país (+)" }]);
   });
 
   it("sin WhatsApp configurado: ni se llama a enviarWhatsapp ni se apunta nada", async () => {
