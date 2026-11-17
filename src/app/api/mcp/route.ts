@@ -10,6 +10,7 @@ import { ESTADOS, herramientaAgendar, herramientaBorrar, herramientaCrearLead, h
 import { herramientaEnlaceGrabacion, herramientaGrabacionesPendientes, herramientaSubirTranscripcion, herramientaTranscripciones } from "@/lib/mcp/grabaciones";
 import { herramientaDuplicados, herramientaObjetivos, herramientaAgenda, herramientaBuscarLeads, herramientaFichaLead, herramientaFinanzas, herramientaFunnel, herramientaRanking } from "@/lib/mcp/lectura";
 import { esError, seguro } from "@/lib/resultado";
+import { ipDe } from "@/lib/ip-envio";
 
 // MCP del dashboard, Fase 2 (Cristian, 11 nov 2026; plan en VENTAS/API-DASHBOARD). Claude Code llama aquí con
 // «Authorization: Bearer <clave personal>». Sin estado: un servidor MCP por petición (como pide Vercel).
@@ -275,7 +276,7 @@ function servidor(perfilId: string) {
 const noAutorizado = (status = 401, error = "No autorizado") => Response.json({ error }, { status });
 
 async function atender(req: Request) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const ip = ipDe(req.headers);
   const fallo = `mcp-fallo:${ip}`;
   if (await bloqueado(fallo, 30, 15 * 60_000)) return noAutorizado(429, "Demasiados intentos");
   const clave = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();

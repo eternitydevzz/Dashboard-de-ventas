@@ -4,7 +4,7 @@ import { guardarLeads, telefonoClave } from "@/lib/leads";
 import { dentroDelLimite } from "@/lib/limite";
 import { aplicarReglas, interpretar, reglasValidas } from "@/lib/entrada";
 import { crearEjecuciones } from "@/lib/workflows-motor";
-import { ipDelEnvio } from "@/lib/ip-envio";
+import { ipDe, ipDelEnvio } from "@/lib/ip-envio";
 import { completarLeadDelEvento, envioRepetido } from "@/lib/entrada-evento";
 import { enviarEmail, urlApp } from "@/lib/email";
 import { EMAIL_AVISO_GHL } from "@/lib/ghl-envios";
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
   // S4-2 (17 nov): primero se busca la Entrada; un token inventado solo cuenta en el límite por IP (no escribe su fila)
   const { data: entrada } = await db().from("entradas").select("*").eq("token", token).maybeSingle<Entrada>();
   if (!entrada || !entrada.activa) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+    const ip = ipDe(request.headers);
     if (!(await dentroDelLimite(`entrada-fallo:${ip}`, 30, 15 * 60_000))) return responder({ ok: false, error: "Demasiados intentos" }, 429);
     return responder({ ok: false, error: "No encontrada" }, 404);
   }
@@ -63,11 +63,12 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
   }
 
   // 1 · Se guarda el envío entero, pase lo que pase después
-  const { data: evento } = await db()
+  const { data: evento, error: errEvento } = await db()
     .from("webhook_eventos")
     .insert({ proyecto_id: entrada.proyecto_id, entrada_id: entrada.id, tipo: `entrada: ${entrada.nombre}`, payload: cuerpo })
     .select("id")
     .single();
+  if (errEvento) console.error("Entrada: no se pudo guardar el evento", errEvento.message);
   // El motivo completo queda en el registro (Administración → Entradas); fuera solo sale si es esperado
   const fallo = async (msg: string, status = 422, publico = msg) => {
     if (evento) await db().from("webhook_eventos").update({ error: msg.slice(0, 300) }).eq("id", evento.id);

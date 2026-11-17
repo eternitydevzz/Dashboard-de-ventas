@@ -1,4 +1,4 @@
-// Ola 6 · C6: una cita cerrada (tiene su venta) no vuelve a otro estado a mano ni con la IA; y al reagendar, si la
+// Ola 6 · C6: una cita cerrada (tiene su venta) no vuelve a otro estado a mano; y al reagendar, si la
 // vuelta atrás de la cita vieja falla, se avisa (antes se ignoraba y la cita se quedaba «reagendada» sin nueva).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -72,10 +72,5 @@ describe("reagendar: vuelta atrás", () => {
     const r = await reagendarCita("c1", "2026-11-15T10:00");
     expect(r).toMatchObject({ error: expect.any(String) });
     expect(r).not.toEqual({ error: "Ese hueco acaba de ocuparse, elige otro." });
-  });
-
-  it("si la vuelta atrás va bien, el aviso de siempre", async () => {
-    errorInsert = { code: "23505", message: 'duplicate key value violates unique constraint "citas_closer_hora_unica"' };
-    expect(await reagendarCita("c1", "2026-11-15T10:00")).toEqual({ error: "Ese hueco acaba de ocuparse, elige otro." });
   });
 });

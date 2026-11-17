@@ -1,5 +1,4 @@
 import { escribir } from "@/lib/datos";
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { columnaCitasGhl, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave, type LeadEntrada } from "@/lib/leads";
@@ -10,6 +9,7 @@ import { dentroDelLimite } from "@/lib/limite";
 import { interpretar } from "@/lib/entrada";
 import { esCloser, type Proyecto, type Rol } from "@/lib/tipos";
 import { fechaDeGhl, mismoNombre } from "@/lib/formato";
+import { igual, ipDe } from "@/lib/ip-envio";
 
 // Recibe eventos de los workflows de GHL (acción «Webhook»).
 // Campo `tipo`: lead_nuevo | cita_agendada | cambio_etapa.
@@ -18,12 +18,6 @@ import { fechaDeGhl, mismoNombre } from "@/lib/formato";
 // (se probará al publicar). Por eso se guarda siempre el payload completo.
 
 const db = () => createAdminClient();
-
-function igual(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
 
 type Json = Record<string, unknown>;
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
@@ -85,7 +79,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
   if (Number(request.headers.get("content-length") ?? 0) > 500_000) return NextResponse.json({ ok: false, error: "Demasiado grande" }, { status: 413 });
   const { data: proyecto } = await db().from("proyectos").select("*").eq("id", proyectoId).maybeSingle<Proyecto>();
   if (!proyecto || !secreto || !igual(secreto, proyecto.webhook_secreto)) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+    const ip = ipDe(request.headers);
     if (!(await dentroDelLimite(`webhook-fallo:${ip}`, 30, 15 * 60_000))) return NextResponse.json({ ok: false, error: "Demasiados intentos" }, { status: 429 });
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
   }
@@ -101,7 +95,8 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
     return NextResponse.json({ ok: false, error: "JSON no válido" }, { status: 400 });
   }
   const tipo = primero(body, ["tipo", "customData.tipo", "type"]) || "lead_nuevo";
-  const { data: evento } = await db().from("webhook_eventos").insert({ proyecto_id: proyecto.id, tipo, payload: body }).select("id").single();
+  const { data: evento, error: errEvento } = await db().from("webhook_eventos").insert({ proyecto_id: proyecto.id, tipo, payload: body }).select("id").single();
+  if (errEvento) console.error("webhook GHL: no se pudo guardar el evento", errEvento.message);
 
   try {
     if (tipo === "lead_nuevo") {
@@ -111,7 +106,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       const pipelineId = (pipelineNombre ? pipes?.find((p) => mismoNombre(p.nombre, pipelineNombre)) : null)?.id ?? pipes?.[0]?.id ?? null;
       await guardarLeads(proyecto, [aLead(body)], { pipelineId, origen: "ghl", perfilId: null, repartir: true });
     } else if (tipo === "cita_agendada" && (proyecto.ghl_calendarios ?? []).length) {
-      // Plan GHL, fase 4 (16 oct): el proyecto lee sus citas por la API cada 30 s (con su canal, su calendario y su
+      // Plan GHL, fase 4 (16 oct): el proyecto lee sus citas por la API cada minuto (con su canal, su calendario y su
       // closer). El aviso del workflow solo se guarda: si creara la cita, la mandaría a «Orgánico» antes de saber el canal.
       if (evento) await db().from("webhook_eventos").update({ procesado: true, error: "Ignorado: las citas se leen por la API" }).eq("id", evento.id);
       return NextResponse.json({ ok: true, ignorado: true });

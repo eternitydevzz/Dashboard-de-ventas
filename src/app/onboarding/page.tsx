@@ -23,6 +23,8 @@ const conHorario = (rol: string) => rol === "caller" || rol === "closer";
 async function completar(formData: FormData) {
   "use server";
   const { perfil, proyecto } = await getSesion();
+  // S4-11: solo la primera vez; si no, con una sesión abierta se cambiaría la contraseña sin saber la anterior
+  if (perfil.onboarding_completo) redirect("/");
   const nombre = String(formData.get("nombre") ?? "").trim();
   const telefono = String(formData.get("telefono") ?? "").trim();
   const whatsapp = String(formData.get("whatsapp") ?? "").trim();

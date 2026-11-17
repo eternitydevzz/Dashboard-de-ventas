@@ -3,14 +3,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { crearEscenario, borrarEscenario, db, type Escenario } from "../apoyo/escenario";
 import { POST } from "@/app/api/ghl/leer/[proyectoId]/route";
-import { reiniciarLimites } from "@/lib/limite";
 
 let e: Escenario;
 let secreto: string;
 beforeAll(async () => {
   e = await crearEscenario();
   secreto = (await db.from("proyectos").select("webhook_secreto").eq("id", e.proyecto.id).single()).data!.webhook_secreto;
-  await reiniciarLimites();
 });
 afterAll(async () => {
   if (e) await borrarEscenario(e);

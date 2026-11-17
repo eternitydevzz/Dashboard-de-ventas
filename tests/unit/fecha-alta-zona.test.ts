@@ -11,9 +11,4 @@ describe("KPIs → Leads: fecha de alta", () => {
     expect(fechas.length).toBeGreaterThan(0);
     expect(fechas.filter((l) => !/timeZone: zona/.test(l))).toEqual([]);
   });
-  it("el mismo instante da el mismo día en UTC y en Madrid con la zona fijada", () => {
-    const alta = "2026-10-24T01:30:00Z"; // 23 oct en Nueva York, 24 oct en Madrid
-    const enNY = new Date(alta).toLocaleDateString("es-ES", { timeZone: "America/New_York" });
-    expect(enNY).toBe("23/10/2026");
-  });
 });

@@ -8,6 +8,7 @@ import { mandarEnlace } from "@/lib/acceso";
 import { COOKIE_SESION_CORTA, createSessionClient } from "@/lib/supabase/server";
 import { sesionDe } from "@/lib/sesion";
 import { rutaInicio } from "@/lib/permisos";
+import { ipDe } from "@/lib/ip-envio";
 
 export async function iniciarSesion(_prev: { error: string; email?: string }, formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -15,7 +16,7 @@ export async function iniciarSesion(_prev: { error: string; email?: string }, fo
   if (!email || !password) return { error: "Escribe tu email y tu contraseña.", email };
 
   // Frenar a quien prueba contraseñas: 8 fallos por email y 40 por conexión cada 15 minutos
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const ip = ipDe(await headers());
   const quince = 15 * 60_000;
   const [porEmail, porIp] = await Promise.all([bloqueado(`login:email:${email}`, 8, quince), bloqueado(`login:ip:${ip}`, 40, quince)]);
   if (porEmail || porIp) {
@@ -53,7 +54,7 @@ export async function cerrarSesion() {
 export async function pedirEnlace(_prev: { mensaje: string; error: string }, formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return { mensaje: "", error: "Escribe tu email." };
-  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const ip = ipDe(await headers());
   const hora = 60 * 60_000;
   const [okEmail, okIp] = await Promise.all([dentroDelLimite(`enlace:email:${email}`, 3, hora), dentroDelLimite(`enlace:ip:${ip}`, 10, hora)]);
   if (!okEmail || !okIp) return { mensaje: "", error: "Has pedido demasiados enlaces. Espera una hora o habla con tu director." };

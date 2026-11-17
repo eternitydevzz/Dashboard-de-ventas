@@ -1,5 +1,6 @@
 // Crea (si falta) el proyecto base con sus pipelines, columnas y productos.
-// No duplica nada: se puede ejecutar varias veces.
+// Se puede ejecutar varias veces: no repite lo que ya existe con el mismo nombre exacto
+// (un nombre con otra mayúscula, tilde o espacio se crearía otra vez).
 import { readFileSync } from "node:fs";
 
 export const BASE = JSON.parse(readFileSync(new URL("./proyecto-base.json", import.meta.url), "utf8"));

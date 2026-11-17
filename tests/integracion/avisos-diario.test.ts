@@ -5,7 +5,6 @@ import { NextRequest } from "next/server";
 import { borrarEscenario, crearEscenario, db, type Escenario } from "../apoyo/escenario";
 import { enviarDiario } from "@/lib/avisos-diario";
 import { POST } from "@/app/api/avisos/diario/[proyectoId]/route";
-import { reiniciarLimites } from "@/lib/limite";
 
 let e: Escenario;
 let servidor: Server;
@@ -16,7 +15,6 @@ const antes = { url: process.env.RESEND_API_URL, clave: process.env.RESEND_API_K
 beforeAll(async () => {
   e = await crearEscenario();
   secreto = (await db.from("proyectos").select("webhook_secreto").eq("id", e.proyecto.id).single()).data!.webhook_secreto;
-  await reiniciarLimites();
   servidor = createServer((req, res) => {
     let cuerpo = "";
     req.on("data", (c) => (cuerpo += c));

@@ -7,9 +7,9 @@ import { COOKIE_SESION_CORTA, opcionesCookie } from "@/lib/supabase/server";
 // a quien no ha iniciado sesión. Los permisos reales se comprueban
 // en el servidor (src/lib/auth.ts), no aquí.
 export async function proxy(request: NextRequest) {
-  // Plan GHL, fase 3: el programador de Supabase llama cada 30 s sin sesión; la ruta comprueba la clave del proyecto.
-  // Se deja pasar sin preguntar la sesión a Supabase (una llamada menos cada 30 s).
-  // F2: el email diario del CEO lo llama el programador igual (06:00 y 07:00 UTC)
+  // Plan GHL, fase 3: el programador de Supabase llama cada minuto sin sesión; la ruta comprueba la clave del proyecto.
+  // Se deja pasar sin preguntar la sesión a Supabase (una llamada menos cada minuto).
+  // F2: el email diario del CEO lo llama el programador igual (cada 15 min de 6:00 a 7:45 UTC)
   // MCP, Fase 2 (11 nov 2026): Claude Code llama sin sesión del navegador; la ruta comprueba la clave personal.
   const ruta0 = request.nextUrl.pathname;
   if (ruta0.startsWith("/api/ghl/leer/") || ruta0.startsWith("/api/avisos/diario/") || ruta0 === "/api/mcp") return NextResponse.next();

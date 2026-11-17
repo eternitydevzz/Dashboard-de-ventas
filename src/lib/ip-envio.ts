@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 // Plan GHL, punto 3 (Cristian, 7 nov 2026): la IP de la persona, en el seguimiento del lead. Sin base de datos.
 // - Si la landing la manda en `ip` (desde un servidor, como api/signup.js), esa, si es una IP válida.
 // - Si la Entrada envía desde el navegador, la de la petición (la primera de x-forwarded-for).
@@ -14,4 +16,14 @@ export function ipDelEnvio(o: { cuerpo: Record<string, unknown>; cabecera: strin
   if (o.cuerpo.ip !== undefined && o.cuerpo.ip !== "") return valida(o.cuerpo.ip);
   if (o.enviaDesde !== "navegador") return null;
   return valida(o.cabecera?.split(",")[0]);
+}
+
+// IP de la conexión para los límites de ritmo: la primera de x-forwarded-for, o «local» si no hay.
+export const ipDe = (h: { get(nombre: string): string | null }) => h.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+
+// Compara secretos en tiempo constante (no deja adivinar la clave midiendo cuánto tarda la respuesta).
+export function igual(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
 }

@@ -1,6 +1,6 @@
 // Workflows 4c (boceto del editor aprobado por Cristian el 7 nov 2026): editar el árbol de pasos y validarlo, sin base de datos.
 import { describe, expect, it } from "vitest";
-import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, pasosValidos, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
+import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, pasosValidos, quitarPaso, verPaso } from "@/lib/workflows-editar";
 import type { Paso } from "@/lib/workflows";
 
 const BASE: Paso[] = [
@@ -103,5 +103,3 @@ describe("mismoContenido: comparar pasos sin que importe el orden de las claves 
     expect(mismoContenido([{ id: "a" }, { id: "b" }], [{ id: "b" }, { id: "a" }])).toBe(false);
   });
 });
-
-export type _R = Ruta;

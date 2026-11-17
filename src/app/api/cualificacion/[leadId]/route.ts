@@ -6,7 +6,8 @@ import { ErrorUsuario } from "@/lib/resultado";
 export async function POST(req: Request, { params }: { params: Promise<{ leadId: string }> }) {
   // Solo desde la propia app (las acciones del servidor ya lo comprueban solas; esta ruta, a mano)
   const origen = req.headers.get("origin");
-  if (origen && new URL(origen).host !== new URL(req.url).host) return new Response("Origen no válido", { status: 403 });
+  // «Origin: null» (o cualquier valor que no sea una URL) no es la app: 403, no un 500 de new URL()
+  if (origen && (!URL.canParse(origen) || new URL(origen).host !== new URL(req.url).host)) return new Response("Origen no válido", { status: 403 });
   const { leadId } = await params;
   let cuerpo: unknown;
   try {

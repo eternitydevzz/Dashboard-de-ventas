@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { writeFileSync } from "node:fs";
 import { PDFDocument } from "pdf-lib";
 import { generarPdf, limpiar } from "@/lib/reporte-pdf";
 
@@ -15,7 +14,6 @@ describe("reporte en PDF", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(1);
     expect(doc.getTitle()).toBe("Agendas · Maestría");
-    if (process.env.GUARDAR_PDF) writeFileSync(process.env.GUARDAR_PDF, bytes);
   });
   it("muchas filas pasan a otra página", async () => {
     const filas = Array.from({ length: 80 }, (_, i) => [`Fila ${i}`, String(i)] as [string, string]);

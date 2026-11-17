@@ -1,19 +1,13 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dentroDelLimite } from "@/lib/limite";
 import { enviarDiario } from "@/lib/avisos-diario";
+import { igual, ipDe } from "@/lib/ip-envio";
 
 // Plan GHL F2: el programador de Supabase llama aquí cada 15 min de 06:00 a 07:45 UTC (migración 20261109120100_avisos_diario.sql).
 // Misma clave que la lectura de GHL (la del proyecto, en la cabecera x-eternity-secreto).
 
 export const maxDuration = 60;
-
-function igual(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
 
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/avisos/diario/[proyectoId]">) {
   const { proyectoId } = await ctx.params;
@@ -21,7 +15,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/avisos/
   const secreto = request.headers.get("x-eternity-secreto") ?? "";
   const { data: proyecto } = await createAdminClient().from("proyectos").select("id, webhook_secreto").eq("id", proyectoId).maybeSingle();
   if (!proyecto || !secreto || !igual(secreto, proyecto.webhook_secreto)) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+    const ip = ipDe(request.headers);
     if (!(await dentroDelLimite(`avisos-diario-fallo:${ip}`, 30, 15 * 60_000))) return NextResponse.json({ ok: false, error: "Demasiados intentos" }, { status: 429 });
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
   }

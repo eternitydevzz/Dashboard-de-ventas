@@ -37,7 +37,7 @@ afterAll(async () => {
 });
 
 describe("borrar_leads", () => {
-  it("si algo falla, no borra nada (un id que no es uuid corta la llamada entera)", async () => {
+  it("un id que no es uuid corta la llamada entera: no borra ninguno de la lista", async () => {
     const { error } = await borrar([ids.libre1, "no-es-uuid"]);
     expect(error).not.toBeNull();
     expect(await existe(ids.libre1)).toBe(true);

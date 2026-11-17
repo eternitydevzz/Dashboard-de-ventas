@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dentroDelLimite } from "@/lib/limite";
@@ -9,18 +8,13 @@ import { MAX_LEADS_POR_LECTURA, enviarPendientesGhl, type ResultadoEnvios } from
 import { avanzarEjecuciones, dispararEtiquetas } from "@/lib/workflows-motor";
 import { guardarError } from "@/lib/errores-app";
 import type { Proyecto } from "@/lib/tipos";
+import { igual, ipDe } from "@/lib/ip-envio";
 
 // Plan GHL, fase 3 (Cristian, 16 oct 2026): el programador de Supabase llama aquí cada 60 s para leer las citas
 // de GHL (migración 20261017190000_leer_ghl_cada_60s.sql). Misma clave que el webhook (la del proyecto, en la
 // cabecera x-eternity-secreto): así no hay otra clave que guardar en Vercel.
 
 export const maxDuration = 60;
-
-function igual(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
 
 export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/leer/[proyectoId]">) {
   const { proyectoId } = await ctx.params;
@@ -29,7 +23,7 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/ghl/lee
   // D43: el proyecto se lee 1 vez aquí y se pasa a las citas, los envíos, los workflows y los leads (antes, 5 lecturas)
   const { data: proyecto } = await createAdminClient().from("proyectos").select("*").eq("id", proyectoId).maybeSingle<ProyectoGhl>();
   if (!proyecto || !secreto || !igual(secreto, proyecto.webhook_secreto)) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+    const ip = ipDe(request.headers);
     if (!(await dentroDelLimite(`ghl-leer-fallo:${ip}`, 30, 15 * 60_000))) return NextResponse.json({ ok: false, error: "Demasiados intentos" }, { status: 429 });
     return NextResponse.json({ ok: false, error: "No autorizado" }, { status: 401 });
   }

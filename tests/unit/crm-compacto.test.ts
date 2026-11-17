@@ -47,7 +47,6 @@ describe("compactar los leads del CRM", () => {
     const leads = Array.from({ length: 4616 }, (_, i) => lead(i));
     const antes = JSON.stringify(leads).length;
     const despues = JSON.stringify(compactarCrm(leads)).length;
-    console.log(`CRM 4.616 leads inventados: ${antes} → ${despues} bytes (${Math.round((1 - despues / antes) * 100)} % menos)`);
     expect(despues).toBeLessThan(antes * 0.6);
   });
 });
