@@ -29,7 +29,6 @@ vi.mock("@/lib/acceso", () => ({ mandarEnlace: vi.fn() }));
 vi.mock("@/lib/permisos", () => ({ rutaInicio: vi.fn() }));
 
 const { proxy } = await import("@/proxy");
-const { GET: confirmar } = await import("@/app/auth/confirm/route");
 const { iniciarSesion } = await import("@/app/login/acciones");
 
 beforeEach(() => {
@@ -56,21 +55,7 @@ describe("proxy: quién pasa sin sesión", () => {
   });
 });
 
-describe("auth/confirm: el enlace mágico", () => {
-  const ir = (q: string) => confirmar(new NextRequest(`http://x/auth/confirm${q}`));
-  it("sin código o con otro tipo, al login con aviso", async () => {
-    expect(destino(await ir(""))).toBe("/login?error=enlace");
-    expect(destino(await ir("?token_hash=t&type=recovery"))).toBe("/login?error=enlace");
-  });
-  it("enlace usado o caducado, al login con aviso", async () => {
-    otpError = { message: "expired" };
-    expect(destino(await ir("?token_hash=t&type=magiclink"))).toBe("/login?error=enlace");
-  });
-  it("enlace bueno, a /entrando (y a crear contraseña si se pide)", async () => {
-    expect(destino(await ir("?token_hash=t&type=magiclink"))).toBe("/entrando");
-    expect(destino(await ir("?token_hash=t&type=magiclink&siguiente=perfil"))).toBe("/entrando?siguiente=perfil");
-  });
-});
+// El enlace mágico (/auth/confirm) se prueba en a1-enlace.test.ts (A1, 17 nov: página + acción, ya no una ruta GET)
 
 describe("login: freno de contraseñas", () => {
   const fd = (email: string, password: string) => {
