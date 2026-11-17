@@ -51,13 +51,15 @@ describe("MCP: equipo", () => {
     expect((await db.from("perfiles").select("activo").eq("id", e.p.callerA.id).single()).data!.activo).toBe(false);
   });
 
-  it("borrar: solo el CEO; deja los leads sin asignar con «nadie» y borra la cuenta", async () => {
+  it("borrar: solo el CEO; deja los leads sin asignar con «nadie», borra el acceso y conserva el perfil de baja", async () => {
     await expect(como(e.p.directorAdmin, () => herramientaBorrarMiembro({ persona: e.p.callerB.id, leadsA: "nadie" }))).rejects.toThrow(/Solo el CEO/);
     const v = await como(e.p.ceo, () => herramientaBorrarMiembro({ persona: e.p.callerB.id, leadsA: "nadie" }));
     expect(previa(v)).toBe(true);
     expect(await perfilDe(e.p.callerB.email)).not.toBeNull();
     await como(e.p.ceo, () => herramientaBorrarMiembro({ persona: e.p.callerB.id, leadsA: "nadie", confirmar: true }));
-    expect(await perfilDe(e.p.callerB.email)).toBeNull();
+    // Cristian (17 nov): el nombre se queda en el historial: el perfil sigue, de baja, y el acceso ya no existe
+    expect(await perfilDe(e.p.callerB.email)).toMatchObject({ id: e.p.callerB.id, activo: false });
+    expect((await db.auth.admin.getUserById(e.p.callerB.id)).data.user).toBeNull();
     expect((await db.from("leads").select("caller_id").in("id", [e.leads.LeadA, e.leads.LeadB])).data!.every((l) => l.caller_id === null)).toBe(true);
   });
 
@@ -85,5 +87,21 @@ describe("MCP: equipo", () => {
 
   it("no se puede tocar a un CEO ni a uno mismo", async () => {
     await expect(como(e.p.ceo, () => herramientaDarDeBaja({ persona: e.p.ceo.id }))).rejects.toThrow(/ti mismo/);
+  });
+});
+
+// Cristian (17 nov): aunque se borre la cuenta desde el panel de Supabase (sin pasar por la app), su historial
+// conserva el nombre: el perfil se queda de baja (trigger baja_al_borrar_usuario)
+describe("borrar un usuario desde fuera de la app", () => {
+  it("el perfil se queda de baja y su grabación sigue con su nombre", async () => {
+    const r = await como(e.p.ceo, () => herramientaCrearMiembro({ nombre: "Borrable Fuera", email: `${e.pref}-fuera@eternity.test`, telefono: "+34 600 000 001", rol: "caller", mercado: "es", confirmar: true }));
+    expect(r).toBeTruthy();
+    const p = await perfilDe(`${e.pref}-fuera@eternity.test`);
+    const { data: g, error: eg } = await db.from("grabaciones_caller").insert({ proyecto_id: e.proyecto.id, perfil_id: p!.id, archivo_path: `${e.proyecto.id}/fuera.webm` }).select("id").single();
+    expect(eg).toBeNull();
+    expect((await db.auth.admin.deleteUser(p!.id)).error).toBeNull();
+    expect(await perfilDe(`${e.pref}-fuera@eternity.test`)).toMatchObject({ nombre: "Borrable Fuera", activo: false });
+    const { data: tras } = await db.from("grabaciones_caller").select("perfil_id, perfiles(nombre)").eq("id", g!.id).single();
+    expect(tras).toMatchObject({ perfil_id: p!.id, perfiles: { nombre: "Borrable Fuera" } });
   });
 });

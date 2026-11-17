@@ -115,11 +115,11 @@ export async function herramientaDarDeBaja(a: ArgsBaja) {
 
 export async function herramientaBorrarMiembro(a: ArgsBaja) {
   const s = await prepararSalida(a, true);
-  if (!a.confirmar) return { vistaPrevia: true as const, borraria_para_siempre: `${s.p.nombre} (${s.p.rol}, ${s.p.email})`, leads: textoLeads(s), efecto: "Borra su cuenta y su sitio en el equipo. Sus llamadas, citas y ventas se quedan sin la persona que las hizo. NO se puede deshacer.", paraHacerlo: "No se ha cambiado nada. Si está bien, vuelve a llamar igual con confirmar: true." };
+  if (!a.confirmar) return { vistaPrevia: true as const, borraria_para_siempre: `${s.p.nombre} (${s.p.rol}, ${s.p.email})`, leads: textoLeads(s), efecto: "Borra su acceso y su sitio en el organigrama. Su nombre se queda en todo su historial (llamadas, citas, ventas, grabaciones, comisiones) y pasa a «Ver inactivos», como una baja. NO se puede deshacer.", paraHacerlo: "No se ha cambiado nada. Si está bien, vuelve a llamar igual con confirmar: true." };
   await moverLeads(s);
   const { proyecto } = await getSesion();
   await escribir(db().from("miembros_equipo").delete().eq("proyecto_id", proyecto.id).eq("perfil_id", s.p.id), "miembros_equipo");
-  // El perfil y su sitio en el proyecto se borran con el usuario (on delete cascade)
+  // Solo se borra el acceso: el perfil se queda de baja y su historial conserva el nombre (20261123100000)
   const { error } = await db().auth.admin.deleteUser(s.p.id);
   if (error) throw new Error(`No se pudo borrar la cuenta: ${error.message}`);
   return { borrado: s.p.nombre, leads: textoLeads(s) };

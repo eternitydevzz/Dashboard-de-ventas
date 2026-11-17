@@ -126,6 +126,7 @@ export async function crearMiembro(a: AltaMiembro) {
         const { count } = await db().from("miembros_proyecto").select("perfil_id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id);
         await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: nuevo, orden: count ?? 0, mercado }), "miembros_proyecto");
       } catch (e) {
+        await db().from("perfiles").delete().eq("id", nuevo); // el perfil ya no se borra solo con el usuario (20261123100000)
         await db().auth.admin.deleteUser(nuevo);
         throw e;
       }
@@ -133,7 +134,11 @@ export async function crearMiembro(a: AltaMiembro) {
     }
     const { error } = await db().from("miembros_equipo").insert(nombres.map((nombre) => ({ proyecto_id: proyecto.id, perfil_id: perfilId, nombre, email, area_id: a.area_id, puesto_id: puestoId, comision, lider: a.lider })));
     if (error) {
-      if (perfilId) await db().auth.admin.deleteUser(perfilId); // C9: sin usuario huérfano
+      if (perfilId) {
+        // C9: sin usuario huérfano; el perfil ya no se borra solo con el usuario (20261123100000)
+        await db().from("perfiles").delete().eq("id", perfilId);
+        await db().auth.admin.deleteUser(perfilId);
+      }
       throw new Error(error.message);
     }
     refrescar();
@@ -196,7 +201,7 @@ export async function darAccesoMiembro(id: string, emailTxt: string, password: s
     const { mercado, telefono } = paisYTelefono(mercadoTxt, telefonoTxt);
     const { data, error } = await db().auth.admin.createUser({ email, password, email_confirm: true });
     if (error) throw error.message.includes("already") ? new ErrorUsuario("Ya existe un usuario con ese email.") : new Error(error.message);
-    // C9: si falla algo después de crear el usuario, se borra (su perfil y su sitio en el proyecto van con él)
+    // C9: si falla algo después de crear el usuario, se borran él y su perfil (su sitio en el proyecto va con el perfil)
     try {
       const { error: e2 } = await db().from("perfiles").insert({ id: data.user.id, nombre: m.nombre, email, rol, telefono });
       if (e2) throw new Error(e2.message);
@@ -204,6 +209,7 @@ export async function darAccesoMiembro(id: string, emailTxt: string, password: s
       await escribir(db().from("miembros_proyecto").insert({ proyecto_id: proyecto.id, perfil_id: data.user.id, orden: count ?? 0, mercado }), "miembros_proyecto");
       await escribir(db().from("miembros_equipo").update({ perfil_id: data.user.id, email }).eq("id", id), "miembros_equipo");
     } catch (e) {
+      await db().from("perfiles").delete().eq("id", data.user.id); // ya no se borra solo con el usuario (20261123100000)
       await db().auth.admin.deleteUser(data.user.id);
       throw e;
     }

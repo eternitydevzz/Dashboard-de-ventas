@@ -102,6 +102,8 @@ export async function borrarEscenario(e: Pick<Escenario, "id" | "pref">) {
   // Usuarios creados por el escenario o por los tests (mismo prefijo)
   const { data } = await db.from("perfiles").select("id").like("email", `${e.pref}%`);
   for (const u of data ?? []) await db.auth.admin.deleteUser(u.id);
+  // Desde 20261123100000 el perfil se queda (de baja) al borrar el usuario: en los tests, fuera también
+  await db.from("perfiles").delete().like("email", `${e.pref}%`);
 }
 
 export function formulario(campos: Record<string, string>) {
