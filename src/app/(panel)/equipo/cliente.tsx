@@ -104,7 +104,7 @@ export function DatosYComision({ m, areas, puestos, productos, rolesQuePuedoDar,
               <input name="telefono" type="tel" inputMode="tel" required minLength={7} className="campo" placeholder="Teléfono con prefijo (ej. +34 600 000 000)" autoComplete="off" />
               <input name="password" type="text" minLength={8} required className="campo" placeholder="Contraseña temporal (mín. 8)" autoComplete="off" />
               <Pastillas name="rol" className="campo" defaultValue={rolesQuePuedoDar[0]}>{rolesQuePuedoDar.map((r) => <option key={r} value={r}>{ROL_TXT[r]}</option>)}</Pastillas>
-              <button className="btn-primario w-full" disabled={pendiente || !mercado}>{mercado ? "Crear acceso" : "Elige España o Latam"}</button>
+              <button className="btn-primario w-full" disabled={pendiente || !mercado}>{mercado ? "Crear acceso" : "Elige España o USA"}</button>
             </form>
           )}
         </div>

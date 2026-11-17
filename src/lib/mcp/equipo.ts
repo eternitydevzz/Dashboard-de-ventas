@@ -46,7 +46,7 @@ export async function herramientaCrearMiembro(a: ArgsCrearMiembro) {
   // Puesto: el de su rol que más gente tiene (hay puestos repetidos con el mismo nombre)
   const veces = (id: string) => (usos ?? []).filter((u) => u.puesto_id === id).length;
   const puesto = [...(puestos ?? [])].sort((x, y) => veces(y.id) - veces(x.id))[0] ?? null;
-  const resumen = { nombre: a.nombre.trim(), email: a.email.trim().toLowerCase(), telefono: a.telefono.trim(), rol, pais: mercado === "es" ? "España" : "Latam", area: area?.nombre ?? "Sin área", puesto: puesto?.nombre ?? "Sin puesto", proyecto: proyecto.nombre };
+  const resumen = { nombre: a.nombre.trim(), email: a.email.trim().toLowerCase(), telefono: a.telefono.trim(), rol, pais: mercado === "es" ? "España" : "USA", area: area?.nombre ?? "Sin área", puesto: puesto?.nombre ?? "Sin puesto", proyecto: proyecto.nombre };
   if (!a.confirmar) return { vistaPrevia: true as const, crearia: resumen, acceso: "Se le manda un email con un enlace (24 h) para entrar y crear su contraseña.", paraHacerlo: "No se ha creado nada. Si está bien, vuelve a llamar igual con confirmar: true." };
 
   // Contraseña al azar que no se guarda ni se devuelve: la persona crea la suya con el enlace

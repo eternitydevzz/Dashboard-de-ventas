@@ -17,10 +17,11 @@ export function diaAnterior(ahora: Date, zona = ZONA_CEO) {
 }
 
 export async function avisosCeo(proyectoId: string): Promise<AvisoCeo[]> {
-  // Se cuentan en la base (count, sin el tope de 1000 filas). Citas sin closer = lo mismo que porRecuperar (llamadas.ts)
+  // Se cuentan en la base (count, sin el tope de 1000 filas). Citas sin closer = lo mismo que porRecuperar (llamadas.ts),
+  // pero solo las que aún no han pasado (A3, Jose 17 nov: las viejas de GHL sin closer ya no avisan)
   const contar = { count: "exact", head: true } as const;
   const [citas, entradas, workflows, proyecto, errores] = await Promise.all([
-    db().from("citas").select("id", contar).eq("proyecto_id", proyectoId).is("closer_id", null).in("estado", [...ABIERTAS]),
+    db().from("citas").select("id", contar).eq("proyecto_id", proyectoId).is("closer_id", null).in("estado", [...ABIERTAS]).gte("fecha", new Date().toISOString()),
     db().from("entradas").select("id").eq("proyecto_id", proyectoId),
     db().from("workflow_ejecuciones").select("id", contar).eq("proyecto_id", proyectoId).eq("estado", "error"),
     db().from("proyectos").select("ghl_ultimo_resultado").eq("id", proyectoId).maybeSingle(),

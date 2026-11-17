@@ -81,10 +81,10 @@ export function EditorGuion({ rol, guion, deEjemplo, mercado = "latam", propio =
         >
           <Save className="h-4 w-4" /> Guardar guion
         </button>
-        {es && !propio && <p className="self-center text-xs text-texto-3">España aún no tiene guion propio: ve el de Latam. Al guardar, este pasa a ser el de España.</p>}
+        {es && !propio && <p className="self-center text-xs text-texto-3">España aún no tiene guion propio: ve el de USA. Al guardar, este pasa a ser el de España.</p>}
         {propio && (
-          <button type="button" className="btn-secundario" disabled={pendiente} onClick={() => void confirmar(es ? "¿Quitar el guion de España? El equipo de España verá el de Latam." : "¿Volver al guion de ejemplo? Se pierde el que tienes ahora.").then((ok) => ok && ejecutar(() => restaurarGuion(rol, mercado), es ? "Ahora España ve el de Latam" : "Guion de ejemplo puesto"))}>
-            <RotateCcw className="h-4 w-4" /> {es ? "Usar el de Latam" : "Volver al de ejemplo"}
+          <button type="button" className="btn-secundario" disabled={pendiente} onClick={() => void confirmar(es ? "¿Quitar el guion de España? El equipo de España verá el de USA." : "¿Volver al guion de ejemplo? Se pierde el que tienes ahora.").then((ok) => ok && ejecutar(() => restaurarGuion(rol, mercado), es ? "Ahora España ve el de USA" : "Guion de ejemplo puesto"))}>
+            <RotateCcw className="h-4 w-4" /> {es ? "Usar el de USA" : "Volver al de ejemplo"}
           </button>
         )}
       </div>

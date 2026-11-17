@@ -76,7 +76,7 @@ function Asistente({ areas, puestos, productos, comisionesRol, rolesQuePuedoDar,
 
   const faltaPaso = (i: number): string | null => {
     if (i === 0 && !nombres.length) return "Pon el nombre.";
-    if (i === 0 && accesoReal === "crear" && !mercado) return "Elige si es de España o de Latam.";
+    if (i === 0 && accesoReal === "crear" && !mercado) return "Elige si es de España o de USA.";
     if (i === 0 && accesoReal === "crear" && telefono.replace(/\D/g, "").length < 7) return "Pon su teléfono con prefijo.";
     if (i === 3 && accesoReal === "crear" && (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || password.length < 8)) return "Pon un email válido y una contraseña de 8 caracteres o más.";
     return null;
