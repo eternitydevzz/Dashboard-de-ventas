@@ -68,7 +68,7 @@ export function FormMiMercado({ inicial }: { inicial: Mercado | null }) {
             className={m === x.v ? "btn-primario" : "btn-secundario"}
             onClick={() => { setM(x.v); ejecutar(() => guardarMiMercado(x.v), `Ahora eres del equipo de ${x.t}`); }}
           >
-            {x.v === "es" ? "Trabajo desde España" : "Trabajo desde Latinoamérica"}
+            {x.v === "es" ? "Equipo España" : "Equipo USA"}
           </button>
         ))}
       </div>
