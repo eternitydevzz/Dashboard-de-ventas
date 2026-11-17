@@ -3,7 +3,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { borrarEscenario, como, crearEscenario, db, falla, formulario, ok, type Escenario } from "../apoyo/escenario";
 import { guardarPreguntasReporte } from "@/app/(panel)/admin/acciones";
-import { enviarReporte } from "@/app/(panel)/reportes/acciones";
 import { borrarPasoCloser, guardarPasoCloser, marcarPasoCloser } from "@/app/(panel)/onboarding-closers/acciones";
 import { clientesDeCloser, pasosCloser, PASOS_DEFECTO } from "@/lib/onboarding-closer";
 import { registrarVenta } from "@/app/(panel)/leads/acciones";
@@ -30,20 +29,6 @@ describe("Preguntas del reporte (Administración)", () => {
     await falla(guardarPreguntasReporte("closer", PREGUNTAS.closer.filter((p) => p.clave !== "llamadas_realizadas")), /no se puede quitar/);
     await ok(guardarPreguntasReporte("caller", nuevas));
     expect((await alDia()).preguntas_reporte).toEqual({ caller: nuevas });
-  });
-  it("el reporte usa las preguntas de ahora y las guarda; si luego cambian, el enviado se queda con las suyas", async () => {
-    como(e, e.p.callerA);
-    expect((await enviarReporte(null, formulario({ fecha: "2026-10-09", demos: "3" })))?.error).toMatch(/Responde «¿Cómo te has sentido\?»/);
-    expect((await enviarReporte(null, formulario({ fecha: "2026-10-09", demos: "3", animo: "Bien" })))?.ok).toBeTruthy();
-    const { data: r } = await db.from("reportes").select("respuestas, preguntas").eq("perfil_id", e.p.callerA.id).eq("fecha", "2026-10-09").single();
-    expect(r!.respuestas).toEqual({ demos: 3, animo: "Bien" });
-    expect((r!.preguntas as { clave: string }[]).map((p) => p.clave)).toEqual(["demos", "animo"]);
-    // Vuelven las de siempre: el reporte enviado no cambia
-    como(e, e.p.ceo);
-    await ok(guardarPreguntasReporte("caller", null));
-    expect((await alDia()).preguntas_reporte).toBeNull();
-    const { data: r2 } = await db.from("reportes").select("preguntas").eq("perfil_id", e.p.callerA.id).eq("fecha", "2026-10-09").single();
-    expect((r2!.preguntas as { clave: string }[]).map((p) => p.clave)).toEqual(["demos", "animo"]);
   });
 });
 

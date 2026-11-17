@@ -5,7 +5,6 @@ import { agendarCita, anadirNota, registrarLlamada, registrarVenta } from "@/app
 import { guardarPrograma, type DatosPrograma } from "@/app/(panel)/programas/acciones";
 import { asignarLeads, crearLeadManual } from "@/app/(panel)/crm/acciones";
 import { cambiarEstadoCita, reagendarCita } from "@/app/(panel)/closer/acciones";
-import { enviarReporte } from "@/app/(panel)/reportes/acciones";
 import { getSesion } from "@/lib/sesion";
 import { calcularLiquidaciones } from "@/app/(panel)/finanzas/acciones";
 import { borrarVenta, registrarCobro } from "@/app/(panel)/ventas/acciones";
@@ -216,9 +215,11 @@ describe("Arreglo 30: errores inesperados sin texto técnico", () => {
   it("un fallo inesperado en una acción antigua no enseña el detalle interno", async () => {
     const consola = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(getSesion).mockRejectedValueOnce(new Error("relation \"tabla_secreta\" does not exist"));
-    const r = await enviarReporte(null, formulario({}));
-    expect(r?.error).toMatch(/Algo ha fallado/);
-    expect(r?.error).not.toMatch(/tabla_secreta/);
+    // Fase C: antes con enviarReporte (pantalla Reportes, quitada); crearLeadManual usa el mismo envoltorio (seguro)
+    const r = await crearLeadManual(formulario({}));
+    const error = "error" in r ? r.error : "";
+    expect(error).toMatch(/Algo ha fallado/);
+    expect(error).not.toMatch(/tabla_secreta/);
     expect(consola).toHaveBeenCalled(); // el detalle queda en el registro del servidor
     consola.mockRestore();
   });

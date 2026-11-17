@@ -26,9 +26,4 @@ describe("f1c · sin «No responde»", () => {
     const ruta = readFileSync("src/app/api/mcp/route.ts", "utf8");
     expect(ruta).not.toContain("no_responde");
   });
-  it("reporte de fin de día: «no responden» cuenta solo las llamadas de GHL «no contesta»", () => {
-    const pagina = readFileSync("src/app/(panel)/reportes/page.tsx", "utf8");
-    expect(pagina).not.toContain('"no_responde"');
-    expect(pagina).not.toContain('resultado === "no_responde"');
-  });
 });

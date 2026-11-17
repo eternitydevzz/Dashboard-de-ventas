@@ -47,7 +47,7 @@ export function FormProyecto({ aviso }: { aviso: string }) {
       <div>
         <label className="etiqueta-campo" htmlFor="cliente-webhook-de-avisos-ghl-inbound-">Webhook de avisos (GHL «Inbound Webhook»)</label>
         <input id="cliente-webhook-de-avisos-ghl-inbound-" name="aviso_webhook_url" defaultValue={aviso} placeholder="https://services.leadconnectorhq.com/hooks/…" className="campo" />
-        <p className="mt-1 text-xs text-texto-3">Cuando alguien envía su reporte, la app manda los datos aquí y el workflow de GHL envía el email y el WhatsApp al director y al CEO.</p>
+        <p className="mt-1 text-xs text-texto-3">La app manda aquí los avisos del equipo y el workflow de GHL envía el email y el WhatsApp al director y al CEO.</p>
       </div>
       <Resultado estado={estado} />
       <button className="btn-primario" disabled={enviando}>Guardar</button>
