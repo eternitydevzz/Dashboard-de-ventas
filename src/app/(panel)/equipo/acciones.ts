@@ -17,7 +17,7 @@ const refrescar = () => {
   revalidatePath("/", "layout");
 };
 const ROLES: Rol[] = ["ceo", "director", "closer", "caller"];
-// B2 (13 nov): una cuenta con acceso pide lo mismo que crearUsuario en Administración, no solo la sección «Equipo»
+// B2 (13 nov): una cuenta con acceso pide Administración, no solo la sección «Equipo» (S1-22: es la única alta de usuarios)
 function exigirCrearCuentas(perfil: Perfil) {
   if (!puedeAdmin(perfil)) throw new ErrorUsuario("Crear cuentas con acceso necesita Administración (CEO o director con Administración).");
 }
@@ -87,18 +87,9 @@ export async function crearMiembro(a: AltaMiembro) {
     if (nombres.length > 50) throw new ErrorUsuario("Como mucho 50 personas a la vez.");
     await deEsteProyecto("areas", a.area_id, proyecto.id);
     await deEsteProyecto("puestos", a.puesto_id, proyecto.id);
-    let puestoId = a.puesto_id;
-    if (a.puesto_nuevo?.nombre.trim()) {
-      const rolBase = [...ROLES, "otro"].includes(a.puesto_nuevo.rol_base) ? a.puesto_nuevo.rol_base : "otro";
-      const { data, error } = await db().from("puestos").insert({ proyecto_id: proyecto.id, area_id: a.area_id, nombre: a.puesto_nuevo.nombre.trim(), rol_base: rolBase }).select("id").single();
-      if (error) throw new Error(error.message); // Cristian, 14 nov: el detalle de la base va al registro (seguro), el usuario ve el mensaje genérico
-      puestoId = data.id;
-    }
-    const comision = await comisionValida(proyecto.id, a.comision);
-    if (comision) exigirCambiarComisionPersona(perfil, null);
-
-    let perfilId: string | null = null;
+    // S2-7: todo lo que se puede validar va antes de escribir nada (antes, el puesto nuevo quedaba creado con un email mal)
     let email: string | null = null;
+    let cuenta: { mercado: Mercado; telefono: string } | null = null;
     if (a.acceso.modo === "crear") {
       if (nombres.length > 1) throw new ErrorUsuario("Para crear acceso, da de alta a las personas de una en una.");
       email = a.acceso.email.trim().toLowerCase();
@@ -107,8 +98,22 @@ export async function crearMiembro(a: AltaMiembro) {
       if (!ROLES.includes(a.acceso.rol)) throw new ErrorUsuario("Rol no válido.");
       if (a.acceso.rol === "ceo" && perfil.rol !== "ceo") throw new ErrorUsuario("Solo el CEO puede crear otro CEO.");
       exigirPuedeDarRol(perfil, a.acceso.rol);
-      const { mercado, telefono } = paisYTelefono(a.acceso.mercado, a.acceso.telefono);
-      const { data, error } = await db().auth.admin.createUser({ email, password: a.acceso.password, email_confirm: true });
+      cuenta = paisYTelefono(a.acceso.mercado, a.acceso.telefono);
+    }
+    const comision = await comisionValida(proyecto.id, a.comision);
+    if (comision) exigirCambiarComisionPersona(perfil, null);
+    let puestoId = a.puesto_id;
+    if (a.puesto_nuevo?.nombre.trim()) {
+      const rolBase = [...ROLES, "otro"].includes(a.puesto_nuevo.rol_base) ? a.puesto_nuevo.rol_base : "otro";
+      const { data, error } = await db().from("puestos").insert({ proyecto_id: proyecto.id, area_id: a.area_id, nombre: a.puesto_nuevo.nombre.trim(), rol_base: rolBase }).select("id").single();
+      if (error) throw new Error(error.message); // Cristian, 14 nov: el detalle de la base va al registro (seguro), el usuario ve el mensaje genérico
+      puestoId = data.id;
+    }
+
+    let perfilId: string | null = null;
+    if (a.acceso.modo === "crear") {
+      const { mercado, telefono } = cuenta!;
+      const { data, error } = await db().auth.admin.createUser({ email: email!, password: a.acceso.password, email_confirm: true });
       if (error) throw error.message.includes("already") ? new ErrorUsuario("Ya existe un usuario con ese email.") : new Error(error.message);
       const nuevo = data.user.id;
       // C9: si falla algo después de crear el usuario, se borra (su perfil y su sitio en el proyecto van con él)

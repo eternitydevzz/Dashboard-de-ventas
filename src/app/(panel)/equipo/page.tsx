@@ -22,7 +22,8 @@ export default async function EquipoPage({ searchParams }: PageProps<"/equipo">)
   if (!(await puedeSeccion(perfil, proyecto.id, "equipo"))) redirect("/");
   const sp = await searchParams;
   const verInactivos = sp.inactivos === "1";
-  const [eq, mercados, { data: productos }] = await Promise.all([cargarEquipo(proyecto.id), mercadosDelProyecto(proyecto.id), db().from("productos").select("id, nombre, precio").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")]);
+  const [eq, mercados, { data: productos, error: errorProductos }] = await Promise.all([cargarEquipo(proyecto.id), mercadosDelProyecto(proyecto.id), db().from("productos").select("id, nombre, precio").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden")]);
+  if (errorProductos) throw new Error(`No se pudieron leer los productos: ${errorProductos.message}`); // X4: no «no hay productos»
   // 13 nov: callers y closers se filtran y agrupan por mercado (España / Latam); el resto sale siempre
   const filtroM = mercadoValido(sp.mercado);
   const vende = (m: { rol: Rol | null }) => m.rol === "caller" || m.rol === "closer";

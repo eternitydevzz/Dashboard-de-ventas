@@ -7,8 +7,16 @@ import { registrarLlamada, agendarCita, registrarVenta, cambiarEtapaLead, asigna
 import { cambiarEstadoCita } from "@/app/(panel)/closer/acciones";
 import { registrarCobro, borrarVenta } from "@/app/(panel)/ventas/acciones";
 import { crearRecurso, guardarLinkPago, prepararSubidaPdf } from "@/app/(panel)/recursos/acciones";
-import { crearUsuario, actualizarMiembro, crearProyecto, anadirAlProyecto, cambiarPassword } from "@/app/(panel)/admin/acciones";
+import { actualizarMiembro, crearProyecto, anadirAlProyecto, cambiarPassword } from "@/app/(panel)/admin/acciones";
 import { guardarPrograma, type DatosPrograma } from "@/app/(panel)/programas/acciones";
+import { crearMiembro, type AltaMiembro } from "@/app/(panel)/equipo/acciones";
+
+// S1-22: los usuarios se crean solo con el alta de Equipo (crearMiembro), que pide país y teléfono
+const alta = (nombre: string, email: string, rol: "ceo" | "caller"): AltaMiembro => ({
+  nombres: [nombre], area_id: null, puesto_id: null, puesto_nuevo: null, comision: null, lider: false,
+  acceso: { modo: "crear", email, password: "12345678", rol, mercado: "es", telefono: "+34 600 000 000" },
+});
+const SIN_ACCESO = /No tienes acceso|necesita Administración/;
 
 // Productos: desde V2-5 se crean en Programas (sección «programas», solo el CEO por defecto)
 const programa = (nombre: string, precio: string): DatosPrograma => ({ id: null, nombre, descripcion: "", categoria: "", color: "#7c3aed", activo: true, backend_offer: false, vende_caller: false, modo_pago: "unico", num_cuotas: null, precio, precios_divisa: {}, comisiones: {}, link_pago: "" });
@@ -59,7 +67,7 @@ describe("Caller", () => {
     await falla(crearPipeline("Hack"), /permiso/);
     expect((await crearRecurso(null, formulario({ titulo: "x", tipo: "enlace", url: "https://x.test" })))?.error).toMatch(/permiso/);
     await falla(guardarLinkPago(e.productos["Low ticket"], "https://x.test"), /permiso/);
-    expect((await crearUsuario(null, formulario({ nombre: "x", email: `${e.pref}-hack@eternity.test`, rol: "ceo", password: "12345678" })))?.error).toMatch(/permiso/);
+    await falla(crearMiembro(alta("x", `${e.pref}-hack@eternity.test`, "ceo")), SIN_ACCESO);
     await falla(guardarPrograma(programa("Gratis", "1")), /No tienes acceso/);
   });
   it("no puede cambiar contraseñas de otros", async () => {
@@ -114,14 +122,12 @@ describe("Closer", () => {
 describe("Director", () => {
   it("sin acceso de admin no puede crear usuarios", async () => {
     como(e, e.p.director);
-    expect((await crearUsuario(null, formulario({ nombre: "x", email: `${e.pref}-x@eternity.test`, rol: "caller", password: "12345678" })))?.error).toMatch(/permiso/);
+    await falla(crearMiembro(alta("x", `${e.pref}-x@eternity.test`, "caller")), SIN_ACCESO);
   });
   it("con acceso de admin crea usuarios, pero nunca un CEO", async () => {
     como(e, e.p.directorAdmin);
-    const ok = await crearUsuario(null, formulario({ nombre: "Nuevo caller", email: `${e.pref}-nuevo@eternity.test`, rol: "caller", password: "12345678" }));
-    expect(ok?.ok).toBeTruthy();
-    const ceo = await crearUsuario(null, formulario({ nombre: "Falso CEO", email: `${e.pref}-falsoceo@eternity.test`, rol: "ceo", password: "12345678" }));
-    expect(ceo?.error).toMatch(/Solo el CEO/);
+    expect(await ok(crearMiembro(alta("Nuevo caller", `${e.pref}-nuevo@eternity.test`, "caller")))).toEqual({ creados: 1 });
+    await falla(crearMiembro(alta("Falso CEO", `${e.pref}-falsoceo@eternity.test`, "ceo")), /Solo el CEO/);
   });
   it("no puede subirse a CEO a otro, ni darse admin, ni tocar al CEO", async () => {
     como(e, e.p.directorAdmin);
