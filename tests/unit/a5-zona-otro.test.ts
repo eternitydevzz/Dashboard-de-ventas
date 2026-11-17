@@ -46,3 +46,11 @@ describe("paso de entrada", () => {
     expect(readFileSync("src/app/onboarding/zona/page.tsx", "utf8")).toContain("Otro");
   });
 });
+
+describe("Mi perfil: equipo", () => {
+  it("dice «Equipo USA», no «Latinoamérica»", () => {
+    const texto = readFileSync("src/app/(panel)/perfil/cliente.tsx", "utf8");
+    expect(texto).not.toContain("Latinoamérica");
+    expect(texto).toContain("Equipo USA");
+  });
+});

@@ -13,7 +13,7 @@ describe("zonaPersona", () => {
   it("sin elegir, sin columna o con un valor raro: la del proyecto", () => {
     expect(zonaPersona({ rol: "caller", zona_horaria: null }, NY)).toBe("America/New_York");
     expect(zonaPersona({ rol: "closer" }, NY)).toBe("America/New_York");
-    expect(zonaPersona({ rol: "caller", zona_horaria: "Asia/Tokyo" }, NY)).toBe("America/New_York");
+    expect(zonaPersona({ rol: "caller", zona_horaria: "Marte/Base" }, NY)).toBe("America/New_York");
   });
   it("los jefes, como hoy: la del proyecto aunque tengan zona", () => {
     expect(zonaPersona({ rol: "ceo", zona_horaria: "Europe/Madrid" }, NY)).toBe("America/New_York");
