@@ -1,5 +1,6 @@
 "use client";
 
+import { exigirOk } from "@/lib/resultado-cliente";
 import { useState } from "react";
 import { sinVaciar } from "@/components/sin-vaciar";
 import { Save, Trash2, KeyRound, Plus } from "lucide-react";
@@ -146,7 +147,7 @@ export function EditorAreas({ areas }: { areas: Area[] }) {
           <button type="button" className="rounded-md p-1.5 text-texto-3 hover:bg-mal-suave hover:text-mal" disabled={pendiente} title="Borrar" onClick={() => void confirmar(`¿Borrar el área «${a.nombre}»?`).then((ok) => ok && ejecutar(() => borrarArea(a.id), "Área borrada"))}><Trash2 className="h-4 w-4" /></button>
         </form>
       ))}
-      <form className="flex items-center gap-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarArea(null, String(fd.get("nombre")), String(fd.get("color"))), "Área creada"))}>
+      <form className="flex items-center gap-2" onSubmit={sinVaciar((fd, form) => ejecutar(async () => { const r = await exigirOk(guardarArea(null, String(fd.get("nombre")), String(fd.get("color")))); form.reset(); /* vacío solo si se guardó bien */ return r; }, "Área creada"))}>
         <input name="color" type="color" defaultValue="#64748b" className="h-8 w-8 shrink-0 cursor-pointer rounded border border-borde bg-transparent" aria-label="Color" />
         <input name="nombre" required placeholder="Nueva área" className="campo py-1.5" />
         <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir área"><Plus className="h-4 w-4" /></button>

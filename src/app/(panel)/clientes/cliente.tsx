@@ -128,7 +128,7 @@ export function EditorPasos({ pasos }: { pasos: Paso[] }) {
                 <button type="button" className="rounded-md p-1.5 text-texto-3 hover:bg-mal-suave hover:text-mal" disabled={pendiente} title="Borrar" onClick={() => void confirmar(`¿Borrar el paso «${p.nombre}»?`).then((ok) => ok && ejecutar(() => borrarPasoOnboarding(p.id), "Paso borrado"))}><Trash2 className="h-4 w-4" /></button>
               </form>
             ))}
-            <form className="flex items-center gap-2 border-t border-borde pt-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarPasoOnboarding(null, String(fd.get("nombre"))), "Paso añadido"))}>
+            <form className="flex items-center gap-2 border-t border-borde pt-2" onSubmit={sinVaciar((fd, form) => ejecutar(async () => { const r = await exigirOk(guardarPasoOnboarding(null, String(fd.get("nombre")))); form.reset(); /* vacío solo si se guardó bien */ return r; }, "Paso añadido"))}>
               <input name="nombre" required placeholder="Nuevo paso" className="campo py-1.5" aria-label="Nuevo paso" />
               <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir paso"><Plus className="h-4 w-4" /></button>
             </form>

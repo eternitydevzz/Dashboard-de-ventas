@@ -93,7 +93,7 @@ export function Categorias({ tipo, categorias }: { tipo: "ingreso" | "egreso"; c
                 <button className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2" disabled={pendiente} title="Guardar"><Check className="h-4 w-4" /></button>
               </form>
             ))}
-            <form className="flex items-center gap-2 border-t border-borde pt-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarCategoria(null, tipo, String(fd.get("nombre")), true), "Categoría creada"))}>
+            <form className="flex items-center gap-2 border-t border-borde pt-2" onSubmit={sinVaciar((fd, form) => ejecutar(async () => { const r = await exigirOk(guardarCategoria(null, tipo, String(fd.get("nombre")), true)); form.reset(); /* vacío solo si se guardó bien */ return r; }, "Categoría creada"))}>
               <input name="nombre" required placeholder="Nueva categoría" className="campo py-1.5" />
               <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir categoría"><Plus className="h-4 w-4" /></button>
             </form>

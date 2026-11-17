@@ -1,5 +1,6 @@
 "use client";
 
+import { exigirOk } from "@/lib/resultado-cliente";
 import { useState } from "react";
 import { sinVaciar } from "@/components/sin-vaciar";
 import { Plus, Trash2, X } from "lucide-react";
@@ -119,9 +120,9 @@ export function FormLanzamiento({ eventos }: { eventos: string[] }) {
   return (
     <form
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
-      onSubmit={sinVaciar((fd) =>
+      onSubmit={sinVaciar((fd, form) =>
         ejecutar(
-          () => crearLanzamiento({ nombre: String(fd.get("nombre")), inicio: String(fd.get("inicio")), fin: String(fd.get("fin")), evento: String(fd.get("evento") ?? "") }),
+          async () => { const r = await exigirOk(crearLanzamiento({ nombre: String(fd.get("nombre")), inicio: String(fd.get("inicio")), fin: String(fd.get("fin")), evento: String(fd.get("evento") ?? "") })); form.reset(); /* vacío solo si se guardó bien */ return r; },
           "Lanzamiento creado"
         )
       )}
