@@ -308,62 +308,64 @@ Todo en PowerShell, desde `C:\Users\Usuario\Desktop\VENTAS`.
 
 ## 9. Fase D · WhatsApp del equipo con WAHA · rama `fase-d` · 1 PR
 
-> Preparada el 17 nov 2026. **No se empieza** hasta que Jose diga «empieza» y estén contestadas las dudas DD1-DD6.
+> Preparada el 17 nov 2026 y cerrada con Jose. **No se empieza** hasta que Jose diga «empieza» y esté hecha la tarea D-0 (Render, QR y Vercel).
 
-**Decidido (Jose, 17 nov):** WAHA (`devlikeapro/waha`, código abierto, Apache-2.0) en **Render, plan Starter** (0,5 CPU, 512 MB, $7/mes, no se duerme), motor **GOWS** (sin navegador) y la sesión de WhatsApp guardada en **PostgreSQL** (`WHATSAPP_SESSIONS_POSTGRESQL_URL`), no en disco. El plan gratis de Render no vale: se duerme a los 15 min sin tráfico de entrada y borra los archivos al reiniciar ([Render · Free](https://render.com/docs/free)).
+### Decisiones (Jose, 17 nov)
+| # | Qué | Decisión |
+|---|---|---|
+| D9 | Herramienta | WAHA (`devlikeapro/waha`, código abierto, Apache-2.0) |
+| DD1 | Dónde | **Todo en Render**: servicio web **Starter** ($7/mes, 0,5 CPU, 512 MB, no se duerme) + **Render Postgres de pago (Basic)** para la sesión; unos $13/mes en total (Postgres Basic $6 o $7 según la fuente, sin verificar). Lo gratis de Render no vale: el servicio se duerme a los 15 min y la base caduca a los 30 días ([Render · Free](https://render.com/docs/free)). Motor **GOWS** (sin navegador) |
+| DD2 | Número y cuentas | El número, pendiente (no bloquea el código). **Render lo monta Jose** |
+| DD3 | Recordatorio antes de la cita | **No hace falta**. Solo el aviso al agendar |
+| DD3 | Aviso al agendar una cita | Al **closer** asignado, al **caller** que la agendó y al **grupo de los CEO** (Cristian y Jose) |
+| — | Aviso al cerrar una venta | A los mismos tres: closer, caller y grupo |
+| DD3 | Configurable | Sí, desde el dashboard: pestaña **«WhatsApp»** en Administración (propuesta del orquestador, aceptada) |
+| DD4 | Avisos del CEO | A un **grupo** de WhatsApp con Cristian y Jose |
+| DD5 | Closers sin WhatsApp | Se les obliga **fuera de la app**. La app, si falta el número, no manda y lo apunta |
+| DD6 | Textos | Los propone el orquestador y Jose los ve antes del PR |
+| — | Reporte diario | También por WhatsApp a los números de `reporte_config.whatsapps` (Fase C) |
 
-**Qué pide PENDIENTES-JOSE.md (sección 6) y Jose (D10):** WhatsApp solo para el equipo (al lead le sigue escribiendo GHL): el reporte diario, el aviso al agendar una cita y al cerrar una venta (al closer de la cita, al caller que la agendó y al CEO o grupo) y un **recordatorio** antes de la cita (closer, caller y CEO). Número que no sea el principal (WAHA no es la API oficial: puede bloquearse). La clave, solo en las variables de entorno de Vercel.
+Sigue valiendo PENDIENTES-JOSE.md, sección 6: solo para el equipo (al lead le escribe GHL), número que no sea el principal (WAHA no es la API oficial: puede bloquearse), la clave solo en las variables de entorno de Vercel.
 
 ### Datos comprobados (17 nov, solo lectura)
-- Envío con WAHA: `POST <WAHA_URL>/api/sendText`, cabecera `X-Api-Key`, cuerpo `{ "session": "default", "chatId": "<número internacional sin +>@c.us" | "<id>@g.us", "text": "…" }`; la clave se fija con `WAHA_API_KEY` ([WAHA · Send messages](https://waha.devlike.pro/docs/how-to/send-messages/), [WAHA · Security](https://waha.devlike.pro/docs/how-to/security/)).
-- WAHA Plus ya no existe: desde 2026.6.1 todo está en Core gratis ([WAHA · Plus](https://waha.devlike.pro/docs/how-to/waha-plus/)).
+- Envío con WAHA: `POST <WAHA_URL>/api/sendText`, cabecera `X-Api-Key`, cuerpo `{ "session": "default", "chatId": "<número internacional sin +>@c.us" | "<id del grupo>@g.us", "text": "…" }`; la clave se fija con `WAHA_API_KEY` ([WAHA · Send messages](https://waha.devlike.pro/docs/how-to/send-messages/), [WAHA · Security](https://waha.devlike.pro/docs/how-to/security/)). Sesión en PostgreSQL con `WHATSAPP_SESSIONS_POSTGRESQL_URL` ([WAHA · Storages](https://waha.devlike.pro/docs/how-to/storages)). WAHA Plus ya no existe: todo está en Core gratis desde 2026.6.1 ([WAHA · Plus](https://waha.devlike.pro/docs/how-to/waha-plus/)).
 - Las citas se crean en 6 sitios: `src/app/(panel)/closer/acciones.ts:99,274,323`, `src/app/(panel)/leads/acciones.ts:256`, `src/app/api/webhooks/ghl/[proyectoId]/route.ts:150`, `src/lib/ghl-sync.ts:261`. Las ventas, en `registrar_venta` (`src/app/(panel)/leads/acciones.ts:345`).
-- WhatsApp guardado en `perfiles.whatsapp` (personas activas, sin las de prueba): callers 22 de 31, closers 5 de 7, CEO 1 de 2.
-- `reporte_config.whatsapps` ya existe (Fase C): ahí van los números del reporte.
+- WhatsApp en `perfiles.whatsapp` (activos, sin pruebas): callers 22 de 31, closers 5 de 7, CEO 1 de 2.
 - Sin verificar: la RAM real de GOWS con 1 número (medirla al montarlo) y los pasos exactos de Render para una imagen Docker.
 
-### Tarea D-0 (Jose o Cristian, a mano; el orquestador no tiene acceso a Render ni a Vercel)
-- [ ] Base PostgreSQL para la sesión en Render (DD1): Render Postgres **de pago** (Basic), en la misma región que el servicio de WAHA.
-- [ ] Render: servicio web Starter con la imagen `devlikeapro/waha` (versión fija), variables `WHATSAPP_DEFAULT_ENGINE=GOWS`, `WHATSAPP_SESSIONS_POSTGRESQL_URL`, `WAHA_API_KEY` (mejor `sha512:…`), `WAHA_DASHBOARD_USERNAME/PASSWORD`, `WHATSAPP_SWAGGER_USERNAME/PASSWORD`. Nombres de variables a confirmar en la documentación de WAHA al montarlo.
-- [ ] Escanear el QR con el número del equipo (DD2) en la sesión `default`.
-- [ ] Vercel: `WAHA_URL` y `WAHA_API_KEY` (la clave en claro, solo ahí). Nunca en el código ni en el chat.
-- Cómo se comprueba: `GET <WAHA_URL>/api/sessions` con la clave → la sesión `default` en `WORKING`.
+### Tarea D-0 (Jose, a mano; el orquestador no tiene acceso a Render ni a Vercel)
+- [ ] Render Postgres **de pago** (Basic) y servicio web **Starter** con la imagen `devlikeapro/waha` (versión fija), en la misma región.
+- [ ] Variables del servicio: `WHATSAPP_DEFAULT_ENGINE=GOWS`, `WHATSAPP_SESSIONS_POSTGRESQL_URL` (la URL interna de la base), `WAHA_API_KEY` (mejor `sha512:…`), `WAHA_DASHBOARD_USERNAME/PASSWORD`, `WHATSAPP_SWAGGER_USERNAME/PASSWORD`. Nombres a confirmar en la documentación de WAHA al montarlo.
+- [ ] Escanear el QR con el número del equipo en la sesión `default`, y meter ese número en el grupo de Cristian y Jose.
+- [ ] Vercel: `WAHA_URL` y `WAHA_API_KEY` (la clave en claro, solo ahí; nunca en el código ni en el chat).
+- Cómo se comprueba: `GET <WAHA_URL>/api/sessions` con la clave → `default` en `WORKING`; y el id del grupo (`…@g.us`) para la pestaña «WhatsApp».
 
-### Tarea D-0b (ORQ): migración `20261126100000_whatsapp_equipo.sql`
-- `whatsapp_envios` (id, proyecto_id, tipo `reporte|cita|venta|recordatorio`, clave única por tipo y origen (por ejemplo cita y destinatario), destino, estado `enviado|fallo`, error, creado_en). Evita mandar dos veces y deja registro de cada envío. RLS sin políticas.
-- Configuración del CEO o grupo (DD4): columnas nuevas o en `reporte_config`, según la respuesta.
-- Cron `recordatorio-citas` cada 5 min a `/api/avisos/recordatorios/<proyecto>` (como `reporte-diario`).
+### Tarea D-0b (ORQ): migración `20261126100000_whatsapp_equipo.sql` y tipos
+- `whatsapp_config` (proyecto_id, evento `cita|venta`, activo, a_closer, a_caller, a_grupo; clave proyecto+evento) y `whatsapp_grupo` en `proyectos` (texto `…@g.us` o null). Sin fila = encendido y a los tres.
+- `whatsapp_envios` (id, proyecto_id, evento `cita|venta|reporte`, origen_id, destino, estado `enviado|fallo|sin_numero`, error, creado_en; único por evento + origen + destino). Evita mandar dos veces y deja registro. RLS sin políticas.
+- Tipos en `src/lib/tipos.ts`: `EventoWhatsapp`, `ConfigWhatsapp`.
 
-### Tareas de los agentes (prompts al resolver las dudas: dependen de DD3-DD6)
-- **D-1 · cliente de WhatsApp:** `src/lib/whatsapp.ts` con `chatIdDe(numero): string | null` (quita espacios y «+», valida 8-15 cifras) y `enviarWhatsapp(destinos: string[], texto: string): Promise<{ enviados: number; fallos: { destino: string; motivo: string }[] }>` (fetch a `WAHA_URL/api/sendText` con `X-Api-Key`, tiempo máximo, nunca lanza; sin `WAHA_URL` no manda y lo dice). Tests con fetch simulado.
-- **D-2 · reporte por WhatsApp:** `src/lib/reporte-envio.ts` también manda el texto a `config.whatsapps` (el email sigue igual; un fallo de WhatsApp no tumba el email). Test.
-- **D-3 · avisos al agendar y al vender:** un `avisarCita(citaId)` y un `avisarVenta(ventaId)` en `src/lib/avisos-whatsapp.ts`, llamados con `after()` (sin hacer esperar a la pantalla) desde los 6 sitios que crean citas y desde `registrar_venta`. Destinos: closer de la cita, caller que la agendó y CEO o grupo (DD4); sin WhatsApp en el perfil, según DD5. Una vez por cita y destinatario (`whatsapp_envios`).
-- **D-4 · recordatorios:** ruta `/api/avisos/recordatorios/[proyectoId]` (misma clave que el resto) que busca las citas abiertas que empiezan dentro del margen (DD3) y avisa una sola vez.
+### Tareas de los agentes (los prompts se escriben al lanzar cada ronda, con el mismo formato que las fases A-C)
+- **D-1 · cliente de WhatsApp:** `src/lib/whatsapp.ts` con `chatIdDe(numero: string | null): string | null` (quita espacios, guiones y «+»; 8-15 cifras) y `enviarWhatsapp(destinos: string[], texto: string): Promise<{ enviados: number; fallos: { destino: string; motivo: string }[] }>` (fetch a `WAHA_URL/api/sendText` con `X-Api-Key`, tiempo máximo, nunca lanza; sin `WAHA_URL` no manda y lo dice). Tests con fetch simulado.
+- **D-2 · reporte por WhatsApp:** `src/lib/reporte-envio.ts` manda también el texto a `config.whatsapps`; un fallo de WhatsApp no tumba el email. Test.
+- **D-3 · avisos de cita y venta:** `src/lib/avisos-whatsapp.ts` con `avisarCita(citaId)` y `avisarVenta(ventaId)`, llamados con `after()` (sin hacer esperar a la pantalla) desde los 6 sitios que crean citas y desde `registrar_venta`. Destinos según `whatsapp_config`: closer, caller que la agendó y grupo. Sin número → `sin_numero` en `whatsapp_envios`. Una vez por evento, origen y destino.
+- **D-5 · pestaña «WhatsApp» en Administración:** por evento (cita y venta), interruptor y a quién (closer, caller, grupo), y el id del grupo. Solo CEO o director con Administración, como «Reporte».
 
 ### Rondas · Fase D
 | Ronda | Agentes | Por qué | Tiempo |
 |---|---|---|---|
-| — | D-0 (Jose/Cristian) + D-0b (ORQ) | Sin WAHA en marcha no se puede probar de verdad | lo que tarde D-0 + 20 min |
-| 1 | D-1 | Lo usan todos los demás | 45 min |
-| 2 | D-2 y D-3 | No comparten archivos (D-3 toca los 6 sitios de citas y la venta; D-2 solo el envío del reporte) | 75 min |
-| 3 | D-4 | Usa D-1 y `whatsapp_envios` | 45 min |
-| — | revisor + integración local + migración + PR + prueba real con 1 mensaje a Jose | | 75 min |
+| — | D-0 (Jose) + D-0b (ORQ) | Sin WAHA en marcha no se puede probar de verdad | lo que tarde D-0 + 20 min |
+| 1 | D-1 y D-5 | No dependen entre sí; solo de D-0b | 60 min |
+| 2 | D-2 y D-3 | Usan D-1 (y D-3 la config de D-5); no comparten archivos | 75 min |
+| — | revisor + integración local + migración + PR + prueba real | | 75 min |
 
-**Total Fase D: unas 4 h 30 min**, más lo que lleve D-0.
+**Total Fase D: unas 3 h 30 min**, más lo que lleve D-0.
 
 ### Comprobación en producción · Fase D
-- Un mensaje de prueba solo al WhatsApp de Jose (con su OK) desde la sesión `default`.
-- Agendar y vender **solo con Kevin o Pier**: llega el aviso al closer, al caller y al CEO o grupo; después se deja todo como estaba.
-- A las 21:00 de Madrid y de Nueva York llega el reporte a los números de `reporte_config.whatsapps`.
-- `whatsapp_envios` sin fallos, y `errores_app` sin errores nuevos.
-
-### Dudas de la Fase D (hay que contestarlas antes de «empieza»)
-- **DD1 · PostgreSQL para la sesión — DECIDIDO (Jose, 17 nov): todo en Render**, servicio Starter + **Render Postgres de pago (Basic)**, unos $13/mes en total (Render calcula ~$13 para esta pareja; Postgres Basic, $6 o $7 según la fuente, sin verificar). La base **gratis** de Render no vale: caduca a los 30 días y se borra ([Render · Free](https://render.com/docs/free)). Supabase aparte saldría ~$10/mes más si la cuenta es de pago, o con pausa a la semana si es gratis ([Supabase · Billing FAQ](https://supabase.com/docs/guides/platform/billing-faq)).
-- **DD2 · Número y cuentas:** ¿qué número de WhatsApp (que no sea el principal)? ¿Quién crea la cuenta de Render, paga los $7 y pone las variables en Vercel?
-- **DD3 · Recordatorio:** ¿cuánto antes de la cita (por ejemplo, 60 min)? ¿A quién: closer, caller y CEO, o solo al closer?
-- **DD4 · CEO o grupo:** ¿los avisos del CEO van a su WhatsApp personal o a un grupo? Si es un grupo, hace falta su id (`…@g.us`); lo da WAHA tras unir el número al grupo.
-- **DD5 · Personas sin WhatsApp en su perfil** (9 callers, 2 closers y 1 CEO): ¿se usa su teléfono si lo tiene, o no se les manda?
-- **DD6 · Textos:** ¿te vale que los proponga yo y los veas antes del PR?
+- 1 mensaje de prueba solo al grupo de Cristian y Jose (con OK de Jose).
+- Agendar y vender **solo con Kevin o Pier**: llegan los avisos al closer, al caller y al grupo; después se deja todo como estaba.
+- A las 21:00 de Madrid y de Nueva York, el reporte llega a los números de `reporte_config.whatsapps`.
+- `whatsapp_envios` sin fallos y `errores_app` sin errores nuevos.
 
 ## 10. Fuera de los agentes (sección 7 de PENDIENTES-JOSE.md)
 
