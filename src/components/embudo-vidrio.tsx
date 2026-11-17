@@ -30,12 +30,14 @@ export function EmbudoVidrio({ pasos }: { pasos: Paso[] }) {
         const ancho = 30 + 70 * Math.sqrt(total ? p.n / total : 0);
         const anterior = i > 0 ? pasos[i - 1].n : null;
         const abierto = activo === i;
+        // Nunca negativo: un paso puede tener más que el anterior (p. ej. un caller que vende sin cita)
+        const pierden = anterior === null ? 0 : Math.max(0, anterior - p.n);
         return (
           <div key={p.t} role="listitem">
             {anterior !== null && (
               <div className="flex justify-center py-0.5">
                 <span className="text-[10px] tabular-nums text-texto-3">
-                  ↓ {pct(p.n, anterior)} pasa · se pierden {(anterior - p.n).toLocaleString("es-ES")}
+                  ↓ {pct(p.n, anterior)} pasa · se pierden {pierden.toLocaleString("es-ES")}
                 </span>
               </div>
             )}
@@ -65,7 +67,7 @@ export function EmbudoVidrio({ pasos }: { pasos: Paso[] }) {
               <div className="tarjeta ventana mx-auto mt-1.5 grid max-w-md grid-cols-3 gap-2 p-3 text-center text-xs" role="status">
                 <div><div className="text-texto-3">Del total</div><div className="text-base font-semibold tabular-nums">{pct(p.n, total)}</div></div>
                 <div><div className="text-texto-3">Del paso anterior</div><div className="text-base font-semibold tabular-nums">{anterior === null ? "—" : pct(p.n, anterior)}</div></div>
-                <div><div className="text-texto-3">Se pierden</div><div className="text-base font-semibold tabular-nums">{anterior === null ? "—" : (anterior - p.n).toLocaleString("es-ES")}</div></div>
+                <div><div className="text-texto-3">Se pierden</div><div className="text-base font-semibold tabular-nums">{anterior === null ? "—" : pierden.toLocaleString("es-ES")}</div></div>
                 {p.d && <div className="col-span-3 text-left text-texto-2">{p.d}</div>}
               </div>
             )}

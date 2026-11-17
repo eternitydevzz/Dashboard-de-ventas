@@ -9,7 +9,7 @@ import type { AvisoCeo } from "@/lib/avisos-ceo";
 export function CampanaAvisos({ avisos }: { avisos: AvisoCeo[] }) {
   const [abierta, setAbierta] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
-  const total = avisos.reduce((s, a) => s + a.cuantos, 0);
+  const total = avisos.length; // A2-06 (17 nov): cuántos avisos hay, no la suma de sus cuentas (salía «37» con 4 avisos)
   useEffect(() => {
     if (!abierta) return;
     const tecla = (e: KeyboardEvent) => e.key === "Escape" && setAbierta(false);

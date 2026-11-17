@@ -48,7 +48,7 @@ const { guardarMercadosManual } = await import("@/app/(panel)/manuales/acciones"
 const { VisorManuales } = await import("@/app/(panel)/manuales/cliente");
 const { manualesDeMercado, mercadosValidos, quienLoHaVisto } = await import("@/lib/manuales");
 
-const abrir = () => GET(new Request("https://x.test/api/manuales/m1"), { params: Promise.resolve({ id: "m1" }) });
+const abrir = () => GET(new Request("https://x.test/api/manuales/m1?visto=1"), { params: Promise.resolve({ id: "m1" }) });
 
 beforeEach(() => {
   est.perfil = { id: "caller-1", rol: "caller" };

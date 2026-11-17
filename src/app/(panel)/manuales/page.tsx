@@ -13,7 +13,7 @@ import { PestanasManuales } from "./pestanas";
 type Fila = { id: string; titulo: string; actualizado_en: string; mercado?: string; mercados?: string[]; perfiles: unknown };
 type Visto = { manual_id: string; perfil_id: string; visto_en: string };
 
-// C9 (plan Callers, 7 nov; maqueta «Manuales»): lista de manuales a la izquierda y el elegido dentro de la app.
+// C9 (plan Callers, 7 nov; maqueta «Manuales»): un botón por manual arriba y el elegido dentro de la app.
 // Cristian, 14 nov: cada uno ve solo los manuales marcados para su mercado (sin caer en los de Latam); los jefes,
 // con el selector, los de cada mercado y, en el ajuste ⚙, quién los ha visto.
 export default async function ManualesPage({ searchParams }: PageProps<"/manuales">) {

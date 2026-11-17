@@ -17,7 +17,9 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
   const jefe = esJefe(perfil);
   const sp = await searchParams;
   const persona = jefe ? (typeof sp.persona === "string" ? sp.persona : "") : perfil.id;
-  const gente = await equipo(proyecto.id);
+  // Una sola lectura del equipo: con los de prueba para los nombres; sin ellos para los botones de persona
+  const todos = await equipo(proyecto.id, true);
+  const gente = todos.filter((g) => !g.es_prueba);
 
   // S2-14 (17 nov): por periodo (Mes por defecto) y todas sus filas; antes, los últimos 200 (≈7 días con 30 personas) y
   // un fallo de la base salía como «Todavía no hay reportes»
@@ -37,7 +39,7 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
     return q.order("fecha", { ascending: false }).order("creado_en", { ascending: false }).order("id").range(d, h);
   });
   // Los nombres, también de los perfiles de prueba y de quien ya no está en el proyecto (salía «—», 11 oct 2026)
-  const conNombre = await conBajas(await equipo(proyecto.id, true), reportes.map((r) => r.perfil_id));
+  const conNombre = await conBajas(todos, reportes.map((r) => r.perfil_id));
   const quien = (id: string) => (id === perfil.id ? perfil : conNombre.find((g) => g.id === id));
   const nombre = (id: string) => quien(id)?.nombre ?? "—";
 

@@ -2,8 +2,8 @@
 // paso, el % que pasa al siguiente. Se usa en KPIs y en Agendas. Sin JavaScript: se pinta en el servidor.
 type PasoEmbudo = { t: string; n: number; d?: string };
 
-// D43: con texto blanco encima solo `--primario-boton` aguanta los dos temas; los demás siguen a mano hasta tener tokens fijos en globals.css
-const COLORES = ["var(--primario-boton)", "#3b6ae0", "#4f7fe8", "#16a34a", "#0f9a4a"];
+// D43: con texto blanco encima, colores fijos en los dos temas (tokens --embudo-2..5 de globals.css)
+const COLORES = ["var(--primario-boton)", "var(--embudo-2)", "var(--embudo-3)", "var(--embudo-4)", "var(--embudo-5)"];
 
 export function Embudo({ pasos, titulo }: { pasos: PasoEmbudo[]; titulo?: string }) {
   const max = Math.max(1, ...pasos.map((p) => p.n));

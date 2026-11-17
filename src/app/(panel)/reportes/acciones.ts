@@ -37,7 +37,7 @@ export async function enviarReporte(_prev: unknown, formData: FormData) {
     // y el aviso a GHL no se repite.
     const { data: ya } = await db().from("reportes").select("id").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).eq("fecha", fecha).maybeSingle();
     const { error } = await db().from("reportes").upsert({ proyecto_id: proyecto.id, perfil_id: perfil.id, rol, fecha, respuestas, preguntas }, { onConflict: "proyecto_id,perfil_id,fecha" });
-    if (error) return { error: error.message };
+    if (error) throw new Error(error.message); // seguro(): lo registra y el usuario ve el mensaje genérico
     if (ya) {
       revalidatePath("/reportes");
       return { ok: "Reporte actualizado: ya habías mandado el de este día, así que se ha sustituido (el aviso no se repite)." };

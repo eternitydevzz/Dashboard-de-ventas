@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
-import { CalendarRange, Search } from "lucide-react";
+import { CalendarRange } from "lucide-react";
 import { Desplegable } from "@/components/eleccion";
 
 const PERIODOS = [
@@ -15,17 +15,15 @@ const PERIODOS = [
 
 const CAMPO_LIGERO = "campo min-w-0 flex-1 px-2.5 py-1 text-[13px] sm:w-44 sm:flex-none";
 
-// Barra de filtros: vendedor, periodo, fechas y búsqueda. Todo va en la URL.
+// Barra de filtros: vendedor, periodo y fechas. Todo va en la URL.
 export function Filtros({
   vendedores,
   productos,
-  conBusqueda = false,
   periodoPorDefecto = "mes",
   ligero = false,
 }: {
   vendedores?: { id: string; nombre: string; rol: string }[];
   productos?: { id: string; nombre: string }[];
-  conBusqueda?: boolean;
   periodoPorDefecto?: string;
   // Sin tarjeta propia y con el periodo como texto (KPIs → «Leads», boceto B elegido por Cristian el 26 oct 2026)
   ligero?: boolean;
@@ -39,7 +37,6 @@ export function Filtros({
   const [yendo, setYendo] = useState<{ a: string; desde: string } | null>(null);
   const periodo = (yendo && yendo.desde === params.toString() ? yendo.a : null) ?? params.get("periodo") ?? periodoPorDefecto;
   const [verFechas, setVerFechas] = useState(periodo === "rango");
-  const [q, setQ] = useState(params.get("q") ?? "");
 
   function conCambios(cambios: Record<string, string | null>) {
     const p = new URLSearchParams(params.toString());
@@ -133,24 +130,6 @@ export function Filtros({
           <span className="text-texto-3">→</span>
           <input type="date" name="hasta" required defaultValue={params.get("hasta") ?? ""} className="campo w-auto" />
           <button className="btn-primario">Aplicar</button>
-        </form>
-      )}
-      {conBusqueda && (
-        <form
-          className="relative ml-auto min-w-56 flex-1"
-          onSubmit={(e) => {
-            e.preventDefault();
-            poner({ q });
-          }}
-        >
-          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-texto-3" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onBlur={() => q !== (params.get("q") ?? "") && poner({ q })}
-            placeholder="Buscar lead por nombre, email o teléfono…"
-            className="campo pl-9"
-          />
         </form>
       )}
     </div>

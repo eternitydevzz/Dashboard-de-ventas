@@ -108,7 +108,7 @@ export async function crearRecurso(_prev: unknown, formData: FormData) {
     const { error } = await db().from("recursos").insert(fila);
     if (error) {
       if (fila.archivo_path) await borrarSubida("recursos", fila.archivo_path as string);
-      return { error: error.message };
+      throw new Error(error.message); // seguro(): lo registra y el usuario ve el mensaje genérico (no el de Postgres)
     }
     revalidatePath("/recursos");
     return { ok: "Recurso añadido." };

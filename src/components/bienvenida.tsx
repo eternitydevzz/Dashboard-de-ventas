@@ -16,15 +16,12 @@ export const FIN_BIENVENIDA = "bienvenida-fin";
 // data-datos-pendientes, que lleva también la pantalla de carga, (panel)/loading.tsx). Se mira cada 100 ms: el aviso de
 // «ya llegaron» puede llegar antes de que la marca se quite del HTML. Las precargas empiezan al quitarse (barra-lateral.tsx).
 // Cristian, 14 nov (noche): sin el mínimo de 0,8 s (se ganaba hasta 0,8 s al abrir la app); se quita en cuanto hay datos
-export function esperarPantalla(salir: () => void, pendientes = hayDatosPendientes, [minimo, maximo] = [0, 4000]) {
-  const t0 = Date.now();
+export function esperarPantalla(salir: () => void, pendientes = hayDatosPendientes, maximo = 4000) {
   let hecho = false;
   const fin = () => {
     if (hecho) return;
     hecho = true;
-    const espera = minimo - (Date.now() - t0);
-    if (espera > 0) setTimeout(salir, espera);
-    else salir();
+    salir();
   };
   const mirar = setInterval(() => {
     if (!pendientes()) fin();
@@ -38,7 +35,6 @@ export function esperarPantalla(salir: () => void, pendientes = hayDatosPendient
 
 export function Bienvenida({ nombre, secciones }: { nombre: string; secciones: string[] }) {
   const [fase, setFase] = useState<"cargando" | "saliendo" | "fuera">("cargando");
-  const capa = useRef<HTMLDivElement>(null);
   // Quita la capa y avisa a la ventana de mensajes, una sola vez (lo llaman el fin del fundido y el seguro)
   const avisado = useRef(false);
   const quitar = () => {
@@ -64,7 +60,6 @@ export function Bienvenida({ nombre, secciones }: { nombre: string; secciones: s
   const lista = secciones.length > 1 ? `${secciones.slice(0, -1).join(", ")} y ${secciones.at(-1)}` : secciones[0];
   return (
     <div
-      ref={capa}
       className={`capa-bienvenida${fase === "saliendo" ? " saliendo" : ""}`}
       role="status"
       aria-live="polite"

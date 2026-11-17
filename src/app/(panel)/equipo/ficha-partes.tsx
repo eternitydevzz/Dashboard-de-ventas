@@ -144,7 +144,6 @@ export function PipelinesPersona({ f, recargar }: { f: Ficha; recargar: () => vo
 }
 
 // ---------- Reparto (callers): su %, que se cambia en «Proyecto y reparto» (allí se ve la suma de 100) ----------
-// La rotación de closers se quitó el 11 oct (4.4): el closer de las citas por link lo pone GHL.
 export function PctPersona({ f }: { f: Ficha }) {
   const pct = f.reparto.pct;
   const encendido = f.reparto.auto && pct > 0;
