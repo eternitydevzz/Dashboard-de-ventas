@@ -59,7 +59,7 @@ describe("Equipo", () => {
     expect((await db.from("miembros_proyecto").select("mercado").eq("proyecto_id", e.proyecto.id).eq("perfil_id", perfil!.id)).data).toEqual([{ mercado: "es" }]);
     // País y teléfono son obligatorios al crear cuenta (13 nov)
     const sin = (mercado: string, telefono: string) => crearMiembro({ nombres: ["Sin datos"], area_id: null, puesto_id: null, comision: null, acceso: { modo: "crear", email: `${e.pref}-sin@eternity.test`, password: "Clave-temporal-1", rol: "closer", mercado: mercado as "es", telefono }, lider: false });
-    await falla(sin("", "+34 600 000 000"), /España o de Latam/);
+    await falla(sin("", "+34 600 000 000"), /España o de USA/);
     await falla(sin("es", "12"), /teléfono válido/);
     const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
     expect((await anon.auth.signInWithPassword({ email, password: "Clave-temporal-1" })).error).toBeNull();
@@ -71,7 +71,7 @@ describe("Equipo", () => {
     await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "closer", "es", "+34 600 000 000"), /Administración/);
     como(e, { ...e.p.director, admin_activo: true });
     await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "ceo", "es", "+34 600 000 000"), /Rol no válido/);
-    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "", "+34 600 000 000"), /España o de Latam/);
+    await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "", "+34 600 000 000"), /España o de USA/);
     await falla(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "es", "12"), /teléfono válido/);
     await ok(darAccesoMiembro(uno!.id, `${e.pref}-uno@eternity.test`, "Clave-temporal-1", "caller", "es", "+34 600 000 000"));
     const { data: pUno } = await db.from("perfiles").select("id, telefono").eq("email", `${e.pref}-uno@eternity.test`).single();
