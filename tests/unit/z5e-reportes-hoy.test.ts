@@ -17,7 +17,12 @@ vi.mock("@/lib/datos", async (orig) => ({
   db: () => ({ from: (tabla: string) => { const l = { tabla, ops: [] }; lecturas.push(l); return cadena(l); } }),
   equipo: async () => [],
   conBajas: async () => [],
-  todas: async (f: (d: number, h: number) => unknown) => (f(0, 999), ACTS),
+  // A3b-04 / S2-14: cada tabla con sus filas. Citas agendadas: 3 filas de 2 leads → 2 (1 por lead). Reportes: ninguno.
+  todas: async (f: (d: number, h: number) => unknown) => {
+    f(0, 999);
+    const tabla = lecturas.at(-1)!.tabla;
+    return tabla === "actividades" ? ACTS : tabla === "citas" ? [{ lead_id: "X" }, { lead_id: "X" }, { lead_id: "Y" }] : [];
+  },
 }));
 vi.mock("@/lib/permisos", async (orig) => ({
   ...(await orig<object>()),
@@ -42,5 +47,9 @@ describe("Reportes «hoy» del caller", () => {
     const deHoy = lecturas.filter((l) => ["actividades", "citas", "ventas"].includes(l.tabla));
     expect(deHoy.map((l) => l.tabla).sort()).toEqual(["actividades", "citas", "citas", "ventas"]);
     for (const l of deHoy) expect(l.ops, l.tabla).toContainEqual(["eq", ["proyecto_id", "p1"]]);
+    // S2-14: la lista de reportes se lee por periodo (Mes por defecto), del proyecto abierto
+    const rep = lecturas.find((l) => l.tabla === "reportes")!;
+    expect(rep.ops).toContainEqual(["eq", ["proyecto_id", "p1"]]);
+    expect(rep.ops.map(([op, a]) => `${op}:${a[0]}`)).toEqual(expect.arrayContaining(["gte:fecha", "lt:fecha"]));
   });
 });

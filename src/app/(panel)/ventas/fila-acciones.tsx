@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { Plus, Trash2, Undo2 } from "lucide-react";
 import { borrarVenta, darDeBajaMembresia, registrarCobro, registrarDevolucion } from "./acciones";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
@@ -53,10 +54,10 @@ export function FilaVentaAcciones({ ventaId, pendiente, cobrado, devuelta, jefe,
         <Modal titulo="Registrar devolución" onCerrar={() => setDevolucion(false)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               ejecutar(() => registrarDevolucion(ventaId, String(fd.get("importe")), String(fd.get("fecha") ?? ""), String(fd.get("nota") ?? "")), "Devolución registrada");
               setDevolucion(false);
-            }}
+            })}
           >
             <p className="text-sm text-texto-2">Cobrado hasta hoy: <b>{cobrado.toFixed(2)}</b>. La comisión que ya se pagó no se descuenta (la asume la empresa).</p>
             <label className="block"><span className="etiqueta-campo">Importe devuelto</span><input name="importe" inputMode="decimal" required defaultValue={cobrado.toFixed(2)} className="campo" /></label>
@@ -70,10 +71,10 @@ export function FilaVentaAcciones({ ventaId, pendiente, cobrado, devuelta, jefe,
         <Modal titulo="Registrar cobro" onCerrar={() => setAbierto(false)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               ejecutar(() => registrarCobro(ventaId, String(fd.get("importe")), String(fd.get("metodo")), String(fd.get("fecha") ?? "")), "Cobro registrado");
               setAbierto(false);
-            }}
+            })}
           >
             <p className="text-sm text-texto-2">Queda pendiente: <b>{pendiente.toFixed(2)}</b></p>
             <label className="block"><span className="etiqueta-campo">Importe cobrado</span><input name="importe" inputMode="decimal" required defaultValue={pendiente.toFixed(2)} className="campo" /></label>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { Plus, Trash2, X } from "lucide-react";
 import { guardarObjetivo, quitarObjetivo, crearLanzamiento, borrarLanzamiento } from "./acciones";
 import { useAccion } from "@/components/acciones-lead";
@@ -27,12 +28,12 @@ export function FormObjetivo({ personas, lanzamientos }: { personas: Persona[]; 
   return (
     <form
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6"
-      action={(fd) =>
+      onSubmit={sinVaciar((fd) =>
         ejecutar(
           () => guardarObjetivo({ para, periodo, lanzamientoId: String(fd.get("lanzamiento") ?? "") || null, cifra: String(fd.get("cifra")), valor: String(fd.get("valor")), dias }),
           "Objetivo guardado"
         )
-      }
+      )}
     >
       <label className="block lg:col-span-2">
         <span className="etiqueta-campo">Para quién</span>
@@ -118,12 +119,12 @@ export function FormLanzamiento({ eventos }: { eventos: string[] }) {
   return (
     <form
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
-      action={(fd) =>
+      onSubmit={sinVaciar((fd) =>
         ejecutar(
           () => crearLanzamiento({ nombre: String(fd.get("nombre")), inicio: String(fd.get("inicio")), fin: String(fd.get("fin")), evento: String(fd.get("evento") ?? "") }),
           "Lanzamiento creado"
         )
-      }
+      )}
     >
       <label className="block lg:col-span-2"><span className="etiqueta-campo">Nombre</span><input name="nombre" required maxLength={120} placeholder="Masterclass 15 oct" className="campo" /></label>
       <label className="block"><span className="etiqueta-campo">Inicio</span><input name="inicio" type="date" required className="campo" /></label>

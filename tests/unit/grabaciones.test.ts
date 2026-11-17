@@ -55,3 +55,13 @@ describe("Aviso de fin de grabación (13 nov)", () => {
     expect(quedanAviso(fin, fin + 5000)).toBe(0);
   });
 });
+
+// Fases 5-6: al elegir una grabación solo cambia ?g=; el periodo (p, n, desde, hasta) se queda (antes se borraba)
+describe("urlConGrabacion", () => {
+  it("conserva los parámetros que ya hay y solo cambia g", async () => {
+    const { urlConGrabacion } = await import("@/lib/grabaciones");
+    expect(urlConGrabacion("/grabaciones", "?p=semana&n=-1&g=viejo", "nuevo")).toBe("/grabaciones?p=semana&n=-1&g=nuevo");
+    expect(urlConGrabacion("/grabaciones", "?p=rango&desde=2026-11-01&hasta=2026-11-10", "abc")).toBe("/grabaciones?p=rango&desde=2026-11-01&hasta=2026-11-10&g=abc");
+    expect(urlConGrabacion("/grabaciones", "", "abc")).toBe("/grabaciones?g=abc");
+  });
+});

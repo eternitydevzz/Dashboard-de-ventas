@@ -6,11 +6,14 @@ import type { Perfil } from "@/lib/tipos";
 
 // Lo que necesitan la tabla de Permisos y la ficha de cada persona (V2-8, Paso H5 y bloque 5 de 1.0)
 export async function cargarDatosPermisos(perfil: Perfil, proyectoId: string): Promise<DatosPermisos> {
-  const [{ data: deRol }, { data: dePersona }, mias] = await Promise.all([
+  const [{ data: deRol, error: e1 }, { data: dePersona, error: e2 }, mias] = await Promise.all([
     db().from("permisos_seccion").select("rol, seccion, permitido").eq("proyecto_id", proyectoId),
     db().from("permisos_persona").select("perfil_id, seccion, permitido").eq("proyecto_id", proyectoId),
     seccionesPermitidas(perfil, proyectoId),
   ]);
+  // X4: un fallo de la base no se muestra como «todo por defecto» (guardar encima pisaría los permisos de verdad)
+  const error = e1 ?? e2;
+  if (error) throw new Error(`No se pudieron leer los permisos: ${error.message}`);
   const lista = (m: Record<string, Set<string>>) => Object.fromEntries(ROLES_PERMISO.map((r) => [r, [...m[r]]])) as DatosPermisos["defecto"];
   return {
     secciones: SECCIONES_TODAS.map((x) => ({ v: x.v, t: x.t, d: x.d, grupo: x.grupo })),

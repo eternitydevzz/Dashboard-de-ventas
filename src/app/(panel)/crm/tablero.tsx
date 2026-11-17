@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { useRouter } from "next/navigation";
 import { startTransition, useActionState, useMemo, useState, useTransition, type FormEvent } from "react";
 import { subirDelFormulario } from "@/lib/subir-cliente";
@@ -27,7 +28,6 @@ import {
   editarEtapa,
   importarCsv,
   prepararSubidaCsv,
-  moverEtapa,
   moverLead,
   ordenarEtapas,
   ordenarPipelines,
@@ -361,7 +361,7 @@ export function TableroCrm({
         primera={i === 0}
         ultima={i === etapas.length - 1}
         onEditar={(n, c) => ejecutar(() => exigirOk(editarEtapa(e.id, n, c)))}
-        onMover={(d) => ejecutar(() => exigirOk(moverEtapa(e.id, d)))}
+        onMover={(d) => etapas[i + d] && soltarColumna(e.id, etapas[i + d].id)} // S1-17: misma acción que arrastrar (ordenarEtapas)
         onBorrar={() => {
           void confirmar(`¿Borrar la columna «${e.nombre}»? ${deOrigen ? "Sus leads pasan a la primera columna." : "Sus tarjetas vuelven a la columna de su estado."}`).then((ok) => {
         if (ok) ejecutar(() => exigirOk(borrarEtapa(e.id)));
@@ -633,12 +633,12 @@ export function TableroCrm({
       {modal === "lead" && (
         <Modal titulo="Nuevo lead" onCerrar={() => setModal(null)}>
           <form
-            action={(fd) =>
+            onSubmit={sinVaciar((fd) =>
               ejecutar(async () => {
                 await exigirOk(crearLeadManual(fd));
                 setModal(null);
               })
-            }
+            )}
             className="space-y-3"
           >
             <input type="hidden" name="pipeline" value={pipeline?.id ?? ""} />
@@ -652,13 +652,13 @@ export function TableroCrm({
       {modal === "pipeline" && (
         <Modal titulo="Nuevo pipeline" onCerrar={() => setModal(null)}>
           <form
-            action={(fd) =>
+            onSubmit={sinVaciar((fd) =>
               ejecutar(async () => {
                 const id = await exigirOk(crearPipeline(String(fd.get("nombre"))));
                 setModal(null);
                 router.push(`/crm?pipeline=${id}`);
               })
-            }
+            )}
             className="space-y-3"
           >
             <label className="block"><span className="etiqueta-campo">Nombre</span><input name="nombre" required className="campo" placeholder="Ej: Webinar 2" /></label>

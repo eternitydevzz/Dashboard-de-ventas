@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { Check, ShoppingCart, ListChecks, UserX, CalendarClock, XCircle, Ban, ThumbsDown, UserCog, Trash2 } from "lucide-react";
 import { borrarCita, cambiarCloserCita, cambiarEstadoCita, reagendarCita } from "./acciones";
 import { confirmar } from "@/components/dialogos";
@@ -103,11 +104,11 @@ export function AccionesCita({
         <Modal titulo={modal === "seguimiento" ? "Pasar a seguimiento" : "Marcar como perdida"} onCerrar={() => setModal(null)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               const e = modal;
               ejecutar(() => cambiarEstadoCita(cita.id, e, String(fd.get("nota") ?? ""), Number(fd.get("estrellas"))), e === "seguimiento" ? "En seguimiento" : "Perdida");
               setModal(null);
-            }}
+            })}
           >
             <SelectorEstrellas quien="closer" />
             <label className="block"><span className="etiqueta-campo">Nota (opcional)</span><textarea name="nota" rows={2} className="campo" placeholder={modal === "seguimiento" ? "Qué falta para que decida" : "Por qué no compró"} /></label>
@@ -138,10 +139,10 @@ export function AccionesCita({
         <Modal titulo="Reagendar cita" onCerrar={() => setModal(null)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               ejecutar(() => reagendarCita(cita.id, String(fd.get("fecha"))), "Cita reagendada");
               setModal(null);
-            }}
+            })}
           >
             <label className="block"><span className="etiqueta-campo">Nueva fecha y hora{horaDe ? ` (hora de ${horaDe})` : ""}</span><input type="datetime-local" name="fecha" required className="campo" /></label>
             <button className="btn-primario w-full">Reagendar</button>

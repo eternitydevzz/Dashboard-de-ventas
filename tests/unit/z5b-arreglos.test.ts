@@ -8,7 +8,6 @@ let consultas: Consulta[];
 let contestar: (c: Consulta) => Resp | undefined;
 const tipo = (c: Consulta) => ["delete", "upsert", "update", "insert"].find((o) => c.ops.some(([x]) => x === o)) ?? "select";
 const arg = (c: Consulta, op: string) => c.ops.find(([x]) => x === op)?.[1];
-const tiene = (c: Consulta, op: string) => c.ops.some(([x]) => x === op);
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -112,21 +111,20 @@ describe("S1-7 · cambiarEtiquetas, con las reglas de Administración", () => {
   });
 });
 
-describe("S1-17 · moverEtapa no se traga errores", () => {
+describe("S1-17 · ordenar columnas (flechas y arrastrar) no se traga errores", () => {
   const etapas = (update: Resp) => (c: Consulta) => {
     if (c.tabla !== "etapas") return undefined;
     if (tipo(c) === "update") return update;
-    if (tiene(c, "maybeSingle")) return { data: { id: "e2", pipeline_id: "pp", nombre: "B", pipelines: { tipo: "normal" } }, error: null };
     return { data: [{ id: "e1" }, { id: "e2" }], error: null };
   };
   it("sube la columna: e2 queda primera", async () => {
     contestar = etapas({ data: null, error: null });
-    expect(await crm.moverEtapa("e2", -1)).toBeUndefined();
+    expect(await crm.ordenarEtapas("pp", ["e2", "e1"])).toBeUndefined();
     expect(de("etapas", "update").map((c) => [arg(c, "eq")?.[1], (arg(c, "update")?.[0] as { orden: number }).orden])).toEqual([["e2", 0], ["e1", 1]]);
   });
   it("si falla guardar, error", async () => {
     contestar = etapas(fallo);
-    expect(await crm.moverEtapa("e2", -1)).toMatchObject({ error: expect.any(String) });
+    expect(await crm.ordenarEtapas("pp", ["e2", "e1"])).toMatchObject({ error: expect.any(String) });
   });
 });
 

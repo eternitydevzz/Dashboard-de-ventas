@@ -1,6 +1,6 @@
 // Periodos navegables (v2): Día / Semana / Mes / Año / Personalizado, con ‹ › para ir atrás y adelante.
 // `n` = cuántos periodos se mueve respecto al actual (0 = el actual, -1 = el anterior…).
-import { hoyEnZona, inicioDia, type Rango } from "@/lib/formato";
+import { fechaReal, hoyEnZona, inicioDia, type Rango } from "@/lib/formato";
 
 export type PeriodoNav = "dia" | "semana" | "mes" | "anio" | "rango";
 export const PERIODOS_NAV: { v: PeriodoNav; t: string }[] = [
@@ -25,12 +25,7 @@ function sumarMeses(ymd: string, meses: number) {
 }
 const corta = (ymd: string) => `${Number(ymd.slice(8, 10))} ${MESES[Number(ymd.slice(5, 7)) - 1].slice(0, 3)}`;
 
-// A2-01 (17 nov): un día que existe de verdad. «2026-13-01» tumbaba la pantalla y «2026-02-31» pasaba a marzo.
-export function fechaReal(s: unknown): s is string {
-  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const d = new Date(`${s}T12:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
-}
+export { fechaReal }; // vive en formato.ts para que rangoDe también la use (sin importación circular)
 
 export function leerPeriodo(sp: Record<string, string | string[] | undefined>, porDefecto: PeriodoNav = "mes") {
   const v = typeof sp.p === "string" ? sp.p : porDefecto;

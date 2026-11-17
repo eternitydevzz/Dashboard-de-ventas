@@ -13,6 +13,6 @@ describe("S4-4 · contraseña nunca en la URL", () => {
     expect(renderToStaticMarkup(createElement(FormularioLogin))).toMatch(/<form[^>]*method="post"/);
   });
   it("el formulario común (onboarding, con las contraseñas) va por POST", () => {
-    expect(renderToStaticMarkup(createElement(FormularioSinVaciar, { accion: () => {}, children: null }))).toMatch(/<form[^>]*method="post"/);
+    expect(renderToStaticMarkup(createElement(FormularioSinVaciar, { accion: () => {} }, null))).toMatch(/<form[^>]*method="post"/);
   });
 });

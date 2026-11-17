@@ -127,3 +127,18 @@ describe("Iniciales con letras especiales (13 nov, error #418)", () => {
     expect(primeraLetra("")).toBe("");
   });
 });
+
+// A2-01 (fases 5-6): rangoDe es la pieza común de ranking, ventas, KPIs y el MCP. Una fecha imposible en ?desde/?hasta
+// tumbaba la pantalla («2026-13-01») o se iba a otro mes («2026-02-31» → 3 de marzo). Ahora vale como «Mes».
+describe("rangoDe con fechas imposibles", () => {
+  it("2026-13-01 o 2026-02-31 no rompen: cae en el mes actual", async () => {
+    const { rangoDe } = await import("@/lib/formato");
+    const mes = rangoDe("mes", "Europe/Madrid");
+    for (const [d, h] of [["2026-13-01", "2026-13-05"], ["2026-02-31", "2026-03-02"], ["2026-02-01", "2026-02-31"], ["hola", "2026-02-02"]]) {
+      const r = rangoDe("rango", "Europe/Madrid", d, h);
+      expect(r.etiqueta, `${d}..${h}`).toBe(mes.etiqueta);
+      expect(r.desde?.getTime()).toBe(mes.desde?.getTime());
+    }
+    expect(rangoDe("rango", "Europe/Madrid", "2026-02-01", "2026-02-28").etiqueta).toBe("Del 2026-02-01 al 2026-02-28");
+  });
+});

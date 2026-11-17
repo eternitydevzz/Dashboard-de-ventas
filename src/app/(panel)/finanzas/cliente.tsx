@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { sinVaciar } from "@/components/sin-vaciar";
 import { Plus, Trash2, ArrowLeftRight, Upload, Calculator, Check, BookOpen, Undo2, CalendarClock, Settings2, Play } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { useAccion } from "@/components/acciones-lead";
@@ -40,13 +41,13 @@ export function NuevoMovimiento({ tipo, categorias, cuentas }: { tipo: "ingreso"
         <Modal titulo={tipo === "ingreso" ? "Nuevo ingreso extra" : "Nuevo gasto"} onCerrar={() => setAbierto(false)}>
           <form
             className="space-y-3"
-            action={(fd) => {
+            onSubmit={sinVaciar((fd) => {
               ejecutar(async () => {
                 const r = await crearMovimiento({ tipo, importe: String(fd.get("importe")), fecha: String(fd.get("fecha") ?? ""), categoria_id: String(fd.get("categoria") || "") || null, cuenta_id: String(fd.get("cuenta") || "") || null, descripcion: String(fd.get("descripcion") ?? "") });
                 if (!(r && typeof r === "object" && "error" in r)) setAbierto(false);
                 return r;
               }, "Guardado");
-            }}
+            })}
           >
             <div className="grid grid-cols-2 gap-3">
               <label className="block"><span className="etiqueta-campo">Importe</span><input name="importe" inputMode="decimal" required className="campo" /></label>
@@ -86,13 +87,13 @@ export function Categorias({ tipo, categorias }: { tipo: "ingreso" | "egreso"; c
           <div className="space-y-2 text-sm">
             {tipo === "egreso" && <p className="text-xs text-texto-3">Marca qué gastos cuentan en el <b>profit</b> y en el <b>ROAS</b> (por ejemplo, deja fuera los gastos personales).</p>}
             {mias.map((c) => (
-              <form key={c.id} className="flex items-center gap-2" action={(fd) => ejecutar(() => guardarCategoria(c.id, tipo, String(fd.get("nombre")), fd.get("profit") === "on"), "Guardada")}>
+              <form key={c.id} className="flex items-center gap-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarCategoria(c.id, tipo, String(fd.get("nombre")), fd.get("profit") === "on"), "Guardada"))}>
                 <input name="nombre" defaultValue={c.nombre} className="campo py-1.5" aria-label="Nombre" />
                 {tipo === "egreso" && <label className="flex shrink-0 items-center gap-1 text-xs"><input type="checkbox" className="interruptor" name="profit" defaultChecked={c.en_profit} /> En profit/ROAS</label>}
                 <button className="rounded-md p-1.5 text-texto-3 hover:bg-panel-2" disabled={pendiente} title="Guardar"><Check className="h-4 w-4" /></button>
               </form>
             ))}
-            <form className="flex items-center gap-2 border-t border-borde pt-2" action={(fd) => ejecutar(() => guardarCategoria(null, tipo, String(fd.get("nombre")), true), "Categoría creada")}>
+            <form className="flex items-center gap-2 border-t border-borde pt-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarCategoria(null, tipo, String(fd.get("nombre")), true), "Categoría creada"))}>
               <input name="nombre" required placeholder="Nueva categoría" className="campo py-1.5" />
               <button className="btn-secundario px-2 py-1.5" disabled={pendiente} aria-label="Añadir categoría"><Plus className="h-4 w-4" /></button>
             </form>
@@ -113,7 +114,7 @@ export function EditarCuenta({ cuenta }: { cuenta: { id: string; nombre: string;
       {cuenta ? <button className="text-xs text-primario hover:underline" onClick={() => setAbierto(true)}>Editar</button> : <button className="btn-primario" onClick={() => setAbierto(true)}><Plus className="h-4 w-4" /> Nueva cuenta</button>}
       {abierto && (
         <Modal titulo={cuenta ? `Cuenta · ${cuenta.nombre}` : "Nueva cuenta"} onCerrar={() => setAbierto(false)}>
-          <form className="space-y-3 text-sm" action={(fd) => ejecutar(async () => { const r = await guardarCuenta(cuenta?.id ?? null, String(fd.get("nombre")), fd.getAll("metodos").map(String)); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Cuenta guardada")}>
+          <form className="space-y-3 text-sm" onSubmit={sinVaciar((fd) => ejecutar(async () => { const r = await guardarCuenta(cuenta?.id ?? null, String(fd.get("nombre")), fd.getAll("metodos").map(String)); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Cuenta guardada"))}>
             <label className="block"><span className="etiqueta-campo">Nombre</span><input name="nombre" required defaultValue={cuenta?.nombre} className="campo" placeholder="Ej. Banco, Stripe" /></label>
             <fieldset><legend className="etiqueta-campo">Recibe los cobros pagados con…</legend>{METODOS.map(([v, t]) => <label key={v} className="mr-4 inline-flex items-center gap-1.5"><input type="checkbox" name="metodos" value={v} defaultChecked={cuenta?.metodos.includes(v)} /> {t}</label>)}</fieldset>
             <p className="text-xs text-texto-3">Lo que no vaya a ninguna cuenta entra en la cuenta por defecto.</p>
@@ -134,7 +135,7 @@ export function Transferir({ cuentas, desde }: { cuentas: Op[]; desde: string })
       <button className="btn-secundario" onClick={() => setAbierto(true)} disabled={cuentas.length < 2} title={cuentas.length < 2 ? "Crea otra cuenta para poder transferir" : ""}><ArrowLeftRight className="h-4 w-4" /> Transferir</button>
       {abierto && (
         <Modal titulo="Transferir entre cuentas" onCerrar={() => setAbierto(false)}>
-          <form className="space-y-3" action={(fd) => ejecutar(async () => { const r = await transferir(String(fd.get("origen")), String(fd.get("destino")), String(fd.get("importe")), String(fd.get("fecha") ?? ""), String(fd.get("descripcion") ?? "")); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Transferencia hecha")}>
+          <form className="space-y-3" onSubmit={sinVaciar((fd) => ejecutar(async () => { const r = await transferir(String(fd.get("origen")), String(fd.get("destino")), String(fd.get("importe")), String(fd.get("fecha") ?? ""), String(fd.get("descripcion") ?? "")); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Transferencia hecha"))}>
             <div className="grid grid-cols-2 gap-3">
               <label className="block"><span className="etiqueta-campo">Desde</span><Desplegable name="origen" className="campo" defaultValue={desde}>{cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</Desplegable></label>
               <label className="block"><span className="etiqueta-campo">Hacia</span><Desplegable name="destino" className="campo" defaultValue={cuentas.find((c) => c.id !== desde)?.id}>{cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</Desplegable></label>
@@ -159,7 +160,7 @@ export function NuevoProgramado({ categorias, cuentas }: { categorias: Cat[]; cu
       <button className="btn-primario" onClick={() => setAbierto(true)}><CalendarClock className="h-4 w-4" /> Nuevo gasto programado</button>
       {abierto && (
         <Modal titulo="Gasto que se repite" onCerrar={() => setAbierto(false)}>
-          <form className="space-y-3" action={(fd) => ejecutar(async () => { const r = await crearProgramado({ descripcion: String(fd.get("descripcion")), importe: String(fd.get("importe")), categoria_id: String(fd.get("categoria") || "") || null, cuenta_id: String(fd.get("cuenta") || "") || null, cada: String(fd.get("cada")) as "mes", proxima: String(fd.get("proxima")) }); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Gasto programado")}>
+          <form className="space-y-3" onSubmit={sinVaciar((fd) => ejecutar(async () => { const r = await crearProgramado({ descripcion: String(fd.get("descripcion")), importe: String(fd.get("importe")), categoria_id: String(fd.get("categoria") || "") || null, cuenta_id: String(fd.get("cuenta") || "") || null, cada: String(fd.get("cada")) as "mes", proxima: String(fd.get("proxima")) }); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Gasto programado"))}>
             <label className="block"><span className="etiqueta-campo">Descripción</span><input name="descripcion" required className="campo" placeholder="Ej. Licencia de GHL" /></label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block"><span className="etiqueta-campo">Importe</span><input name="importe" inputMode="decimal" required className="campo" /></label>
@@ -196,7 +197,7 @@ export function NuevoDeudor() {
       <button className="btn-primario" onClick={() => setAbierto(true)}><Plus className="h-4 w-4" /> Nuevo deudor</button>
       {abierto && (
         <Modal titulo="Nuevo deudor" onCerrar={() => setAbierto(false)}>
-          <form className="space-y-3" action={(fd) => ejecutar(async () => { const r = await nuevoDeudor(String(fd.get("nombre")), String(fd.get("importe")), String(fd.get("vence"))); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Deudor añadido")}>
+          <form className="space-y-3" onSubmit={sinVaciar((fd) => ejecutar(async () => { const r = await nuevoDeudor(String(fd.get("nombre")), String(fd.get("importe")), String(fd.get("vence"))); if (!(r && typeof r === "object" && "error" in r)) setAbierto(false); return r; }, "Deudor añadido"))}>
             <label className="block"><span className="etiqueta-campo">Quién debe</span><input name="nombre" required className="campo" /></label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block"><span className="etiqueta-campo">Importe</span><input name="importe" inputMode="decimal" required className="campo" /></label>
@@ -294,7 +295,7 @@ export function PagarLiquidacion({ id, pagada, cuentas }: { id: string; pagada: 
 export function TipoCambio({ porUsd }: { porUsd: number | null }) {
   const { pendiente, error, ejecutar } = useAccion();
   return (
-    <form className="flex flex-wrap items-end gap-2" action={(fd) => ejecutar(() => guardarTipoCambio(String(fd.get("v"))), "Tipo de cambio guardado")}>
+    <form className="flex flex-wrap items-end gap-2" onSubmit={sinVaciar((fd) => ejecutar(() => guardarTipoCambio(String(fd.get("v"))), "Tipo de cambio guardado"))}>
       <label className="block"><span className="etiqueta-campo">1 USD son … EUR</span><input name="v" inputMode="decimal" defaultValue={porUsd ?? ""} placeholder="0,92" className="campo w-32" /></label>
       <button className="btn-primario" disabled={pendiente}>Guardar</button>
       {error && <p className="w-full text-sm text-mal">{error}</p>}

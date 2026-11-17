@@ -23,6 +23,13 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
   // un fallo de la base salía como «Todavía no hay reportes»
   const per = leerPeriodo(sp);
   const rango = rangoNav(per.periodo, per.n, proyecto.zona_horaria, per.desde, per.hasta);
+  // Los enlaces de persona conservan el periodo elegido (antes volvían a «Mes»)
+  const enlace = (id?: string) => {
+    const q = new URLSearchParams();
+    for (const k of ["p", "n", "desde", "hasta"]) if (typeof sp[k] === "string") q.set(k, sp[k]);
+    if (id) q.set("persona", id);
+    return q.size ? `/reportes?${q}` : "/reportes";
+  };
   const ymd = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: proyecto.zona_horaria }).format(d);
   const reportes = await todas<Reporte>((d, h) => {
     let q = db().from("reportes").select("*").eq("proyecto_id", proyecto.id).gte("fecha", ymd(rango.desde!)).lt("fecha", ymd(rango.hasta!));
@@ -82,9 +89,9 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
         <BarraPeriodo etiqueta={rango.etiqueta} conActualizar={false} />
         {jefe && (
           <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-panel p-1">
-            <Link href="/reportes" className={`rounded-lg px-3 py-1.5 text-sm ${!persona ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>Todos</Link>
+            <Link href={enlace()} className={`rounded-lg px-3 py-1.5 text-sm ${!persona ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>Todos</Link>
             {gente.filter((g) => g.rol === "caller" || g.rol === "closer").map((g) => (
-              <Link key={g.id} href={`/reportes?persona=${g.id}`} className={`rounded-lg px-3 py-1.5 text-sm ${persona === g.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>{g.nombre}</Link>
+              <Link key={g.id} href={enlace(g.id)} className={`rounded-lg px-3 py-1.5 text-sm ${persona === g.id ? "bg-primario text-white" : "text-texto-2 hover:bg-panel-2"}`}>{g.nombre}</Link>
             ))}
           </div>
         )}

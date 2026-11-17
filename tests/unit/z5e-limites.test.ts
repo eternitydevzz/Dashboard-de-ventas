@@ -7,11 +7,12 @@ import { NextRequest } from "next/server";
 let dentro: boolean[]; // lo que contesta cada llamada a dentroDelLimite, en orden (después, true)
 const limite = { dentroDelLimite: vi.fn(async (..._a: unknown[]) => dentro.shift() ?? true), bloqueado: vi.fn(async (..._a: unknown[]) => false), anotar: vi.fn(async (..._a: unknown[]) => undefined) };
 vi.mock("@/lib/limite", () => limite);
-// La base no encuentra ninguna Entrada (token desconocido)
+// S4-2: la ruta busca la Entrada en la base ANTES del límite por token. Cada test dice si existe (activa) o no.
+let entradaEnBase: object | null = null;
 vi.mock("@/lib/supabase/admin", () => {
   const q: Record<string, unknown> = {};
   for (const m of ["select", "eq"]) q[m] = () => q;
-  q.maybeSingle = async () => ({ data: null, error: null });
+  q.maybeSingle = async () => ({ data: entradaEnBase, error: null });
   return { createAdminClient: () => ({ from: () => q }) };
 });
 vi.mock("@/lib/mcp/clave", async (o) => ({ ...(await o<object>()), perfilDeClave: async (c: string) => (c === "buena" ? "u1" : null) }));
@@ -27,6 +28,7 @@ const aMcp = (clave: string) => mcp(new Request("http://localhost/api/mcp", { me
 
 beforeEach(() => {
   dentro = [];
+  entradaEnBase = null;
   vi.clearAllMocks();
 });
 
@@ -35,15 +37,16 @@ describe("/api/webhooks/entrada", () => {
     expect((await aEntrada({ "content-length": "500001" })).status).toBe(413);
     expect(limite.dentroDelLimite).not.toHaveBeenCalled();
   });
-  it("300 por minuto por Entrada: al pasarse, 429", async () => {
+  it("300 por minuto por Entrada (que existe): al pasarse, 429", async () => {
+    entradaEnBase = { id: "e1", proyecto_id: "p1", nombre: "Web", activa: true };
     dentro = [false];
     expect((await aEntrada()).status).toBe(429);
     expect(limite.dentroDelLimite.mock.calls).toEqual([[`entrada:${TOKEN}`, 300, 60_000]]);
   });
-  it("token que no existe: 404 y cuenta un fallo por IP; a los 30 fallos en 15 min, 429", async () => {
+  it("token que no existe: 404 y cuenta solo un fallo por IP (no gasta cupo por token); a los 30 fallos en 15 min, 429", async () => {
     expect((await aEntrada()).status).toBe(404);
-    expect(limite.dentroDelLimite.mock.calls[1]).toEqual([`entrada-fallo:${IP}`, 30, 15 * 60_000]);
-    dentro = [true, false];
+    expect(limite.dentroDelLimite.mock.calls).toEqual([[`entrada-fallo:${IP}`, 30, 15 * 60_000]]);
+    dentro = [false];
     expect((await aEntrada()).status).toBe(429);
   });
 });

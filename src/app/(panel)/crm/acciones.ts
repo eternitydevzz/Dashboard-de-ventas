@@ -163,22 +163,6 @@ export async function editarEtapa(etapaId: string, nombre: string, color: string
   });
 }
 
-export async function moverEtapa(etapaId: string, direccion: -1 | 1) {
-  return seguro(async () => {
-    await exigirSeccion("crm"); // H5
-    const e = await etapaEditable(etapaId);
-    const { data: etapas, error } = await db().from("etapas").select("id").eq("pipeline_id", e.pipeline_id).order("orden");
-    if (error) throw new Error(`No se pudieron leer las columnas: ${error.message}`);
-    const ids = etapas.map((x) => x.id as string);
-    const i = ids.indexOf(etapaId);
-    const j = i + direccion;
-    if (i < 0 || j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    await guardarOrdenEtapas(ids); // S1-17: lo mismo que ordenarEtapas (borrar esta acción pide tocar crm/tablero.tsx)
-    refrescar();
-  });
-}
-
 const guardarOrdenEtapas = (ids: string[]) => Promise.all(ids.map((id, k) => escribir(db().from("etapas").update({ orden: k }).eq("id", id), "etapas")));
 
 // Orden nuevo de las columnas al soltar una arrastrándola (Fase 4): llegan todas, en su orden

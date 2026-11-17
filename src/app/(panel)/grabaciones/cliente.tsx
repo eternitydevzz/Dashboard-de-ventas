@@ -9,7 +9,7 @@ import { useAccion } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
 import { PopupLead } from "@/components/popup-lead";
 import { exigirOk } from "@/lib/resultado-cliente";
-import { duracionTexto } from "@/lib/grabaciones";
+import { duracionTexto, urlConGrabacion } from "@/lib/grabaciones";
 import type { Proyecto } from "@/lib/tipos";
 import { borrarGrabacion, guardarTranscripcion } from "./acciones";
 
@@ -67,7 +67,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
     setIntento(0);
     sono.current = 0;
     volver.current = null;
-    window.history.replaceState(null, "", `/grabaciones?g=${id}`);
+    window.history.replaceState(null, "", urlConGrabacion(window.location.pathname, window.location.search, id));
   };
   const tocar = (id: string) => {
     const a = audio.current;
