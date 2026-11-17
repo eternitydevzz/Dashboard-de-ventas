@@ -152,9 +152,12 @@ export async function actualizarMiembroEquipo(id: string, c: { nombre: string; a
     if (!nombre) throw new ErrorUsuario("Pon el nombre.");
     const comision = await comisionValida(proyecto.id, c.comision);
     if (!mismaComision(comision, m.comision as ComisionPersona)) exigirCambiarComisionPersona(perfil, m.perfil_id);
+    const cambiaCuenta = !!m.perfil_id && nombre !== m.nombre;
+    // Arreglo 24 (Cristian, 17 nov): el nombre de una cuenta vale en todos los proyectos: solo el CEO o la propia persona
+    if (cambiaCuenta && perfil.rol !== "ceo" && m.perfil_id !== perfil.id) throw new ErrorUsuario("Solo el CEO cambia el nombre de la cuenta de otra persona.");
     await escribir(db().from("miembros_equipo").update({ nombre, area_id: c.area_id, puesto_id: c.puesto_id, lider: c.lider, activo: c.activo, comision }).eq("id", id), "miembros_equipo");
     // S2-18 (Cristian, 17 nov): un solo nombre en toda la app; KPIs y Ventas leen perfiles.nombre
-    if (m.perfil_id && nombre !== m.nombre) {
+    if (cambiaCuenta) {
       await escribir(db().from("perfiles").update({ nombre }).eq("id", m.perfil_id), "perfiles");
       await escribir(db().from("miembros_equipo").update({ nombre }).eq("perfil_id", m.perfil_id), "miembros_equipo");
     }

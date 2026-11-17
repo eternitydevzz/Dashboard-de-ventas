@@ -25,7 +25,8 @@ vi.mock("@/lib/supabase/admin", () => ({
 // Proyecto en $; Ana es de España (€)
 vi.mock("@/lib/permisos", () => ({ exigirSeccion: async () => ({ perfil: { id: "jefe", rol: "admin" }, proyecto: { id: "p1", moneda: "USD", zona_horaria: "America/New_York" } }) }));
 vi.mock("@/lib/auth", () => ({ exigirNoEsPropia: () => undefined }));
-vi.mock("@/lib/mercado-datos", () => ({ mercadosDelProyecto: async () => ({ ana: "es", luis: "latam" }) }));
+const mercados = vi.fn(async (_p: string, _estricto?: boolean) => ({ ana: "es", luis: "latam" }) as Record<string, string>);
+vi.mock("@/lib/mercado-datos", () => ({ mercadosDelProyecto: (p: string, e?: boolean) => mercados(p, e) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/errores-app", () => ({ guardarError: async () => undefined }));
 
@@ -35,6 +36,18 @@ describe("TC · la comisión pagada guarda su moneda", () => {
     expect(await fin.pagarLiquidacion("l1", null)).not.toMatchObject({ error: expect.anything() });
     const mov = inserts.find((i) => i.tabla === "movimientos")!.fila;
     expect(mov).toMatchObject({ tipo: "egreso", importe: 50, origen: "liquidacion", moneda: "EUR" });
+  });
+});
+
+// Revisor (17 nov): la moneda se guarda para siempre; si no se puede leer el mercado, no se adivina
+describe("TC · si falla la lectura del mercado", () => {
+  it("pide la lectura estricta y no paga con la moneda equivocada", async () => {
+    const fin = await import("@/app/(panel)/finanzas/acciones");
+    inserts.length = 0;
+    mercados.mockRejectedValueOnce(new Error("no se pudo leer miembros_proyecto"));
+    expect(await fin.pagarLiquidacion("l1", null)).toEqual({ error: expect.any(String) });
+    expect(inserts.some((i) => i.tabla === "movimientos")).toBe(false);
+    expect(mercados).toHaveBeenLastCalledWith("p1", true);
   });
 });
 

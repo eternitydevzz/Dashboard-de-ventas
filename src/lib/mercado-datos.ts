@@ -13,9 +13,13 @@ export const leerMercado = cache(async (proyectoId: string, perfilId: string): P
 });
 
 // El mercado de cada persona del proyecto (perfil_id → «es» / «latam»). Si la base aún no tiene la columna, vacío = todos Latam.
-export const mercadosDelProyecto = cache(async (proyectoId: string): Promise<Record<string, Mercado>> => {
+// `estricto`: si la lectura falla, lanza (para lo que se guarda para siempre, como la moneda de una comisión pagada)
+export const mercadosDelProyecto = cache(async (proyectoId: string, estricto = false): Promise<Record<string, Mercado>> => {
   const { data, error } = await db().from("miembros_proyecto").select("perfil_id, mercado").eq("proyecto_id", proyectoId);
-  if (error) return {};
+  if (error) {
+    if (estricto) throw new Error(`No se pudo leer el mercado del equipo: ${error.message}`);
+    return {};
+  }
   return Object.fromEntries((data ?? []).map((m) => [m.perfil_id as string, mercadoDe(m.mercado)]));
 });
 

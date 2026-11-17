@@ -62,4 +62,24 @@ describe("S2-18 · nombre único desde Equipo", () => {
     expect(updates("perfiles")).toHaveLength(0);
     expect(updates("miembros_equipo")).toHaveLength(1);
   });
+  // Revisor (17 nov) y decisión de Cristian: lo que toca el perfil solo lo cambia el CEO o la propia persona (Arreglo 24)
+  it("un director no cambia el nombre de la cuenta de otra persona: error y no escribe nada", async () => {
+    vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "dir", rol: "director" }, proyecto: { id: "p1", nombre: "Eternity" } } as never);
+    fila = { perfil_id: "ceo", comision: null, nombre: "Cristian" };
+    expect(await actualizarMiembroEquipo("m1", { nombre: "Otro", ...cambios })).toEqual({ error: expect.stringMatching(/Solo el CEO/) });
+    expect(updates("miembros_equipo")).toHaveLength(0);
+    expect(updates("perfiles")).toHaveLength(0);
+  });
+  it("un director sí cambia su propio nombre (se copia al perfil)", async () => {
+    vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "dir", rol: "director" }, proyecto: { id: "p1", nombre: "Eternity" } } as never);
+    fila = { perfil_id: "dir", comision: null, nombre: "Dire" };
+    expect(await actualizarMiembroEquipo("m1", { nombre: "Director Uno", ...cambios })).toBeUndefined();
+    expect(updates("perfiles")).toHaveLength(1);
+  });
+  it("un director sí edita a un miembro sin cuenta y lo demás sin cambiar el nombre", async () => {
+    vi.mocked(getSesion).mockResolvedValue({ perfil: { id: "dir", rol: "director" }, proyecto: { id: "p1", nombre: "Eternity" } } as never);
+    fila = { perfil_id: "otro", comision: null, nombre: "Ana" };
+    expect(await actualizarMiembroEquipo("m1", { nombre: "Ana", ...cambios })).toBeUndefined();
+    expect(updates("miembros_equipo")).toHaveLength(1);
+  });
 });
