@@ -63,6 +63,7 @@ for (const p of personas) {
     id = data.user.id;
     const { error: e2 } = await db.from("perfiles").insert({ id, nombre: p.nombre, email: p.email, rol: p.rol, admin_activo: p.admin, telefono: p.telefono, es_prueba: p.prueba });
     if (e2) {
+      await db.from("perfiles").delete().eq("id", id); // el perfil ya no se borra solo con el usuario
       await db.auth.admin.deleteUser(id);
       console.log(`  ✗ ${e2.message}`);
       continue;

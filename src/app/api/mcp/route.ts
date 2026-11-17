@@ -99,7 +99,7 @@ function servidor(perfilId: string) {
     "borrar_miembro",
     {
       description:
-        "Borra para siempre a una persona (solo CEO): su cuenta y su sitio en el equipo; sus llamadas, citas y ventas se quedan sin quién las hizo. NO se puede deshacer: si basta con que no entre, usa dar_de_baja_miembro. Si tiene leads, pide a quién pasarlos (leadsA). Primero vista previa; solo lo hace con confirmar: true.",
+        "Borra para siempre a una persona (solo CEO): su acceso y su sitio en el organigrama; su nombre se queda en todo su historial (llamadas, citas, ventas, grabaciones, comisiones) y pasa a inactivos. NO se puede deshacer: si basta con que no entre, usa dar_de_baja_miembro. Si tiene leads, pide a quién pasarlos (leadsA). Primero vista previa; solo lo hace con confirmar: true.",
       inputSchema: SALIDA,
     },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaBorrarMiembro(a))
