@@ -7,7 +7,7 @@ import { esCloser } from "@/lib/tipos";
 import { Cabecera, Contenido, Seccion } from "@/components/ui";
 import { EditorHorario } from "@/components/editor-horario";
 import { FormMisDatos, FormMiFoto, FormMiMercado, FormMiPassword, FormMiZona } from "./cliente";
-import { conZona, zonaValida } from "./foto-zona";
+import { conZona, opcionesZona, zonaValida } from "./foto-zona";
 import { leerMercado } from "@/lib/mercado-datos";
 
 // «Mi perfil» (bloque 1 de 1.0): para todos. Datos, contraseña y, para callers y closers, su horario.
@@ -45,7 +45,7 @@ export default async function PerfilPage({ searchParams }: PageProps<"/perfil">)
         )}
         {zona !== undefined && conZona(perfil.rol) && (
           <Seccion titulo="Mi zona horaria">
-            <FormMiZona inicial={zonaValida(zona)} />
+            <FormMiZona inicial={zonaValida(zona)} pais={perfil.pais ?? null} opciones={opcionesZona()} />
           </Seccion>
         )}
         {conHorario && (
