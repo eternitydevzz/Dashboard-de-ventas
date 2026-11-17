@@ -35,7 +35,7 @@ export default async function GrabacionesPage({ searchParams }: PageProps<"/grab
       leadId: g.lead_id,
       lead: l ? `${l.nombre} ${l.apellido ?? ""}`.trim() : "Lead borrado",
       callerId: g.perfil_id,
-      caller: (g.perfiles as unknown as { nombre: string } | null)?.nombre ?? "—",
+      caller: (g.perfiles as unknown as { nombre: string } | null)?.nombre ?? "Persona borrada",
       duracion: g.duracion_seg,
       transcripcion: g.transcripcion,
       creado_en: g.creado_en,
