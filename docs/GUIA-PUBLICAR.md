@@ -44,7 +44,6 @@ supabase db push
 Todos simulan primero; con `--confirmar` lo hacen de verdad. Se lanzan con `node --env-file=.env.produccion scripts/<script>`.
 - `preparar-proyecto.mjs`: crea un proyecto con sus pipelines, columnas y productos (`proyecto-base.json`).
 - `crear-usuarios.mjs <csv>`: crea el equipo desde un CSV (`nombre,email,rol,proyecto` y, opcionales, `telefono`, `admin`). Las contraseñas quedan en `scripts/salida/` (fuera de GitHub): se mandan y se borra el archivo.
-- `limpiar-pruebas.mjs`: borra los proyectos de prueba y sus datos. **Leer su cabecera antes**: es para el final y borra mucho.
 
 Subir leads de GHL: CRM → «Subir CSV» (los que ya están se ponen al día sin duplicar).
 

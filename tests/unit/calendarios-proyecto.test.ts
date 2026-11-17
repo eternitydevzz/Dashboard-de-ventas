@@ -2,20 +2,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let guardado: Record<string, unknown> | null;
-let exigirImpl: () => Promise<unknown>;
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, refresh: () => undefined }));
 vi.mock("@/lib/memoria", () => ({ olvidarTodo: () => undefined }));
-vi.mock("@/lib/auth", () => ({ exigir: () => exigirImpl(), puedeAdmin: {}, puedeCrearProyectos: {}, exigirCambiarComisionRol: {} }));
 vi.mock("@/lib/datos", () => ({
   db: () => ({ from: () => ({ update: (v: Record<string, unknown>) => ({ eq: () => ((guardado = v), { error: null }) }) }) }),
   equipo: async () => [],
   escribir: async (p: unknown) => p,
 }));
 const { guardarCalendariosProyecto } = await import("@/app/(panel)/admin/acciones");
+// exigir y puedeAdmin son los de verdad: solo se simula la sesión (setup.ts), como en 6s-seguridad.test.ts
+const { getSesion } = await import("@/lib/sesion");
+const como = (perfil: object) => vi.mocked(getSesion).mockResolvedValue({ perfil, proyecto: { id: "p1" } } as never);
 
 beforeEach(() => {
   guardado = null;
-  exigirImpl = async () => ({ proyecto: { id: "p1" } });
+  como({ id: "dir", rol: "director", admin_activo: true });
 });
 
 describe("guardarCalendariosProyecto", () => {
@@ -37,11 +38,11 @@ describe("guardarCalendariosProyecto", () => {
     expect(await guardarCalendariosProyecto("abc" as never)).toMatchObject({ error: expect.any(String) });
     expect(guardado).toBeNull();
   });
-  it("si no eres admin, no guarda", async () => {
-    exigirImpl = async () => {
-      throw new Error("no admin");
-    };
-    expect(await guardarCalendariosProyecto(["abc"])).toMatchObject({ error: expect.any(String) });
+  it("si no eres admin (director sin Administración o closer), no guarda", async () => {
+    for (const perfil of [{ id: "dir2", rol: "director", admin_activo: false }, { id: "c", rol: "closer", admin_activo: false }]) {
+      como(perfil);
+      expect(await guardarCalendariosProyecto(["abc"])).toEqual({ error: "No tienes permiso para esto." });
+    }
     expect(guardado).toBeNull();
   });
 });
