@@ -83,3 +83,13 @@ describe("agenda del MCP: quien es caller y closer, como la pantalla Agendas", (
     expect(s).toContain('doble ? "o" : "y"');
   });
 });
+
+describe("onboarding de mercado: «Equipo España / Equipo USA» (Jose, 17 nov)", () => {
+  it("no dice «Latinoamérica» y sí «Equipo USA»", () => {
+    const s = leer("src/app/onboarding/mercado/page.tsx");
+    expect(s).not.toContain("Latinoamérica");
+    expect(s).toContain("Equipo USA");
+    expect(s).toContain("Equipo España");
+    expect(s).toContain("¿De qué equipo eres: España o USA?");
+  });
+});
