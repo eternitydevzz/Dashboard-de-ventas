@@ -119,6 +119,13 @@ Decisión de Cristian:
   - el nombre en Equipo se guarda con 3 escrituras sin transacción;
   - los gastos manuales no dejan elegir moneda;
   - reactivar a alguien borrado lo deja activo pero sin acceso.
+- **Apuntado en la Fase A (17 nov, revisión):**
+  - Enlace mágico: si en ese navegador ya hay una sesión abierta, abrir el enlace de otra persona entra con la sesión que ya había (es lo decidido en A1: «si ya hay sesión, entrar sin error»).
+  - «Mi perfil» y `/onboarding/zona` calculan unas 420 zonas en cada carga (unos 26 ms medidos): para la fase de velocidad.
+  - Quien elige la zona «Otro» la ve con su nombre técnico (por ejemplo «America/Lima») en el calendario, la cola y el editor de horario, no con el país que escribió.
+  - El MCP `crear_miembro` sigue pidiendo «es» o «latam» (es el valor que acepta; decidido dejarlo).
+  - **Pregunta para Cristian:** en KPIs, las ventas de Facu (caller y closer) incluyen las que cerró otro closer sobre leads que agendó él; en Agendas solo cuentan las suyas como vendedor. ¿Cuál vale?
+  - El PDF «Generar reporte» de KPIs, para Facu, cuenta solo sus citas como closer (no las que agendó con otro closer).
 
 ## 8. Hecho (rellenar al terminar cada fase)
 

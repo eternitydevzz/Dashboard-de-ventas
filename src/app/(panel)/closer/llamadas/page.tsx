@@ -19,7 +19,7 @@ import { RevisionIa } from "./revision-ia";
 import { Cualificacion } from "./cualificacion";
 import { TableroClosers } from "./tablero-closers";
 import { BuscadorUrl, CrearLlamada, FilaSinUnir, ImportarCitas, SincronizarGhl, VistasCalendario } from "./cliente";
-import type { Producto } from "@/lib/tipos";
+import { esCloser, type Producto } from "@/lib/tipos";
 import { SIN_CANAL, opcionesCanal, origenCitaGhl } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
 import { mercadosDelProyecto, miMoneda } from "@/lib/mercado-datos";
@@ -48,7 +48,10 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const { perfil, proyecto } = await exigirPagina("agendas"); // H5
   const jefe = esJefe(perfil);
   // H5 (caso 1 confirmado por Cristian): un caller con «Agendas» ve solo las citas que agendó él, solo para mirar
-  const mirar = perfil.rol === "caller";
+  // A2 (Cristian, 17 nov): el caller con «También closer» (Facu), como un closer, y además ve las que agendó; las que
+  // agendó con OTRO closer, solo mirar (D1, Jose: se ven, no se mueven, sin acciones)
+  const doble = perfil.rol === "caller" && esCloser(perfil);
+  const mirar = perfil.rol === "caller" && !esCloser(perfil);
   const sp = await searchParams;
   const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const tabsVisibles = TABS.filter((t) => (!("soloJefe" in t) || jefe) && (!mirar || ["agendas", "precall", "postcall"].includes(t.v)));
@@ -77,7 +80,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   const filtroM = jefe ? mercadoValido(sp.mercado) : null;
   const vis = closersVisibles(perfil, filtroM ? gente.filter((g) => entraEnMercado(mercados, g.id, filtroM)) : gente, str("closer") || null);
   // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM. Las ventas solo se enseñan en Post-call
-  const { citas: citasTodas, ventas: ventasTodas, gente: conBaja } = await cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !str("closer") && !filtroM, gente, tab === "postcall"); // con mercado, sin las citas sin closer; N5: con las de closers de baja
+  const { citas: citasTodas, ventas: ventasTodas, gente: conBaja } = await cargarCitasVentas(proyecto.id, vis.ids, mirar || doble ? perfil.id : null, jefe && !str("closer") && !filtroM, gente, tab === "postcall", doble ? "o" : "y"); // con mercado, sin las citas sin closer; N5: con las de closers de baja
   const nombrePersona = (id: string | null) => conBaja.find((g) => g.id === id)?.nombre ?? "—"; // N5: «Ana (baja)»
   const ghlConectado = !!(pg?.ghl_token && pg?.ghl_location_id);
   const pendientesUnir = (sinUnir ?? []).filter((x) => x.estado === "pendiente");
@@ -90,13 +93,16 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   );
   const utms = [...new Set(citasTodas.map((c) => c.leads?.seguimiento?.utm_source || "Sin UTM"))].sort();
   const ventas = ventasTodas;
+  // A2: las que agendó con otro closer (solo mirar)
+  const ajena = (c: { closer_id: string | null }) => doble && c.closer_id !== perfil.id;
+  const ajenas = citas.filter(ajena).map((c) => c.id);
   const partes = partirCloser(etapasCl);
   // Tablero «Closers» (Pre-call o Post-call): las columnas de esa parte, con las citas que pasan el buscador
   const tablero = (lista: typeof etapasCl) => {
     const { columnas } = columnasCloser(lista, citas, ventas, { proyecto, jefe, nombrePersona, canales });
     const fechaDe = new Map(citas.map((c) => [c.id, c.fecha]));
     const enSuHora = horaDe ? columnas.map((col) => ({ ...col, citas: col.citas.map((x) => ({ ...x, fechaTxt: fechaHora(fechaDe.get(x.id)!, verHora) })) })) : columnas;
-    return <TableroClosers columnas={enSuHora} productos={prods} moneda={monedaVenta} jefe={jefe} soloMirar={mirar} horaDe={horaDe} />;
+    return <TableroClosers columnas={enSuHora} productos={prods} moneda={monedaVenta} jefe={jefe} soloMirar={mirar} soloMirarIds={ajenas} horaDe={horaDe} />;
   };
 
   // Contadores de arriba (este mes)
@@ -116,7 +122,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     <>
       <Cabecera
         titulo="Agendas"
-        subtitulo={`${proyecto.nombre} · ${jefe ? (str("closer") ? nombrePersona(str("closer")) : "todos los closers") : mirar ? `citas que agendó ${perfil.nombre} (solo mirar)` : perfil.nombre}${horaDe ? ` · horas de ${horaDe}` : ""}`}
+        subtitulo={`${proyecto.nombre} · ${jefe ? (str("closer") ? nombrePersona(str("closer")) : "todos los closers") : mirar ? `citas que agendó ${perfil.nombre} (solo mirar)` : doble ? `${perfil.nombre} · y las que agendó` : perfil.nombre}${horaDe ? ` · horas de ${horaDe}` : ""}`}
         acciones={
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span><b className="text-aviso">{contadores.pendientes}</b> pendientes</span>
@@ -395,7 +401,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
               {jefe && c.closer_id && <EtiquetaMercado m={mercados[c.closer_id]} />}
               <Insignia tono={tonoEstado(c.estado)}>{ETIQUETA_ESTADO_CITA[c.estado]}</Insignia>
             </div>
-            {!mirar && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={monedaVenta} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} horaDe={horaDe} />}
+            {!mirar && !ajena(c) && <AccionesCita cita={{ id: c.id, estado: c.estado, lead_id: c.lead_id, closer_id: c.closer_id }} pasada={new Date(c.fecha).getTime() < ahora} productos={prods} moneda={monedaVenta} ceo={perfil.rol === "ceo" ? { closers: vis.todos.map((x) => ({ id: x.id, nombre: x.nombre })) } : undefined} horaDe={horaDe} />}
           </li>
         ))}
       </ul>

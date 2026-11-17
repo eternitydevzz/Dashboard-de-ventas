@@ -17,7 +17,7 @@ import { cargarCitasVentas } from "@/lib/tablero-closers";
 import { ABIERTAS } from "@/lib/llamadas";
 import { ErrorUsuario, esError } from "@/lib/resultado";
 import { resumenLead } from "@/app/(panel)/leads/resumen";
-import type { Pipeline } from "@/lib/tipos";
+import { esCloser, type Pipeline } from "@/lib/tipos";
 
 // MCP, Fase 3 (11 nov 2026; plan en VENTAS/API-DASHBOARD/fase-3.md): herramientas para leer. Cada una usa la misma función
 // que su pantalla y copia su periodo por defecto, sus filtros y sus permisos. Ojo: Funnel y Ranking cuentan el periodo
@@ -65,7 +65,7 @@ export async function herramientaRanking(a: ArgsRanking) {
     pantalla: "Ranking",
     proyecto: proyecto.nombre,
     periodo: rango.etiqueta,
-    mercado: r.mercado === "es" ? "España" : r.mercado === "latam" ? "Latam" : "Todos",
+    mercado: r.mercado === "es" ? "España" : r.mercado === "latam" ? "USA" : "Todos",
     callers: r.callers.map((c, i) => ({ puesto: i + 1, nombre: c.perfil.nombre, agendados: c.agendados, llamadas: c.llamadas, contactados: c.contactados, cerrados: c.cerrados, lowTicketVentas: c.lowTicketVentas })),
     // null = este caller no ve el ranking de closers (interruptor en Administración)
     closers: r.closers && r.closers.map((c, i) => ({ puesto: i + 1, nombre: c.perfil.nombre, facturacion: c.facturacion, cerradas: c.cerradas, cierreSobreAsistencia: c.cierreSobreAsistencia, asistidas: c.asistidas, noShow: c.noShow })),
@@ -251,12 +251,15 @@ type ArgsAgenda = ArgsNav & { closer?: string; estado?: string; sinResultado?: b
 export async function herramientaAgenda(a: ArgsAgenda) {
   const { perfil, proyecto } = await exigirSeccion("agendas");
   const jefe = esJefe(perfil);
-  const mirar = perfil.rol === "caller"; // un caller con «Agendas» ve solo las citas que agendó él
+  // Un caller con «Agendas» ve solo las citas que agendó él. Como la pantalla (closer/llamadas/page.tsx, A2): el caller que
+  // también es closer (Facu) ve las suyas como closer y además las que agendó («o»)
+  const doble = perfil.rol === "caller" && esCloser(perfil);
+  const mirar = perfil.rol === "caller" && !esCloser(perfil);
   const zona = proyecto.zona_horaria;
   const gente = await equipo(proyecto.id, !!perfil.es_prueba);
   const elegido = a.closer && jefe ? elegir(closersVisibles(perfil, gente, null).todos, a.closer, "closer").id : null;
   const vis = closersVisibles(perfil, gente, elegido);
-  const { citas: todasCitas, gente: conBaja } = await cargarCitasVentas(proyecto.id, vis.ids, mirar ? perfil.id : null, jefe && !elegido, gente); // N5: con las de closers de baja
+  const { citas: todasCitas, gente: conBaja } = await cargarCitasVentas(proyecto.id, vis.ids, mirar || doble ? perfil.id : null, jefe && !elegido, gente, true, doble ? "o" : "y"); // N5: con las de closers de baja
   const rango = rangoNav(a.periodo ?? "mes", Math.trunc(a.n ?? 0), zona, a.desde, a.hasta);
   const ahora = Date.now();
   const abierta = (e: string) => (ABIERTAS as readonly string[]).includes(e);

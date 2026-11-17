@@ -21,7 +21,7 @@ const refrescar = () => revalidatePath("/", "layout");
 
 async function sesionAgendas() {
   const s = await getSesion();
-  if (!esJefe(s.perfil) && s.perfil.rol !== "closer") throw new ErrorUsuario("No tienes permiso para esto.");
+  if (!esJefe(s.perfil) && !esCloser(s.perfil)) throw new ErrorUsuario("No tienes permiso para esto."); // A2: también el caller con «También closer»
   return s;
 }
 

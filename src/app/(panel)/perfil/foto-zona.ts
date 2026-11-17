@@ -21,8 +21,47 @@ export const ZONAS = [
   { v: "America/Argentina/Buenos_Aires", t: "Argentina" },
   { v: "Europe/Madrid", t: "España" },
 ] as const;
-export type Zona = (typeof ZONAS)[number]["v"];
-export const zonaValida = (v: unknown): Zona | null => ZONAS.find((z) => z.v === v)?.v ?? null;
+export const esZonaDeLista = (v: unknown) => ZONAS.some((z) => z.v === v);
+
+// A5 (17 nov 2026): «Otro». Vale cualquier zona que entienda el sistema y cumpla el formato que pide la base
+// (migración 20261124100000_zona_otro.sql).
+const FORMATO_ZONA = /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+){0,2}$/;
+export function zonaValida(v: unknown): string | null {
+  if (typeof v !== "string" || !FORMATO_ZONA.test(v)) return null;
+  if (esZonaDeLista(v)) return v;
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: v });
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+// Las del sistema más las 6 (Node no lista America/Argentina/Buenos_Aires), sin repetir
+export function todasLasZonas(): string[] {
+  const sistema = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
+  return [...new Set([...sistema, ...ZONAS.map((z) => z.v)])].filter((z) => zonaValida(z) !== null);
+}
+
+export function horaEnZona(zona: string, ahora: Date): string {
+  const partes = new Intl.DateTimeFormat("en-GB", { timeZone: zona, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(ahora);
+  const parte = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "00";
+  return `${parte("hour")}:${parte("minute")}`;
+}
+
+// El desplegable de «Otro»: cada zona con la hora que es ahora allí, ordenadas por hora (la persona busca la suya)
+export function opcionesZona(ahora = new Date()) {
+  return todasLasZonas()
+    .map((v) => ({ v, t: `${horaEnZona(v, ahora)} · ${v.replaceAll("_", " ")}` }))
+    .sort((a, b) => a.t.localeCompare(b.t));
+}
+
+export const MAX_PAIS = 80;
+export function paisValido(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const p = v.trim();
+  return p.length >= 1 && p.length <= MAX_PAIS ? p : null;
+}
 
 export const conZona = (rol: string) => rol === "caller" || rol === "closer";
 

@@ -9,7 +9,7 @@ import { anotar, bloqueado } from "@/lib/limite";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { horarioValido } from "@/lib/horarios";
 import { mercadoValido } from "@/lib/mercado";
-import { MAX_FOTO, conZona, esJpeg, zonaValida } from "./foto-zona";
+import { MAX_FOTO, MAX_PAIS, conZona, esJpeg, esZonaDeLista, paisValido, zonaValida } from "./foto-zona";
 
 // 25 oct 2026: también borra la memoria compartida (lib/memoria.ts), para que lo guardado se vea al momento
 const refrescar = () => {
@@ -77,7 +77,7 @@ export async function guardarMiMercado(mercado: string) {
   return seguro(async () => {
     const { perfil, proyecto } = await getSesion();
     const m = mercadoValido(mercado);
-    if (!m) throw new ErrorUsuario("Elige Latam o España.");
+    if (!m) throw new ErrorUsuario("Elige USA o España.");
     const { data, error } = await db().from("miembros_proyecto").update({ mercado: m }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).select("perfil_id");
     if (error) throw /mercado/.test(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (España).") : new Error(error.message);
     if (!data?.length) throw new ErrorUsuario("No estás en este proyecto.");
@@ -110,15 +110,19 @@ export async function guardarMiFoto(datos: FormData) {
   });
 }
 
-// N2 (Cristian, 13 nov): la zona en que ve las horas cada caller y closer (al entrar y en «Mi perfil»)
-export async function guardarMiZona(zona: string) {
+// N2 (Cristian, 13 nov): la zona en que ve las horas cada caller y closer (al entrar y en «Mi perfil»).
+// A5 (17 nov): con «Otro» elige cualquier zona y dice de dónde es (pais); con una de las 6, pais vuelve a null.
+export async function guardarMiZona(zona: string, pais?: string | null) {
   return seguro(async () => {
     const { perfil } = await getSesion();
     if (!conZona(perfil.rol)) throw new ErrorUsuario("La zona horaria es para callers y closers.");
     const z = zonaValida(zona);
     if (!z) throw new ErrorUsuario("Elige una de las zonas de la lista.");
-    const { error } = await db().from("perfiles").update({ zona_horaria: z }).eq("id", perfil.id);
-    if (error) throw /zona_horaria/.test(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (zona horaria).") : new Error(error.message);
+    const deLista = esZonaDeLista(z);
+    const p = deLista ? null : paisValido(pais);
+    if (!deLista && !p) throw new ErrorUsuario(`Escribe de dónde eres (máximo ${MAX_PAIS} caracteres).`);
+    const { error } = await db().from("perfiles").update({ zona_horaria: z, pais: p }).eq("id", perfil.id);
+    if (error) throw /zona_horaria|pais/.test(error.message) ? new ErrorUsuario("Falta aplicar la migración de la base (zona horaria).") : new Error(error.message);
     refrescar();
   });
 }

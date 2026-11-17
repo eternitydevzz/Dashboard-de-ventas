@@ -6,7 +6,7 @@ import { useAccion } from "@/components/acciones-lead";
 import { Avatar } from "@/components/ui";
 import { cambiarMiPassword, guardarMiFoto, guardarMiMercado, guardarMiPerfil, guardarMiZona } from "./acciones";
 import { MERCADOS, type Mercado } from "@/lib/mercado";
-import { LADO_FOTO, MAX_ORIGINAL, ZONAS, type Zona } from "./foto-zona";
+import { LADO_FOTO, MAX_ORIGINAL, MAX_PAIS, ZONAS, esZonaDeLista } from "./foto-zona";
 
 export function FormMisDatos({ nombre, telefono, whatsapp, email }: { nombre: string; telefono: string; whatsapp: string; email: string }) {
   const [d, setD] = useState({ nombre, telefono, whatsapp });
@@ -68,7 +68,7 @@ export function FormMiMercado({ inicial }: { inicial: Mercado | null }) {
             className={m === x.v ? "btn-primario" : "btn-secundario"}
             onClick={() => { setM(x.v); ejecutar(() => guardarMiMercado(x.v), `Ahora eres del equipo de ${x.t}`); }}
           >
-            {x.v === "es" ? "Trabajo desde España" : "Trabajo desde Latinoamérica"}
+            {x.v === "es" ? "Equipo España" : "Equipo USA"}
           </button>
         ))}
       </div>
@@ -124,9 +124,13 @@ export function FormMiFoto({ nombre, foto, entrada = false }: { nombre: string; 
   );
 }
 
-// N2 (Cristian, 13 nov): en qué zona ve las horas (el proyecto y sus cifras siguen en la suya)
-export function FormMiZona({ inicial }: { inicial: Zona | null }) {
+// N2 (Cristian, 13 nov): en qué zona ve las horas (el proyecto y sus cifras siguen en la suya).
+// A5 (17 nov): «Otro» = escribe de dónde es y elige su hora. `opciones` llega del servidor (misma lista y misma hora
+// en el servidor y en el navegador).
+export function FormMiZona({ inicial, pais, opciones }: { inicial: string | null; pais: string | null; opciones: { v: string; t: string }[] }) {
   const [z, setZ] = useState(inicial);
+  const [otro, setOtro] = useState(inicial !== null && !esZonaDeLista(inicial));
+  const [d, setD] = useState({ pais: pais ?? "", zona: inicial !== null && !esZonaDeLista(inicial) ? inicial : "" });
   const { pendiente, error, ejecutar } = useAccion();
   return (
     <div className="space-y-3">
@@ -136,15 +140,41 @@ export function FormMiZona({ inicial }: { inicial: Zona | null }) {
             key={x.v}
             type="button"
             role="radio"
-            aria-checked={z === x.v}
+            aria-checked={!otro && z === x.v}
             disabled={pendiente}
-            className={z === x.v ? "btn-primario" : "btn-secundario"}
-            onClick={() => { setZ(x.v); ejecutar(() => guardarMiZona(x.v), `Ahora ves las horas de ${x.t}`); }}
+            className={!otro && z === x.v ? "btn-primario" : "btn-secundario"}
+            onClick={() => { setZ(x.v); setOtro(false); ejecutar(() => guardarMiZona(x.v), `Ahora ves las horas de ${x.t}`); }}
           >
             {x.t}
           </button>
         ))}
+        <button type="button" role="radio" aria-checked={otro} disabled={pendiente} className={otro ? "btn-primario" : "btn-secundario"} onClick={() => setOtro(true)}>
+          Otro
+        </button>
       </div>
+      {otro && (
+        <form
+          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            ejecutar(async () => {
+              const r = await guardarMiZona(d.zona, d.pais);
+              if (!r) setZ(d.zona);
+              return r;
+            }, `Ahora ves las horas de ${d.pais.trim()}`);
+          }}
+        >
+          <label className="block"><span className="etiqueta-campo">¿De dónde eres?</span><input className="campo" required maxLength={MAX_PAIS} placeholder="Perú" value={d.pais} onChange={(e) => setD({ ...d, pais: e.target.value })} /></label>
+          <label className="block">
+            <span className="etiqueta-campo">La hora que es ahora donde estás</span>
+            <select className="campo" required value={d.zona} onChange={(e) => setD({ ...d, zona: e.target.value })}>
+              <option value="" disabled>Elige tu hora…</option>
+              {opciones.map((o) => <option key={o.v} value={o.v}>{o.t}</option>)}
+            </select>
+          </label>
+          <button className="btn-primario" disabled={pendiente}>Guardar</button>
+        </form>
+      )}
       <p className="text-xs text-texto-3">Solo cambia cómo ves tú las horas. Las cifras y los KPIs siguen en la hora del proyecto.</p>
       {error && <p className="text-xs text-mal">{error}</p>}
     </div>

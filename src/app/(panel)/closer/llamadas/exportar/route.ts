@@ -11,13 +11,15 @@ import { canalesDe } from "@/lib/canales-datos";
 import { mercadosDelProyecto } from "@/lib/mercado-datos";
 import { entraEnMercado, mercadoValido, type Mercado } from "@/lib/mercado";
 import { zonaPersona } from "@/lib/zona-persona";
+import { esCloser } from "@/lib/tipos";
 
 // Exportar las llamadas (las que puede ver esta persona) a CSV. Se abre con Excel.
 export async function GET(request: NextRequest) {
   const { perfil, proyecto } = await getSesion();
   // H5: sin la sección «Agendas» (por su rol o su ficha), nada
   if (!(await puedeSeccion(perfil, proyecto.id, "agendas"))) return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
-  if (!esJefe(perfil) && perfil.rol !== "closer") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+  if (!esJefe(perfil) && !esCloser(perfil)) return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+  const doble = perfil.rol === "caller" && esCloser(perfil); // A2: como en Agendas, las suyas como closer y las que agendó
   const sp = request.nextUrl.searchParams;
   const [gente, canales] = await Promise.all([equipo(proyecto.id), canalesDe(proyecto.id)]);
   // S1-14: los mismos filtros que la pantalla (mercado, UTM, estado) y las horas en la zona de quien mira
@@ -28,7 +30,8 @@ export async function GET(request: NextRequest) {
   const conSinCloser = esJefe(perfil) && !sp.get("closer") && !filtroM; // 3 nov: como en Agendas, también las que no tienen closer del equipo (con mercado, no)
   const citas = await todas<{ fecha: string; estado: string; closer_id: string | null; closer_antes?: string | null; nota: string | null; canal?: string | null; estrellas_caller: number | null; estrellas_closer: number | null; leads: { nombre: string; apellido: string; email: string | null; telefono: string | null; pais: string | null; seguimiento: { utm_source?: string | null } | null } | null }>((a, b) => {
     const base = db().from("citas").select("*, leads(nombre, apellido, email, telefono, pais, seguimiento)").eq("proyecto_id", proyecto.id);
-    return (conSinCloser ? base.or(`closer_id.in.(${ids.join(",")}),closer_id.is.null`) : base.in("closer_id", ids)).order("fecha").order("id").range(a, b);
+    const consulta = doble ? base.or(`closer_id.in.(${ids.join(",")}),agendada_por.eq.${perfil.id}`) : conSinCloser ? base.or(`closer_id.in.(${ids.join(",")}),closer_id.is.null`) : base.in("closer_id", ids);
+    return consulta.order("fecha").order("id").range(a, b);
   });
   const q = sp.get("q") ?? "";
   const canal = sp.get("canal") ?? ""; // fase 4 (plan GHL): el mismo filtro de canal que en Agendas

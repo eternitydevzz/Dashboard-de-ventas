@@ -6,6 +6,7 @@ import { exigirPagina } from "@/lib/permisos";
 import { db } from "@/lib/datos";
 import { fechaHora, ETIQUETA_ESTADO_CITA } from "@/lib/formato";
 import { AGENTES } from "@/lib/ia-agentes";
+import { esCloser } from "@/lib/tipos";
 import { Cabecera, Contenido, Insignia, Seccion } from "@/components/ui";
 import { Autocompletado, Reanalizar, TextoIa } from "../cliente";
 
@@ -14,14 +15,17 @@ const RES = { cerrado: ["Cerrado", "ok"], no_cerrado: ["No cerrado", "mal"], seg
 export default async function AnalisisDetalle({ params }: PageProps<"/closer/analisis/[id]">) {
   const { perfil, proyecto } = await exigirPagina("agendas"); // H5
   // H5 (caso 1): un caller con «Agendas» solo ve los de las citas que agendó él, sin botones
-  const mirar = perfil.rol === "caller";
+  // A2 (17 nov): el caller con «También closer», los suyos con botones; los de citas que agendó con otro closer, sin botones
+  const doble = perfil.rol === "caller" && esCloser(perfil);
   const { id } = await params;
   const { data: a } = await db().from("analisis_llamadas").select("*, grabaciones(titulo, inicio, share_url, url), leads(id, nombre, apellido)").eq("id", id).eq("proyecto_id", proyecto.id).maybeSingle();
   if (!a) notFound();
+  const suyo = esJefe(perfil) || (esCloser(perfil) && a.closer_id === perfil.id);
+  const mirar = (perfil.rol === "caller" && !esCloser(perfil)) || (doble && !suyo);
   if (mirar) {
     const { data: cita } = a.cita_id ? await db().from("citas").select("agendada_por").eq("id", a.cita_id).maybeSingle() : { data: null };
     if (cita?.agendada_por !== perfil.id) notFound();
-  } else if (!esJefe(perfil) && a.closer_id !== perfil.id) notFound();
+  } else if (!suyo) notFound();
   const g = a.grabaciones as { titulo: string | null; inicio: string | null; share_url: string | null; url: string | null } | null;
   const l = a.leads as { id: string; nombre: string; apellido: string } | null;
   const secciones = (a.secciones ?? {}) as Record<string, string>;

@@ -214,7 +214,7 @@ export async function buscarLeadsParaLlamada(q: string) {
   return seguro(async () => {
     await exigirSeccion("agendas"); // H5
     const { perfil, proyecto } = await getSesion();
-    if (!esJefe(perfil) && perfil.rol !== "closer") throw new ErrorUsuario("Sin permiso.");
+    if (!esJefe(perfil) && !esCloser(perfil)) throw new ErrorUsuario("Sin permiso."); // A2: también el caller con «También closer»
     const t = q.trim().replace(/[%,()]/g, " ").slice(0, 60);
     if (t.length < 2) return [];
     let consulta = db()
@@ -287,7 +287,7 @@ export async function sincronizarGhl(soloSiHaceMas?: number) {
   return seguro(async () => {
     await exigirSeccion("agendas"); // H5
     const { perfil, proyecto } = await getSesion();
-    if (!esJefe(perfil) && perfil.rol !== "closer") throw new ErrorUsuario("Sin permiso.");
+    if (!esJefe(perfil) && !esCloser(perfil)) throw new ErrorUsuario("Sin permiso."); // A2: también el caller con «También closer»
     const { data: p, error } = await db().from("proyectos").select("ghl_token, ghl_location_id, ghl_sincronizado_en").eq("id", proyecto.id).single();
     if (error) throw new Error(`No se pudo leer el proyecto: ${error.message}`); // X4: no es «GHL no conectado»
     if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("GHL todavía no está conectado (Administración → Integraciones).");

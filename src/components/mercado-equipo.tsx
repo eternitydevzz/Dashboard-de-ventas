@@ -4,7 +4,7 @@ import { OPCIONES_FILTRO_MERCADO, type Mercado } from "@/lib/mercado";
 
 // Cristian (13 nov): «ES» o «LATAM» junto al nombre de cada caller y closer
 export function EtiquetaMercado({ m }: { m?: Mercado | null }) {
-  return <Insignia tono={m === "es" ? "aviso" : "neutro"}>{m === "es" ? "ES" : "LATAM"}</Insignia>;
+  return <Insignia tono={m === "es" ? "aviso" : "neutro"}>{m === "es" ? "ES" : "USA"}</Insignia>;
 }
 
 // «Todos / España / Latam» para los jefes, en la URL (?mercado=), como los otros filtros

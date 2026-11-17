@@ -153,7 +153,7 @@ export function TableroCrm({
   estrellasOpcionales: boolean;
   canales: TablaCanales; // B2b: los del proyecto (los nombres se pueden cambiar)
   ahora: number; // D43: momento de la petición, del servidor, para «hace X d»
-  tableroClosers: { columnas: ColumnaC[]; sinColumna: number; soloMirar: boolean } | null;
+  tableroClosers: { columnas: ColumnaC[]; sinColumna: number; soloMirar: boolean; soloMirarIds?: string[] } | null; // A2b: soloMirarIds, las que agendó con otro closer quien es caller y closer
   permisos: { filas: FilaPermiso[]; gente: { id: string; nombre: string; rol: string }[] } | null;
   zona?: string; // S1-21: zona del proyecto para la fecha «Entró»
 }) {
@@ -504,6 +504,7 @@ export function TableroCrm({
           moneda={moneda}
           jefe={jefe}
           soloMirar={tableroClosers.soloMirar}
+          soloMirarIds={tableroClosers.soloMirarIds}
           menuColumna={(col, i) => menu(etapas.find((e) => e.id === col.id)!, i)}
           reordenarColumna={editar ? soltarColumna : undefined}
           alFinal={

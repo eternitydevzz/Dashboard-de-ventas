@@ -42,10 +42,11 @@ describe("esJpeg", () => {
 });
 
 describe("zonaValida", () => {
-  it("solo las 6 del equipo", () => {
+  it("las 6 del equipo y, con «Otro» (A5), cualquier zona real", () => {
     expect(zonaValida("America/Bogota")).toBe("America/Bogota");
     expect(zonaValida("Europe/Madrid")).toBe("Europe/Madrid");
-    expect(zonaValida("Europe/London")).toBeNull();
+    expect(zonaValida("Europe/London")).toBe("Europe/London");
+    expect(zonaValida("Europe/Londres")).toBeNull();
     expect(zonaValida(null)).toBeNull();
   });
 });

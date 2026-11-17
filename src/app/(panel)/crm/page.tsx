@@ -82,8 +82,11 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
       : (columnaCitasPorNombre(todos.filter((p) => p.tipo === "normal").map((p) => ({ id: p.id, nombre: p.nombre, etapas: todasEtapas.filter((e) => e.pipeline_id === p.id) })))?.id ?? null);
 
   // «Closers»: qué citas ve cada uno (como Agendas): el closer las suyas; el caller las que agendó (solo mirar)
+  // A2 (17 nov): el caller con «También closer», como un closer y, además, las que agendó (modo «o»). A2b: él mismo ve
+  // las que agendó con OTRO closer solo para mirar (soloMirarIds), como en Agendas; el jefe que lo mira, todas con acciones
   const closersIds = gente.filter(esCloser).map((g) => g.id);
-  const deCloser = !persona ? closersIds : persona.rol === "closer" ? [persona.id] : closersIds;
+  const personaDoble = !!persona && persona.rol === "caller" && esCloser(persona);
+  const deCloser = !persona ? closersIds : persona.rol === "closer" || personaDoble ? [persona.id] : closersIds;
   const agendadasPor = persona?.rol === "caller" ? persona.id : null;
 
   // La card solo necesita la respuesta de «invertir» (el popup pide el resto). Cristian, 14 nov (noche): la calcula la base
@@ -109,9 +112,10 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
         )
       : Promise.resolve([]),
     pipeline?.tipo === "closers"
-      ? cargarCitasVentas(proyecto.id, deCloser, agendadasPor, jefe && !persona).then(({ citas, ventas }) =>
-          columnasCloser(etapas, citas, ventas, { proyecto, jefe, nombrePersona: (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—", canales })
-        )
+      ? cargarCitasVentas(proyecto.id, deCloser, agendadasPor, jefe && !persona, [], true, personaDoble ? "o" : "y").then(({ citas, ventas }) => ({
+          ...columnasCloser(etapas, citas, ventas, { proyecto, jefe, nombrePersona: (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—", canales }),
+          soloMirarIds: !jefe && personaDoble ? citas.filter((c) => c.closer_id !== perfil.id).map((c) => c.id) : [],
+        }))
       : Promise.resolve(null),
   ]);
   // En «Callers» la columna de cada lead es la de su llamada
@@ -169,7 +173,7 @@ export default async function CrmPage({ searchParams }: PageProps<"/crm">) {
           estrellasOpcionales={perfil.rol !== "caller"}
           canales={canales}
           ahora={ahoraMs()} // D43: «hace X d» con la hora del servidor (sin #418)
-          tableroClosers={closers ? { ...closers, soloMirar: perfil.rol === "caller" } : null}
+          tableroClosers={closers ? { ...closers, soloMirar: perfil.rol === "caller" && !esCloser(perfil) } : null}
           permisos={
             admin && pipeline
               ? {

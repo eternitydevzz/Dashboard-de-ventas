@@ -56,6 +56,7 @@ export function TableroClosers({
   moneda,
   jefe,
   soloMirar = false,
+  soloMirarIds,
   menuColumna,
   alFinal,
   reordenarColumna,
@@ -66,6 +67,7 @@ export function TableroClosers({
   moneda: string;
   jefe: boolean;
   soloMirar?: boolean;
+  soloMirarIds?: string[]; // A2 (D1, Jose): estas tarjetas solo se miran (las que agendó con otro closer quien es caller y closer)
   menuColumna?: (col: ColumnaC, i: number) => ReactNode; // CRM: «⋯» de la columna (quien puede editar)
   alFinal?: ReactNode; // CRM: «Añadir columna» y avisos
   reordenarColumna?: (desde: string, hasta: string) => void; // CRM (Fase 4): columnas que se arrastran, quien puede editar
@@ -77,6 +79,8 @@ export function TableroClosers({
   const [colSobre, setColSobre] = useState<string | null>(null);
   const [ventana, setVentana] = useState<Ventana | null>(null);
   const nombre = (i: Item) => (i.clase === "cita" ? i.cita.nombre : i.venta.nombre);
+  const fijas = new Set(soloMirarIds ?? []);
+  const fija = (id: string) => soloMirar || fijas.has(id); // ni se mueve ni tiene acciones
   // Doble clic en «Registrar venta» = dos ventas: el segundo envío se ignora hasta que responde el servidor (la ventana se cierra al enviar)
   const ventaEnCurso = useRef(false);
   function registrarUnaVez(leadId: string, fd: FormData) {
@@ -164,6 +168,7 @@ export function TableroClosers({
       return; // no es una tarjeta de este tablero
     }
     const col = columnas.find((c) => c.id === d.origen);
+    if (!d.id || fija(d.id)) return; // A2: una tarjeta de solo mirar no se suelta en otra columna
     const cita = d.clase === "cita" ? col?.citas.find((x) => x.id === d.id) : undefined;
     const venta = d.clase === "venta" ? col?.ventas.find((x) => x.id === d.id) : undefined;
     if (cita) mover({ clase: "cita", cita, origen: d.origen! }, destino);
@@ -226,7 +231,7 @@ export function TableroClosers({
               <div className="flex max-h-[70vh] min-h-24 flex-col gap-2 overflow-y-auto p-2">
                 {total === 0 && <p className="py-6 text-center text-xs text-texto-3">Sin llamadas</p>}
                 {col.citas.map((c) => (
-                  <TarjetaCita key={c.id} c={c} origen={col.id} soloMirar={soloMirar} columnas={columnas} ocupado={pendiente} onMover={(destino) => mover({ clase: "cita", cita: c, origen: col.id }, destino)} />
+                  <TarjetaCita key={c.id} c={c} origen={col.id} soloMirar={fija(c.id)} columnas={columnas} ocupado={pendiente} onMover={(destino) => mover({ clase: "cita", cita: c, origen: col.id }, destino)} />
                 ))}
                 {col.ventas.map((v) => (
                   <TarjetaCrm
@@ -234,7 +239,7 @@ export function TableroClosers({
                     leadId={v.lead_id}
                     nombre={v.nombre}
                     arriba={<span className="shrink-0 text-xs tabular-nums">{v.facturacionTxt}</span>}
-                    arrastrable={!soloMirar}
+                    arrastrable={!fija(v.id)}
                     onArrastrar={(e) => e.dataTransfer.setData("text/plain", JSON.stringify({ clase: "venta", id: v.id, origen: col.id }))}
                     chips={
                       <>
@@ -242,7 +247,7 @@ export function TableroClosers({
                         {v.pendiente > 0.001 ? <span className="chip bg-aviso-suave text-aviso">Falta {v.faltaTxt}</span> : <span className="chip bg-ok-suave text-ok">Pagada</span>}
                       </>
                     }
-                    pie={!soloMirar ? <div className="relative flex justify-end"><FilaVentaAcciones ventaId={v.id} pendiente={v.pendiente} cobrado={v.cobrado} devuelta={v.devuelta} jefe={jefe} /></div> : undefined}
+                    pie={!fija(v.id) ? <div className="relative flex justify-end"><FilaVentaAcciones ventaId={v.id} pendiente={v.pendiente} cobrado={v.cobrado} devuelta={v.devuelta} jefe={jefe} /></div> : undefined}
                   />
                 ))}
               </div>
