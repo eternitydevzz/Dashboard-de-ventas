@@ -9,6 +9,7 @@ import { VerEstrellas } from "@/components/estrellas";
 import { TelefonoCopiable } from "@/components/telefono-copiable";
 import type { ResumenLead } from "@/app/(panel)/leads/resumen";
 import { nombrePais } from "@/lib/formato";
+import { FormulariosLead } from "@/components/formularios-lead";
 
 // Popup de la card del lead (Cristian, 13 oct 2026): sus datos básicos y las respuestas del formulario, con el botón
 // «Ver toda la info» a su ficha. Lo abren las cards del CRM (todos los tableros) y las filas de la Biblioteca.
@@ -93,6 +94,10 @@ export function PopupLead({ leadId, nombre, onCerrar }: { leadId: string; nombre
             ) : (
               <p className="text-texto-3">Este lead no tiene respuestas de formulario.</p>
             )}
+          </section>
+          <section>
+            <h3 className="titulo-seccion mb-2">Formularios ({datos.formularios.length})</h3>
+            <FormulariosLead envios={datos.formularios} />
           </section>
         </div>
       )}
