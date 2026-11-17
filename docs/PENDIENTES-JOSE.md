@@ -94,11 +94,12 @@ Decisión de Cristian:
 
 **Prompt:** «Lee docs/PENDIENTES-JOSE.md, secciones 1, 2 y 5. Diseña la Fase C y enséñame el plan antes de programar. Luego, rama `fase-c`, test primero y 1 PR. La migración se sube antes de fusionar.»
 
-## 6. Fase D · Open WA (cuando Cristian decida dónde se monta)
+## 6. Fase D · WhatsApp del equipo con WAHA
 
-- Open WA **solo para el equipo**: el reporte diario y los avisos al agendar una cita y al cerrar una venta, al closer de la cita, al caller que la agendó y al CEO o grupo. **Al lead le sigue escribiendo GHL.**
-- Ojo: Open WA no es la API oficial de WhatsApp. Escribir automáticamente a gente que no tiene el número guardado puede hacer que lo bloqueen. Usar un número que no sea el principal.
-- Tiene que correr 24 h fuera de Vercel (un servidor pequeño, Railway, Render o un VPS). Falta que Cristian lo decida. La clave de conexión va en las variables de entorno de Vercel, nunca en el código.
+- **Decidido por Jose (17 nov):** WAHA (`devlikeapro/waha`, en lugar de Open WA) en **Render** (servicio Starter + Postgres de pago para la sesión), motor GOWS. Detalle y decisiones en `docs/PLAN-EJECUCION.md`, sección 9.
+- WAHA **solo para el equipo**: el reporte diario y los avisos al agendar una cita y al cerrar una venta, al closer de la cita, al caller que la agendó y al grupo de WhatsApp de los CEO (Cristian y Jose). **Al lead le sigue escribiendo GHL.** Sin recordatorio antes de la cita. Se configura en Administración → «WhatsApp» y viene **apagado** por defecto.
+- Ojo: WAHA no es la API oficial de WhatsApp. Escribir automáticamente a gente que no tiene el número guardado puede hacer que lo bloqueen. Usar un número que no sea el principal y pedir al equipo que lo guarde.
+- Corre 24 h fuera de Vercel (Render). `WAHA_URL` y `WAHA_API_KEY` van en las variables de entorno de Vercel, nunca en el código.
 
 ## 7. Otros pendientes
 
