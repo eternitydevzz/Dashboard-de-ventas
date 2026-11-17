@@ -8,7 +8,7 @@ import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { ponerEtiqueta } from "@/lib/ghl-sync";
 import { dentroDelLimite } from "@/lib/limite";
 import { interpretar } from "@/lib/entrada";
-import type { Proyecto } from "@/lib/tipos";
+import { esCloser, type Proyecto, type Rol } from "@/lib/tipos";
 import { fechaDeGhl, mismoNombre } from "@/lib/formato";
 
 // Recibe eventos de los workflows de GHL (acción «Webhook»).
@@ -135,9 +135,9 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       let closerId: string | null = null;
       // Arreglo 20: el closer se busca solo entre los miembros de este proyecto
       if (closerEmail) {
-        const { data: c, error: errCloser } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(email, rol)").eq("proyecto_id", proyecto.id).eq("perfiles.email", closerEmail).eq("perfiles.rol", "closer").limit(1).maybeSingle();
+        const { data: c, error: errCloser } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(email, rol, tambien_closer)").eq("proyecto_id", proyecto.id).eq("perfiles.email", closerEmail).limit(1).maybeSingle();
         if (errCloser) throw new Error(`No se pudo buscar el closer: ${errCloser.message}`);
-        closerId = c?.perfil_id ?? null;
+        closerId = c?.perfiles && esCloser(c.perfiles as unknown as { rol: Rol; tambien_closer: boolean }) ? c.perfil_id : null; // X3: también «también closer»
       }
       // Si GHL reenvía la misma cita, se actualiza la que ya existe (no se duplica)
       const ghlCitaId = primero(body, ["calendar.appointmentId", "appointment.id", "appointment_id"]) || null;

@@ -6,6 +6,7 @@ import { ErrorUsuario, seguro } from "@/lib/resultado";
 import { db, escribir } from "@/lib/datos";
 import { cifrar, descifrar } from "@/lib/cifrado";
 import { getSesion, esJefe } from "@/lib/auth";
+import { esCloser, type Rol } from "@/lib/tipos";
 import { sincronizarFathom } from "@/lib/fathom-sync";
 import { reunionesFathom } from "@/lib/fathom";
 import { after } from "next/server";
@@ -30,8 +31,8 @@ export async function guardarCuentaFathom(id: string | null, c: { nombre: string
     await exigirSeccion("agendas"); // H5
     const { perfil, proyecto } = await sesionAgendas();
     const dueno = esJefe(perfil) ? c.perfilId : perfil.id; // un closer solo añade la suya
-    const { data: m } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", dueno).maybeSingle();
-    if (!m || (m.perfiles as unknown as { rol: string }).rol !== "closer") throw new ErrorUsuario("Elige el closer de esta cuenta.");
+    const { data: m } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol, tambien_closer)").eq("proyecto_id", proyecto.id).eq("perfil_id", dueno).maybeSingle();
+    if (!m || !esCloser(m.perfiles as unknown as { rol: Rol; tambien_closer: boolean })) throw new ErrorUsuario("Elige el closer de esta cuenta.");
     if (!c.nombre.trim()) throw new ErrorUsuario("Pon un nombre a la cuenta.");
     const key = c.apiKey.trim();
     if (key && (key.length < 10 || /\s/.test(key))) throw new ErrorUsuario("La API key no parece válida.");
