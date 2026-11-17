@@ -6,6 +6,7 @@ import { metricasAgendas, type MetricasAgendas } from "@/lib/metricas-agendas";
 import { leerPeriodo, rangoNav } from "@/lib/periodos";
 import { dinero, fechaHora, pct } from "@/lib/formato";
 import { generarPdf } from "@/lib/reporte-pdf";
+import { esCloser } from "@/lib/tipos";
 
 // «Generar reporte» de Agendas: el mismo periodo y filtros que la pantalla, en PDF.
 export async function GET(request: NextRequest) {
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
   const jefe = esJefe(perfil);
   // H5: sin la sección «Agendas» (por su rol o su ficha), nada
   if (!(await puedeSeccion(perfil, proyecto.id, "agendas"))) return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
-  if (!jefe && perfil.rol !== "closer") return NextResponse.json({ error: "Sin permiso" }, { status: 403 });
+  if (!jefe && !esCloser(perfil)) return NextResponse.json({ error: "Sin permiso" }, { status: 403 }); // A2: también el caller con «También closer» (lo suyo como closer)
   const sp = Object.fromEntries(request.nextUrl.searchParams);
   const p = leerPeriodo(sp);
   const rango = rangoNav(p.periodo, p.n, proyecto.zona_horaria, p.desde, p.hasta);

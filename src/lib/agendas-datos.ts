@@ -41,7 +41,8 @@ async function cargarDeLaBase(pid: string, conPrueba: boolean) {
 export function closersVisibles(perfil: Perfil, gente: Perfil[], elegido: string | null) {
   const closers = gente.filter(esCloser);
   // H5: un caller con «Agendas» ve las citas que agendó él, con cualquier closer (las filtra quien carga los datos)
-  if (perfil.rol === "caller") return { closers, ids: closers.map((c) => c.id), todos: closers };
+  // A2: el caller con «También closer», como un closer (solo a sí mismo); las que agendó las añade quien carga (modo «o»)
+  if (perfil.rol === "caller" && !esCloser(perfil)) return { closers, ids: closers.map((c) => c.id), todos: closers };
   if (!esJefe(perfil)) return { closers: closers.filter((c) => c.id === perfil.id), ids: [perfil.id], todos: closers };
   const ids = elegido && closers.some((c) => c.id === elegido) ? [elegido] : closers.map((c) => c.id);
   return { closers: closers.filter((c) => ids.includes(c.id)), ids, todos: closers };
