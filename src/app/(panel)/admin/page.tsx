@@ -41,6 +41,8 @@ import { Popups } from "./popups";
 import type { Popup } from "@/lib/popups";
 import { PantallaReporte } from "./reporte";
 import { leerConfigsReporte } from "@/lib/reporte-config";
+import { PantallaWhatsapp } from "./whatsapp";
+import { leerConfigsWhatsapp } from "@/lib/whatsapp-config";
 
 const PESTANAS = [
   { v: "equipo", t: "Equipo" },
@@ -49,6 +51,7 @@ const PESTANAS = [
   { v: "comisiones", t: "Comisiones" }, // 1.0 bloque 4: tramos
   { v: "reportes", t: "Reportes" }, // 1.0 bloque 7: preguntas del reporte
   { v: "reporte", t: "Reporte" }, // Fase C: el reporte diario de España y USA (hora, emails, WhatsApp, partes)
+  { v: "whatsapp", t: "WhatsApp" }, // Fase D (17 nov 2026): avisos al equipo al agendar y al vender, y el grupo de los CEO
   { v: "entradas", t: "Entradas (landings)" },
   { v: "workflows", t: "Workflows" }, // Plan de workflows 4b-4c (7 nov 2026): lista, lienzo y editor
   { v: "etiquetas-utms", t: "Etiquetas y UTMs" }, // Plan GHL B2b
@@ -222,6 +225,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const canales = tab === "etiquetas-utms" ? await canalesDe(proyecto.id) : null; // B2b
   const popups = tab === "popups" ? await todas<Popup>((desde, hasta) => db().from("popups").select("*").eq("proyecto_id", proyecto.id).order("id").range(desde, hasta)) : null;
   const configsReporte = tab === "reporte" ? await leerConfigsReporte(proyecto.id) : null; // Fase C
+  const configsWhatsapp = tab === "whatsapp" ? await leerConfigsWhatsapp(proyecto.id) : null; // Fase D
   const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined, sp.editar === "1") : null;
   if (tab === "entradas") {
     const [ren, rpl, { data: pg }] = await Promise.all([
@@ -376,6 +380,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
         )}
 
         {tab === "reporte" && configsReporte && <PantallaReporte configs={configsReporte} />}
+
+        {tab === "whatsapp" && configsWhatsapp && <PantallaWhatsapp configs={configsWhatsapp} grupo={proyecto.whatsapp_grupo ?? null} />}
 
         {tab === "comisiones" && (
           <div className="space-y-5">
