@@ -61,3 +61,22 @@ describe("A2 · lo que exigía rol «closer» ahora acepta a quien es closer", (
     expect(leer("lib/tablero-closers.ts")).toMatch(/modo: "y" \| "o" = "y"/);
   });
 });
+
+// A-2b (aprobado por Jose): el CRM y los KPIs de quien es caller y closer, también con las citas que agendó
+describe("A2b · CRM y KPIs de quien es caller y closer", () => {
+  it("CRM: el tablero pasa soloMirarIds al TableroClosers y la página los calcula (modo «o»)", () => {
+    const t = leer("app/(panel)/crm/tablero.tsx");
+    expect(t).toMatch(/soloMirarIds\?: string\[\]/);
+    expect(t).toContain("soloMirarIds={tableroClosers.soloMirarIds}");
+    const p = leer("app/(panel)/crm/page.tsx");
+    expect(p).toMatch(/soloMirarIds:/);
+    expect(p).toContain(`personaDoble ? "o" : "y"`);
+    expect(p).not.toMatch(/\(jefe \|\| !personaDoble\)/); // Facu también carga las que agendó
+  });
+  it("KPIs: ya no trata a todo caller igual y usa el modo «o» con quien es caller y closer", () => {
+    const k = leer("app/(panel)/kpis/page.tsx");
+    expect(k).not.toContain(`const mirar = perfil.rol === "caller";`);
+    expect(k).toContain(`const doble = perfil.rol === "caller" && esCloser(perfil);`);
+    expect(k).toContain(`doble ? "o" : "y"`);
+  });
+});

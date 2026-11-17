@@ -16,7 +16,7 @@ import { BarrasObjetivos } from "@/components/barras-objetivos";
 import { FormObjetivo, BotonQuitarObjetivo, FormLanzamiento, BotonBorrarLanzamiento } from "./objetivos-cliente";
 import { ActualizarCsv } from "./subir-csv";
 import { ESCALERA, type EscalonOferta } from "@/lib/biblioteca";
-import type { Producto } from "@/lib/tipos";
+import { esCloser, type Producto } from "@/lib/tipos";
 import { Embudo } from "@/components/embudo";
 import { CuerpoFunnel } from "@/components/cuerpo-funnel";
 import { TarjetasKpis, type PersonaKpi } from "@/components/tarjetas-kpis";
@@ -284,8 +284,11 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     const leadsPeriodo = base.leads.filter((l) => enRango(l.creado_en, rango)).length;
 
     // Métricas de las agendas (las de Agendas → Métricas). Un caller ve solo las citas que agendó él; un closer, las suyas
-    const mirar = perfil.rol === "caller";
-    if (mirar) {
+    // A2b (17 nov): el caller con «También closer» (Facu), las suyas como closer O las que agendó (modo «o», como en Agendas)
+    const doble = perfil.rol === "caller" && esCloser(perfil);
+    const mirar = perfil.rol === "caller" && !esCloser(perfil);
+    const modo: "y" | "o" = doble ? "o" : "y";
+    if (mirar || doble) {
       agendas.citas = agendas.citas.filter((c) => c.agendada_por === perfil.id || c.closer_id === perfil.id);
       const suyos = new Set(agendas.citas.map((c) => c.lead_id));
       agendas.ventas = agendas.ventas.filter((v) => suyos.has(v.lead_id));
@@ -294,7 +297,8 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     }
     const vis = closersVisibles(perfil, filtroM ? agendas.gente.filter((g) => entra(g.id)) : agendas.gente, str("closer"));
     const filtrosAg = { productoId: str("producto"), evento: str("evento"), canal: str("canal") || null };
-    const mAg = metricasAgendas(agendas, rango, { closerIds: vis.ids, ...filtrosAg });
+    // «o»: las citas ya están filtradas arriba (closer él O agendó él), así que cuentan las de cualquier closer
+    const mAg = metricasAgendas(agendas, rango, { closerIds: modo === "o" ? vis.todos.map((c) => c.id) : vis.ids, ...filtrosAg });
     const comparativaVisible = jefe && !propio;
     const porCloser = comparativaVisible
       ? vis.todos.map((c) => ({ c, m: metricasAgendas(agendas, rango, { closerIds: [c.id], ...filtrosAg }) })).filter(({ c, m }) => !("baja" in c && c.baja) || m.agendadas || m.cash)
