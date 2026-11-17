@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Check, Maximize2, Settings2, Upload } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, Maximize2, Settings2, Upload, X } from "lucide-react";
+import { confirmar } from "@/components/dialogos";
 import { Modal } from "@/components/modal";
 import { BarraDeslizable } from "@/components/barra-deslizable";
 import { useToast } from "@/components/toasts";
@@ -12,7 +13,7 @@ import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
 import { MERCADOS, type Mercado } from "@/lib/mercado";
 import { reordenar } from "@/lib/orden";
-import { guardarManual, guardarMercadosManual, ordenarManuales, prepararSubidaManual } from "./acciones";
+import { borrarManual, guardarManual, guardarMercadosManual, ordenarManuales, prepararSubidaManual } from "./acciones";
 
 const ARRASTRE_MANUAL = "application/x-eternity-manual";
 
@@ -145,10 +146,27 @@ export function SubirManual({ cambiar, mercado = "latam" }: { cambiar?: ManualFi
 type Mover = { alMover: (d: -1 | 1) => void; primero: boolean; ultimo: boolean };
 function AjustesManual({ manual, zona, ...mover }: { manual: ManualFila; zona: Proyecto["zona_horaria"] } & Mover) {
   const [abierto, setAbierto] = useState(false);
+  const [borrando, iniciar] = useTransition();
+  const toast = useToast();
+  // Cristian, 17 nov: X para borrar un manual obsoleto (CEO y directores)
+  const borrar = async () => {
+    if (!(await confirmar(`¿Borrar el manual «${manual.titulo}»? No se puede deshacer.`, { boton: "Borrar" }))) return;
+    iniciar(async () => {
+      try {
+        await exigirOk(borrarManual(manual.id));
+        toast("Manual borrado"); // la página se refresca sola (revalidatePath) y enseña el primero
+      } catch (err) {
+        toast(err instanceof Error ? err.message : "No se pudo borrar.", "error");
+      }
+    });
+  };
   return (
     <>
       <button type="button" onClick={() => setAbierto(true)} aria-label="Ajustes del manual" title="Ajustes del manual" className="rounded-lg p-1.5 text-texto-3 hover:bg-panel-2 hover:text-texto">
         <Settings2 className="h-4 w-4" />
+      </button>
+      <button type="button" onClick={() => void borrar()} disabled={borrando} aria-label={`Borrar el manual ${manual.titulo}`} title="Borrar el manual" className="rounded-lg p-1.5 text-texto-3 hover:bg-mal-suave hover:text-mal disabled:opacity-50">
+        <X className="h-4 w-4" />
       </button>
       {abierto && <VentanaAjustes manual={manual} zona={zona} onCerrar={() => setAbierto(false)} {...mover} />}
     </>

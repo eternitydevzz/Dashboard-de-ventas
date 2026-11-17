@@ -68,3 +68,15 @@ export async function guardarMercadosManual(id: string, mercados: unknown) {
     revalidatePath("/manuales");
   });
 }
+
+// Cristian, 17 nov: la X de cada manual lo borra (con confirmación). Sus «vistos» se borran solos (on delete cascade);
+// el .html se quita de Storage después de borrar la fila, para no dejar un manual sin archivo si algo falla
+export async function borrarManual(id: string) {
+  return seguro(async () => {
+    const { proyecto } = await exigirEditor();
+    const { data } = await escribir(db().from("manuales").delete().eq("id", id).eq("proyecto_id", proyecto.id).select("archivo_path"), "manuales");
+    if (!data?.length) throw new ErrorUsuario("Manual no encontrado.");
+    await borrarSubida("manuales", data[0].archivo_path);
+    revalidatePath("/manuales");
+  });
+}
