@@ -20,6 +20,8 @@ import { closerLibreA } from "@/lib/agenda-libre";
 import { miMercado } from "@/lib/mercado-datos";
 import { juntarConCitaAbierta } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
+import { avisarCita, avisarVenta } from "@/lib/avisos-whatsapp";
+import { after } from "next/server";
 import { PREFIJO_ETIQUETA, opcionesCanal } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
 
@@ -256,6 +258,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     const { data: citaNueva, error: errCita } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: nota || null, estrellas_caller: n, canal }).select("id").single());
     if (errCita?.code === "23505") throw new ErrorUsuario(errCita.message.includes("citas_closer_hora_unica") ? "Ese hueco acaba de ocuparse, elige otro." : "Ese lead ya tiene una cita con ese closer a esa hora.");
     if (errCita) throw new Error(`No se pudo guardar en «citas»: ${errCita.message}`);
+    if (citaNueva) after(() => avisarCita(citaNueva.id, junta ? "reagendada" : "agendada")); // Fase D-3: WhatsApp al equipo
     if (!junta && citaNueva && new Date(fecha).getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId, citaId: citaNueva.id, motivo: "nueva" });
     if (esCaller) await sumarRotacion(proyecto.id, closerId);
     // Arreglo 9: si agenda un jefe o un closer sin estrellas, no se borran las que puso el caller
@@ -342,7 +345,7 @@ export async function registrarVenta(leadId: string, formData: FormData) {
     const adelantada = !!cita?.fecha && new Date(cita.fecha).getTime() > ahora.getTime();
     // Ola 6 (C1): venta, plazos, lead «vendido» y cita cerrada, todo o nada. Si falla algo, no queda venta
     // y reintentar no la duplica; si otra venta cerró la misma cita a la vez, esta no se guarda.
-    const { error } = await db().rpc("registrar_venta", {
+    const { data: ventaId, error } = await db().rpc("registrar_venta", {
       p_proyecto: proyecto.id,
       p_lead: leadId,
       p_producto: producto.id,
@@ -362,6 +365,7 @@ export async function registrarVenta(leadId: string, formData: FormData) {
     if (error?.message.includes("cita_cerrada")) throw new ErrorUsuario("Esa cita no es de este lead o ya está cerrada.");
     if (error?.message.includes("registrar_venta: duplicada")) throw new ErrorUsuario("Esta venta ya se acaba de registrar (doble clic): mira Ventas antes de repetirla."); // S5-4
     if (error) throw new Error(`No se pudo guardar la venta: ${error.message}`);
+    if (typeof ventaId === "string") after(() => avisarVenta(ventaId)); // Fase D-3: WhatsApp al equipo (registrar_venta devuelve su id)
     if (cita && adelantada) await registrarActividad({ proyecto_id: proyecto.id, lead_id: leadId, perfil_id: perfil.id, tipo: "cita", nota: `Cita adelantada: era el ${fechaHora(cita.fecha, proyecto)}` });
     await registrarActividad({
       proyecto_id: proyecto.id,

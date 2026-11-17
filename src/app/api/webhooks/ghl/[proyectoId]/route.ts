@@ -1,8 +1,9 @@
 import { escribir } from "@/lib/datos";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { columnaCitasGhl, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave, type LeadEntrada } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
+import { avisarCita } from "@/lib/avisos-whatsapp";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { ponerEtiqueta } from "@/lib/ghl-sync";
 import { dentroDelLimite } from "@/lib/limite";
@@ -146,8 +147,11 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
         const agenda = await datosAgendaGhl(lead.id, null);
         const junta = await juntarConCitaAbierta(proyecto.id, lead.id, { fecha: fecha.toISOString(), closerId, ghlCitaId, origen: "ghl", agendadaPor: agenda.agendada_por });
         if (junta?.error) throw new Error(`No se pudo guardar en «citas»: ${junta.error.message}`);
+        const juntada = junta?.data;
+        if (juntada) after(() => avisarCita(juntada.id, "reagendada")); // Fase D-3: WhatsApp al equipo
         if (!junta) {
           const { data: nueva } = await escribir(db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: lead.id, closer_id: closerId, ...agenda, fecha: fecha.toISOString(), origen: "ghl", ghl_cita_id: ghlCitaId }).select("id").single(), "citas");
+          if (nueva) after(() => avisarCita(nueva.id, "agendada"));
           if (nueva && closerId && fecha.getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId, citaId: nueva.id, motivo: "nueva" });
         }
       }

@@ -16,7 +16,9 @@ import { estrellasEntre } from "@/lib/estrellas";
 import { esCloser, type Cita, type EstadoCita, type Rol } from "@/lib/tipos";
 import { datosAgendaGhl, juntarConCitaAbierta, telefonoClave } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
+import { avisarCita } from "@/lib/avisos-whatsapp";
 import { ABIERTAS } from "@/lib/llamadas";
+import { after } from "next/server";
 
 // Arreglo 31: «cerrada» no se puede poner a mano: una cita se cierra registrando su venta
 const PERMITIDOS: EstadoCita[] = ["pendiente", "confirmacion_pendiente", "confirmada", "no_califica", "seguimiento", "no_show", "cancelada", "perdida"];
@@ -271,9 +273,11 @@ export async function importarCitas(texto: string) {
       // Fase 3: con una cita abierta, se junta con ella (sin avisos: un CSV puede traer cientos)
       const notaFila = (fila.nota ?? "").trim() || null;
       const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId, ghlCitaId: null, origen: "manual", agendadaPor: perfil.id, extra: notaFila ? { nota: notaFila } : {} }, { perfilId: perfil.id, sinAviso: true });
-      const { error: errFila } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: notaFila }));
+      const { data: citaFila, error: errFila } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: notaFila }).select("id").single());
       if (chocaHora(errFila)) { fallos.push(`Fila ${n}: ese closer ya tiene otra cita a esa hora`); continue; }
       if (errFila) throw new Error(`No se pudo guardar en «citas»: ${errFila.message}`);
+      // Fase D-3: WhatsApp al equipo; avisarCita solo manda si la cita es futura (un CSV de citas viejas no avisa)
+      if (citaFila) after(() => avisarCita(citaFila.id, junta ? "reagendada" : "agendada"));
       await escribir(db().from("leads").update({ estado_caller: "agendado", closer_id: closerId }).eq("id", leadId), "leads");
       creadas++;
     }
@@ -322,6 +326,7 @@ export async function unirCitaSinLead(id: string, leadId: string) {
       const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha: s.fecha, closerId: s.closer_id, ghlCitaId: s.ghl_cita_id, origen: "ghl", agendadaPor: agenda.agendada_por }, { perfilId: perfil.id });
       const { data: nueva, error } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: s.closer_id, ...agenda, fecha: s.fecha, origen: "ghl", ghl_cita_id: s.ghl_cita_id, nota: s.titulo }).select("id").single());
       if (error) throw new Error(`No se pudo guardar en «citas»: ${error.message}`);
+      if (nueva) after(() => avisarCita(nueva.id, junta ? "reagendada" : "agendada")); // Fase D-3: WhatsApp al equipo
       if (!junta && nueva && s.closer_id && new Date(s.fecha).getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId: s.closer_id, citaId: nueva.id, motivo: "nueva" });
     }
     if (s.ghl_contact_id) await db().from("leads").update({ ghl_contact_id: s.ghl_contact_id }).eq("id", leadId).is("ghl_contact_id", null);
