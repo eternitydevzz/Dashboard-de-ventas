@@ -5,7 +5,7 @@ const ERRORES: Record<string, string> = {
   "sin-acceso": "Tu usuario está desactivado. Habla con tu director.",
   "sin-conexion": "Ahora mismo no podemos conectar con la base de datos. Tu usuario está bien: espera un minuto y vuelve a entrar.",
   "sin-proyecto": "Todavía no tienes ningún proyecto asignado. Habla con tu director.",
-  enlace: "Ese enlace ya se usó o ha caducado (dura 24 horas). Entra con tu contraseña o pide otro aquí abajo («¿No puedes entrar?»).",
+  enlace: "Ese enlace ya se usó o ha caducado (dura 24 horas). Usa el último email que te llegó: cada enlace nuevo anula los anteriores. También puedes entrar con tu contraseña o pedir otro aquí abajo («¿No puedes entrar?»).",
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
