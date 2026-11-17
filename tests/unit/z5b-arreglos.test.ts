@@ -57,10 +57,11 @@ describe("S1-6 · asignarLeads", () => {
     expect(await crm.asignarLeads(["a", "a", "", "b"], null)).toBeUndefined();
     expect(arg(de("leads", "update")[0], "in")?.[1]).toEqual(["a", "b"]);
   });
-  it("más de 2.000 leads: error y no toca nada", async () => {
+  it("revisor F5-6: más de 2.000 leads también (deshacer un reparto grande, dar de baja por MCP)", async () => {
     const r = await crm.asignarLeads(Array.from({ length: 2001 }, (_, i) => `n${i}`), null);
-    expect(r).toMatchObject({ error: expect.stringMatching(/2000/) });
-    expect(de("leads", "update")).toHaveLength(0);
+    expect(r).toBeUndefined();
+    const escritos = de("leads", "update").flatMap((c) => (arg(c, "in")?.[1] as string[]) ?? []);
+    expect(new Set(escritos).size).toBe(2001);
   });
   it("si falla el historial, la pantalla recibe error", async () => {
     contestar = (c) => (c.tabla === "actividades" ? fallo : c.tabla === "leads" && tipo(c) === "update" ? { data: [{ id: "a" }], error: null } : undefined);

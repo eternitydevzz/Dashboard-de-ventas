@@ -8,7 +8,7 @@ import { exigirSeccion } from "@/lib/permisos";
 import type { ComisionPersona } from "@/lib/comisiones";
 import { leerNumero } from "@/lib/numero";
 import { mercadoValido, type Mercado } from "@/lib/mercado";
-import { exigirCambiarComisionPersona, exigirCambiarComisionRol, exigirPuedeDarRol, puedeAdmin } from "@/lib/auth";
+import { exigirCambiarComisionPersona, exigirCambiarComisionRol, exigirPuedeDarRol, getSesion, puedeAdmin } from "@/lib/auth";
 import type { Perfil, Rol } from "@/lib/tipos";
 
 // 25 oct 2026: también borra la memoria compartida (lib/memoria.ts), para que lo guardado se vea al momento
@@ -80,7 +80,10 @@ function paisYTelefono(mercadoTxt: unknown, telefonoTxt: string) {
 // Alta de miembro en 6 pasos (persona, puesto, comisión, acceso, rol, revisión)
 export async function crearMiembro(a: AltaMiembro) {
   return seguro(async () => {
-    const { perfil, proyecto } = await exigirSeccion("equipo");
+    // Revisor F5-6 (S1-22): al quitar el alta de Administración, un director con Administración sigue pudiendo crear
+    // cuentas aunque no tenga la sección «Equipo» (como antes con crearUsuario)
+    const sesion = await getSesion();
+    const { perfil, proyecto } = a.acceso.modo === "crear" && puedeAdmin(sesion.perfil) ? sesion : await exigirSeccion("equipo");
     if (a.acceso.modo === "crear") exigirCrearCuentas(perfil); // antes de crear nada (p. ej. un puesto nuevo)
     const nombres = a.nombres.map((n) => n.trim()).filter(Boolean);
     if (!nombres.length) throw new ErrorUsuario("Pon el nombre de la persona.");

@@ -64,7 +64,7 @@ async function sembrar() {
   await fila(db.from("cuentas_fathom").insert({ proyecto_id: P, perfil_id: e.p.closerA.id, nombre: "rls", api_key: "no-es-una-clave" }).select("id").single(), "cuentas_fathom");
   await fila(db.from("objetivos").insert({ proyecto_id: P, perfil_id: e.p.callerA.id, periodo: "dia", cifra: "llamadas", valor: 10 }).select("id").single(), "objetivos");
   await fila(db.from("grabaciones_caller").insert({ proyecto_id: P, lead_id: L, perfil_id: e.p.callerA.id, archivo_path: `${carpeta}/a.webm` }).select("id").single(), "grabaciones_caller");
-  await fila(db.from("permisos_persona").insert({ proyecto_id: P, perfil_id: e.p.callerC.id, seccion: "grabadas", permitido: true }).select("id").single(), "permisos_persona");
+  await fila(db.from("permisos_persona").insert({ proyecto_id: P, perfil_id: e.p.callerC.id, seccion: "grabadas", permitido: true }).select("perfil_id").single(), "permisos_persona"); // sin columna id: su clave es (proyecto, persona, sección)
   for (const [b, f, tipo] of BUCKETS) {
     const { error } = await db.storage.from(b).upload(`${carpeta}/${f}`, new Blob(["x"], { type: tipo }), { contentType: tipo, upsert: true });
     if (error) throw new Error(`subir a ${b}: ${error.message}`);

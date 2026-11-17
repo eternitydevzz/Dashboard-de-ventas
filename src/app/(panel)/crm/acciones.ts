@@ -347,7 +347,8 @@ export async function asignarLeads(leadIds: string[], callerId: string | null | 
     await exigirSeccion("crm"); // H5
     const { perfil, proyecto } = await exigir(esJefe);
     if (!leadIds.length) return;
-    const ids = idsValidos(leadIds); // S1-6: máximo 2.000 y sin repetidos, como las demás acciones masivas
+    // S1-6: sin repetidos. Sin tope (revisor F5-6): deshacer un reparto grande y dar de baja (MCP) pasan más de 2.000; escribe por trozos
+    const ids = [...new Set(leadIds.filter(Boolean))];
     // Arreglo 29: solo se asigna a callers/closers de este proyecto. X3: como closer vale «también closer» (esCloser)
     for (const [id, rol] of [[callerId, "caller"], [closerId, "closer"]] as const) {
       if (!id) continue;
