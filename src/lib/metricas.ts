@@ -49,7 +49,7 @@ export function cargarBase(proyecto: Proyecto, conPrueba = false, leidos?: () =>
 
 // Las actividades que cuentan (llamadas, WhatsApp, botones de resultado y «Agendado»); hay un índice para ellas
 // (20261118110000_indice_actividades.sql)
-const ACTS_CUENTAN = "tipo.in.(llamada,whatsapp),and(tipo.eq.cambio_etapa,resultado.not.is.null),and(tipo.eq.cita,resultado.eq.agendada)";
+export const ACTS_CUENTAN = "tipo.in.(llamada,whatsapp),and(tipo.eq.cambio_etapa,resultado.not.is.null),and(tipo.eq.cita,resultado.eq.agendada)";
 
 async function cargarBaseDeLaBase(proyecto: Proyecto, conPrueba: boolean, leidos?: () => Promise<LeadMin[]>) {
   const pid = proyecto.id;
@@ -116,7 +116,12 @@ export function calcularFunnel(base: Base, rango: Rango, vendedor: Perfil | null
   const leads = leadsF.filter((l) => enRango(l.creado_en, r));
   const leadsPrev = rango.previo ? leadsF.filter((l) => enRango(l.creado_en, p)).length : null;
   const agendados = citasF.filter((c) => enRango(c.creado_en, r));
-  const agendadosPrev = rango.previo ? citasF.filter((c) => enRango(c.creado_en, p)).length : null;
+  // A5-05 (17 nov): agendados = leads distintos (3 citas del mismo lead son 1 agendado, como en las tarjetas de KPIs)
+  const nAgendados = new Set(agendados.map((c) => c.lead_id)).size;
+  const agendadosPrev = rango.previo ? new Set(citasF.filter((c) => enRango(c.creado_en, p)).map((c) => c.lead_id)).size : null;
+  // Lead → Agendado: de los leads que entran en el periodo, cuántos tienen una cita (aunque sea después). Nunca pasa del 100 %;
+  // antes eran citas del periodo / leads del periodo y salía «1.100 %» a quien agenda leads que entraron antes.
+  const conCita = new Set(base.citas.map((c) => c.lead_id));
   const citasPeriodo = citasF.filter((c) => enRango(c.fecha, r));
   const ventas = ventasF.filter((v) => enRango(v.fecha, r));
   const fmtDia = new Intl.DateTimeFormat("en-CA", { timeZone: zona });
@@ -167,13 +172,13 @@ export function calcularFunnel(base: Base, rango: Rango, vendedor: Perfil | null
     mediaDias,
     totalLeads: leads.length,
     cambioLeads: leadsPrev === null ? null : cambioPct(leads.length, leadsPrev),
-    agendados: agendados.length,
-    cambioAgendados: agendadosPrev === null ? null : cambioPct(agendados.length, agendadosPrev),
+    agendados: nAgendados,
+    cambioAgendados: agendadosPrev === null ? null : cambioPct(nAgendados, agendadosPrev),
     seguimiento,
     noShow,
     perdidos,
     tasas: {
-      leadAgendado: porcentaje(agendados.length, leads.length),
+      leadAgendado: porcentaje(leads.filter((l) => conCita.has(l.id)).length, leads.length),
       agendadoVenta: porcentaje(compraron.size, primeraAgenda.size),
       noShow: porcentaje(noShow, pasadas),
       // De los leads que llegan al closer (citas hechas + no califica), cuántos se pierden

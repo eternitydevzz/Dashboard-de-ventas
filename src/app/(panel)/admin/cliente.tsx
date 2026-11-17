@@ -1,38 +1,43 @@
 "use client";
 
 import { sinVaciar } from "@/components/sin-vaciar";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Copy, Check, RefreshCw } from "lucide-react";
-import { anadirAlProyecto, crearProyecto, crearUsuario, guardarLinkAgenda, guardarProyecto, regenerarSecreto } from "./acciones";
+import { anadirAlProyecto, crearProyecto, guardarLinkAgenda, guardarProyecto, regenerarSecreto } from "./acciones";
 import { useAccion, Mensajes } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
 import { Desplegable, Pastillas } from "@/components/eleccion";
 
 type Res = { ok?: string; error?: string } | null;
+
+// Con cambios sin guardar, avisa antes de salir: al recargar o cerrar (beforeunload) y, A4-07, al pulsar un enlace
+// de la app (el menú navega sin recargar y no pasa por beforeunload). Lo usan Workflows y Entradas.
+export function useAvisoSinGuardar(sinGuardar: boolean) {
+  const router = useRouter();
+  useEffect(() => {
+    if (!sinGuardar) return;
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
+    const clic = (e: MouseEvent) => {
+      const a = e.target instanceof Element ? e.target.closest("a[href]") : null;
+      if (!(a instanceof HTMLAnchorElement) || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (a.target === "_blank" || a.hasAttribute("download") || a.origin !== location.origin || a.getAttribute("href")?.startsWith("#")) return;
+      // Antes que el <Link> (fase de captura en document): se para y se pregunta
+      e.preventDefault();
+      e.stopPropagation();
+      const destino = a.href;
+      void confirmar("Tienes cambios sin guardar. Si sales, se pierden. ¿Salir igualmente?", { boton: "Salir" }).then((si) => si && router.push(destino));
+    };
+    window.addEventListener("beforeunload", avisar);
+    document.addEventListener("click", clic, true);
+    return () => {
+      window.removeEventListener("beforeunload", avisar);
+      document.removeEventListener("click", clic, true);
+    };
+  }, [sinGuardar, router]);
+}
 function Resultado({ estado }: { estado: Res }) {
   return <Mensajes error={estado?.error ?? ""} ok={estado?.ok ?? ""} />;
-}
-
-export function FormUsuario({ soyCeo }: { soyCeo: boolean }) {
-  const [estado, accion, enviando] = useActionState(crearUsuario, null as Res);
-  return (
-    <form onSubmit={sinVaciar(accion)} className="space-y-3">
-      <label className="block"><span className="etiqueta-campo">Nombre y apellido</span><input name="nombre" required className="campo" /></label>
-      <label className="block"><span className="etiqueta-campo">Email</span><input name="email" type="email" required className="campo" /></label>
-      <div>
-        <label className="etiqueta-campo" htmlFor="cliente-rol">Rol</label>
-        <Pastillas id="cliente-rol" name="rol" className="campo" defaultValue="caller">
-          <option value="caller">Caller</option>
-          <option value="closer">Closer</option>
-          <option value="director">Director de ventas</option>
-          {soyCeo && <option value="ceo">CEO</option>}
-        </Pastillas>
-      </div>
-      <label className="block"><span className="etiqueta-campo">Contraseña temporal (mín. 8)</span><input name="password" type="text" minLength={8} required className="campo" autoComplete="off" /></label>
-      <Resultado estado={estado} />
-      <button className="btn-primario w-full" disabled={enviando}>{enviando ? "Creando…" : "Crear usuario"}</button>
-    </form>
-  );
 }
 
 export function FormProyecto({ aviso }: { aviso: string }) {

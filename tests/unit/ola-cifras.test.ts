@@ -74,19 +74,10 @@ describe("Reportes y Mis leads dan el mismo número que KPIs (mismo caller, mism
     expect(llamadasHoyCola(acts)).toBe(3);
     expect(llamadasHoyCola(acts)).toBe(kpis.llamadas);
     expect(llamadasHoyCola(acts)).toBe(kpis.contactados);
-    const reportes = readFileSync("src/app/(panel)/reportes/page.tsx", "utf8");
-    expect(reportes).toContain("llamadas: llamadasHoyCola(a)");
+    // Reportes: ahora se prueba abriendo la página en z5e-reportes-hoy.test.ts (S6-3)
     const cola = readFileSync("src/app/(panel)/caller/page.tsx", "utf8");
     expect(cola).toContain("const llamadas = llamadasHoyCola(acts);");
     expect(cola).toContain("const contactos = llamadas;");
   });
 });
-
-describe("Reportes «hoy»: solo el proyecto abierto", () => {
-  it("cada lectura de actividades, citas y ventas filtra por proyecto_id", () => {
-    const s = readFileSync("src/app/(panel)/reportes/page.tsx", "utf8");
-    const lecturas = s.split("\n").filter((l) => /db\(\)\.from\("(actividades|citas|ventas)"\)/.test(l));
-    expect(lecturas).toHaveLength(4);
-    for (const l of lecturas) expect(l).toContain('.eq("proyecto_id", proyecto.id)');
-  });
-});
+// «Reportes hoy: solo el proyecto abierto» también está en z5e-reportes-hoy.test.ts (con la página de verdad)

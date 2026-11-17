@@ -5,7 +5,7 @@ import { getSesion, puedeAdmin, puedeCrearProyectos } from "@/lib/auth";
 import { db, todas } from "@/lib/datos";
 import { dinero, fechaHora, ETIQUETA_ROL } from "@/lib/formato";
 import { Cabecera, Contenido, Seccion, Insignia, Avatar, Kpi } from "@/components/ui";
-import { Plantilla, AnadirExistente, FormUsuario, FormProyecto, FormNuevoProyecto, LinkAgenda, Secreto } from "./cliente";
+import { Plantilla, AnadirExistente, FormProyecto, FormNuevoProyecto, LinkAgenda, Secreto } from "./cliente";
 import { esCloser, type Perfil, type Producto, type Rol } from "@/lib/tipos";
 import { PLANTILLAS_GHL, CABECERA_SECRETO } from "@/lib/plantillas-ghl";
 import { AlertTriangle, FlaskConical, Inbox, Power } from "lucide-react";
@@ -77,11 +77,17 @@ async function cargarOpcionesGhl(token: string, locationId: string): Promise<Opc
   };
 }
 
+// X4: una lista que no se puede leer lanza el error (lo recoge error.tsx) en vez de enseñar «no hay»
+function lista<T>({ data, error }: { data: T; error: { message: string } | null }) {
+  if (error) throw new Error(`No se pudo leer de la base: ${error.message}`);
+  return data;
+}
+
 // Workflows 4a-1 (Cristian, 7 nov 2026): el workflow encendido de cada Entrada, su resumen y en qué no coincide
 // (las 20 últimas ejecuciones con diferencias, con la persona y la lista de diferencias de su comparación)
 async function cargarWorkflows(proyectoId: string) {
   const m = new Map<string, WorkflowVista>();
-  const { data: wfs } = await db().from("workflows").select("id, entrada_id, modo").eq("proyecto_id", proyectoId).eq("encendido", true).not("entrada_id", "is", null);
+  const wfs = lista(await db().from("workflows").select("id, entrada_id, modo").eq("proyecto_id", proyectoId).eq("encendido", true).not("entrada_id", "is", null));
   if (!wfs?.length) return m;
   const ids = wfs.map((w) => w.id);
   const [res, { data: malas }] = await Promise.all([
@@ -99,13 +105,14 @@ async function cargarWorkflows(proyectoId: string) {
 
 // Workflows 4b (7 nov 2026): la lista, el elegido (?wf=), su historial (50 últimos) y los nombres para el lienzo
 async function cargarVistaWorkflows(proyectoId: string, wf: string | undefined, editar = false) {
-  const [{ data: wfs }, resumen, { data: en }, { data: pl }, { data: pg }] = await Promise.all([
+  const [rw, resumen, re, rp, { data: pg }] = await Promise.all([
     db().from("workflows").select("id, nombre, disparador, pasos, modo, encendido, version").eq("proyecto_id", proyectoId).order("encendido", { ascending: false }).order("creado_en"),
     resumenWorkflows(proyectoId),
     db().from("entradas").select("id, nombre").eq("proyecto_id", proyectoId),
     db().from("pipelines").select("id, nombre, etapas(id, nombre)").eq("proyecto_id", proyectoId),
     db().from("proyectos").select("ghl_location_id, ghl_token").eq("id", proyectoId).single(),
   ]);
+  const [wfs, en, pl] = [lista(rw), lista(re), lista(rp)];
   const workflows = (wfs ?? []) as WorkflowFila[];
   const elegido = workflows.find((w) => w.id === wf) ?? workflows[0] ?? null;
   const nombres: Nombres = {
@@ -156,11 +163,12 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   let permisos: DatosPermisos | null = null;
   if (tab === "permisos" || tab === "equipo") permisos = await cargarDatosPermisos(perfil, proyecto.id);
 
-  const [{ data: miembros }, { data: productos }, { data: eventos }] = await Promise.all([
+  const [rm, rpr, rev] = await Promise.all([
     db().from("miembros_proyecto").select("orden, horario, calendario, reparto_pct, rotacion_pct, rotacion_cuenta, perfiles(*)").eq("proyecto_id", proyecto.id).order("orden"),
     db().from("productos").select("*").eq("proyecto_id", proyecto.id).order("orden"),
     db().from("webhook_eventos").select("id, tipo, procesado, error, recibido_en").eq("proyecto_id", proyecto.id).order("recibido_en", { ascending: false }).limit(15),
   ]);
+  const [miembros, productos, eventos] = [lista(rm), lista(rpr), lista(rev)];
   const gente = ((miembros ?? []) as unknown as { orden: number; perfiles: Perfil }[]).map((m) => m.perfiles);
   // Bloque 5: para la ficha de cada persona (su fila del organigrama y lo que puedes darle)
   const eq = await cargarEquipo(proyecto.id);
@@ -212,11 +220,12 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const popups = tab === "popups" ? await todas<Popup>((desde, hasta) => db().from("popups").select("*").eq("proyecto_id", proyecto.id).order("id").range(desde, hasta)) : null;
   const vistaWf = tab === "workflows" ? await cargarVistaWorkflows(proyecto.id, typeof sp.wf === "string" ? sp.wf : undefined, sp.editar === "1") : null;
   if (tab === "entradas") {
-    const [{ data: en }, { data: pl }, { data: pg }] = await Promise.all([
+    const [ren, rpl, { data: pg }] = await Promise.all([
       db().from("entradas").select("*").eq("proyecto_id", proyecto.id).order("orden").order("creado_en"),
       db().from("pipelines").select("id, nombre, etapas(id, nombre, orden)").eq("proyecto_id", proyecto.id).eq("tipo", "normal").order("orden"),
       db().from("proyectos").select("ghl_location_id, ghl_token").eq("id", proyecto.id).single(),
     ]);
+    const [en, pl] = [lista(ren), lista(rpl)];
     entradas = en ?? [];
     pipes = ((pl ?? []) as { id: string; nombre: string; etapas: { id: string; nombre: string; orden: number }[] }[]).map((p) => ({ ...p, etapas: [...p.etapas].sort((a, b) => a.orden - b.orden) }));
     if (entradas.length) {
@@ -279,7 +288,8 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
                 <EnviarAccesos personas={gente.filter((g) => g.activo).map((g) => ({ id: g.id, nombre: g.nombre, email: g.email, rol: ETIQUETA_ROL[g.rol], prueba: !!g.es_prueba }))} />
               </Seccion>
               <Seccion titulo="Añadir persona nueva">
-                <FormUsuario soyCeo={perfil.rol === "ceo"} />
+                {/* S1-22: una sola forma de crear usuarios (pide país y teléfono y valida el email) */}
+                <p className="text-sm text-texto-2">Las personas nuevas se dan de alta en <Link href="/equipo" className="underline">Equipo</Link> (botón «Añadir»), con su país, teléfono y acceso.</p>
               </Seccion>
               {perfil.rol === "ceo" && (
                 <Seccion titulo="Añadir a alguien de otro proyecto">

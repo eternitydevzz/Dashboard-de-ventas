@@ -26,9 +26,9 @@ export default async function GuionesPage({ searchParams }: PageProps<"/guiones"
   const sp = await searchParams;
   const rol: RolGuion = sp.rol === "closer" ? "closer" : "caller";
   const mercado = mercadoValido(sp.mercado) ?? "latam"; // 13 nov: el guion de Latam o el de España
-  const [{ guion, deEjemplo, propio }, marcas, gente, conManuales] = await Promise.all([cargarGuion(proyecto.id, rol, mercado), ultimasMarcas(proyecto.id), equipo(proyecto.id), puedeSeccion(perfil, proyecto.id, "manuales")]);
   const persona = typeof sp.persona === "string" ? sp.persona : "";
-  const filas = marcas.filas.filter((m) => !persona || m.perfil_id === persona);
+  const [{ guion, deEjemplo, propio }, marcas, gente, conManuales] = await Promise.all([cargarGuion(proyecto.id, rol, mercado), ultimasMarcas(proyecto.id, persona), equipo(proyecto.id), puedeSeccion(perfil, proyecto.id, "manuales")]);
+  const filas = marcas.filas;
   const nombre = (id: string | null) => gente.find((g) => g.id === id)?.nombre ?? "—";
   const leadIds = [...new Set(filas.map((f) => f.lead_id))];
   const { data: leads } = leadIds.length ? await db().from("leads").select("id, nombre, apellido").in("id", leadIds) : { data: [] };
@@ -60,6 +60,7 @@ export default async function GuionesPage({ searchParams }: PageProps<"/guiones"
             <Vacio icono={ScrollText} texto="Aún no hay llamadas hechas con el guion." />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-borde">
+              {marcas.cortada && <p className="px-3 py-2 text-xs text-texto-3">Se ven las {filas.length} más recientes{persona ? "" : ". Elige una persona para ver solo las suyas"}.</p>}
               <table className="tabla">
                 <thead><tr><th>Cuándo</th><th>Quién</th><th>Lead</th><th>Guion</th><th>Checklist</th><th>Resultado</th></tr></thead>
                 <tbody>

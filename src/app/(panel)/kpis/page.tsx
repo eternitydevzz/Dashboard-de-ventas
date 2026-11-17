@@ -23,7 +23,7 @@ import { TarjetasKpis, type PersonaKpi } from "@/components/tarjetas-kpis";
 import { TarjetaObjetivos } from "@/components/tarjeta-objetivos";
 import { esJefe } from "@/lib/auth";
 import { FileDown } from "lucide-react";
-import { leerPeriodo, rangoNav } from "@/lib/periodos";
+import { leerPeriodo, rangoNav, fechaReal } from "@/lib/periodos";
 import { cargarAgendas, closersVisibles } from "@/lib/agendas-datos";
 import { metricasAgendas } from "@/lib/metricas-agendas";
 import { panelObjetivos } from "@/lib/objetivos";
@@ -39,6 +39,9 @@ import { mercadosDelProyecto } from "@/lib/mercado-datos";
 import { cargarLeadsPestana, cargarUtmsPestana } from "./acciones";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
 import { esError, type ConError } from "@/lib/resultado";
+
+// A2-01: una fecha imposible en la dirección (2026-13-01) se ignora en vez de tumbar la pantalla
+const dia = (v: unknown) => (fechaReal(v) ? v : undefined);
 
 // KPIs de cada caller y closer (Paso H2) y sus objetivos (Paso H3). Solo director y CEO (decisión de Cristian, 10 oct 2026).
 export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
@@ -90,7 +93,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     // lib/leads-kpis.ts), y todo sale de una vez tras la pantalla de carga. Antes los pedía la pestaña después de pintar.
     // Por eso /kpis ya no se precarga al abrir la app (lib/mensajes-entrada.ts). Periodo por la fecha de alta, «Todo» por defecto.
     const periodo = (typeof sp.periodo === "string" ? sp.periodo : "todo") as Periodo;
-    const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string | undefined, sp.hasta as string | undefined);
+    const rango = rangoDe(periodo, proyecto.zona_horaria, dia(sp.desde), dia(sp.hasta));
     // Lo que venía de la Biblioteca: precios de la escalera (una lectura pequeña) y los pipelines de «Actualizar con CSV».
     // Cristian, 14 nov (Ola 2): esos pipelines son los mismos que ya trae la carga de los leads (antes, una lectura más)
     const [{ data: productos }, datos] = await Promise.all([
@@ -127,7 +130,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
   // si falla no se guarda (va como rechazo) y la pestaña enseña el mensaje genérico de seguro()
   if (vista === "utms") {
     const periodo = (typeof sp.periodo === "string" ? sp.periodo : "todo") as Periodo;
-    const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string | undefined, sp.hasta as string | undefined);
+    const rango = rangoDe(periodo, proyecto.zona_horaria, dia(sp.desde), dia(sp.hasta));
     const [filas, canales] = await Promise.all([
       enMemoria(`utms-kpis:${proyecto.id}`, UN_MINUTO, () => cargarUtmsPestana().then((r) => (esError(r) ? Promise.reject(r) : r))).catch((e: ConError) => e),
       canalesDe(proyecto.id),
@@ -158,7 +161,7 @@ export default async function KpisPage({ searchParams }: PageProps<"/kpis">) {
     // Lo que era la página «Funnel» (26 oct, Cristian): las cifras de dinero y de actividad del periodo, por vendedor y
     // producto. Sin la tabla «KPIs por persona»: está en la pestaña de al lado.
     const periodo = (typeof sp.periodo === "string" ? sp.periodo : "mes") as Periodo;
-    const rango = rangoDe(periodo, proyecto.zona_horaria, sp.desde as string, sp.hasta as string);
+    const rango = rangoDe(periodo, proyecto.zona_horaria, dia(sp.desde), dia(sp.hasta));
     const { data: productosData } = await db().from("productos").select("id, nombre").eq("proyecto_id", proyecto.id).order("orden");
     const productos = productosData ?? [];
     const vendedor = base.gente.find((g) => g.id === sp.vendedor) ?? null;

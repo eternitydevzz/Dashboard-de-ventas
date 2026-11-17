@@ -1,8 +1,8 @@
 import "server-only";
 import { enMemoria, UN_MINUTO } from "@/lib/memoria";
-import { db, todas, equipo, conBajas } from "@/lib/datos";
+import { db, todas, equipo, conBajas, porTrozos } from "@/lib/datos";
 import { rangoDe, porcentaje, hoyEnZona, sumarDias, type Rango } from "@/lib/formato";
-import { cashNeto, enRango, type Base } from "@/lib/metricas";
+import { ACTS_CUENTAN, cashNeto, enRango, type Base } from "@/lib/metricas";
 import { indices, kpiCaller, kpiCloser, type Indices } from "@/lib/kpis";
 import type { Perfil } from "@/lib/tipos";
 
@@ -178,16 +178,8 @@ export function calcularAvances(base: Base, datos: DatosObjetivos, personas: Per
 // ---------- «Mis objetivos» del caller o del closer ----------
 // Su pantalla se recarga sola cada minuto: en vez de cargar todo el proyecto, solo sus datos
 // desde el principio del periodo más largo que esté en curso.
-const TROZO = 200;
-async function porTrozos<T>(ids: string[], pedir: (trozo: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
-  const filas: T[] = [];
-  for (let i = 0; i < ids.length; i += TROZO) {
-    const { data, error } = await pedir(ids.slice(i, i + TROZO));
-    if (error) throw new Error(error.message);
-    filas.push(...(data ?? []));
-  }
-  return filas;
-}
+// S3-2 (17 nov): porTrozos de lib/datos.ts, que pagina cada trozo (el de aquí se quedaba en las 1.000 primeras filas)
+// S3-1 (Cristian, 17 nov): «llamada» = cualquier botón de resultado, como KPIs y Ranking (ACTS_CUENTAN + esLlamada en kpis)
 
 type VentaFila = Base["ventas"][number];
 const COLS_VENTA = "id, lead_id, vendedor_id, facturacion, cash_collected, fecha, producto_id, devuelto, devuelto_en";
@@ -201,7 +193,7 @@ async function baseDePersona(proyectoId: string, p: Perfil, desde: Date): Promis
   // Velocidad (17 oct 2026): lo que no depende de otra consulta va a la vez (antes, todo en fila)
   if (p.rol === "caller") {
     const [acts, suyas, propias] = await Promise.all([
-      todas<Base["actividades"][number]>((a, b) => db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", proyectoId).eq("perfil_id", p.id).in("tipo", ["llamada", "whatsapp"]).gte("creado_en", d).order("id").range(a, b)),
+      todas<Base["actividades"][number]>((a, b) => db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", proyectoId).eq("perfil_id", p.id).or(ACTS_CUENTAN).gte("creado_en", d).order("id").range(a, b)),
       todas<Base["citas"][number]>((a, b) => db().from("citas").select(COLS_CITA).eq("proyecto_id", proyectoId).eq("agendada_por", p.id).gte("creado_en", d).order("id").range(a, b)),
       todas<VentaFila>((a, b) => db().from("ventas").select(COLS_VENTA).eq("proyecto_id", proyectoId).eq("vendedor_id", p.id).order("id").range(a, b)),
     ]);
@@ -209,8 +201,8 @@ async function baseDePersona(proyectoId: string, p: Perfil, desde: Date): Promis
     const leads = [...new Set(suyas.map((c) => c.lead_id))];
     // Todas las citas y ventas de sus agendados (asistencia y cierre) + su low ticket
     const [deSusCitas, deSusLeads] = await Promise.all([
-      porTrozos<Base["citas"][number]>(leads, (t) => db().from("citas").select(COLS_CITA).in("lead_id", t)),
-      porTrozos<VentaFila>(leads, (t) => db().from("ventas").select(COLS_VENTA).in("lead_id", t)),
+      porTrozos<Base["citas"][number]>(leads, (t, a, b) => db().from("citas").select(COLS_CITA).in("lead_id", t).order("id").range(a, b)),
+      porTrozos<VentaFila>(leads, (t, a, b) => db().from("ventas").select(COLS_VENTA).in("lead_id", t).order("id").range(a, b)),
     ]);
     citas = deSusCitas;
     ventas = [...new Map([...deSusLeads, ...propias].map((v) => [v.id, v])).values()];
@@ -220,7 +212,7 @@ async function baseDePersona(proyectoId: string, p: Perfil, desde: Date): Promis
       todas<VentaFila>((a, b) => db().from("ventas").select(COLS_VENTA).eq("proyecto_id", proyectoId).eq("vendedor_id", p.id).order("id").range(a, b)),
     ]);
   }
-  const pagos = await porTrozos<{ importe: number; fecha: string; venta_id: string }>(ventas.map((v) => v.id), (t) => db().from("pagos").select("importe, fecha, venta_id").in("venta_id", t));
+  const pagos = await porTrozos<{ importe: number; fecha: string; venta_id: string }>(ventas.map((v) => v.id), (t, a, b) => db().from("pagos").select("importe, fecha, venta_id").in("venta_id", t).order("id").range(a, b));
   return {
     leads: [],
     citas,
@@ -241,7 +233,7 @@ function baseDelEquipo(proyectoId: string, desde: Date): Promise<Base> {
 async function baseDelEquipoDeLaBase(proyectoId: string, desde: Date): Promise<Base> {
   const d = desde.toISOString();
   const [actividades, citas, pagos, gente] = await Promise.all([
-    todas<Base["actividades"][number]>((a, b) => db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", proyectoId).in("tipo", ["llamada", "whatsapp"]).gte("creado_en", d).order("id").range(a, b)),
+    todas<Base["actividades"][number]>((a, b) => db().from("actividades").select("lead_id, perfil_id, tipo, resultado, creado_en").eq("proyecto_id", proyectoId).or(ACTS_CUENTAN).gte("creado_en", d).order("id").range(a, b)),
     todas<Base["citas"][number]>((a, b) => db().from("citas").select(COLS_CITA).eq("proyecto_id", proyectoId).or(`creado_en.gte.${d},fecha.gte.${d}`).order("id").range(a, b)),
     todas<{ importe: number; fecha: string; venta_id: string }>((a, b) => db().from("pagos").select("importe, fecha, venta_id, ventas!inner(proyecto_id)").eq("ventas.proyecto_id", proyectoId).gte("fecha", d).order("id").range(a, b)),
     equipo(proyectoId),
@@ -249,7 +241,7 @@ async function baseDelEquipoDeLaBase(proyectoId: string, desde: Date): Promise<B
   // Ventas del periodo, devueltas en el periodo o con cobros en el periodo (lo que usa el cash)
   const recientes = await todas<VentaFila>((a, b) => db().from("ventas").select(COLS_VENTA).eq("proyecto_id", proyectoId).or(`fecha.gte.${d},devuelto_en.gte.${d}`).order("id").range(a, b));
   const faltan = [...new Set(pagos.map((x) => x.venta_id))].filter((id) => !recientes.some((v) => v.id === id));
-  const ventas = [...recientes, ...(await porTrozos<VentaFila>(faltan, (t) => db().from("ventas").select(COLS_VENTA).in("id", t)))];
+  const ventas = [...recientes, ...(await porTrozos<VentaFila>(faltan, (t, a, b) => db().from("ventas").select(COLS_VENTA).in("id", t).order("id").range(a, b)))];
   return {
     leads: [],
     citas,

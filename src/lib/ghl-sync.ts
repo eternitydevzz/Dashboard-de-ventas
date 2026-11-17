@@ -32,6 +32,13 @@ type Fuente = { nombre: string; calendarId: string | null; userId: string | null
 
 // Trae las citas de GHL y las guarda en la app.
 // `opciones.proyecto`: el que ya leyó quien llama (la lectura de cada minuto), para no volver a pedirlo (D43)
+// X4: si una lectura de la base falla, la sincronización se para; tomarlo como «no hay» creaba citas repetidas,
+// leads sin unir o la quitaba a los closers
+const leido = <T,>({ data, error }: { data: T; error: { message: string } | null }) => {
+  if (error) throw new Error(`No se pudo leer de la base: ${error.message}`);
+  return data;
+};
+
 export async function sincronizarCalendarios(proyectoId: string, opciones: { fetchImpl?: typeof fetch; ahora?: Date; proyecto?: ProyectoGhl } = {}): Promise<ResultadoSync> {
   const proyecto = opciones.proyecto ?? (await db().from("proyectos").select("*").eq("id", proyectoId).single<ProyectoGhl>()).data;
   if (!proyecto?.ghl_token || !proyecto.ghl_location_id) throw new Error("Falta conectar GHL (token e id de la subcuenta) en Administración → Integraciones.");
@@ -41,10 +48,10 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
   const desde = new Date(ahora.getTime() - 30 * DIA);
   const hasta = new Date(ahora.getTime() + 60 * DIA);
 
-  const { data: miembros } = await db()
+  const miembros = leido(await db()
     .from("miembros_proyecto")
     .select("perfil_id, ghl_calendar_id, ghl_user_id, perfiles!inner(rol, nombre, tambien_closer)")
-    .eq("proyecto_id", proyecto.id);
+    .eq("proyecto_id", proyecto.id));
   // Plan GHL E1: closer = rol closer o un caller con «También closer»
   const closers = ((miembros ?? []) as unknown as { perfil_id: string; ghl_calendar_id: string | null; ghl_user_id: string | null; perfiles: { rol: string; nombre: string; tambien_closer: boolean } }[]).filter((m) => (m.perfiles.rol === "closer" || m.perfiles.tambien_closer) && (m.ghl_calendar_id || m.ghl_user_id));
   const closerDeUsuario = new Map(closers.filter((c) => c.ghl_user_id).map((c) => [c.ghl_user_id as string, c.perfil_id]));
@@ -125,7 +132,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
   const enApp = new Map<string, CitaApp>();
   const ids = [...vienen];
   for (let i = 0; i < ids.length; i += 200) {
-    const { data } = await db().from("citas").select(CAMPOS_CITA).eq("proyecto_id", proyecto.id).in("ghl_cita_id", ids.slice(i, i + 200));
+    const data = leido(await db().from("citas").select(CAMPOS_CITA).eq("proyecto_id", proyecto.id).in("ghl_cita_id", ids.slice(i, i + 200)));
     for (const c of (data ?? []) as CitaApp[]) enApp.set(c.ghl_cita_id, c);
   }
 
@@ -207,7 +214,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       // Fase 3: si el contacto se unió a otro lead al «Unir», la cita es de ese lead
       const contactoLead = ev.contactId ? (await contactosPrincipales(proyecto.id, [ev.contactId])).get(ev.contactId) ?? ev.contactId : null;
       if (contactoLead) {
-        const { data } = await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("ghl_contact_id", contactoLead).maybeSingle();
+        const data = leido(await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("ghl_contact_id", contactoLead).maybeSingle());
         leadId = data?.id ?? null;
       }
       if (!leadId && ev.contactId) {
@@ -221,7 +228,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
             [{ ghl_contact_id: ev.contactId, nombre: ct?.firstName ?? nombreCompleto.split(/\s+/)[0] ?? "", apellido: ct?.lastName ?? nombreCompleto.split(/\s+/).slice(1).join(" "), email, telefono, etiquetas: [], respuestas: [], creado_en: null }],
             { ...(abierta && destinoCita ? { pipelineId: destinoCita.pipeline_id, etapaId: destinoCita.id } : { pipelineId: (await datosBase()).pipe?.id ?? null }), origen: "ghl", perfilId: null, repartir: false, notaActividad: "Entró desde el calendario de GHL" }
           );
-          const { data } = await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("ghl_contact_id", ev.contactId).maybeSingle();
+          const data = leido(await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("ghl_contact_id", ev.contactId).maybeSingle());
           leadId = data?.id ?? null;
         }
       }
@@ -235,7 +242,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       // si GHL no lo acepta, se queda como venía y se apunta el error.
       let closerFinal = closerId;
       if (abierta && new Date(fecha).getTime() > ahora.getTime()) {
-        const { data: l } = await db().from("leads").select("pais").eq("id", leadId).maybeSingle();
+        const l = leido(await db().from("leads").select("pais").eq("id", leadId).maybeSingle());
         const correcto = await closerDeLaRotacion(proyecto.id, (l?.pais as string | null) ?? null).catch(() => null);
         const destino = correcto && correcto !== closerId ? closers.find((c) => c.perfil_id === correcto) : undefined;
         if (destino?.ghl_user_id) {
@@ -266,7 +273,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       if (estado === "pendiente" || estado === "confirmada") {
         // Plan GHL (Cristian, 16 oct): un lead que ya compró sigue «vendido» aunque reserve otra llamada.
         // C11 punto 15 (Callers, 7 nov): si estaba en confirma agenda o descartado, pasa a «reagendado» con su etiqueta.
-        const { data: l } = await db().from("leads").select("estado_caller").eq("id", leadId).maybeSingle();
+        const l = leido(await db().from("leads").select("estado_caller").eq("id", leadId).maybeSingle()); // un «vendido» no puede volver a «agendado» por un fallo
         const tras = estadoTrasCitaGhl(l?.estado_caller);
         if (tras) {
           await db().from("leads").update({ estado_caller: tras.estado, ...(closerFinal ? { closer_id: closerFinal } : {}), llamar_en: null }).eq("id", leadId);

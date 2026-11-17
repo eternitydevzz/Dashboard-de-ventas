@@ -13,7 +13,7 @@ import { db, registrarActividad, todas, escribir } from "@/lib/datos";
 import { localAIso, ETIQUETA_ESTADO_CITA } from "@/lib/formato";
 import { zonaPersona } from "@/lib/zona-persona";
 import { estrellasEntre } from "@/lib/estrellas";
-import type { Cita, EstadoCita } from "@/lib/tipos";
+import { esCloser, type Cita, type EstadoCita, type Rol } from "@/lib/tipos";
 import { datosAgendaGhl, juntarConCitaAbierta, telefonoClave } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
 import { ABIERTAS } from "@/lib/llamadas";
@@ -180,7 +180,8 @@ export async function cambiarCloserCita(citaId: string, closerId: string) {
     if (!nuevo || (nuevo.perfiles.rol !== "closer" && !nuevo.perfiles.tambien_closer)) throw new ErrorUsuario("Elige un closer de este proyecto.");
     // Antes de tocar GHL: si la base no la dejaría (citas_closer_hora_unica), GHL y la app quedarían distintos
     if (cita.origen !== "ghl" && (ABIERTAS as readonly string[]).includes(cita.estado)) {
-      const { data: choca } = await db().from("citas").select("id").eq("closer_id", closerId).eq("fecha", cita.fecha).neq("origen", "ghl").in("estado", [...ABIERTAS]).limit(1);
+      const { data: choca, error } = await db().from("citas").select("id").eq("closer_id", closerId).eq("fecha", cita.fecha).neq("origen", "ghl").in("estado", [...ABIERTAS]).limit(1);
+      if (error) throw new Error(`No se pudo comprobar la agenda del closer: ${error.message}`); // X4: antes de tocar GHL
       if (choca?.length) throw new ErrorUsuario(`${nuevo.perfiles.nombre} ya tiene otra cita a esa hora: elige otro closer o reagenda la cita.`);
     }
     if (cita.ghl_cita_id) {
@@ -223,7 +224,8 @@ export async function buscarLeadsParaLlamada(q: string) {
       .or(`nombre.ilike.%${t}%,apellido.ilike.%${t}%,email.ilike.%${t}%,telefono.ilike.%${t}%`)
       .limit(10);
     if (!esJefe(perfil)) consulta = consulta.eq("closer_id", perfil.id);
-    const { data } = await consulta;
+    const { data, error } = await consulta;
+    if (error) throw new Error(`No se pudieron buscar los leads: ${error.message}`); // X4: no es «sin resultados»
     return data ?? [];
   });
 }
@@ -239,8 +241,10 @@ export async function importarCitas(texto: string) {
     const res = Papa.parse<Record<string, string>>(texto.replace(/^﻿/, ""), { header: true, skipEmptyLines: true, transformHeader: (h) => h.trim().toLowerCase() });
     if (!res.data.length) throw new ErrorUsuario("El CSV está vacío.");
     if (res.data.length > 2000) throw new ErrorUsuario("Como mucho 2.000 citas por archivo.");
-    const { data: closers } = await db().from("miembros_proyecto").select("perfiles!inner(id, email, rol)").eq("proyecto_id", proyecto.id).eq("perfiles.rol", "closer");
-    const porEmail = new Map(((closers ?? []) as unknown as { perfiles: { id: string; email: string } }[]).map((c) => [c.perfiles.email.toLowerCase(), c.perfiles.id]));
+    // X3: también quien tiene «También closer»; X4: si la lectura falla, se para (antes: «closer no encontrado» en todas)
+    const { data: closers, error: errClosers } = await db().from("miembros_proyecto").select("perfiles!inner(id, email, rol, tambien_closer)").eq("proyecto_id", proyecto.id);
+    if (errClosers) throw new Error(`No se pudo leer el equipo: ${errClosers.message}`);
+    const porEmail = new Map(((closers ?? []) as unknown as { perfiles: { id: string; email: string; rol: Rol; tambien_closer: boolean } }[]).filter((c) => esCloser(c.perfiles)).map((c) => [c.perfiles.email.toLowerCase(), c.perfiles.id]));
     // Los leads del proyecto se cargan una vez (por email y por teléfono, solo dígitos)
     const leads = await todas<{ id: string; email: string | null; telefono: string | null }>((x, y) => db().from("leads").select("id, email, telefono").eq("proyecto_id", proyecto.id).order("id").range(x, y));
     const porMail = new Map(leads.filter((l) => l.email).map((l) => [l.email!.toLowerCase(), l.id]));
@@ -284,7 +288,8 @@ export async function sincronizarGhl(soloSiHaceMas?: number) {
     await exigirSeccion("agendas"); // H5
     const { perfil, proyecto } = await getSesion();
     if (!esJefe(perfil) && perfil.rol !== "closer") throw new ErrorUsuario("Sin permiso.");
-    const { data: p } = await db().from("proyectos").select("ghl_token, ghl_location_id, ghl_sincronizado_en").eq("id", proyecto.id).single();
+    const { data: p, error } = await db().from("proyectos").select("ghl_token, ghl_location_id, ghl_sincronizado_en").eq("id", proyecto.id).single();
+    if (error) throw new Error(`No se pudo leer el proyecto: ${error.message}`); // X4: no es «GHL no conectado»
     if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("GHL todavía no está conectado (Administración → Integraciones).");
     // Sincronización automática al abrir: solo si ha pasado bastante desde la última
     if (soloSiHaceMas && p.ghl_sincronizado_en && Date.now() - new Date(p.ghl_sincronizado_en).getTime() < soloSiHaceMas) return { saltada: true };
@@ -309,7 +314,8 @@ export async function unirCitaSinLead(id: string, leadId: string) {
     if (!s) throw new ErrorUsuario("No encontrada.");
     const { data: lead } = await db().from("leads").select("id").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!lead) throw new ErrorUsuario("Elige un lead de este proyecto.");
-    const { data: ya } = await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", s.ghl_cita_id).maybeSingle();
+    const { data: ya, error: errYa } = await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", s.ghl_cita_id).maybeSingle();
+    if (errYa) throw new Error(`No se pudo leer «citas»: ${errYa.message}`); // X4: si no, crearía la cita otra vez
     if (!ya) {
       // Fase 3: sin canal no hay crédito de caller (datosAgendaGhl); con una cita abierta, se junta con ella
       const agenda = await datosAgendaGhl(leadId, null);

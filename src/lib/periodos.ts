@@ -25,11 +25,18 @@ function sumarMeses(ymd: string, meses: number) {
 }
 const corta = (ymd: string) => `${Number(ymd.slice(8, 10))} ${MESES[Number(ymd.slice(5, 7)) - 1].slice(0, 3)}`;
 
+// A2-01 (17 nov): un día que existe de verdad. «2026-13-01» tumbaba la pantalla y «2026-02-31» pasaba a marzo.
+export function fechaReal(s: unknown): s is string {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
 export function leerPeriodo(sp: Record<string, string | string[] | undefined>, porDefecto: PeriodoNav = "mes") {
   const v = typeof sp.p === "string" ? sp.p : porDefecto;
   const periodo = (PERIODOS_NAV.some((x) => x.v === v) ? v : porDefecto) as PeriodoNav;
   const n = Math.max(-600, Math.min(600, Math.trunc(Number(sp.n ?? 0)) || 0));
-  const fecha = (k: string) => (typeof sp[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp[k] as string) ? (sp[k] as string) : undefined);
+  const fecha = (k: string) => (fechaReal(sp[k]) ? (sp[k] as string) : undefined);
   return { periodo, n, desde: fecha("desde"), hasta: fecha("hasta") };
 }
 
@@ -38,7 +45,8 @@ export function rangoNav(periodo: PeriodoNav, n: number, zona: string, desdeTxt?
   let d: string;
   let h: string;
   let etiqueta: string;
-  if (periodo === "rango" && desdeTxt && hastaTxt && desdeTxt <= hastaTxt) {
+  // El MCP llama aquí sin pasar por leerPeriodo: también se comprueba la fecha
+  if (periodo === "rango" && fechaReal(desdeTxt) && fechaReal(hastaTxt) && desdeTxt <= hastaTxt) {
     d = desdeTxt;
     h = sumarDias(hastaTxt, 1);
     etiqueta = `Del ${corta(desdeTxt)} al ${corta(hastaTxt)}`;

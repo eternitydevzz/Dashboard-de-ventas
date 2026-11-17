@@ -6,7 +6,6 @@ type Resp = { data: unknown; error: { message: string } | null };
 type Consulta = { tabla: string; ops: [string, unknown[]][] };
 let respuesta: Record<string, Resp>;
 let consultas: Consulta[];
-let exigirImpl: () => Promise<unknown>;
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (tabla: string) => {
@@ -21,7 +20,9 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 vi.mock("@/lib/memoria", () => ({ olvidarTodo: () => undefined, enMemoria: <T,>(_k: string, _ms: number, f: () => T) => f(), UN_MINUTO: 60_000 }));
-vi.mock("@/lib/auth", () => ({ exigir: () => exigirImpl(), puedeAdmin: {}, puedeCrearProyectos: {}, exigirCambiarComisionRol: {} }));
+// exigir y puedeAdmin son los de verdad: solo se simula la sesión (setup.ts), como en 6s-seguridad.test.ts
+const { getSesion } = await import("@/lib/sesion");
+const como = (perfil: object) => vi.mocked(getSesion).mockResolvedValue({ perfil, proyecto: { id: "p1" } } as never);
 const { crearWorkflowDeCita, crearWorkflowDeEtiqueta, encenderWorkflow, pararWorkflow, pasarWorkflowAReal, devolverAHoy } = await import("@/app/(panel)/admin/acciones");
 
 const escrituras = (tabla: string, op: "update" | "insert") => consultas.filter((c) => c.tabla === tabla).flatMap((c) => c.ops.filter(([o]) => o === op).map(([, a]) => a[0] as Record<string, unknown>));
@@ -30,7 +31,7 @@ const deCita = { id: "w1", entrada_id: null, modo: "prueba", encendido: true };
 beforeEach(() => {
   consultas = [];
   respuesta = {};
-  exigirImpl = async () => ({ proyecto: { id: "p1" } });
+  como({ id: "dir", rol: "director", admin_activo: true });
 });
 
 describe("crearWorkflowDeCita", () => {
@@ -46,11 +47,9 @@ describe("crearWorkflowDeCita", () => {
     for (const malo of ["borrada", "", null, { evento: "agendada" }]) expect(await crearWorkflowDeCita(malo as never)).toMatchObject({ error: expect.any(String) });
     expect(escrituras("workflows", "insert")).toHaveLength(0);
   });
-  it("si no eres admin, no crea nada", async () => {
-    exigirImpl = async () => {
-      throw new Error("no admin");
-    };
-    expect(await crearWorkflowDeCita("agendada")).toMatchObject({ error: expect.any(String) });
+  it("si no eres admin (director sin Administración), no crea nada", async () => {
+    como({ id: "dir2", rol: "director", admin_activo: false });
+    expect(await crearWorkflowDeCita("agendada")).toEqual({ error: "No tienes permiso para esto." });
     expect(escrituras("workflows", "insert")).toHaveLength(0);
   });
 });
