@@ -3,7 +3,7 @@ import { Inbox, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { esJefe } from "@/lib/auth";
 import { exigirPagina } from "@/lib/permisos";
 import { db, equipo } from "@/lib/datos";
-import { dinero, fechaHora, fecha as soloFecha, ahoraMs, hoyEnZona, inicioDia, ETIQUETA_ESTADO_CITA, nombrePais } from "@/lib/formato";
+import { dinero, fechaHora, fecha as soloFecha, ahoraMs, hoyEnZona, inicioDia, ETIQUETA_ESTADO_CITA, nombrePais, fechaReal } from "@/lib/formato";
 import { closersVisibles } from "@/lib/agendas-datos";
 import { ABIERTAS, SUB_POSTCALL, celdasMes, coincide, diaEnZona, enPostcall, esColumnaVentas, esPrecall, partirCloser, porRecuperar, quienLlevaba, ventasPostcall, type SubPostcall } from "@/lib/llamadas";
 import { cargarCitasVentas, columnasCloser, etapasCloser, nombreDe, type CitaFila } from "@/lib/tablero-closers";
@@ -11,6 +11,7 @@ import { Cabecera, Contenido, Insignia, Vacio } from "@/components/ui";
 import { FiltroUrl } from "@/components/barra-periodo";
 import { VerEstrellas } from "@/components/estrellas";
 import { PestanasAgendas } from "../pestanas";
+import { pasaFiltroCita } from "@/app/(panel)/crm/estado-cita";
 import { AccionesCita } from "../acciones-cita";
 import { FilaVentaAcciones } from "@/app/(panel)/ventas/fila-acciones";
 import { Grabaciones } from "./grabaciones";
@@ -187,10 +188,10 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   // R9: se pintan las 4 vistas y el navegador enseña la elegida (VistasCalendario); flechas y días llevan su vista
   function VistaAgendas() {
     const estado = str("estado");
-    const filtradas = citas.filter((c) => !estado || (estado === "abiertas" ? (ABIERTAS as readonly string[]).includes(c.estado) : c.estado === estado));
+    const filtradas = citas.filter((c) => pasaFiltroCita(c.estado, estado));
     const hoy = hoyEnZona(zonaVer);
-    const dia = /^\d{4}-\d{2}-\d{2}$/.test(str("d")) ? str("d") : hoy;
-    const ym = /^\d{4}-\d{2}$/.test(str("m")) ? str("m") : dia.slice(0, 7);
+    const dia = fechaReal(str("d")) ? str("d") : hoy; // S1-23: ?d=2026-02-31 o ?m=2026-13 ya no rompen la pantalla
+    const ym = fechaReal(`${str("m")}-01`) ? str("m") : dia.slice(0, 7);
     const porDia = new Map<string, CitaFila[]>();
     for (const c of filtradas) {
       const d = diaEnZona(c.fecha, zonaVer);

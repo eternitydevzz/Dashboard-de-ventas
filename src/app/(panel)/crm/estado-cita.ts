@@ -1,7 +1,7 @@
 import { ABIERTAS } from "@/lib/llamadas";
 
-// N11 (Cristian, 13 nov 2026: «Todas, que se pueda filtrar»): filtro por estado del tablero «Closers» del CRM, con las
-// mismas opciones que el de Agendas (closer/llamadas/page.tsx, FILTROS_ESTADO, que no se exporta: si cambia allí, aquí también)
+// N11 (Cristian, 13 nov 2026: «Todas, que se pueda filtrar»): filtro por estado del tablero «Closers» del CRM. La misma
+// lista la usan los filtros de Agendas (closer/llamadas/cliente.tsx), con «Todos» como primera opción.
 export const FILTROS_CITA = [
   { v: "", t: "Todos los estados" },
   { v: "abiertas", t: "Pendientes" },

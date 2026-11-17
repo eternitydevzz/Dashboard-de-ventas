@@ -26,7 +26,7 @@ import { reordenar } from "@/lib/orden-entradas";
 import { tablaValida } from "@/lib/canal";
 import { canalesDe } from "@/lib/canales-datos";
 import { PIPELINE_ETIQUETA } from "@/lib/ghl-leads";
-import { borrarEtiquetaGhl, renombrarEtiquetaGhl } from "@/lib/ghl";
+import { borrarEtiquetaGhl, eventosGhl, renombrarEtiquetaGhl } from "@/lib/ghl";
 import { popupValido } from "@/lib/popups";
 import { TEXTOS_ENTRADA, textosCambiados, type ClaveTexto } from "@/lib/mensajes-entrada";
 import { refrescarPantalla } from "@/lib/refrescar";
@@ -561,7 +561,9 @@ export async function guardarWorkflow(workflowId: string, pasos: unknown) {
     const limpios = pasosValidos(pasos);
     if (mismoContenido(limpios, w.pasos)) return { ok: true as const, version: w.version as number };
     const version = (w.version as number) + 1;
-    await escribir(db().from("workflows").update({ pasos: limpios, version, actualizado_en: new Date().toISOString() }).eq("id", w.id), "workflows");
+    // Solo si nadie lo guardó entre la lectura y ahora (si no, se pisarían los pasos de otro admin)
+    const { data: hecho } = await escribir(db().from("workflows").update({ pasos: limpios, version, actualizado_en: new Date().toISOString() }).eq("id", w.id).eq("version", w.version).select("id"), "workflows");
+    if (!hecho?.length) throw new ErrorUsuario("Otra persona acaba de guardar este workflow. Recarga la página para ver sus cambios.");
     refrescar();
     return { ok: true as const, version };
   });
@@ -637,9 +639,13 @@ export async function devolverAHoy(workflowId: string) {
     await escribir(db().from("entradas").update({ ghl_activo: true }).eq("id", w.entrada_id), "entradas");
     await escribir(db().from("workflows").update({ modo: "prueba", encendido: false, actualizado_en: ahora }).eq("id", w.id), "workflows");
     const { data: pend } = await db().from("workflow_ejecuciones").select("lead_id").eq("workflow_id", w.id).eq("estado", "esperando");
-    for (const leadId of [...new Set((pend ?? []).map((x) => x.lead_id as string))]) {
-      const { data: ult } = await db().from("webhook_eventos").select("id").eq("entrada_id", w.entrada_id).eq("lead_id", leadId).eq("procesado", true).order("recibido_en", { ascending: false }).limit(1).maybeSingle();
-      if (ult) await escribir(db().from("webhook_eventos").update({ ghl_estado: "esperando", ghl_intentos: 0, ghl_error: null, ghl_enviar_en: ahora }).eq("id", ult.id), "webhook_eventos");
+    const leads = [...new Set((pend ?? []).map((x) => x.lead_id as string))];
+    if (leads.length) {
+      // Una lectura para todos (del más nuevo al más viejo) y el último envío de cada lead
+      const { data: evs } = await db().from("webhook_eventos").select("id, lead_id").eq("entrada_id", w.entrada_id).in("lead_id", leads).eq("procesado", true).order("recibido_en", { ascending: false });
+      const ultimo = new Map<string, string>();
+      for (const e of evs ?? []) if (!ultimo.has(e.lead_id as string)) ultimo.set(e.lead_id as string, e.id as string);
+      if (ultimo.size) await escribir(db().from("webhook_eventos").update({ ghl_estado: "esperando", ghl_intentos: 0, ghl_error: null, ghl_enviar_en: ahora }).in("id", [...ultimo.values()]), "webhook_eventos");
     }
     refrescar();
     return { ok: true as const };
@@ -728,7 +734,11 @@ export async function guardarCalendarioCloser(perfilId: string, calendarId: stri
     const { proyecto } = await exigir(puedeAdmin);
     const { data } = await db().from("miembros_proyecto").select("perfil_id, perfiles!inner(rol)").eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId).or("rol.eq.closer,tambien_closer.eq.true", { referencedTable: "perfiles" }).maybeSingle(); // E1: también closer
     if (!data) throw new ErrorUsuario("Esa persona no es closer de este proyecto.");
-    await escribir(db().from("miembros_proyecto").update({ ghl_calendar_id: calendarId.trim() || null, ghl_user_id: userId.trim() || null }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId), "miembros_proyecto");
+    const cal = calendarId.trim() ? idGhl(calendarId) : null;
+    const usu = userId.trim() ? idGhl(userId) : null;
+    if (calendarId.trim() && !cal) throw new ErrorUsuario("El id del calendario no es válido (solo letras, números, - y _).");
+    if (userId.trim() && !usu) throw new ErrorUsuario("El id del usuario de GHL no es válido (solo letras, números, - y _).");
+    await escribir(db().from("miembros_proyecto").update({ ghl_calendar_id: cal, ghl_user_id: usu }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfilId), "miembros_proyecto");
     refrescar();
   });
 }
@@ -740,7 +750,6 @@ export async function probarConexionGhl() {
     if (!p?.ghl_token || !p.ghl_location_id) throw new ErrorUsuario("Primero guarda el token y el id de la subcuenta.");
     const { data: m } = await db().from("miembros_proyecto").select("ghl_calendar_id, ghl_user_id").eq("proyecto_id", proyecto.id).or("ghl_calendar_id.not.is.null,ghl_user_id.not.is.null").limit(1).maybeSingle();
     if (!m) throw new ErrorUsuario("Pon el calendario de GHL de al menos un closer para poder probar.");
-    const { eventosGhl } = await import("@/lib/ghl");
     try {
       const ev = await eventosGhl({ token: descifrar(p.ghl_token, "el token de GHL"), locationId: p.ghl_location_id, calendarId: m.ghl_calendar_id, userId: m.ghl_user_id, desde: new Date(Date.now() - 7 * 86_400_000), hasta: new Date(Date.now() + 30 * 86_400_000) });
       return { ok: `Conexión correcta: ${ev.length} citas encontradas en el calendario (últimos 7 días y próximos 30).` };

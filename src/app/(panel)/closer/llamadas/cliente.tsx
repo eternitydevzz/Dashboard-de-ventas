@@ -14,6 +14,7 @@ import { agendarCita } from "@/app/(panel)/leads/acciones";
 import { buscarLeadsParaLlamada, descartarCitaSinLead, importarCitas, sincronizarGhl, unirCitaSinLead } from "../acciones";
 import { useToast } from "@/components/toasts";
 import { CamposCita } from "@/components/campos-cita";
+import { FILTROS_CITA } from "@/app/(panel)/crm/estado-cita";
 
 type LeadBuscado = { id: string; nombre: string; apellido: string; telefono: string | null; email: string | null };
 
@@ -143,12 +144,12 @@ export function BuscadorUrl({ placeholder }: { placeholder: string }) {
 }
 
 // «Sincronizar GHL»: botón y sincronización automática al abrir (si han pasado más de 10 minutos)
-// Plan GHL, fase 3 (16 oct): la app lee GHL sola cada 30 s; se ve cuándo fue la última lectura y, si hace más de
+// Plan GHL, fase 3 (16 oct): la app lee GHL sola cada minuto (desde el 17 oct); se ve cuándo fue la última lectura y, si hace más de
 // 5 minutos, sale en rojo (el programador o GHL no van). Se calcula en el servidor al abrir la página.
 function UltimaLectura({ s }: { s: number | null }) {
   if (s === null) return null;
   const txt = s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : `hace ${Math.round(s / 3600)} h`;
-  return <span className={`text-xs ${s > 300 ? "font-semibold text-mal" : "text-texto-3"}`} title="La app lee las citas de GHL sola cada 30 segundos">Última lectura de GHL: {txt}</span>;
+  return <span className={`text-xs ${s > 300 ? "font-semibold text-mal" : "text-texto-3"}`} title="La app lee las citas de GHL sola cada minuto">Última lectura de GHL: {txt}</span>;
 }
 
 export function SincronizarGhl({ conectado, ultima, haceSegundos = null }: { conectado: boolean; ultima: string | null; haceSegundos?: number | null }) {
@@ -226,15 +227,6 @@ const VISTAS_CAL = [
   { v: "dia", t: "Día", i: CalendarDays },
   { v: "lista", t: "Lista", i: List },
 ] as const;
-const FILTROS_ESTADO = [
-  { v: "", t: "Todos" },
-  { v: "abiertas", t: "Pendientes" },
-  { v: "cerrada", t: "Cerradas" },
-  { v: "perdida", t: "Perdidas" },
-  { v: "no_show", t: "No-show" },
-  { v: "reagendada", t: "Reagendadas" },
-  { v: "cancelada", t: "Canceladas" },
-];
 
 // R9: las 4 vistas llegan ya pintadas del servidor; cambiar de una a otra solo toca la dirección (replaceState, guía de
 // Next 16 «Native History API»), sin pedir la página. Los filtros leen la dirección actual para no perder la vista.
@@ -252,8 +244,8 @@ export function VistasCalendario({ estado, ...vistas }: { estado: string; mes: R
   return (
     <div className="tarjeta overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-borde p-2">
-        {FILTROS_ESTADO.map((f) => (
-          <Link prefetch={false} key={f.v} href={con("estado", f.v)} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.t}</Link>
+        {FILTROS_CITA.map((f) => (
+          <Link prefetch={false} key={f.v} href={con("estado", f.v)} className={`rounded-full px-3 py-1 text-sm ${estado === f.v ? "bg-primario text-white" : "bg-panel-2 text-texto-2 hover:text-texto"}`}>{f.v ? f.t : "Todos"}</Link>
         ))}
         <div className="ml-auto flex rounded-lg border border-borde bg-panel-2 p-0.5">
           {VISTAS_CAL.map((v) => (

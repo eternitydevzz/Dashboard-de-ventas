@@ -1,8 +1,8 @@
 // Workflows 4b (boceto glass aprobado por Cristian el 7 nov 2026): Administración → Workflows.
-// Solo lectura: la lista, el lienzo (cajas de arriba abajo, ramas una al lado de otra; en el móvil, una debajo de otra) y
-// el historial de los últimos 50 leads. Sin JavaScript en el navegador: se elige el workflow con un enlace (?wf=).
+// La lista, el lienzo (cajas de arriba abajo, ramas una al lado de otra; en el móvil, una debajo de otra) y el historial
+// de los últimos 50 leads. Se elige el workflow con un enlace (?wf=); los botones (crear, borrar, editar) son del editor.
 import Link from "next/link";
-import { AlertTriangle, Check, Clock, FlaskConical, GitBranch, MoveRight, Pencil, RefreshCw, Tag, Target, User, Wrench, X, Zap } from "lucide-react";
+import { AlertTriangle, Check, Clock, FlaskConical, Pencil, RefreshCw, Wrench, X, Zap } from "lucide-react";
 import { Kpi } from "@/components/ui";
 import { BorrarWorkflow } from "./entradas-workflow";
 import type { Paso, Disparador } from "@/lib/workflows";
@@ -10,28 +10,10 @@ import { coincidenTexto, condicionTexto, describirPaso, disparadorTexto, estadoE
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
 import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
-import { NuevoWorkflowCita } from "./workflows-editor";
+import { Cuadro, ICONOS, NuevoWorkflowCita } from "./workflows-editor";
 
 export type WorkflowFila = { id: string; nombre: string; disparador: Disparador; pasos: Paso[]; modo: string; encendido: boolean; version: number };
 export type EjecucionFila = { id: string; estado: string; coincide: boolean | null; creado_en: string; siguiente_en: string; registro: { tipo?: string; pasos?: string[]; hora?: string; diferencias?: string[] }[]; quien: string };
-
-const ICONOS: Record<Icono, { C: typeof Zap; color: string }> = {
-  rayo: { C: Zap, color: "from-[#5b78ff] to-[#2341c8]" },
-  reloj: { C: Clock, color: "from-[#9aa3b8] to-[#5d6679]" },
-  persona: { C: User, color: "from-[#ffb35c] to-[#e46a00]" },
-  etiqueta: { C: Tag, color: "from-[#ff8ab5] to-[#d63a78]" },
-  diana: { C: Target, color: "from-[#4ade80] to-[#0e7a45]" },
-  rama: { C: GitBranch, color: "from-[#a78bfa] to-[#6d28d9]" },
-  mover: { C: MoveRight, color: "from-[#5ec8ff] to-[#0b72c4]" },
-};
-function Cuadro({ icono, chico }: { icono: Icono; chico?: boolean }) {
-  const { C, color } = ICONOS[icono];
-  return (
-    <span aria-hidden className={`grid flex-none place-items-center bg-gradient-to-b text-white shadow-sm ${color} ${chico ? "h-8 w-8 rounded-[10px]" : "h-9 w-9 rounded-[11px]"}`}>
-      <C className="h-[18px] w-[18px]" strokeWidth={2.2} />
-    </span>
-  );
-}
 
 const TONOS: Record<Tono, string> = { ok: "bg-ok-suave text-ok", mal: "bg-mal-suave text-mal", espera: "bg-panel-2 text-texto-2 ring-1 ring-borde", neutro: "bg-panel-2 text-texto-3 ring-1 ring-borde" };
 function Chip({ tono, children }: { tono: Tono | "prueba"; children: React.ReactNode }) {
@@ -53,7 +35,7 @@ const Une = () => <span aria-hidden className="relative block h-6 w-0.5 bg-prima
 function Nodo({ icono, clave, titulo, detalle, disparador }: { icono: Icono; clave: string; titulo: string; detalle?: string | null; disparador?: boolean }) {
   return (
     <div className={`vidrio flex w-full max-w-[300px] items-center gap-3 rounded-[18px] border px-3.5 py-3 shadow-[0_10px_28px_rgb(15_23_42/0.08)] ${disparador ? "border-primario/35 ring-4 ring-primario/10" : "border-borde"}`}>
-      <Cuadro icono={icono} chico />
+      <Cuadro icono={icono} />
       <div className="min-w-0">
         <div className="text-[11.5px] font-semibold text-texto-3">{clave}</div>
         <div className="break-words text-sm font-semibold leading-snug">{titulo}</div>

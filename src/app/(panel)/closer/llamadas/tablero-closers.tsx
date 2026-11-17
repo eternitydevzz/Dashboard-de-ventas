@@ -77,7 +77,7 @@ export function TableroClosers({
   const [colSobre, setColSobre] = useState<string | null>(null);
   const [ventana, setVentana] = useState<Ventana | null>(null);
   const nombre = (i: Item) => (i.clase === "cita" ? i.cita.nombre : i.venta.nombre);
-  // Doble clic en «Registrar venta» = dos ventas: la ventana no se cierra hasta que responde el servidor (como en acciones-lead)
+  // Doble clic en «Registrar venta» = dos ventas: el segundo envío se ignora hasta que responde el servidor (la ventana se cierra al enviar)
   const ventaEnCurso = useRef(false);
   function registrarUnaVez(leadId: string, fd: FormData) {
     if (ventaEnCurso.current) return;
