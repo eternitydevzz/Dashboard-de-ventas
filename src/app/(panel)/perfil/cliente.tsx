@@ -112,7 +112,7 @@ export function FormMiFoto({ nombre, foto, entrada = false }: { nombre: string; 
     <div className="flex items-center gap-4">
       <Avatar nombre={nombre} foto={foto} tamano="h-20 w-20 text-xl" />
       <div className="space-y-2">
-        <label className={`btn-primario cursor-pointer ${pendiente ? "pointer-events-none opacity-60" : ""}`}>
+        <label className={`btn-primario cursor-pointer focus-within:ring-2 focus-within:ring-primario focus-within:ring-offset-2 ${pendiente ? "pointer-events-none opacity-60" : ""}`}>
           {pendiente ? "Subiendo…" : foto ? "Cambiar mi foto" : "Subir mi foto"}
           {/* Solo subir un archivo (Cristian): en el móvil el propio sistema deja hacerla con la cámara */}
           <input type="file" accept="image/*" className="sr-only" disabled={pendiente} onChange={(e) => { elegir(e.target.files?.[0]); e.target.value = ""; }} />

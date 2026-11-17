@@ -46,19 +46,23 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
   // Datos del sistema de hoy, para pre-rellenar el reporte
   const rol = rolDeReporte(perfil.rol);
   let sugeridos: Record<string, number> = {};
+  let yaEnviadoHoy = false;
   if (rol) {
     const hoy = rangoDe("hoy", proyecto.zona_horaria);
     const desde = hoy.desde!.toISOString();
     // D43: las actividades de hoy pueden pasar de 1.000 filas: todas() pagina con orden fijo
     // Cristian, 14 nov (F8): solo el proyecto abierto; quien está en 2 proyectos veía la suma de los dos
-    const [acts, agendas, { data: citas }, { count: ventas }] = await Promise.all([
+    const [acts, agendas, { data: citas }, { count: ventas }, { count: deHoy }] = await Promise.all([
       todas<{ tipo: string; resultado: string | null; lead_id: string }>((d, h) =>
         db().from("actividades").select("tipo, resultado, lead_id").eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).gte("creado_en", desde).order("id").range(d, h)
       ),
       todas<{ lead_id: string }>((d, h) => db().from("citas").select("lead_id").eq("proyecto_id", proyecto.id).eq("agendada_por", perfil.id).gte("creado_en", desde).order("id").range(d, h)),
       db().from("citas").select("estado, fecha").eq("proyecto_id", proyecto.id).eq("closer_id", perfil.id).gte("fecha", desde).lt("fecha", hoy.hasta!.toISOString()),
       db().from("ventas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).eq("vendedor_id", perfil.id).gte("fecha", desde),
+      // Decisión de Cristian (17 nov): si el de hoy ya está enviado, el formulario lo avisa al abrirse
+      db().from("reportes").select("id", { count: "exact", head: true }).eq("proyecto_id", proyecto.id).eq("perfil_id", perfil.id).eq("fecha", hoyEnZona(proyecto.zona_horaria)),
     ]);
+    yaEnviadoHoy = !!deHoy;
     const a = acts;
     const c = citas ?? [];
     // A3b-04 (17 nov): todo 1 por lead y día, igual que las llamadas (antes, cada clic: «2 llamadas y 4 no responden»)
@@ -85,7 +89,7 @@ export default async function ReportesPage({ searchParams }: PageProps<"/reporte
       <Cabecera
         titulo="Reportes de fin de día"
         subtitulo={jefe ? "Los reportes de todo el equipo" : "Tus números de hoy en menos de dos minutos"}
-        acciones={rol ? <NuevoReporte rol={rol} hoy={hoyEnZona(proyecto.zona_horaria)} sugeridos={sugeridos} preguntas={preguntasDe(proyecto.preguntas_reporte, rol)} /> : undefined}
+        acciones={rol ? <NuevoReporte rol={rol} hoy={hoyEnZona(proyecto.zona_horaria)} sugeridos={sugeridos} yaEnviadoHoy={yaEnviadoHoy} preguntas={preguntasDe(proyecto.preguntas_reporte, rol)} /> : undefined}
       />
       <Contenido>
         <BarraPeriodo etiqueta={rango.etiqueta} conActualizar={false} />

@@ -155,7 +155,7 @@ export function GuionLlamada({
       titulo={`Guion · ${nombreLead}`}
       onCerrar={cerrar}
       claseFondo="p-0 sm:p-6"
-      claseVentana="flex h-dvh w-full flex-col [--panel:#ffffff]! dark:[--panel:#121c3a]! overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-[920px] sm:rounded-[20px]"
+      claseVentana="flex h-dvh w-full flex-col [--panel:#ffffff]! dark:[--panel:#121c3a]! overflow-y-auto overscroll-contain sm:overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[calc(100dvh-3rem)] sm:max-w-[920px] sm:rounded-[20px]"
       cabecera={
         // Cristian, 10 nov: cualquier botón de arriba (wsp, Recursos, grabar, copiar) también guarda la ficha al pulsarlo
         <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-borde px-4 py-3 sm:px-5" onClickCapture={() => void ficha.guardar()}>
@@ -183,7 +183,9 @@ export function GuionLlamada({
         </header>
       }
     >
-      <div ref={dentro} className="grid min-h-0 flex-1 items-start gap-4 overflow-y-auto overscroll-contain p-3 sm:p-5 md:grid-cols-[minmax(0,1fr)_330px]">
+      {/* 17 nov: en el móvil se desplaza toda la ventana (cabecera y botones de abajo incluidos), así el guion usa
+          todo el alto; antes, cabecera y botones fijos le dejaban ~47 % de la pantalla. En sm+, como antes */}
+      <div ref={dentro} className="grid shrink-0 items-start gap-4 p-3 sm:min-h-0 sm:flex-1 sm:shrink sm:overflow-y-auto sm:overscroll-contain sm:p-5 md:grid-cols-[minmax(0,1fr)_330px]">
         {/* Todo el guion en una tarjeta, solo bajar (Cristian, 10 nov: sin pasos que abrir ni cerrar) */}
         <article className="rounded-2xl border border-borde bg-panel px-[18px] pb-6 pt-1 shadow-[0_6px_20px_-14px_rgb(15_26_51/0.25)] sm:px-7 sm:pb-7 sm:pt-2">
           {guion.pasos.map((p, i) => (

@@ -56,7 +56,7 @@ export default async function ManualesPage({ searchParams }: PageProps<"/manuale
         {manuales.length === 0 ? (
           <div className="tarjeta"><Vacio icono={BookOpen} texto={editor ? "Todavía no hay manuales. Sube el primero con «Subir manual (.html)»." : "Todavía no hay manuales."} /></div>
         ) : (
-          <VisorManuales manuales={manuales} elegido={elegido!} editor={editor} zona={proyecto.zona_horaria} mercado={mercado} />
+          <VisorManuales manuales={manuales} elegido={elegido!} editor={editor} zona={proyecto.zona_horaria} mercado={mercado} elegidoPorPersona={elegido?.id === sp.m} />
         )}
       </Contenido>
     </>

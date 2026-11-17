@@ -94,6 +94,11 @@ describe("ruta del .html", () => {
     expect(est.upserts).toHaveLength(2);
     expect(Date.parse(est.upserts[1].visto_en as string)).toBeGreaterThan(Date.parse(est.upserts[0].visto_en as string));
   });
+  it("A2-04: sin ?visto=1 (entrar en /manuales sin elegir) se enseña pero no cuenta como visto", async () => {
+    const r = await GET(new Request("https://x.test/api/manuales/m1"), { params: Promise.resolve({ id: "m1" }) });
+    expect(r.status).toBe(200);
+    expect(est.upserts).toEqual([]);
+  });
   it("si falla guardar el visto, el manual se enseña igual", async () => {
     est.errorUpsert = { message: "caída" };
     const r = await abrir();
@@ -134,5 +139,23 @@ describe("ajuste del manual (solo jefes)", () => {
     const pinta = (editor: boolean) => renderToStaticMarkup(createElement(VisorManuales, { manuales: [m], elegido: m, editor, zona: "Europe/Madrid" }));
     expect(pinta(false)).not.toContain("Ajustes del manual");
     expect(pinta(true)).toContain("Ajustes del manual");
+  });
+});
+
+describe("A2-04: cuándo cuenta como visto (visor)", () => {
+  const m = { id: "m1", titulo: "Lead A", actualizado_en: "2026-11-14T10:00:00Z", por: null, mercados: ["latam" as const] };
+  const pinta = (elegidoPorPersona: boolean) =>
+    renderToStaticMarkup(createElement(VisorManuales, { manuales: [m], elegido: m, editor: false, zona: "Europe/Madrid", elegidoPorPersona }));
+  const iframe = (html: string) => html.match(/<iframe[^>]*src="([^"]*)"/)![1];
+  const completa = (html: string) => html.match(/<a[^>]*href="([^"]*)"[^>]*target="_blank"/)![1];
+  it("entrar sin elegir: el iframe NO marca visto", () => {
+    expect(iframe(pinta(false))).not.toContain("visto=1");
+  });
+  it("elegido con su botón (?m=): el iframe SÍ marca visto", () => {
+    expect(iframe(pinta(true))).toContain("visto=1");
+  });
+  it("«Pantalla completa» SÍ marca visto siempre", () => {
+    expect(completa(pinta(false))).toContain("visto=1");
+    expect(completa(pinta(true))).toContain("visto=1");
   });
 });

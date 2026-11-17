@@ -8,6 +8,7 @@ import { useAccion } from "@/components/acciones-lead";
 import { Modal } from "@/components/modal";
 import { confirmar, pedirTexto } from "@/components/dialogos";
 import { Pastillas } from "@/components/eleccion";
+import { useToast } from "@/components/toasts";
 
 // 13 nov: mirando España, el recurso nuevo es del equipo de España
 export function NuevoRecurso({ mercado = "latam" }: { mercado?: "latam" | "es" }) {
@@ -76,14 +77,20 @@ export function BorrarRecurso({ id }: { id: string }) {
 }
 
 // Bloque 7 de 1.0: botón «Copiar link» (se queda en «Copiado» un momento)
+// A4-14 (17 nov): si el navegador no deja copiar, lo dice y enseña el link (antes, no pasaba nada)
 export function CopiarLink({ url, etiqueta = "Copiar link" }: { url: string; etiqueta?: string }) {
   const [copiado, setCopiado] = useState(false);
+  const toast = useToast();
   return (
     <button
       type="button"
       className="btn-secundario px-2.5 py-1.5 text-xs"
       onClick={async () => {
-        await navigator.clipboard.writeText(url);
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch {
+          return toast(`No se pudo copiar. El link es: ${url}`, "error");
+        }
         setCopiado(true);
         setTimeout(() => setCopiado(false), 1500);
       }}

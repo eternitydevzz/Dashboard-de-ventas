@@ -1,6 +1,6 @@
 "use client";
 
-import { Portal } from "@/components/portal";
+import { Modal } from "@/components/modal";
 import { useState } from "react";
 import { Pencil, CreditCard, Percent, Plus, ExternalLink, AlertCircle } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
@@ -50,7 +50,7 @@ export function EditorPrograma({ programa, moneda, comisionesRol, editables }: {
       ) : (
         <button className="btn-primario" onClick={() => setAbierto(true)}><Plus className="h-4 w-4" /> Nuevo programa</button>
       )}
-      {abierto && <Portal><Ventana programa={programa} moneda={moneda} comisionesRol={comisionesRol} editables={editables} onCerrar={() => setAbierto(false)} /></Portal>}
+      {abierto && <Ventana programa={programa} moneda={moneda} comisionesRol={comisionesRol} editables={editables} onCerrar={() => setAbierto(false)} />}
     </>
   );
 }
@@ -70,9 +70,14 @@ function Ventana({ programa, moneda, comisionesRol, editables, onCerrar }: { pro
   const rolDe = (k: string) => (k === "caller_agenda" ? comisionesRol.caller?.pct_agenda : comisionesRol[k]?.pct_venta) ?? 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-2 backdrop-blur-md sm:p-6" role="dialog" aria-modal="true" aria-label={programa ? "Editar programa" : "Nuevo programa"}>
-      <div className="tarjeta ventana flex max-h-full w-full max-w-4xl flex-col overflow-hidden">
-        <div className="flex items-center justify-between border-b border-borde px-5 py-3"><h2 className="font-semibold">{programa ? `Programa · ${programa.nombre}` : "Nuevo programa"}</h2><button onClick={onCerrar} className="rounded-md px-2 py-1 text-texto-3 hover:bg-panel-2" aria-label="Cerrar">✕</button></div>
+    // A4-15 (17 nov): con Modal, como las demás ventanas (Escape cierra)
+    <Modal
+      titulo={programa ? "Editar programa" : "Nuevo programa"}
+      onCerrar={onCerrar}
+      claseFondo="p-2 sm:p-6"
+      claseVentana="flex max-h-full w-full max-w-4xl flex-col overflow-hidden"
+      cabecera={<div className="flex items-center justify-between border-b border-borde px-5 py-3"><h2 className="font-semibold">{programa ? `Programa · ${programa.nombre}` : "Nuevo programa"}</h2><button onClick={onCerrar} className="rounded-md px-2 py-1 text-texto-3 hover:bg-panel-2" aria-label="Cerrar">✕</button></div>}
+    >
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           <nav className="flex shrink-0 gap-1 border-b border-borde p-2 sm:w-52 sm:flex-col sm:border-b-0 sm:border-r">
             {TABS.map((t) => (
@@ -139,8 +144,7 @@ function Ventana({ programa, moneda, comisionesRol, editables, onCerrar }: { pro
           <button className="btn-secundario" onClick={onCerrar}>Cancelar</button>
           <button className="btn-primario" disabled={pendiente || faltas.length > 0} onClick={() => ejecutar(async () => { const r = await guardarPrograma(d); if (!(r && typeof r === "object" && "error" in r)) onCerrar(); return r; }, programa ? "Programa guardado" : "Programa creado")}>{programa ? "Guardar" : "Crear programa"}</button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

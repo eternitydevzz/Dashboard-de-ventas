@@ -22,8 +22,11 @@ export type ManualFila = { id: string; titulo: string; actualizado_en: string; p
 
 // Cristian (7 nov, tras verlo en la app): el manual ocupa todo el ancho y el alto; arriba, un botón por manual
 // para cambiar de uno a otro (antes, una lista a la izquierda que le quitaba sitio al .html)
-export function VisorManuales({ manuales, elegido, editor, zona, mercado = "latam" }: { manuales: ManualFila[]; elegido: ManualFila; editor: boolean; zona: Proyecto["zona_horaria"]; mercado?: "latam" | "es" }) {
+// A2-04 (17 nov): `elegidoPorPersona` = llegó pulsando su botón (?m=). Solo entonces el iframe cuenta como visto;
+// «Pantalla completa» siempre cuenta (la ruta guarda el visto solo con &visto=1)
+export function VisorManuales({ manuales, elegido, editor, zona, mercado = "latam", elegidoPorPersona = false }: { manuales: ManualFila[]; elegido: ManualFila; editor: boolean; zona: Proyecto["zona_horaria"]; mercado?: "latam" | "es"; elegidoPorPersona?: boolean }) {
   const src = `/api/manuales/${elegido.id}?v=${encodeURIComponent(elegido.actualizado_en)}`; // ?v=: al cambiarlo, no sale el viejo
+  const srcVisor = elegidoPorPersona ? `${src}&visto=1` : src;
   // Cristian, 14 nov: los jefes ordenan los botones arrastrándolos. El orden nuevo se ve al momento; si falla, vuelve
   // el de antes. `base`: cuando llega el orden guardado del servidor, manda ese.
   const [propio, setPropio] = useState<{ base: ManualFila[]; ids: string[] } | null>(null);
@@ -89,11 +92,11 @@ export function VisorManuales({ manuales, elegido, editor, zona, mercado = "lata
             );
           })}
         </BarraDeslizable>
-        <a href={src} target="_blank" rel="noreferrer" className="btn-secundario px-2.5 py-1.5 text-xs"><Maximize2 className="h-3.5 w-3.5" /> Pantalla completa</a>
+        <a href={`${src}&visto=1`} target="_blank" rel="noreferrer" className="btn-secundario px-2.5 py-1.5 text-xs"><Maximize2 className="h-3.5 w-3.5" /> Pantalla completa</a>
         {editor && <SubirManual cambiar={elegido} mercado={mercado} />}
       </div>
       {/* Aislado: sin allow-same-origin, el manual no puede leer la sesión ni tocar la app (lib/csp.ts, CSP_VISOR) */}
-      <iframe key={src} src={src} title={elegido.titulo} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" className="h-[calc(100dvh-210px)] min-h-[480px] w-full bg-white" />
+      <iframe key={srcVisor} src={srcVisor} title={elegido.titulo} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" className="h-[calc(100dvh-210px)] min-h-[480px] w-full bg-white" />
     </section>
   );
 }

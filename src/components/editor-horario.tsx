@@ -10,7 +10,6 @@ import { hoyEnZona } from "@/lib/formato";
 
 type Semana = Record<number, Tramo[]>;
 type Fechas = Record<string, Tramo[]>;
-const NOMBRE_ZONA: Record<string, string> = { "America/New_York": "Nueva York", "Europe/Madrid": "Madrid" };
 // El campo de hora no admite «24:00»: se enseña como 23:59
 const aCampo = (hm: string) => (hm === "24:00" ? "23:59" : hm);
 // La zona de quien mira (la de su ordenador o móvil) solo se sabe en el navegador; en el servidor, null
@@ -54,7 +53,7 @@ export function EditorHorario({ inicial, zona, perfilId, campo, plantillas = fal
   return (
     <div className="space-y-4">
       <p className="text-xs text-texto-3">
-        Horas de <b className="text-texto-2">{NOMBRE_ZONA[zona] ?? zona}</b> (la hora del proyecto)
+        Horas de <b className="text-texto-2">{nombreZona(zona)}</b> (la hora del proyecto)
         {zonaLocal && zonaLocal !== zona && local("12:00") && <> · al lado, en gris, <b className="text-texto-2">tu hora</b> ({nombreZona(zonaLocal)})</>}. Los huecos entre tramos son los descansos.
       </p>
 
