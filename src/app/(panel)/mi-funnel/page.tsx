@@ -3,6 +3,7 @@ import { Phone, PhoneIncoming, CalendarDays, Handshake, UserCheck, ShoppingCart,
 import { exigirPagina } from "@/lib/permisos";
 import { cargarBase, calcularFunnel } from "@/lib/metricas";
 import { calcularKpis } from "@/lib/kpis";
+import { fechaReal } from "@/lib/periodos";
 import { esCloser } from "@/lib/tipos";
 import { panelObjetivos } from "@/lib/objetivos";
 import { dinero, rangoDe, pct, hoyEnZona, type Periodo } from "@/lib/formato";
@@ -19,7 +20,8 @@ export default async function MiFunnelPage({ searchParams }: PageProps<"/mi-funn
   const sp = await searchParams;
   const periodo = (typeof sp.periodo === "string" ? sp.periodo : "mes") as Periodo;
   const zona = proyecto.zona_horaria;
-  const rango = rangoDe(periodo, zona, sp.desde as string, sp.hasta as string);
+  const dia = (v: unknown) => (fechaReal(v) ? v : undefined); // A2-01: 2026-13-01 en la dirección ya no tumba la pantalla
+  const rango = rangoDe(periodo, zona, dia(sp.desde), dia(sp.hasta));
   const [base, panel] = await Promise.all([cargarBase(proyecto, !!perfil.es_prueba), panelObjetivos(proyecto, perfil)]);
   const kpis = calcularKpis(base, rango, zona);
   const m = calcularFunnel(base, rango, perfil, zona);

@@ -1,9 +1,10 @@
 import "server-only";
-import { db } from "@/lib/datos";
+import { db, todas } from "@/lib/datos";
+import { ACTS_CUENTAN, leadsLlamados } from "@/lib/metricas";
 import { rangoDe } from "@/lib/formato";
 import type { NumerosCaller, NumerosCloser } from "@/lib/mensajes-entrada";
 
-// Números de la ventana de entrada. Solo cuentas (count con head: nada de filas), una vez al abrir la app:
+// Números de la ventana de entrada. Cuentas (count con head) salvo las llamadas de hoy del caller, una vez al abrir la app:
 // 4 consultas pequeñas por caller o closer (más 1 si hubo ventas hoy en el proyecto).
 const contar = { count: "exact", head: true } as const;
 const iso = (d: Date | null) => (d as Date).toISOString();
@@ -17,8 +18,9 @@ async function cuenta(q: PromiseLike<{ count: number | null; error: { message: s
 export async function numerosCaller(perfilId: string, proyectoId: string, zona: string): Promise<NumerosCaller> {
   const hoy = rangoDe("hoy", zona), semana = rangoDe("semana", zona);
   const citas = () => db().from("citas").select("id", contar).eq("proyecto_id", proyectoId).eq("agendada_por", perfilId);
-  const [llamadasHoy, agendasHoy, agendasSemana, ventas] = await Promise.all([
-    cuenta(db().from("actividades").select("id", contar).eq("proyecto_id", proyectoId).eq("perfil_id", perfilId).eq("tipo", "llamada").gte("creado_en", iso(hoy.desde)), "llamadas de hoy"),
+  const [actsHoy, agendasHoy, agendasSemana, ventas] = await Promise.all([
+    // S3-1 (Cristian, 17 nov): «llamada» = cualquier botón de resultado, 1 por lead y día, como KPIs (antes solo tipo «llamada»)
+    todas<{ lead_id: string; tipo: string; resultado: string | null }>((a, b) => db().from("actividades").select("lead_id, tipo, resultado").eq("proyecto_id", proyectoId).eq("perfil_id", perfilId).or(ACTS_CUENTAN).gte("creado_en", iso(hoy.desde)).order("id").range(a, b)),
     cuenta(citas().gte("creado_en", iso(hoy.desde)), "agendas de hoy"),
     cuenta(citas().gte("creado_en", iso(semana.desde)), "agendas de la semana"),
     db().from("ventas").select("lead_id").eq("proyecto_id", proyectoId).gte("creado_en", iso(hoy.desde)).limit(200),
@@ -27,7 +29,7 @@ export async function numerosCaller(perfilId: string, proyectoId: string, zona: 
   const leads = [...new Set((ventas.data ?? []).map((v) => v.lead_id as string))];
   // ¿Alguna venta de hoy es de un lead que agendó este caller?
   const ventasDeSusAgendasHoy = leads.length ? await cuenta(citas().in("lead_id", leads), "ventas de sus agendas") : 0;
-  return { llamadasHoy, agendasHoy, agendasSemana, ventasDeSusAgendasHoy };
+  return { llamadasHoy: leadsLlamados(actsHoy).size, agendasHoy, agendasSemana, ventasDeSusAgendasHoy };
 }
 
 export async function numerosCloser(perfilId: string, proyectoId: string, zona: string): Promise<NumerosCloser> {

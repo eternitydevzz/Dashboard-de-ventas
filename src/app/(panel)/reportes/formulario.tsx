@@ -7,18 +7,20 @@ import { enviarReporte } from "./acciones";
 import { tasasCloser, type Pregunta } from "@/lib/reportes";
 import { Modal } from "@/components/modal";
 
-export function NuevoReporte({ rol, sugeridos, preguntas }: { rol: "caller" | "closer"; sugeridos: Record<string, number>; preguntas: Pregunta[] }) {
+// S2-15 (17 nov): `hoy` es el día del proyecto (lo pasa la página); con el del aparato, en España de madrugada salía
+// «mañana» y el servidor respondía «Fecha no válida»
+export function NuevoReporte({ rol, hoy, sugeridos, preguntas }: { rol: "caller" | "closer"; hoy: string; sugeridos: Record<string, number>; preguntas: Pregunta[] }) {
   const [abierto, setAbierto] = useState(false);
   const [paso, setPaso] = useState(0);
   const [valores, setValores] = useState<Record<string, string>>({});
+  const [aviso, setAviso] = useState("");
   const [estado, accion, enviando] = useActionState(enviarReporte, null as null | { ok?: string; error?: string });
   const numeros = preguntas.filter((p) => p.tipo === "numero");
   const textos = preguntas.filter((p) => p.tipo === "texto");
-  const hoy = new Date().toLocaleDateString("en-CA");
 
   return (
     <>
-      <button className="btn-primario" onClick={() => { setAbierto(true); setPaso(0); }}><Plus className="h-4 w-4" /> Crear nuevo reporte</button>
+      <button className="btn-primario" onClick={() => { setAbierto(true); setPaso(0); setAviso(""); }}><Plus className="h-4 w-4" /> Crear nuevo reporte</button>
       {abierto && (
         <Modal titulo="Reporte de fin de día" onCerrar={() => setAbierto(false)} ancho="max-w-xl">
           {estado?.ok ? (
@@ -28,9 +30,20 @@ export function NuevoReporte({ rol, sugeridos, preguntas }: { rol: "caller" | "c
               <button className="btn-secundario" onClick={() => setAbierto(false)}>Cerrar</button>
             </div>
           ) : (
-            <form onSubmit={sinVaciar(accion)} className="space-y-4">
+            <form
+              onSubmit={(e) => { setAviso(""); sinVaciar(accion)(e); }}
+              // A4-05 (17 nov): el navegador bloqueaba el envío por un campo de un paso escondido y no se veía nada.
+              // Ahora se abre ese paso y se dice qué campo y por qué.
+              onInvalidCapture={(e) => {
+                const campo = e.target as HTMLInputElement;
+                setPaso(Number(campo.closest<HTMLElement>("[data-paso]")?.dataset.paso ?? paso));
+                setAviso(`«${campo.labels?.[0]?.textContent ?? campo.name}»: ${campo.validationMessage}`);
+              }}
+              className="space-y-4"
+            >
               <div className="flex gap-1.5">{[0, 1].map((i) => <span key={i} className={`h-1 flex-1 rounded-full ${i <= paso ? "bg-primario" : "bg-borde"}`} />)}</div>
-              <div className={paso === 0 ? "space-y-4" : "hidden"}>
+              {aviso && <p role="alert" className="rounded-lg bg-mal-suave px-3 py-2 text-sm text-mal">{aviso}</p>}
+              <div data-paso="0" className={paso === 0 ? "space-y-4" : "hidden"}>
                 <div>
                   <label className="etiqueta-campo" htmlFor="formulario-dia">Día</label>
                   <input id="formulario-dia" type="date" name="fecha" defaultValue={hoy} max={hoy} className="campo" />
@@ -63,9 +76,17 @@ export function NuevoReporte({ rol, sugeridos, preguntas }: { rol: "caller" | "c
                     </div>
                   );
                 })()}
-                <button type="button" className="btn-primario w-full" onClick={() => setPaso(1)}>Siguiente →</button>
+                <button
+                  type="button"
+                  className="btn-primario w-full"
+                  onClick={(e) => {
+                    // Se comprueban los números aquí, con el paso a la vista (el primero mal salta en onInvalidCapture)
+                    const campos = e.currentTarget.parentElement!.querySelectorAll("input");
+                    if ([...campos].every((c) => c.checkValidity())) { setAviso(""); setPaso(1); }
+                  }}
+                >Siguiente →</button>
               </div>
-              <div className={paso === 1 ? "space-y-4" : "hidden"}>
+              <div data-paso="1" className={paso === 1 ? "space-y-4" : "hidden"}>
                 {textos.map((p) => (
                   <div key={p.clave}>
                     <label className="etiqueta-campo" htmlFor={`rep-${p.clave}`}>{p.texto}</label>

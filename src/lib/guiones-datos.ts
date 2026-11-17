@@ -22,8 +22,13 @@ export const rolDelGuion = (rol: string): RolGuion => (rol === "closer" ? "close
 
 type MarcaGuardada = { id: string; lead_id: string; perfil_id: string | null; rol: RolGuion; hechos: number; total: number; resultado: string | null; creado_en: string };
 
-export async function ultimasMarcas(proyectoId: string, limite = 200): Promise<{ filas: MarcaGuardada[]; sinTabla: boolean }> {
-  const { data, error } = await db().from("guion_marcas").select("id, lead_id, perfil_id, rol, hechos, total, resultado, creado_en").eq("proyecto_id", proyectoId).order("creado_en", { ascending: false }).limit(limite);
-  if (error) return { filas: [], sinTabla: true };
-  return { filas: (data ?? []) as MarcaGuardada[], sinTabla: false };
+// S2-13 (17 nov): la persona va en la consulta (antes se filtraba después de cortar a las 200 de todo el equipo)
+// y `cortada` dice si hay más de las que se enseñan
+export async function ultimasMarcas(proyectoId: string, persona = "", limite = 200): Promise<{ filas: MarcaGuardada[]; sinTabla: boolean; cortada: boolean }> {
+  let q = db().from("guion_marcas").select("id, lead_id, perfil_id, rol, hechos, total, resultado, creado_en").eq("proyecto_id", proyectoId);
+  if (persona) q = q.eq("perfil_id", persona);
+  const { data, error } = await q.order("creado_en", { ascending: false }).limit(limite + 1);
+  if (error) return { filas: [], sinTabla: true, cortada: false };
+  const filas = (data ?? []) as MarcaGuardada[];
+  return { filas: filas.slice(0, limite), sinTabla: false, cortada: filas.length > limite };
 }
