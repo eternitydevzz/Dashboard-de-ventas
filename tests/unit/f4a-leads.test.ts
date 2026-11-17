@@ -61,14 +61,14 @@ describe("A1-01 · GHL trae un email que ya es de otro lead", () => {
   it("no se pone el email (sin romper) y el resto de datos sí", async () => {
     base.tablas.leads = [
       { id: "a", proyecto_id: "p1", ghl_contact_id: "g1", email: null, nombre: "", etiquetas: [], respuestas: [] },
-      { id: "b", proyecto_id: "p1", ghl_contact_id: "g2", email: "Ana@X.com", nombre: "Ana", etiquetas: [], respuestas: [] },
+      { id: "b", proyecto_id: "p1", ghl_contact_id: "g2", email: "ana@x.com", nombre: "Ana", etiquetas: [], respuestas: [] },
       { id: "c", proyecto_id: "p1", ghl_contact_id: "g3", email: null, nombre: "", etiquetas: [], respuestas: [] },
     ];
     const g = await guardarLeads(proyecto, [entrada({ ghl_contact_id: "g1", email: "uno@x.com", nombre: "Uno" }), entrada({ ghl_contact_id: "g3", email: "ana@x.com", nombre: "Lucía" })], { pipelineId: null, origen: "ghl", perfilId: null, repartir: false });
     expect(g.actualizados).toBe(2);
     const [a, b, c] = base.tablas.leads;
     expect(a).toMatchObject({ email: "uno@x.com", nombre: "Uno" });
-    expect(b).toMatchObject({ email: "Ana@X.com", nombre: "Ana" });
+    expect(b).toMatchObject({ email: "ana@x.com", nombre: "Ana" }); // en la base los emails van en minúsculas (0 de 2.599 con mayúsculas, 17 nov)
     expect(c).toMatchObject({ email: null, nombre: "Lucía" });
   });
 

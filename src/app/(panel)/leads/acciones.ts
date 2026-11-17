@@ -248,10 +248,11 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
     // Paso H6: un doble clic creaba dos citas iguales; la base ya no deja repetir lead, closer y hora
     // Fase 3: si el lead ya tiene una cita abierta, se junta con ella (manda esta); su evento de GHL se borra y abajo
     // se crea el de la hora nueva, así en GHL queda uno solo
-    const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId, ghlCitaId: null, origen: "manual", agendadaPor: perfil.id, extra: { ...(nota ? { nota } : {}), ...(n !== null ? { estrellas_caller: n } : {}) } }, { perfilId: perfil.id, noRepetir: true });
-    // A5-04: la cita nueva lleva el canal del lead (su etiqueta «Canal: …», como el filtro del CRM y los KPIs); sin etiqueta, sin canal
+    // A5-04: canal de la cita. Cristian (17 nov): la que agenda un caller desde la app es «callers», como su página de GHL
+    // (agenda-callers); la de un jefe, el canal del lead (su etiqueta «Canal: …», como el CRM y los KPIs); sin etiqueta, sin canal
     const nombreCanal = (lead.etiquetas ?? []).find((e) => e.startsWith(PREFIJO_ETIQUETA))?.slice(PREFIJO_ETIQUETA.length);
-    const canal = nombreCanal ? (opcionesCanal(await canalesDe(proyecto.id)).find((c) => c.nombre === nombreCanal)?.clave ?? null) : null;
+    const canal = perfil.rol === "caller" ? "callers" : nombreCanal ? (opcionesCanal(await canalesDe(proyecto.id)).find((c) => c.nombre === nombreCanal)?.clave ?? null) : null;
+    const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId, ghlCitaId: null, origen: "manual", agendadaPor: perfil.id, extra: { ...(nota ? { nota } : {}), ...(n !== null ? { estrellas_caller: n } : {}), ...(canal ? { canal } : {}) } }, { perfilId: perfil.id, noRepetir: true });
     const { data: citaNueva, error: errCita } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerId, agendada_por: perfil.id, fecha, nota: nota || null, estrellas_caller: n, canal }).select("id").single());
     if (errCita?.code === "23505") throw new ErrorUsuario(errCita.message.includes("citas_closer_hora_unica") ? "Ese hueco acaba de ocuparse, elige otro." : "Ese lead ya tiene una cita con ese closer a esa hora.");
     if (errCita) throw new Error(`No se pudo guardar en «citas»: ${errCita.message}`);

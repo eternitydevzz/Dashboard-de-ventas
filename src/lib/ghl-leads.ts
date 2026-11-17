@@ -83,7 +83,7 @@ export async function leerLeadsGhl(proyecto: Proyecto & { ghl_location_id: strin
   };
   let { lista: recientes, vistos: yaVistos } = await leer(hasta - MARGEN);
   // F4 S3-8: más de 100 en los 2 min del margen (una importación) y todos vistos: sin margen, desde el cursor
-  if (recientes.length >= 100 && recientes.every((c) => yaVistos.has(c.id))) ({ lista: recientes, vistos: yaVistos } = await leer(hasta));
+  if (recientes.length >= 100 && recientes.every((c) => yaVistos.has(c.id))) ({ lista: recientes, vistos: yaVistos } = await leer(hasta - 1)); // -1 ms: no saltar un contacto con la misma fecha que el cursor (revisor)
   const pendientes = recientes.filter((c) => !yaVistos.has(c.id)).sort((a, b) => fecha(a) - fecha(b)).slice(0, MAX_POR_LECTURA);
 
   const campos = await preguntas(token, locationId, fetchImpl, ahora);

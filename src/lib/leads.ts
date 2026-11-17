@@ -240,7 +240,7 @@ export async function guardarLeads(
   const emailAjeno = new Set<string>();
   for (const { id, e } of actualizar) {
     if (!e.email || previos.get(id)?.email) continue;
-    const { data, error } = await db().from("leads").select("id").eq("proyecto_id", proyecto.id).ilike("email", e.email.replace(/[\\%_]/g, "\\$&")).neq("id", id).limit(1);
+    const { data, error } = await db().from("leads").select("id").eq("proyecto_id", proyecto.id).eq("email", e.email.toLowerCase()).neq("id", id).limit(1);
     if (error) throw new Error(`Error leyendo leads: ${error.message}`);
     if (data?.length) emailAjeno.add(id);
   }
