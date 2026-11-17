@@ -108,7 +108,10 @@ export function calcularFunnel(base: Base, rango: Rango, vendedor: Perfil | null
   const citasF = base.citas.filter((c) => c.estado !== "reagendada" && (!vendedor || c.closer_id === vendedor.id || c.agendada_por === vendedor.id));
   // El filtro por producto solo afecta a ventas, facturación y cash (los leads y citas no tienen producto)
   const ventasF = base.ventas.filter((v) => de(v.vendedor_id) && (!productoId || v.producto_id === productoId));
-  const actsF = base.actividades.filter((a) => de(a.perfil_id));
+  // A5-06 (17 nov): sin vendedor, solo las de callers, como el total de «Por persona», Objetivos y Ranking (kpiCaller);
+  // antes entraban closers, jefes y actividades sin persona y salían más «de callers» que en «Por persona»
+  const callers = new Set(base.gente.filter((g) => g.rol === "caller").map((g) => g.id));
+  const actsF = base.actividades.filter((a) => (vendedor ? a.perfil_id === vendedor.id : a.perfil_id !== null && callers.has(a.perfil_id)));
 
   const leads = leadsF.filter((l) => enRango(l.creado_en, r));
   const leadsPrev = rango.previo ? leadsF.filter((l) => enRango(l.creado_en, p)).length : null;
