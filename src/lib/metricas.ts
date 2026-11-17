@@ -11,12 +11,9 @@ type VentaMin = { id: string; lead_id: string; vendedor_id: string | null; factu
 type ActMin = { lead_id: string; perfil_id: string | null; tipo: string; resultado: string | null; creado_en: string };
 type PagoMin = { importe: number; fecha: string; venta_id: string };
 
-export const ASISTIDAS = ["cerrada", "seguimiento", "perdida"];
-
-export function enRango(iso: string, r: { desde: Date | null; hasta: Date | null }) {
-  const t = new Date(iso).getTime();
-  return (!r.desde || t >= r.desde.getTime()) && (!r.hasta || t < r.hasta.getTime());
-}
+import { ASISTIDAS } from "@/lib/metricas-agendas";
+import { enRango } from "@/lib/periodos";
+export { ASISTIDAS, enRango }; // X7: una sola copia de cada una (kpis.ts y objetivos.ts las siguen tomando de aquí)
 
 // Cristian, 14 nov: cualquier botón de resultado de la cola es una llamada, también «Wsp enviado». Cada botón guarda
 // (leads/acciones.ts): «Link de agenda» y «Wsp enviado» → llamada (+ whatsapp), «Agendado» → cita «agendada», el resto
@@ -33,7 +30,7 @@ export function llamadasPorDia(acts: { lead_id: string; tipo: string; resultado:
 export const leadsLlamados = (acts: { lead_id: string; tipo: string; resultado: string | null }[]) => new Set(acts.filter(esLlamada).map((a) => a.lead_id));
 
 function cambioPct(actual: number, previo: number) {
-  if (!previo) return actual ? 100 : 0;
+  if (!previo) return null; // A5-08 (Cristian, 17 nov): sin nada antes no hay con qué comparar; nada de «+100 %»
   return Math.round(((actual - previo) / previo) * 100);
 }
 
@@ -212,55 +209,5 @@ function serieDiaria(rango: Rango, zona: string, leadsFechas: string[], ventas: 
   return {
     leads: dias.map((x) => ({ dia: corto(x), valor: ml.get(x) ?? 0 })),
     facturacion: dias.map((x) => ({ dia: corto(x), valor: mv.get(x) ?? 0 })),
-  };
-}
-
-// Tabla por persona: callers y closers.
-// shortcut: sin zona, el día de «1 llamada por lead y día» es el de UTC; hoy no la usa ninguna pantalla (14 nov), pasar la zona si vuelve a usarse
-export function calcularVendedores(base: Base, rango: Rango, zona = "UTC") {
-  const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: zona });
-  const callers = base.gente
-    .filter((g) => g.rol === "caller")
-    .map((g) => {
-      const acts = base.actividades.filter((a) => a.perfil_id === g.id && enRango(a.creado_en, rango));
-      const llamadas = llamadasPorDia(acts, (iso) => fmt.format(new Date(iso))); // 14 nov: 1 por lead y día, cualquier botón
-      const contactos = leadsLlamados(acts).size; // 14 nov: contactado = llamada (antes, los que avanzan)
-      const agendas = base.citas.filter((c) => c.agendada_por === g.id && c.estado !== "reagendada" && enRango(c.creado_en, rango)).length;
-      const ventas = base.ventas.filter((v) => v.vendedor_id === g.id && enRango(v.fecha, rango));
-      const asignados = base.leads.filter((l) => l.caller_id === g.id).length;
-      return {
-        perfil: g,
-        asignados,
-        llamadas,
-        contactos,
-        agendas,
-        ventas: ventas.length,
-        facturacion: ventas.reduce((s, v) => s + v.facturacion, 0),
-        tasaAgenda: porcentaje(agendas, contactos || llamadas),
-      };
-    });
-  const closers = base.gente
-    .filter(esCloser)
-    .map((g) => {
-      const citas = base.citas.filter((c) => c.closer_id === g.id && enRango(c.fecha, rango));
-      const asistidas = citas.filter((c) => ASISTIDAS.includes(c.estado)).length;
-      const noShow = citas.filter((c) => c.estado === "no_show").length;
-      const ventas = base.ventas.filter((v) => v.vendedor_id === g.id && enRango(v.fecha, rango));
-      return {
-        perfil: g,
-        citas: citas.length,
-        asistidas,
-        noShow,
-        ventas: ventas.length,
-        facturacion: ventas.reduce((s, v) => s + v.facturacion, 0),
-        cash: cashNeto(base, base.ventas.filter((v) => v.vendedor_id === g.id), rango),
-        tasaCierre: porcentaje(ventas.length, asistidas),
-      };
-    });
-  // Quien está de baja solo sale en los periodos en que hizo algo
-  const deBaja = (g: Perfil) => "baja" in g && g.baja;
-  return {
-    callers: callers.filter((c) => !deBaja(c.perfil) || c.llamadas || c.agendas || c.ventas),
-    closers: closers.filter((c) => !deBaja(c.perfil) || c.citas || c.ventas || c.cash),
   };
 }

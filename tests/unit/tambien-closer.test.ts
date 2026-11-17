@@ -1,7 +1,7 @@
 // Plan GHL E2: un caller con «También closer» ve sus 2 pantallas, cuenta como closer y solo un admin cambia el interruptor.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { calcularKpis } from "@/lib/kpis";
-import { calcularVendedores, type Base } from "@/lib/metricas";
+import type { Base } from "@/lib/metricas";
 import { calcularPermisos } from "@/lib/permisos";
 import { rangoDe } from "@/lib/formato";
 import { esCloser, type Perfil } from "@/lib/tipos";
@@ -80,11 +80,9 @@ describe("KPIs y Ranking: también cuenta como closer", () => {
     const facu = k.closers.find((c) => c.perfil.id === "facu");
     expect(facu).toMatchObject({ ventas: 1, facturacion: 1997 });
     expect(k.callers.some((c) => c.perfil.id === "facu")).toBe(true);
-    expect(calcularVendedores(base(true), octubre).closers.find((c) => c.perfil.id === "facu")).toMatchObject({ citas: 1, ventas: 1 });
   });
   it("sin el interruptor, como hoy: no sale de closer", () => {
     expect(calcularKpis(base(false), octubre, NY).closers.map((c) => c.perfil.id)).toEqual(["ana"]);
-    expect(calcularVendedores(base(false), octubre).closers.map((c) => c.perfil.id)).toEqual(["ana"]);
   });
 });
 

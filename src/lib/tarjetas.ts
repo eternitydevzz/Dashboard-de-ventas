@@ -6,7 +6,7 @@ type TarjetaExtra = { lead_id: string; pipeline_id: string; etapa_id: string | n
 
 export async function tarjetaDe(leadId: string, pipelineId: string): Promise<TarjetaExtra | null> {
   const { data, error } = await db().from("tarjetas_extra").select("lead_id, pipeline_id, etapa_id").eq("lead_id", leadId).eq("pipeline_id", pipelineId).maybeSingle();
-  if (error) return null;
+  if (error) throw new Error(`Error leyendo la tarjeta: ${error.message}`); // S3-6/X9: antes se tragaba el error
   return data;
 }
 

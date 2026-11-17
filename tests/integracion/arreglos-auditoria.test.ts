@@ -71,13 +71,6 @@ describe("Arreglos 10 y 11: quien se va a mitad de mes", () => {
       await ok(calcularLiquidaciones(mes));
       const { data: liq } = await db.from("liquidaciones").select("comision_cobrado").eq("proyecto_id", e.proyecto.id).eq("perfil_id", e.p.closerA.id).eq("mes", mes).single();
       expect(Number(liq!.comision_cobrado)).toBe(100);
-      const base = await cargarBase(e.proyecto);
-      const hoy = hoyEnZona(e.proyecto.zona_horaria);
-      const fila = calcularVendedores(base, rangoDe("rango", e.proyecto.zona_horaria, `${mes}-01`, hoy)).closers.find((c) => c.perfil.id === e.p.closerA.id);
-      expect(fila?.perfil.nombre).toMatch(/\(baja\)$/);
-      expect(fila?.cash).toBe(1000);
-      // En un periodo sin actividad suya, no sale
-      expect(calcularVendedores(base, rangoDe("rango", e.proyecto.zona_horaria, "2020-01-01", "2020-01-31")).closers.some((c) => c.perfil.id === e.p.closerA.id)).toBe(false);
     } finally {
       await db.from("perfiles").update({ activo: true }).eq("id", e.p.closerA.id);
       await db.from("miembros_proyecto").insert({ proyecto_id: e.proyecto.id, perfil_id: e.p.closerA.id, orden: 9 });

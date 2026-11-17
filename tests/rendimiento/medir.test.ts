@@ -6,7 +6,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { appendFileSync } from "node:fs";
 import { borrarEscenario, crearEscenario, db, type Escenario } from "../apoyo/escenario";
-import { cargarBase, calcularFunnel, calcularVendedores } from "@/lib/metricas";
+import { cargarBase, calcularFunnel } from "@/lib/metricas";
 import { cargarAgendas } from "@/lib/agendas-datos";
 import { metricasAgendas } from "@/lib/metricas-agendas";
 import { cargarFinanzas } from "@/lib/finanzas-datos";
@@ -65,7 +65,6 @@ describe.skipIf(!process.env.MEDIR)(`Rendimiento con ${N} leads`, () => {
     expect(base.leads.length).toBeGreaterThanOrEqual(N); // + los 3 del escenario
     const anio = rangoDe("rango", ZONA, "2025-10-11", "2026-10-10"); // último año
     await medir("Funnel: calcular (año)", () => calcularFunnel(base, anio, null, ZONA));
-    await medir("Ranking: calcular (año)", () => calcularVendedores(base, anio));
     await medir("KPIs: calcular (año)", () => calcularKpis(base, anio, ZONA));
     // Objetivos (H3): uno de cada cifra para callers, closers y directores, por semana y por mes
     const cifras = ["llamadas", "contactados", "agendas", "citas_atendidas", "asistencias", "ventas", "facturacion", "cash"];

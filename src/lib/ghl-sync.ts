@@ -87,7 +87,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
     return { canal: canalDeOrigen(a?.url, a?.utmSource, canales), origen_url: limpiarUrl(a?.url) };
   };
 
-  // Plan GHL (fase 3, se lee cada 30 s): lo que no siempre hace falta se pide solo cuando hace falta y una vez
+  // Plan GHL (fase 3, se lee cada minuto: migración 20261017190000_leer_ghl_cada_60s.sql): lo que no siempre hace falta se pide solo cuando hace falta y una vez
   const nombres = new Map<string, string>();
   const nombreCalendario = async (id: string) => {
     if (!nombres.has(id)) nombres.set(id, (await nombreCalendarioGhl({ token, calendarId: id, fetchImpl })) ?? id);

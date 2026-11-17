@@ -53,9 +53,6 @@ export async function espejoGhl(
   const r: ResultadoEspejo = { nuevos: 0, anadidos: 0, movidos: 0, columnas: 0, avisos: [], errores: [] };
   const locationId = proyecto.ghl_location_id;
   if (!locationId) return r;
-  // Sin la migración 20261017180000 la tabla no existe: no se hace nada
-  const prueba = await db().from("ghl_espejo").select("opp_id").limit(1);
-  if (prueba.error) return r;
 
   const pipesGhl = await pipelinesGhl({ token, locationId, fetchImpl });
   const { data: pipesApp } = await db().from("pipelines").select("id, nombre").eq("proyecto_id", proyecto.id).eq("tipo", "normal");

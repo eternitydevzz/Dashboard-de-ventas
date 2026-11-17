@@ -68,7 +68,7 @@ const textoCorto = (v: unknown, max: number, que: string, obligatorio: boolean) 
 function enlace(v: unknown, que: string, interno: boolean) {
   const t = textoCorto(v, 500, que, false);
   if (!t) return null;
-  if (interno && t.startsWith("/") && !t.startsWith("//")) return t;
+  if (interno && t.startsWith("/") && !t.startsWith("//") && !t.startsWith("/\\")) return t; // S3-12: «/\x» el navegador lo lee como «//x»
   try {
     if (new URL(t).protocol === "https:") return t;
   } catch {

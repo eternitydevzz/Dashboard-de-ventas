@@ -8,6 +8,7 @@
 import { porcentaje } from "@/lib/formato";
 import { enRango } from "@/lib/periodos";
 import { SIN_CANAL } from "@/lib/canal";
+import { ABIERTAS } from "@/lib/llamadas";
 
 export type CitaM = {
   id: string;
@@ -36,7 +37,6 @@ export type LeadM = { id: string; pipeline_id: string | null; evento: string | n
 type RangoM = { desde: Date | null; hasta: Date | null };
 
 export const ASISTIDAS = ["cerrada", "seguimiento", "perdida"];
-const ABIERTAS = ["pendiente", "confirmada", "confirmacion_pendiente"];
 
 // canal (plan GHL, fase 4): solo las citas de ese canal, y las ventas de los leads con una cita de ese canal
 type FiltrosAgendas = { closerIds: string[]; productoId?: string | null; evento?: string | null; canal?: string | null };
@@ -67,7 +67,7 @@ export function metricasAgendas(
   const perdidas = cuenta("perdida");
   const seguimiento = cuenta("seguimiento");
   const noCalifica = cuenta("no_califica");
-  const pendientes = citas.filter((c) => ABIERTAS.includes(c.estado)).length;
+  const pendientes = citas.filter((c) => (ABIERTAS as readonly string[]).includes(c.estado)).length;
 
   const ventasCloser = datos.ventas.filter((v) => v.vendedor_id && closers.has(v.vendedor_id) && (!f.productoId || v.producto_id === f.productoId) && delEvento(v.lead_id) && delCanal(v.lead_id));
   const ventas = ventasCloser.filter((v) => enRango(v.fecha, rango));

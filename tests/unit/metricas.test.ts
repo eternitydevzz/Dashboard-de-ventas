@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularFunnel, calcularVendedores, type Base } from "@/lib/metricas";
+import { calcularFunnel, type Base } from "@/lib/metricas";
 import { rangoDe } from "@/lib/formato";
 import type { Perfil } from "@/lib/tipos";
 
@@ -104,31 +104,5 @@ describe("calcularFunnel", () => {
     const m = calcularFunnel(base(), octubre, null, NY);
     expect(m.serie.leads.reduce((s, p) => s + p.valor, 0)).toBe(4);
     expect(m.serie.facturacion.reduce((s, p) => s + p.valor, 0)).toBe(2044);
-  });
-});
-
-describe("calcularVendedores", () => {
-  it("callers: agendas sin contar reagendadas; closers: % de cierre sobre asistidas", () => {
-    const v = calcularVendedores(base(), octubre);
-    const carla = v.callers.find((c) => c.perfil.id === "carla")!;
-    expect(carla.llamadas).toBe(2);
-    expect(carla.contactos).toBe(2); // 14 nov: contactado = llamada (l1 y el WhatsApp a l2); antes 1, solo los que avanzan
-    expect(carla.agendas).toBe(2);
-    expect(carla.ventas).toBe(1);
-    const ana = v.closers.find((c) => c.perfil.id === "ana")!;
-    expect(ana.asistidas).toBe(1);
-    expect(ana.noShow).toBe(1);
-    expect(ana.tasaCierre).toBe(100);
-  });
-  it("arreglo 7: el cash del closer en el Ranking cuenta cuotas y resta devoluciones, igual que el Funnel", () => {
-    const b = base();
-    b.ventas[0] = { ...b.ventas[0], devuelto: 100, devuelto_en: "2026-10-28T15:00:00Z" };
-    const ana = calcularVendedores(b, octubre).closers.find((c) => c.perfil.id === "ana")!;
-    expect(ana.cash).toBe(500 + 300 - 100); // al vender + cuota de octubre − devolución
-    expect(ana.cash).toBe(calcularFunnel(b, octubre, null, NY, "grupal").cash); // misma cifra que el Funnel de su venta
-    // Una cuota de octubre de una venta de septiembre también cuenta en octubre
-    b.ventas.push({ id: "vs", lead_id: "l3", vendedor_id: "ana", facturacion: 1000, cash_collected: 200, fecha: "2026-09-10T15:00:00Z", producto_id: "grupal" });
-    b.pagos.push({ importe: 250, fecha: "2026-10-12T15:00:00Z", venta_id: "vs" });
-    expect(calcularVendedores(b, octubre).closers.find((c) => c.perfil.id === "ana")!.cash).toBe(500 + 300 - 100 + 250);
   });
 });
