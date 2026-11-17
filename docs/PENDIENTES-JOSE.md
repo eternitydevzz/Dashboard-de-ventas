@@ -132,6 +132,15 @@ Decisión de Cristian:
   - Se enseñan como mucho 50 envíos por lead (hoy el máximo real es 9).
   - Faltan tests del componente y de que `resumenLead` no lea envíos sin permiso (el orden en el código está bien).
   - Un envío sin respuestas dice «0 respuestas» y debajo «no trae respuestas» (redundante).
+- **Apuntado en la Fase C (17 nov, revisión; decisión de Jose: apuntar):**
+  - Reporte diario: si la función se corta a mitad (más de 60 s), la fecha queda reservada en `reporte_envios` y ese día no sale, sin aviso (igual que el email de las 8:00).
+  - Con la hora del reporte a las 00:00 (o de madrugada), sale el reporte del día que empieza, casi vacío.
+  - Si Resend tarda más de 10 s en responder pero sí manda, el reporte puede llegar 2 veces.
+  - «Lo que va mal» es de todo el proyecto, no de cada país (igual en España y USA).
+  - El símbolo de moneda del reporte va fijo (€ España, $ USA); hoy los 2 proyectos son USD. Debería leerse de `proyecto.moneda`.
+  - `ZONA_REPORTE` está repetido en `src/lib/reporte-diario.ts` y `src/lib/reporte-config.ts`.
+  - «Webhook de avisos» (Administración → Proyecto) ya no se usa: `enviarAviso` (`src/lib/avisos.ts`) no tiene llamadas desde que se quitó la pantalla Reportes. El campo dice «Sin uso por ahora». Código muerto también en `src/lib/reportes.ts` (`rolDeReporte`, `tasasCloser`, `PREGUNTAS`) y el icono `reportes` de `barra-lateral.tsx`.
+  - Se perdió en integración la prueba de `guardarPreguntasReporte(rol, null)` (volver a las preguntas de siempre), que sigue en el producto.
 
 ## 8. Hecho (rellenar al terminar cada fase)
 
