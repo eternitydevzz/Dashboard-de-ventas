@@ -126,12 +126,13 @@ Decisión de Cristian:
   - El MCP `crear_miembro` sigue pidiendo «es» o «latam» (es el valor que acepta; decidido dejarlo).
   - **Pregunta para Cristian:** en KPIs, las ventas de Facu (caller y closer) incluyen las que cerró otro closer sobre leads que agendó él; en Agendas solo cuentan las suyas como vendedor. ¿Cuál vale?
   - El PDF «Generar reporte» de KPIs, para Facu, cuenta solo sus citas como closer (no las que agendó con otro closer).
+- **Errores en la campana del CEO, de antes de la Fase A** (vistos el 17 nov con Playwright; `errores_app`): `/admin` · «Minified React error #441» (4 veces, 11:09-11:10 UTC) y `/grabaciones` · «TypeError: e is not iterable» (4 veces, 05:03-05:11 UTC). Sin causa buscada todavía; mirarlos después de la Fase B (decisión de Jose).
 
 ## 8. Hecho (rellenar al terminar cada fase)
 
 | Fase | PR | Commit | Notas |
 |---|---|---|---|
-| A | | | |
+| A | #198 | `cfddb2a` | 17 nov. Migración `20261124100000_zona_otro` subida antes de fusionar. Unitarios 1413/1413, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): enlace sin gastar al abrir, campana sin citas pasadas, sin «Latam» visible, CRM de Facu con las que agendó. Sin ver: la zona «Otro» (no la tiene el CEO) y la vista propia de Facu. |
 | B | | | |
 | C | | | |
 | D | | | |
