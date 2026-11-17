@@ -42,6 +42,14 @@ describe("S1-23 · el color de una columna es #rrggbb", () => {
     expect(await crearEtapa("pl1", "Nueva", "#2F55d4")).toBeUndefined();
     expect(escrituras()).toHaveLength(1);
   });
+  // 26 de 103 columnas de producción guardan «var(--oro)», «var(--mal)»… (17 nov): renombrarlas tiene que seguir funcionando
+  it.each(["var(--oro)", "var(--texto-3)"])("«%s» (color del tema) sí se guarda", async (color) => {
+    expect(await crearEtapa("pl1", "Nueva", color)).toBeUndefined(); // misma validación que editarEtapa
+    expect(escrituras()).toHaveLength(1);
+  });
+  it.each(["var(--oro); x", "var(x)", "var(--a) var(--b)"])("«%s» no se guarda", async (color) => {
+    expect(await editarEtapa("e1", "Nueva", color)).toEqual({ error: expect.stringMatching(/color/i) });
+  });
 });
 
 describe("S2-20 · asignarDesdeFicha solo cambia caller_id o closer_id", () => {

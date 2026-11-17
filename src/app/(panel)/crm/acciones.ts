@@ -143,9 +143,10 @@ async function etapaEditable(etapaId: string) {
   return e;
 }
 
-// S1-23: el color llega del navegador y se pinta en el tablero: solo «#rrggbb»
+// S1-23: el color llega del navegador y se pinta en el tablero: solo «#rrggbb» o un color del tema
+// («var(--oro)»: así están 26 de 103 columnas en producción, 17 nov)
 const colorValido = (color: string) => {
-  if (!/^#[0-9a-fA-F]{6}$/.test(color)) throw new ErrorUsuario("Color no válido.");
+  if (!/^(#[0-9a-fA-F]{6}|var\(--[a-z0-9-]+\))$/.test(color)) throw new ErrorUsuario("Color no válido.");
 };
 
 export async function crearEtapa(pipelineId: string, nombre: string, color: string) {
