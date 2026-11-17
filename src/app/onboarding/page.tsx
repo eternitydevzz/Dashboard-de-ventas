@@ -11,9 +11,9 @@ import { EditorHorario } from "@/components/editor-horario";
 import { FormularioSinVaciar } from "@/components/formulario-sin-vaciar";
 
 const QUE_VERAS: Record<string, string[]> = {
-  caller: ["Tus leads asignados con las respuestas de su formulario", "Botones para marcar el resultado de cada llamada", "Tus números y el ranking del equipo", "Links de pago, guiones y recursos", "Tu reporte de fin de día"],
-  closer: ["Tus agendas: pre-call y post-call", "Registrar cada venta (cash, reserva o cuotas)", "Tus números y el ranking del equipo", "Links de pago, guiones y recursos", "Tu reporte de fin de día"],
-  director: ["El funnel completo del proyecto", "El CRM con todos los pipelines", "Las agendas, ventas y reportes del equipo", "Subir recursos y links", "Administración (si el CEO te la activa)"],
+  caller: ["Tus leads asignados con las respuestas de su formulario", "Botones para marcar el resultado de cada llamada", "Tus números y el ranking del equipo", "Links de pago, guiones y recursos"],
+  closer: ["Tus agendas: pre-call y post-call", "Registrar cada venta (cash, reserva o cuotas)", "Tus números y el ranking del equipo", "Links de pago, guiones y recursos"],
+  director: ["El funnel completo del proyecto", "El CRM con todos los pipelines", "Las agendas y ventas del equipo", "Subir recursos y links", "Administración (si el CEO te la activa)"],
   ceo: ["Todo el panel de todos los proyectos", "Crear proyectos y productos", "Administración completa"],
 };
 

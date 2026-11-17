@@ -71,7 +71,8 @@ const INICIO: Record<Perfil["rol"], Seccion> = { ceo: "kpis", director: "kpis", 
 export async function rutaInicio(perfil: Perfil, proyectoId: string) {
   const tiene = await seccionesPermitidas(perfil, proyectoId);
   if (tiene.has(INICIO[perfil.rol])) return RUTA[INICIO[perfil.rol]];
-  const primera = SECCIONES_TODAS.find((s) => tiene.has(s.v));
+  // Fase C (Cristian): la pantalla Reportes se quitó; el permiso sigue (preguntas de Administración), pero no es inicio
+  const primera = SECCIONES_TODAS.find((s) => s.v !== "reportes" && tiene.has(s.v));
   return primera ? RUTA[primera.v] : "/sin-acceso";
 }
 

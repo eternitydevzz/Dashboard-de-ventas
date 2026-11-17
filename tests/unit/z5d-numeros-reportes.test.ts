@@ -1,5 +1,5 @@
-// Fases 5 y 6 · zona D (17 nov): números y reportes. Hallazgos de AUDITORIA.md: A2-01, A5-05, S3-1, S3-2, A3b-04,
-// S2-15, A4-05, X5 (S2-12, S2-13, S2-14) y A2-05.
+// Fases 5 y 6 · zona D (17 nov): números y reportes. Hallazgos de AUDITORIA.md: A2-01, A5-05, S3-1, S3-2,
+// X5 (S2-12, S2-13) y A2-05. Fase C: fuera A3b-04, S2-15, A4-05 y S2-14 (eran de la pantalla Reportes, que se quitó).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { fechaReal, leerPeriodo, rangoNav } from "@/lib/periodos";
@@ -73,25 +73,6 @@ describe("S3-1 + S3-2 · «llamada» en Objetivos y bienvenida = cualquier botó
   });
 });
 
-describe("Reporte de fin de día", () => {
-  const pagina = leer("src/app/(panel)/reportes/page.tsx");
-  const form = leer("src/app/(panel)/reportes/formulario.tsx");
-  it("A3b-04: agendas, WhatsApp y seguimientos cuentan 1 por lead, como las llamadas", () => {
-    expect(pagina).not.toMatch(/a\.filter\(\(x\) => x\.tipo === "whatsapp"\)\.length/);
-    expect(pagina).not.toMatch(/llamar_luego"\)\.length/);
-    expect(pagina).not.toMatch(/agendas: agendas \?\? 0/);
-    expect(pagina.match(/porLead\(/g)?.length).toBeGreaterThanOrEqual(3);
-  });
-  it("S2-15: el día por defecto es el del proyecto, no el del aparato", () => {
-    expect(form).not.toContain("new Date().toLocaleDateString");
-    expect(pagina).toMatch(/hoy=\{hoyEnZona\(proyecto\.zona_horaria\)\}/);
-  });
-  it("A4-05: un campo mal en un paso escondido lleva a ese paso y dice por qué", () => {
-    expect(form).toContain("onInvalidCapture");
-    expect(form).toContain("data-paso");
-  });
-});
-
 describe("X5 · listas que se cortaban sin avisar", () => {
   it("S2-12 Grabaciones: por periodo, todas las filas y el error se lanza", () => {
     const g = leer("src/app/(panel)/grabaciones/page.tsx");
@@ -103,12 +84,6 @@ describe("X5 · listas que se cortaban sin avisar", () => {
     expect(leer("src/lib/guiones-datos.ts")).toMatch(/eq\("perfil_id", persona\)/);
     expect(leer("src/app/(panel)/guiones/page.tsx")).toMatch(/ultimasMarcas\(proyecto\.id, persona\)/);
     expect(leer("src/app/(panel)/guiones/page.tsx")).toContain("marcas.cortada");
-  });
-  it("S2-14 Reportes: por periodo, todas las filas y el error se lanza", () => {
-    const r = leer("src/app/(panel)/reportes/page.tsx");
-    expect(r).not.toContain(".limit(200)");
-    expect(r).toContain("leerPeriodo");
-    expect(r).toContain("BarraPeriodo");
   });
 });
 
