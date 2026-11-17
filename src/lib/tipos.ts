@@ -34,6 +34,7 @@ export type Proyecto = {
   calendario?: unknown; // 1.0 bloque 1: ajustes de las llamadas de los closers (lib/disponibilidad)
   webhook_secreto: string;
   aviso_webhook_url: string | null;
+  whatsapp_grupo?: string | null; // Fase D (17 nov): grupo de WhatsApp de los CEO («…@g.us»); null = sin grupo
   link_agenda?: string | null; // link del calendario de GHL que el caller manda al lead (11 oct)
   link_reserva?: string | null; // Fase 7: link de Reserva, vale para cualquier programa
   link_agenda_es?: string | null; // 13 nov: versiones de España (lib/mercado); vacío = las de Latam
@@ -210,4 +211,15 @@ export type ConfigReporte = {
   emails: string[];
   whatsapps: string[]; // se guardan; se mandan en la Fase D
   partes: ParteReporte[];
+};
+
+// Fase D (Jose, 17 nov 2026): avisos por WhatsApp al equipo con WAHA (tabla whatsapp_config,
+// 20261126100000_whatsapp_equipo.sql). Sin fila = encendido y a los tres.
+export type EventoWhatsapp = "cita" | "venta";
+export type ConfigWhatsapp = {
+  evento: EventoWhatsapp;
+  activo: boolean;
+  a_closer: boolean;
+  a_caller: boolean;
+  a_grupo: boolean;
 };
