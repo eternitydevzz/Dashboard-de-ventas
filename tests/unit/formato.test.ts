@@ -50,14 +50,20 @@ describe("rangoDe (periodos del filtro)", () => {
     expect(r.desde?.toISOString()).toBe("2026-10-05T04:00:00.000Z");
     expect(r.hasta?.toISOString()).toBe("2026-10-12T04:00:00.000Z");
   });
-  it("«mes» va del día 1 al día 1 siguiente y el periodo anterior dura lo mismo", () => {
+  // A5-07 en el Funnel (Cristian, 17 nov): el periodo anterior de un mes es el mes anterior entero, no «la misma duración»
+  it.each([
+    ["octubre (31) → septiembre (30)", "2026-10-09T15:00:00Z", "2026-10-01T04:00:00.000Z", "2026-11-01T04:00:00.000Z", "2026-09-01T04:00:00.000Z"],
+    ["noviembre (30) → octubre (31), con el día 1", "2026-11-17T15:00:00Z", "2026-11-01T04:00:00.000Z", "2026-12-01T05:00:00.000Z", "2026-10-01T04:00:00.000Z"],
+    ["marzo (31) → febrero (28)", "2027-03-10T15:00:00Z", "2027-03-01T05:00:00.000Z", "2027-04-01T04:00:00.000Z", "2027-02-01T05:00:00.000Z"],
+    ["enero → diciembre del año anterior", "2027-01-10T15:00:00Z", "2027-01-01T05:00:00.000Z", "2027-02-01T05:00:00.000Z", "2026-12-01T05:00:00.000Z"],
+  ])("«mes» %s", (_n, ahora, desde, hasta, previoDesde) => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-10-09T15:00:00Z"));
+    vi.setSystemTime(new Date(ahora));
     const r = rangoDe("mes", NY);
-    expect(r.desde?.toISOString()).toBe("2026-10-01T04:00:00.000Z");
-    expect(r.hasta?.toISOString()).toBe("2026-11-01T04:00:00.000Z");
+    expect(r.desde?.toISOString()).toBe(desde);
+    expect(r.hasta?.toISOString()).toBe(hasta);
+    expect(r.previo!.desde.toISOString()).toBe(previoDesde);
     expect(r.previo!.hasta.getTime()).toBe(r.desde!.getTime());
-    expect(r.hasta!.getTime() - r.desde!.getTime()).toBe(r.previo!.hasta.getTime() - r.previo!.desde.getTime());
   });
   it("«rango» incluye el día final completo", () => {
     const r = rangoDe("rango", NY, "2026-10-01", "2026-10-03");

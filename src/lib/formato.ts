@@ -137,11 +137,19 @@ export function rangoDe(periodo: Periodo, zona: string, desdeTxt?: string, hasta
   const desde = inicioDia(d, zona);
   const hasta = inicioDia(h, zona);
   const dur = hasta.getTime() - desde.getTime();
+  // A5-07 en el Funnel (Cristian, 17 nov): el anterior de un mes es el mes anterior entero (con la duración, noviembre
+  // empezaba el 2 oct y marzo el 29 ene). Hoy, semana y rango: la misma duración justo antes
+  let previoDesde = new Date(desde.getTime() - dur);
+  if (periodo === "mes") {
+    const p = new Date(`${d}T12:00:00Z`);
+    p.setUTCMonth(p.getUTCMonth() - 1);
+    previoDesde = inicioDia(p.toISOString().slice(0, 10), zona);
+  }
   return {
     desde,
     hasta,
     etiqueta,
-    previo: { desde: new Date(desde.getTime() - dur), hasta: desde },
+    previo: { desde: previoDesde, hasta: desde },
   };
 }
 
