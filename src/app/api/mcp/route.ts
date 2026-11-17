@@ -72,7 +72,7 @@ function servidor(perfilId: string) {
         email: z.string().email(),
         telefono: z.string().min(7).max(25).describe("Con prefijo, p. ej. +34 600 000 000."),
         rol: z.enum(["caller", "closer", "director", "ceo"]),
-        mercado: z.enum(["es", "latam"]).describe("País del equipo: «es» = España, «latam» = Latam."),
+        mercado: z.enum(["es", "latam"]).describe("País del equipo: «es» = España, «latam» = USA."),
         area: z.string().optional().describe("Nombre del área. Sin poner: «Ventas»."),
         confirmar: CONFIRMAR,
       },
@@ -125,7 +125,7 @@ function servidor(perfilId: string) {
     "ranking",
     {
       description: "Ranking del equipo, igual que la pantalla Ranking: callers por agendados y closers por facturación. Por defecto, esta semana.",
-      inputSchema: { proyecto: PROYECTO, periodo: periodoDe.describe("Por defecto «semana»."), desde: fecha("desde"), hasta: fecha("hasta, incluido"), mercado: z.enum(["es", "latam"]).optional().describe("Solo CEO y directores: España o Latam; sin poner, todos. Callers y closers ven siempre el suyo.") },
+      inputSchema: { proyecto: PROYECTO, periodo: periodoDe.describe("Por defecto «semana»."), desde: fecha("desde"), hasta: fecha("hasta, incluido"), mercado: z.enum(["es", "latam"]).optional().describe("Solo CEO y directores: España («es») o USA («latam»); sin poner, todos. Callers y closers ven siempre el suyo.") },
     },
     async ({ proyecto, ...a }) => ejecutar(proyecto, () => herramientaRanking(a))
   );

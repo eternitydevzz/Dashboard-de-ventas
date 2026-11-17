@@ -71,7 +71,7 @@ export type AltaMiembro = {
 // 13 nov (Cristian): país y teléfono obligatorios al crear cuenta; sin mercado salía en Latam hasta que entraba
 function paisYTelefono(mercadoTxt: unknown, telefonoTxt: string) {
   const mercado = mercadoValido(mercadoTxt);
-  if (!mercado) throw new ErrorUsuario("Elige si es de España o de Latam.");
+  if (!mercado) throw new ErrorUsuario("Elige si es de España o de USA.");
   const telefono = telefonoTxt.trim();
   if (!/^\+?[\d\s().-]{7,20}$/.test(telefono) || telefono.replace(/\D/g, "").length < 7) throw new ErrorUsuario("Pon un teléfono válido (con prefijo, ej. +34 600 000 000).");
   return { mercado, telefono };

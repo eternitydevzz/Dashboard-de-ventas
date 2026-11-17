@@ -4,7 +4,7 @@ import { linksDe, linksValidos, type LinkPago } from "@/lib/links-pago";
 // España ve sus propios links, recursos, guion y manuales; lo que España no tenga puesto, lo ve de Latam.
 export type Mercado = "latam" | "es";
 export const MERCADOS: { v: Mercado; t: string }[] = [
-  { v: "latam", t: "Latam" },
+  { v: "latam", t: "USA" },
   { v: "es", t: "España" },
 ];
 export const mercadoValido = (v: unknown): Mercado | null => (v === "latam" || v === "es" ? v : null);
@@ -45,7 +45,7 @@ export function contenidoMercado(m: Mercado | null, { crudo = false } = {}) {
 export const mercadoDe = (m: unknown): Mercado => (m === "es" ? "es" : "latam");
 export const OPCIONES_FILTRO_MERCADO = [
   { v: "es", t: "España" },
-  { v: "latam", t: "Latam" },
+  { v: "latam", t: "USA" },
 ];
 // ¿Entra esta persona con el filtro «Todos / España / Latam»? (filtro null = todos)
 export const entraEnMercado = (mercados: Record<string, Mercado>, perfilId: string | null | undefined, filtro: Mercado | null) =>

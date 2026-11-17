@@ -2,6 +2,7 @@
 // moneda por mercado del vendedor, nombres accesibles, lecturas que miran su error y la migración de cambiar_forma_pago.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { contenidoMercado } from "@/lib/mercado";
@@ -38,7 +39,7 @@ const ACCIONES = ["admin", "clientes", "equipo", "guiones", "onboarding-closers"
 
 // Todo src (Cristian, 14 nov), también crm/acciones.ts (lo arregló el carril B)
 const todoSrc = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? todoSrc(join(d, n)) : /\.tsx?$/.test(n) ? [join(d, n)] : []));
-const RAIZ = new URL("../../", import.meta.url).pathname;
+const RAIZ = fileURLToPath(new URL("../../", import.meta.url)); // con .pathname, en Windows salía «/C:/…» y join daba «C:\C:\…»
 
 describe("errores de la base: mensaje genérico", () => {
   it("0 en todo src", () => {

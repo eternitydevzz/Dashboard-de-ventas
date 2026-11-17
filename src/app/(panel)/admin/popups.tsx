@@ -15,7 +15,7 @@ import { borrarPopup, cambiarActivoPopup, guardarAjustesRanking, guardarPopup, g
 // de la bienvenida y del reporte del CEO, y los 2 interruptores del ranking.
 type Persona = { id: string; nombre: string; rol: Rol };
 const ROLES: Rol[] = ["caller", "closer", "director", "ceo"];
-const MERCADOS = [{ v: "es", t: "España" }, { v: "latam", t: "Latam" }] as const;
+const MERCADOS = [{ v: "es", t: "España" }, { v: "latam", t: "USA" }] as const;
 const VACIO: DatosPopup = { titulo: "", texto: "", imagen: null, boton_texto: null, boton_enlace: null, roles: [], personas: [], mercados: [], frecuencia: "sesion", cada_horas: null };
 
 function aQuien(p: DatosPopup, personas: Persona[]) {
