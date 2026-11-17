@@ -181,9 +181,12 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         if (!(ABIERTAS as readonly string[]).includes(existe.estado)) continue;
         const estado = nuevoEstado(existe.estado, deGhl);
         const closer = closerId ?? existe.closer_id;
-        if (estado !== existe.estado || new Date(existe.fecha).getTime() !== new Date(fecha).getTime() || existe.closer_id !== closer) {
+        const otraHora = new Date(existe.fecha).getTime() !== new Date(fecha).getTime();
+        if (estado !== existe.estado || otraHora || existe.closer_id !== closer) {
           await db().from("citas").update({ estado, fecha, closer_id: closer }).eq("id", existe.id);
           r.actualizadas++;
+          // Fase D-3: GHL la movió de hora y sigue abierta → WhatsApp al equipo (avisarCita mira que sea futura)
+          if (otraHora && (ABIERTAS as readonly string[]).includes(estado)) after(() => avisarCita(existe.id, "reagendada"));
           if (estado === "cancelada" && existe.estado !== "cancelada") await disparar(proyecto.id, existe.lead_id, { tipo: "cita", evento: "cancelada", canal: existe.canal, calendario: existe.ghl_calendario, fecha }, r);
         }
         continue;
@@ -292,9 +295,10 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       // Solo citas futuras: la lectura mira 30 días atrás y, al añadir un calendario, las viejas dispararían en masa
       if (abierta && new Date(fecha).getTime() >= ahora.getTime()) {
         await disparar(proyecto.id, leadId, { tipo: "cita", evento: "agendada", canal: origen?.canal ?? null, calendario, fecha }, r);
-        if (!junta && closerFinal) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId: closerFinal, citaId: (creada as CitaApp).id, motivo: "nueva" });
+        // Fase D-3: el WhatsApp al equipo, antes del email al closer (si el email falla, no se lo come)
         const citaId = (creada as CitaApp).id;
-        after(() => avisarCita(citaId, junta ? "reagendada" : "agendada")); // Fase D-3: WhatsApp al equipo
+        after(() => avisarCita(citaId, junta ? "reagendada" : "agendada"));
+        if (!junta && closerFinal) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId: closerFinal, citaId: (creada as CitaApp).id, motivo: "nueva" });
       }
     }
 

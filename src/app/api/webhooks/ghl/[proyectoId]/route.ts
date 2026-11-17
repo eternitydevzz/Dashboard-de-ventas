@@ -139,10 +139,13 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       const ghlCitaId = primero(body, ["calendar.appointmentId", "appointment.id", "appointment_id"]) || null;
       // Arreglo 19: sin id de GHL, se busca una cita del mismo lead a la misma hora antes de crear otra
       const { data: yaExiste } = ghlCitaId
-        ? await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ghlCitaId).maybeSingle()
-        : await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("lead_id", lead.id).eq("fecha", fecha.toISOString()).neq("estado", "reagendada").limit(1).maybeSingle();
-      if (yaExiste) await escribir(db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id), "citas");
-      else {
+        ? await db().from("citas").select("id, fecha").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ghlCitaId).maybeSingle()
+        : await db().from("citas").select("id, fecha").eq("proyecto_id", proyecto.id).eq("lead_id", lead.id).eq("fecha", fecha.toISOString()).neq("estado", "reagendada").limit(1).maybeSingle();
+      if (yaExiste) {
+        await escribir(db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id), "citas");
+        // Fase D-3: GHL la movió de hora → WhatsApp al equipo (avisarCita mira que siga abierta y sea futura)
+        if (new Date(yaExiste.fecha).getTime() !== fecha.getTime()) after(() => avisarCita(yaExiste.id, "reagendada"));
+      } else {
         // Fase 3: el aviso del workflow no trae el canal, así que no hay crédito de caller; con una cita abierta, se junta
         const agenda = await datosAgendaGhl(lead.id, null);
         const junta = await juntarConCitaAbierta(proyecto.id, lead.id, { fecha: fecha.toISOString(), closerId, ghlCitaId, origen: "ghl", agendadaPor: agenda.agendada_por });
