@@ -26,7 +26,8 @@ vi.mock("@/lib/datos", () => {
       u.then = (r: (x: unknown) => unknown) => Promise.resolve({ error: null }).then(r);
       return u;
     };
-    c.insert = async (v: unknown) => (escritos.push({ op: "insert", valor: v }), { error: errorInsert });
+    // Fase D-3: el insert de la nueva devuelve su id (.select("id").single()) para el aviso por WhatsApp
+    c.insert = (v: unknown) => (escritos.push({ op: "insert", valor: v }), { select: () => ({ single: async () => ({ data: errorInsert ? null : { id: "c2" }, error: errorInsert }) }) });
     return c;
   };
   return { db: () => ({ from: tabla }), escribir: async (p: unknown) => p, registrarActividad: async () => undefined, todas: async () => [] };

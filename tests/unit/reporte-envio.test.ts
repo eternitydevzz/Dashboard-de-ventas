@@ -13,6 +13,12 @@ let envios: string[]; // «proyecto|mercado|fecha» ya reservadas
 let reservas: Record<string, unknown>[]; // lo que se intentó reservar
 const enviar = vi.fn();
 const datos = vi.fn();
+// Fase D: WhatsApp simulado (no se llama a ningún WAHA); chatIdDe es el de verdad
+let waConfigurado: boolean;
+const enviarWa = vi.fn();
+let waFilas: Record<string, unknown>[]; // lo que se apuntó en whatsapp_envios
+let waOpciones: unknown[];
+let waError: { message: string } | null;
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -42,6 +48,14 @@ vi.mock("@/lib/supabase/admin", () => ({
             }),
           }),
         };
+      if (tabla === "whatsapp_envios")
+        return {
+          upsert: async (f: Record<string, unknown>[], o: unknown) => {
+            waOpciones.push(o);
+            if (!waError) waFilas = [...waFilas, ...f];
+            return { error: waError };
+          },
+        };
       throw new Error(`tabla no simulada: ${tabla}`);
     },
   }),
@@ -49,6 +63,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@/lib/email", () => ({ enviarEmail: (...a: unknown[]) => enviar(...a), urlApp: () => "http://x" }));
 vi.mock("@/lib/reporte-diario-datos", () => ({ datosReporte: (...a: unknown[]) => datos(...a) }));
 vi.mock("@/lib/limite", () => ({ dentroDelLimite: async () => true }));
+vi.mock("@/lib/whatsapp", async () => {
+  const real = await vi.importActual<typeof import("@/lib/whatsapp")>("@/lib/whatsapp");
+  return { chatIdDe: real.chatIdDe, whatsappConfigurado: () => waConfigurado, enviarWhatsapp: (...a: unknown[]) => enviarWa(...a) };
+});
 
 const { enviarReporte } = await import("@/lib/reporte-envio");
 const { POST } = await import("@/app/api/avisos/reporte/[proyectoId]/route");
@@ -70,6 +88,11 @@ beforeEach(() => {
   envios = [];
   reservas = [];
   enviar.mockReset().mockResolvedValue({ enviado: true, motivo: "" });
+  waConfigurado = false;
+  waFilas = [];
+  waOpciones = [];
+  waError = null;
+  enviarWa.mockReset().mockImplementation(async (destinos: string[]) => ({ enviados: destinos, fallos: [] }));
   datos.mockReset().mockImplementation(async (_p: unknown, mercado: string) => ({
     mercado,
     fecha: "2026-11-17",
@@ -159,6 +182,92 @@ describe("enviarReporte", () => {
     expect(r.estado).toBe("fallo");
     expect(r.estado === "fallo" && r.motivo).toContain("sin conexión");
     expect(reservas).toEqual([]);
+  });
+});
+
+describe("enviarReporte por WhatsApp (Fase D)", () => {
+  const ORIGEN = `${P}:es:2026-11-17`; // lleva el proyecto: la clave única (evento, origen_id, destino) no lo tiene
+  const OPCIONES_WA = { onConflict: "evento,origen_id,destino", ignoreDuplicates: true };
+
+  beforeEach(() => {
+    config = [fila("es", { whatsapps: ["+34600111222", "x"] })];
+  });
+
+  it("configurado, a las 21:00 de Madrid: manda el texto a los números válidos y apunta cada destino", async () => {
+    waConfigurado = true;
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(enviarWa).toHaveBeenCalledTimes(1);
+    const [destinos, texto] = enviarWa.mock.calls[0];
+    expect(destinos).toEqual(["34600111222@c.us"]);
+    expect(texto).toBe(enviar.mock.calls[0][0].texto);
+    expect(texto).toContain("Reporte España");
+    expect(waFilas).toEqual(
+      expect.arrayContaining([
+        { proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "34600111222@c.us", estado: "enviado", error: null },
+        { proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "x", estado: "fallo", error: "Número no válido" },
+      ]),
+    );
+    expect(waFilas).toHaveLength(2);
+    expect(waOpciones.every((o) => JSON.stringify(o) === JSON.stringify(OPCIONES_WA))).toBe(true);
+  });
+
+  it("un número sin «+» (aunque tenga cifras): no se manda y se apunta «Sin prefijo de país (+)»", async () => {
+    waConfigurado = true;
+    config = [fila("es", { whatsapps: ["+34 600 111 222", "600111333"] })];
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(enviarWa.mock.calls[0][0]).toEqual(["34600111222@c.us"]);
+    expect(waFilas).toEqual(
+      expect.arrayContaining([
+        { proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "34600111222@c.us", estado: "enviado", error: null },
+        { proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "600111333", estado: "fallo", error: "Sin prefijo de país (+)" },
+      ]),
+    );
+    expect(waFilas).toHaveLength(2);
+  });
+
+  it("solo números sin «+»: no se llama a enviarWhatsapp, pero se apuntan los fallos", async () => {
+    waConfigurado = true;
+    config = [fila("es", { whatsapps: ["600111333"] })];
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(enviarWa).not.toHaveBeenCalled();
+    expect(waFilas).toEqual([{ proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "600111333", estado: "fallo", error: "Sin prefijo de país (+)" }]);
+  });
+
+  it("sin WhatsApp configurado: ni se llama a enviarWhatsapp ni se apunta nada", async () => {
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(enviarWa).not.toHaveBeenCalled();
+    expect(waFilas).toEqual([]);
+    expect(waOpciones).toEqual([]);
+  });
+
+  it("si WhatsApp falla: el reporte sigue «enviado», la reserva se queda y el fallo se apunta con su motivo", async () => {
+    waConfigurado = true;
+    enviarWa.mockResolvedValueOnce({ enviados: [], fallos: [{ destino: "34600111222@c.us", motivo: "WAHA respondió 500" }] });
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(envios).toEqual([`${P}|es|2026-11-17`]);
+    expect(waFilas).toContainEqual({ proyecto_id: P, evento: "reporte", origen_id: ORIGEN, destino: "34600111222@c.us", estado: "fallo", error: "WAHA respondió 500" });
+  });
+
+  it("si enviarWhatsapp lanzara o no se pudiera apuntar: el reporte sigue «enviado» y no lanza", async () => {
+    waConfigurado = true;
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    waError = { message: "sin conexión" };
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(error).toHaveBeenCalled();
+    envios = [];
+    waError = null;
+    enviarWa.mockRejectedValueOnce(new Error("explota"));
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "enviado" });
+    expect(envios).toEqual([`${P}|es|2026-11-17`]);
+    error.mockRestore();
+  });
+
+  it("si el email falla: no se manda WhatsApp ni se apunta nada", async () => {
+    waConfigurado = true;
+    enviar.mockResolvedValueOnce({ enviado: false, motivo: "Resend respondió 500" });
+    expect(await enviarReporte(P, "es", MADRID_2100)).toEqual({ estado: "fallo", motivo: "Resend respondió 500" });
+    expect(enviarWa).not.toHaveBeenCalled();
+    expect(waFilas).toEqual([]);
   });
 });
 

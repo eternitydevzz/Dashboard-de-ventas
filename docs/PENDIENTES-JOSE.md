@@ -94,11 +94,12 @@ Decisión de Cristian:
 
 **Prompt:** «Lee docs/PENDIENTES-JOSE.md, secciones 1, 2 y 5. Diseña la Fase C y enséñame el plan antes de programar. Luego, rama `fase-c`, test primero y 1 PR. La migración se sube antes de fusionar.»
 
-## 6. Fase D · Open WA (cuando Cristian decida dónde se monta)
+## 6. Fase D · WhatsApp del equipo con WAHA
 
-- Open WA **solo para el equipo**: el reporte diario y los avisos al agendar una cita y al cerrar una venta, al closer de la cita, al caller que la agendó y al CEO o grupo. **Al lead le sigue escribiendo GHL.**
-- Ojo: Open WA no es la API oficial de WhatsApp. Escribir automáticamente a gente que no tiene el número guardado puede hacer que lo bloqueen. Usar un número que no sea el principal.
-- Tiene que correr 24 h fuera de Vercel (un servidor pequeño, Railway, Render o un VPS). Falta que Cristian lo decida. La clave de conexión va en las variables de entorno de Vercel, nunca en el código.
+- **Decidido por Jose (17 nov):** WAHA (`devlikeapro/waha`, en lugar de Open WA) en **Render** (servicio Starter + Postgres de pago para la sesión), motor GOWS. Detalle y decisiones en `docs/PLAN-EJECUCION.md`, sección 9.
+- WAHA **solo para el equipo**: el reporte diario y los avisos al agendar una cita y al cerrar una venta, al closer de la cita, al caller que la agendó y al grupo de WhatsApp de los CEO (Cristian y Jose). **Al lead le sigue escribiendo GHL.** Sin recordatorio antes de la cita. Se configura en Administración → «WhatsApp» y viene **apagado** por defecto.
+- Ojo: WAHA no es la API oficial de WhatsApp. Escribir automáticamente a gente que no tiene el número guardado puede hacer que lo bloqueen. Usar un número que no sea el principal y pedir al equipo que lo guarde.
+- Corre 24 h fuera de Vercel (Render). `WAHA_URL` y `WAHA_API_KEY` van en las variables de entorno de Vercel, nunca en el código.
 
 ## 7. Otros pendientes
 
@@ -148,5 +149,5 @@ Decisión de Cristian:
 |---|---|---|---|
 | A | #198 | `cfddb2a` | 17 nov. Migración `20261124100000_zona_otro` subida antes de fusionar. Unitarios 1413/1413, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): enlace sin gastar al abrir, campana sin citas pasadas, sin «Latam» visible, CRM de Facu con las que agendó. Sin ver: la zona «Otro» (no la tiene el CEO) y la vista propia de Facu. |
 | B | #199 | `8713bbe` | 17 nov. Sin migración. Unitarios 1420/1420, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): el lead con más envíos enseña «Formularios (9)» en la ficha y en el popup, con su Entrada en los 9; respuestas en 2 de 9 (en la base, justo los 2 que traen preguntas). La fecha sale sin año (apuntado). |
-| C | | | |
+| C | #200 | `80d3dfb` | 17 nov. Migración `20261125100000_reporte_diario` subida antes de fusionar (89 migraciones; 2 tablas con RLS; cron `reporte-diario` cada 15 min). Unitarios 1459/1459, integración 484/484 (local), 4 checks en verde. Producción: pestaña «Reporte» con los 2 por defecto, `/reportes` da 404 y no está en el menú; cron 18:15 → 200 `fuera_de_hora`; **primer reporte España enviado a las 20:00 UTC** (fila en `reporte_envios`; 20:15 → `ya_enviado`, sin duplicar). Sin verificar: que el email llegó a la bandeja de info@. |
 | D | | | |

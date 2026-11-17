@@ -16,7 +16,9 @@ import { estrellasEntre } from "@/lib/estrellas";
 import { esCloser, type Cita, type EstadoCita, type Rol } from "@/lib/tipos";
 import { datosAgendaGhl, juntarConCitaAbierta, telefonoClave } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
+import { avisarCita } from "@/lib/avisos-whatsapp";
 import { ABIERTAS } from "@/lib/llamadas";
+import { after } from "next/server";
 
 // Arreglo 31: «cerrada» no se puede poner a mano: una cita se cierra registrando su venta
 const PERMITIDOS: EstadoCita[] = ["pendiente", "confirmacion_pendiente", "confirmada", "no_califica", "seguimiento", "no_show", "cancelada", "perdida"];
@@ -96,7 +98,7 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
     // C9: solo si la cita sigue como se leyó (2 reagendados a la vez creaban 2 citas nuevas)
     const { data: cambiada } = await escribir(db().from("citas").update({ estado: "reagendada" }).eq("id", citaId).eq("estado", cita.estado).select("id"), "citas");
     if (cambiada?.length !== 1) throw new ErrorUsuario("Esta cita acaba de cambiar. Recarga la página y vuelve a intentarlo.");
-    const { error: errNueva } = await db().from("citas").insert({
+    const { data: nueva, error: errNueva } = await db().from("citas").insert({
       proyecto_id: proyecto.id,
       lead_id: cita.lead_id,
       closer_id: cita.closer_id,
@@ -104,13 +106,14 @@ export async function reagendarCita(citaId: string, fechaLocal: string) {
       fecha,
       nota: cita.nota,
       canal: cita.canal ?? null, // A5-04: sigue siendo del mismo canal
-    });
+    }).select("id").single();
     if (errNueva) {
       // Si la nueva no entra (otro cogió ese hueco a la vez), la de antes vuelve a como estaba: ninguna cita se pierde
       await escribir(db().from("citas").update({ estado: cita.estado }).eq("id", citaId), "citas");
       if (chocaHora(errNueva)) throw new ErrorUsuario("Ese hueco acaba de ocuparse, elige otro.");
       throw new Error(`No se pudo guardar en «citas»: ${errNueva.message}`);
     }
+    if (nueva) after(() => avisarCita(nueva.id, "reagendada")); // Fase D-3: WhatsApp al equipo (sin esperar)
     await registrarActividad({ proyecto_id: proyecto.id, lead_id: cita.lead_id, perfil_id: perfil.id, tipo: "cita", resultado: "reagendada", nota: "Cita reagendada" });
     refrescarPantalla();
   });
@@ -322,6 +325,7 @@ export async function unirCitaSinLead(id: string, leadId: string) {
       const junta = await juntarConCitaAbierta(proyecto.id, leadId, { fecha: s.fecha, closerId: s.closer_id, ghlCitaId: s.ghl_cita_id, origen: "ghl", agendadaPor: agenda.agendada_por }, { perfilId: perfil.id });
       const { data: nueva, error } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: s.closer_id, ...agenda, fecha: s.fecha, origen: "ghl", ghl_cita_id: s.ghl_cita_id, nota: s.titulo }).select("id").single());
       if (error) throw new Error(`No se pudo guardar en «citas»: ${error.message}`);
+      if (nueva) after(() => avisarCita(nueva.id, junta ? "reagendada" : "agendada")); // Fase D-3: WhatsApp al equipo
       if (!junta && nueva && s.closer_id && new Date(s.fecha).getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId: s.closer_id, citaId: nueva.id, motivo: "nueva" });
     }
     if (s.ghl_contact_id) await db().from("leads").update({ ghl_contact_id: s.ghl_contact_id }).eq("id", leadId).is("ghl_contact_id", null);

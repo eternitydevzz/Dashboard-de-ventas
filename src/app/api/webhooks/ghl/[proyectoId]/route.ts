@@ -1,8 +1,9 @@
 import { escribir } from "@/lib/datos";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { columnaCitasGhl, datosAgendaGhl, guardarLeads, juntarConCitaAbierta, moverAAgendadosOrganico, pipelineCitaGhl, telefonoClave, type LeadEntrada } from "@/lib/leads";
 import { avisarCloserAgenda } from "@/lib/aviso-closer";
+import { avisarCita } from "@/lib/avisos-whatsapp";
 import { estadoTrasCitaGhl } from "@/lib/estado-cita-ghl";
 import { ponerEtiqueta } from "@/lib/ghl-sync";
 import { dentroDelLimite } from "@/lib/limite";
@@ -138,16 +139,22 @@ export async function POST(request: NextRequest, ctx: RouteContext<"/api/webhook
       const ghlCitaId = primero(body, ["calendar.appointmentId", "appointment.id", "appointment_id"]) || null;
       // Arreglo 19: sin id de GHL, se busca una cita del mismo lead a la misma hora antes de crear otra
       const { data: yaExiste } = ghlCitaId
-        ? await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ghlCitaId).maybeSingle()
-        : await db().from("citas").select("id").eq("proyecto_id", proyecto.id).eq("lead_id", lead.id).eq("fecha", fecha.toISOString()).neq("estado", "reagendada").limit(1).maybeSingle();
-      if (yaExiste) await escribir(db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id), "citas");
-      else {
+        ? await db().from("citas").select("id, fecha").eq("proyecto_id", proyecto.id).eq("ghl_cita_id", ghlCitaId).maybeSingle()
+        : await db().from("citas").select("id, fecha").eq("proyecto_id", proyecto.id).eq("lead_id", lead.id).eq("fecha", fecha.toISOString()).neq("estado", "reagendada").limit(1).maybeSingle();
+      if (yaExiste) {
+        await escribir(db().from("citas").update({ fecha: fecha.toISOString(), ...(closerId ? { closer_id: closerId } : {}) }).eq("id", yaExiste.id), "citas");
+        // Fase D-3: GHL la movió de hora → WhatsApp al equipo (avisarCita mira que siga abierta y sea futura)
+        if (new Date(yaExiste.fecha).getTime() !== fecha.getTime()) after(() => avisarCita(yaExiste.id, "reagendada"));
+      } else {
         // Fase 3: el aviso del workflow no trae el canal, así que no hay crédito de caller; con una cita abierta, se junta
         const agenda = await datosAgendaGhl(lead.id, null);
         const junta = await juntarConCitaAbierta(proyecto.id, lead.id, { fecha: fecha.toISOString(), closerId, ghlCitaId, origen: "ghl", agendadaPor: agenda.agendada_por });
         if (junta?.error) throw new Error(`No se pudo guardar en «citas»: ${junta.error.message}`);
+        const juntada = junta?.data;
+        if (juntada) after(() => avisarCita(juntada.id, "reagendada")); // Fase D-3: WhatsApp al equipo
         if (!junta) {
           const { data: nueva } = await escribir(db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: lead.id, closer_id: closerId, ...agenda, fecha: fecha.toISOString(), origen: "ghl", ghl_cita_id: ghlCitaId }).select("id").single(), "citas");
+          if (nueva) after(() => avisarCita(nueva.id, "agendada"));
           if (nueva && closerId && fecha.getTime() > Date.now()) await avisarCloserAgenda({ proyectoId: proyecto.id, closerId, citaId: nueva.id, motivo: "nueva" });
         }
       }
