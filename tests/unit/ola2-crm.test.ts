@@ -206,6 +206,7 @@ describe("Popup del lead por GET (no espera en la fila de las acciones)", () => 
       etiquetas: [],
       oferta: null,
       respuestas: lead("A", null).respuestas,
+      formularios: [],
     });
     // Solo las columnas que enseña: sin `*` (que traía `datos` de GHL)
     const q = consultas.find((c) => c.tabla === "leads")!;
