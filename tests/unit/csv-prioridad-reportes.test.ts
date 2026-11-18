@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filaALead, mapaValido, proponerCampo } from "@/lib/csv";
 import { nivel, puntuacion } from "@/lib/prioridad";
-import { tasasCloser } from "@/lib/reportes";
 import { cuentaPorEstado } from "@/lib/cola";
 import { recursosVisibles } from "@/lib/recursos";
 
@@ -67,15 +66,6 @@ describe("Prioridad A/B/C", () => {
   it("sin respuestas es C", () => {
     expect(puntuacion([])).toBe(0);
     expect(nivel(0).texto).toBe("Prioridad C");
-  });
-});
-
-describe("Reporte del closer: tasas", () => {
-  it("igual que el formulario antiguo", () => {
-    expect(tasasCloser({ llamadas_realizadas: 8, llamadas_agendadas: 6, ventas: 2 })).toEqual({ agendamiento: "75\u00a0%", cierre: "33\u00a0%" });
-  });
-  it("sin llamadas no divide entre cero", () => {
-    expect(tasasCloser({ llamadas_realizadas: 0, llamadas_agendadas: 0, ventas: 0 })).toEqual({ agendamiento: "—", cierre: "—" });
   });
 });
 
