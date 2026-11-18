@@ -167,10 +167,15 @@ const mensaje = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 type CitaAviso = { id: string; proyecto_id: string; fecha: string; estado: string; closer_id: string | null; agendada_por: string | null; lead_id: string; leads: Lead };
 
-// Fase E: la ficha de cualificación del lead (vacía si no tiene)
+// Fase E: la ficha de cualificación del lead (vacía si no tiene). Si no se puede leer, vacía también: sale el aviso
+// corto en vez de ninguno, y el fallo queda en el registro
 async function leerFicha(leadId: string): Promise<Ficha> {
-  const fila = leido(await db().from("cualificaciones").select("campos").eq("lead_id", leadId).maybeSingle(), "la ficha") as { campos: unknown } | null;
-  return limpiarFicha(fila?.campos);
+  const { data, error } = await db().from("cualificaciones").select("campos").eq("lead_id", leadId).maybeSingle();
+  if (error) {
+    console.error(PREFIJO, `no se pudo leer la ficha del lead ${leadId} (sale el aviso corto): ${error.message}`);
+    return {};
+  }
+  return limpiarFicha((data as { campos: unknown } | null)?.campos);
 }
 
 export async function avisarCita(citaId: string, motivo: MotivoCita = "agendada"): Promise<void> {

@@ -249,6 +249,16 @@ describe("avisarCita", () => {
     expect(filasReserva()).toHaveLength(3);
   });
 
+  it("Fase E · si no se puede leer la ficha, el aviso sale igual (el corto) y queda en el registro", async () => {
+    base["cualificaciones:select"] = { data: null, error: { message: "caída" } };
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await avisarCita("c1");
+    expect(mandadosA().sort()).toEqual([CHAT_LUIS, CHAT_ANA, GRUPO].sort());
+    for (const t of recibido().values()) expect(t.startsWith("📅 Nueva cita\n")).toBe(true);
+    expect(log.mock.calls.flat().join(" ")).toContain("ficha");
+    log.mockRestore();
+  });
+
   it("Fase E · ficha solo con campos antiguos: el corto para todos", async () => {
     base["cualificaciones:select"] = { data: { campos: { dolor: "x", nota: "y" } }, error: null };
     await avisarCita("c1");
