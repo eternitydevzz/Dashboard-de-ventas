@@ -4,7 +4,7 @@
 // «+» entre cajas abre los tipos de paso; cada caja se elige (panel de la derecha; en el móvil, debajo) o se quita.
 // Un solo «Guardar versión N»; aviso de cambios sin guardar. Encender/apagar y prueba/real, con confirmación.
 import { Fragment, useState } from "react";
-import { Check, Clock, GitBranch, MoveRight, Pencil, Plus, Save, Tag, Target, Trash2, User, Zap } from "lucide-react";
+import { Check, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { useAccion } from "@/components/acciones-lead";
 import { confirmar } from "@/components/dialogos";
 import { useAvisoSinGuardar } from "./cliente";
@@ -13,21 +13,12 @@ import type { Disparador, Paso } from "@/lib/workflows";
 import { describirPaso, condicionTexto, disparadorTexto, type Icono, type Nombres } from "@/lib/workflows-vista";
 import { cambiarPaso, insertarPaso, mismoContenido, pasoNuevo, quitarPaso, verPaso, type Ruta } from "@/lib/workflows-editar";
 import { crearWorkflowDeCita, crearWorkflowDeEtiqueta, devolverAHoy, encenderWorkflow, guardarWorkflow, pararWorkflow, pasarWorkflowAReal } from "./acciones";
+import { ICONOS } from "./workflows-iconos"; // sin «use client»: también lo lee workflows.tsx (servidor)
 
 type Pipe = { id: string; nombre: string; etapas: { id: string; nombre: string }[] };
 export type OpcionesEditor = { camposGhl: { id: string; name: string }[]; pipelinesGhl: Pipe[]; pipelinesDashboard: Pipe[]; errorGhl: string | null };
 type Rama = Extract<Paso, { tipo: "rama" }>;
 
-// También los usa la vista de solo mirar (workflows.tsx)
-export const ICONOS: Record<Icono, { C: typeof Zap; color: string }> = {
-  rayo: { C: Zap, color: "from-[#5b78ff] to-[#2341c8]" },
-  reloj: { C: Clock, color: "from-[#9aa3b8] to-[#5d6679]" },
-  persona: { C: User, color: "from-[#ffb35c] to-[#e46a00]" },
-  etiqueta: { C: Tag, color: "from-[#ff8ab5] to-[#d63a78]" },
-  diana: { C: Target, color: "from-[#4ade80] to-[#0e7a45]" },
-  rama: { C: GitBranch, color: "from-[#a78bfa] to-[#6d28d9]" },
-  mover: { C: MoveRight, color: "from-[#5ec8ff] to-[#0b72c4]" },
-};
 export function Cuadro({ icono }: { icono: Icono }) {
   const { C, color } = ICONOS[icono];
   return (
