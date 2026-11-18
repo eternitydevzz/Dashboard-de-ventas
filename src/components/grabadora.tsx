@@ -6,6 +6,7 @@ import { useToast } from "@/components/toasts";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { AVISO_FIN_SEG, duracionTexto, extDeTipo, quedanAviso } from "@/lib/grabaciones";
 import { guardarGrabacion, prepararSubidaGrabacion } from "@/app/(panel)/grabaciones/acciones";
+import { hacerBuscable } from "@/lib/webm-buscable";
 
 // C10 (plan Callers, 7 nov; 7b.3 punto 4): la grabadora vive en el marco de la app, no en la ventana del guion: cerrar
 // el guion o cambiar de sección no corta la grabación, y avisa antes de salir de la página. La grabación queda unida
@@ -62,9 +63,10 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   }, [grabando]);
 
   const subir = useCallback(
-    async (blob: Blob, tipo: string, leadId: string, seg: number) => {
+    async (grabado: Blob, tipo: string, leadId: string, seg: number) => {
       const ext = extDeTipo(tipo) ?? "webm";
       setSubiendo(true);
+      const blob = await hacerBuscable(grabado); // con índice, para poder saltar al escucharla (si falla, la original)
       try {
         const { ruta, url } = await exigirOk(prepararSubidaGrabacion(ext));
         const r = await fetch(url, { method: "PUT", headers: { "content-type": tipo.split(";")[0], "x-upsert": "false" }, body: blob });
