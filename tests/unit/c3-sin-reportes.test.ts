@@ -36,3 +36,18 @@ describe("C-3 · sin la sección Reportes", () => {
     expect(leer("src/app/onboarding/page.tsx")).not.toContain("reporte de fin de día");
   });
 });
+
+// Pendiente de la Fase C (docs/PENDIENTES-JOSE.md, sección 7): sin la pantalla Reportes, esto ya no tenía llamadas
+describe("C-3 · sin código muerto de avisos y reportes", () => {
+  it("lib/avisos.ts (enviarAviso) ya no existe", () => {
+    expect(existsSync("src/lib/avisos.ts")).toBe(false);
+  });
+  it("lib/reportes.ts ya no exporta rolDeReporte ni tasasCloser", async () => {
+    const reportes: Record<string, unknown> = await import("@/lib/reportes");
+    expect(reportes).not.toHaveProperty("rolDeReporte");
+    expect(reportes).not.toHaveProperty("tasasCloser");
+  });
+  it("el menú ya no tiene el icono de Reportes", () => {
+    expect(leer("src/components/barra-lateral.tsx")).not.toMatch(/reportes:\s*ClipboardList/);
+  });
+});

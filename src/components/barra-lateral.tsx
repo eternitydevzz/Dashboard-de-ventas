@@ -16,7 +16,6 @@ import {
   ShoppingCart,
   Trophy,
   FolderOpen,
-  ClipboardList,
   Settings,
   Sun,
   Moon,
@@ -56,7 +55,6 @@ const ICONOS = {
   recursos: FolderOpen,
   manuales: BookOpen, // C9
   grabaciones: Mic, // C10
-  reportes: ClipboardList,
   admin: Settings,
   equipo: Network,
   programas: Package,

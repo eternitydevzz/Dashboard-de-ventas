@@ -1,4 +1,3 @@
-import { pct as formatoPct } from "@/lib/formato";
 // Preguntas del reporte de fin de día según el rol.
 export type Pregunta = { clave: string; texto: string; tipo: "numero" | "texto"; ayuda?: string; destacada?: boolean };
 
@@ -24,24 +23,6 @@ export const PREGUNTAS: Record<"caller" | "closer", Pregunta[]> = {
     { clave: "inconvenientes", texto: "¿Inconvenientes?", tipo: "texto", ayuda: "Si no hubo nada, escribe «Ninguno»." },
   ],
 };
-
-export function rolDeReporte(rol: string): "caller" | "closer" | null {
-  return rol === "caller" || rol === "closer" ? rol : null;
-}
-
-// Igual que el formulario antiguo (reporteventas.html):
-// agendamiento = agendadas / realizadas · cierre = ventas / agendadas
-export function tasasCloser(r: Record<string, string | number | undefined>) {
-  const pct = (a: unknown, b: unknown) => {
-    const x = Number(a);
-    const y = Number(b);
-    return Number.isFinite(x) && Number.isFinite(y) && y > 0 ? formatoPct(Math.round((x / y) * 100)) : "—";
-  };
-  return {
-    agendamiento: pct(r.llamadas_agendadas, r.llamadas_realizadas),
-    cierre: pct(r.ventas, r.llamadas_agendadas),
-  };
-}
 
 // ---------- Preguntas editables (bloque 7 de 1.0, Cristian 10 y 11 oct 2026) ----------
 // Las cambian el CEO y los directores con Administración. Del closer, las 3 de las tasas se pueden renombrar pero no
