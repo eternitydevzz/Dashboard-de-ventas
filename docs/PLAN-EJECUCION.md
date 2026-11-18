@@ -367,6 +367,66 @@ Sigue valiendo PENDIENTES-JOSE.md, sección 6: solo para el equipo (al lead le e
 - A las 21:00 de Madrid y de Nueva York, el reporte llega a los números de `reporte_config.whatsapps`.
 - `whatsapp_envios` sin fallos y `errores_app` sin errores nuevos.
 
+## 9 bis. Fase E · La ficha completa en el WhatsApp de cada cita · rama `fase-e-ficha-whatsapp` · 1 PR
+
+**Objetivo:** al agendar, el closer y el grupo de los CEO reciben por WhatsApp la plantilla de Jose rellenada con la ficha de cualificación; el caller, el aviso corto de siempre.
+**Diseño:** `docs/PENDIENTES-JOSE.md`, sección 6b (aprobado por Jose el 18 nov). **Ejecución:** Claude en el chat, tarea a tarea, sin agentes (regla de Jose). 1 commit por tarea.
+
+### Reglas de la fase
+- Sin migración (`cualificaciones.campos` es `jsonb`). Sin dependencias nuevas.
+- `avisarCita` NUNCA lanza (va dentro de `after()`); el texto corto de hoy (`textoCita`) no cambia: sus tests actuales siguen igual.
+- Negritas de WhatsApp con un asterisco (`*Contacto:*`), nunca `**`. Campo vacío = «—». «MEET» sin enlace.
+- Los 4 campos antiguos (`dolor`, `objecion`, `resultado`, `nota`) **nunca se borran** de la base.
+
+### Puntos a vigilar (los cubre un test de la tarea que los toca)
+1. Lead con ficha antigua (solo Dolor/Nota…) y ninguno de los 11 campos → aviso **corto** (la plantilla saldría toda en «—») · Tarea E-3.
+2. Closer que también es el caller (Facu, `tambien_closer`) → un solo envío, y con la **plantilla** · Tarea E-3.
+3. Lead sin teléfono → «*Contacto:* —» · Tarea E-3.
+4. Un navegador con la versión vieja (o el `sendBeacon` al cerrar) manda la ficha con `dolor` cambiado o sin `nota` → la base conserva los antiguos tal cual estaban · Tarea E-1.
+5. Edad sin situación, o al revés → «Situación profesional y actual» no deja « · » sueltos · Tarea E-3.
+
+### Tarea E-1: los 11 campos y los antiguos que no se borran
+**Archivos:** `src/lib/ficha-cualificacion.ts`, `src/lib/ficha-cualificacion-datos.ts` (`guardarFichaDe`), `tests/unit/ficha-cualificacion.test.ts`.
+**Interfaces que produce:**
+- `CAMPOS_FICHA` (los del formulario, en el orden de la plantilla): `contexto` «Contexto del lead» (largo), `experiencia` «Experiencia» (largo), `motivacion` «Motivación», `importe` «Importe informado», `respuesta` «Respuesta» (largo), `edad` «Edad», `situacion` «Situación actual» (largo), `decision` «Decisión», `lugar` «Lugar», `conclusion` «Conclusión» (largo), `tiempo` «Tiempo disponible».
+- `CAMPOS_ANTIGUOS`: `dolor` «Dolor», `objecion` «Objeción principal», `resultado` «Resultado», `nota` «Nota» (todos largo). `CampoFicha` = claves de los dos. `limpiarFicha` y `mismaFicha` trabajan con los 15.
+- `conAntiguosDe(nueva: unknown, guardada: unknown): Ficha` → los 11 de `nueva` + los 4 antiguos de `guardada` (los antiguos de `nueva` se ignoran).
+- `guardarFichaDe` guarda `conAntiguosDe(entrada, actual?.campos)` (y compara con `mismaFicha` esa misma ficha).
+
+- [ ] Test (rojo): `CAMPOS_FICHA` son esos 11 en ese orden; `CAMPOS_ANTIGUOS` esos 4; `limpiarFicha({ dolor: " x " })` → `{ dolor: "x" }`; `conAntiguosDe({ contexto: "A", dolor: "nuevo" }, { dolor: "viejo", nota: "n" })` → `{ contexto: "A", dolor: "viejo", nota: "n" }`; `conAntiguosDe({ dolor: "x" }, {})` → `{}`; `guardarFichaDe("l1", { contexto: "A" })` con la base `{ nota: "n" }` hace upsert con `campos: { contexto: "A", nota: "n" }`. Actualizar el test «son los 8 de la tabla del equipo más Nota».
+- [ ] `npx vitest run tests/unit/ficha-cualificacion.test.ts` → falla.
+- [ ] Código.
+- [ ] Mismo comando → pasa. Commit `feat: ficha de cualificación con los 6 campos de la plantilla (los antiguos se conservan)`.
+
+### Tarea E-2: formulario, página del lead y «Exportar»
+**Archivos:** `src/components/ficha-cualificacion.tsx` (el `placeholder` de `nota` pasa a `conclusion`: «Resumen del perfil, interés y predisposición de compra…»), `src/app/(panel)/leads/[id]/page.tsx:151` (debajo de los 11, los antiguos con valor, con «(antiguo)» en el título), `src/app/(panel)/crm/barra-masiva.tsx:112` (columnas de los 15; los antiguos «Cualificación · Dolor (antiguo)»).
+**Interfaz que produce (en `ficha-cualificacion.ts`):** `COLUMNAS_FICHA: { k: CampoFicha; t: string; largo: boolean; antiguo: boolean }[]` = los 11 y después los 4 con `t` + « (antiguo)». La usan la página del lead y «Exportar»; el formulario sigue con `CAMPOS_FICHA`.
+- [ ] Test (rojo) en `tests/unit/ficha-cualificacion.test.ts`: `COLUMNAS_FICHA` tiene 15, los 4 últimos con `antiguo: true` y título «Dolor (antiguo)»…; y que el formulario no pinta los antiguos (leyendo `ficha-cualificacion.tsx`: usa `CAMPOS_FICHA.map`, no `COLUMNAS_FICHA`), y que página del lead y `barra-masiva.tsx` usan `COLUMNAS_FICHA` (lectura del archivo, como hace `avisos-whatsapp.test.ts`).
+- [ ] Rojo → código → verde. `npx tsc --noEmit` y `npx eslint` de los 3 archivos sin errores. Commit `feat: la ficha nueva en el formulario, la página del lead y Exportar`.
+
+### Tarea E-3: la plantilla en el WhatsApp de la cita
+**Archivos:** `src/lib/avisos-whatsapp.ts`, `tests/unit/avisos-whatsapp.test.ts`.
+**Interfaces que produce:**
+- `DestinoAviso` gana `quien: "closer" | "caller" | "grupo"` (en `destinosDe`; si closer y caller son la misma persona, queda `closer`). Actualizar los `toEqual` de «destinos (función pura)».
+- `tieneFicha(f: Ficha): boolean` → algún campo de `CAMPOS_FICHA` con texto (los antiguos no cuentan).
+- `textoPlantillaCita(o: { motivo: MotivoCita; lead: string; telefono: string | null; fecha: string; zona: string; para: "persona" | "grupo"; closer: string | null; ficha: Ficha }): string`. Líneas separadas por una línea en blanco, como la plantilla de Jose:
+  `📅 *LLAMADA LEAD (<lead>) – <día de la semana> <d> <mes corto> a las <HH:MM> (<tu hora | hora de X>) MEET* @ <closer o «sin asignar»>` (con «🔁» en vez de «📅» si es `reagendada`) · `*Contacto:* <teléfono>` · `*Contexto del lead:*` · `*Experiencia:*` · `*Motivación:*` · `*Precio:* Se le informó de una inversión de <importe>.` (sin importe: `*Precio:* —`) · `*Respuesta:*` · `*Situación profesional y actual:* Edad: <edad> · <situación>` (solo las partes que haya) · `*Decisión de compra:*` · `*Ubicación:* <lugar>` · `*Conclusión:*` · `*Tiempo disponible:*`.
+- `avisarCita` lee también `leads(nombre, apellido, telefono)` y `cualificaciones.campos` del lead (`limpiarFicha`). Con `tieneFicha`: `closer` y `grupo` → `textoPlantillaCita`; `caller` → `textoCita`. Sin ficha: `textoCita` para todos (como hoy).
+- [ ] Tests (rojo):
+  - `textoPlantillaCita` con ficha completa, `fecha: "2026-11-20T16:30:00Z"`, `zona: "Europe/Madrid"`, `para: "persona"`, `closer: "Ana"` → primera línea exacta `📅 *LLAMADA LEAD (María Gómez) – viernes 20 nov a las 17:30 (tu hora) MEET* @ Ana` y el texto entero comparado con `toBe`.
+  - Ficha vacía en todo menos `edad` → `*Situación profesional y actual:* Edad: 34`, `*Precio:* —`, el resto «—»; sin teléfono → `*Contacto:* —`; `reagendada` → empieza por «🔁 *LLAMADA LEAD».
+  - `tieneFicha({ dolor: "x", nota: "y" })` → `false`; `tieneFicha({ conclusion: "x" })` → `true`.
+  - `avisarCita` con `"cualificaciones:select"` → `{ campos: { contexto: "Vino de un anuncio" } }`: Ana y el grupo reciben un texto que contiene «*LLAMADA LEAD (María Gómez)» y «Vino de un anuncio»; Luis recibe exactamente el corto de hoy (`📅 Nueva cita\nLead: …`).
+  - Sin ficha (`cualificaciones` vacío) → los 3 reciben el corto (el test «cita futura…» de hoy sigue igual).
+  - Closer = caller = Ana con ficha → 1 envío a Ana, con la plantilla.
+- [ ] `npx vitest run tests/unit/avisos-whatsapp.test.ts` → falla. Código. → pasa. Commit `feat: el WhatsApp de cada cita lleva la ficha (plantilla de Jose) al closer y al grupo`.
+
+### Cierre de la fase
+- [ ] `npx tsc --noEmit`, `npm run lint`, `npm run test:unit` y `npm run build` en verde (anotar los números).
+- [ ] PR a `main`; esperar los 4 checks en verde; fusionar (Jose lo autorizó para el #209; para este, preguntar).
+- [ ] **Prueba real (con OK de Jose):** en producción, un lead de prueba con la ficha rellenada, agendado con Kevin; comprobar que a Kevin y al grupo «MaestrIA Notifys» les llega la plantilla y al caller el corto; mirar `whatsapp_envios` sin fallos; borrar después la cita y el lead de prueba.
+- [ ] Rellenar la fila «E» de la sección 8 de `PENDIENTES-JOSE.md`.
+
 ## 10. Fuera de los agentes (sección 7 de PENDIENTES-JOSE.md)
 
 - Cristian: borrar en GHL el contacto y la cita de «Jose Prueba Claude»; después, el lead `75a4319e-dfac-46be-8347-cf356cb78c2c` (solo con OK de Jose y enseñando la fila).

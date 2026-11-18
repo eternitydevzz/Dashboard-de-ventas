@@ -1,7 +1,8 @@
 // C6 (plan Callers, 7 nov; 7c.2): ficha de cualificación en el guion. 8 campos + «Nota», texto libre, ninguno
 // obligatorio. Se guarda siempre; el servidor solo escribe si algo cambió (idempotente).
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CAMPOS_FICHA, fichaAlLeer, limpiarFicha, mismaFicha } from "@/lib/ficha-cualificacion";
+import { CAMPOS_ANTIGUOS, CAMPOS_FICHA, COLUMNAS_FICHA, conAntiguosDe, fichaAlLeer, limpiarFicha, mismaFicha } from "@/lib/ficha-cualificacion";
 
 type Resp = { data: unknown; error: { message: string } | null };
 let respuesta: Record<string, Resp>;
@@ -29,8 +30,14 @@ beforeEach(() => {
 });
 
 describe("C6 · campos de la ficha", () => {
-  it("son los 8 de la tabla del equipo más «Nota», en este orden", () => {
-    expect(CAMPOS_FICHA.map((c) => c.k)).toEqual(["lugar", "edad", "decision", "motivacion", "situacion", "dolor", "objecion", "resultado", "nota"]);
+  // Fase E (Jose, 18 nov): los 11 del formulario van en el orden de la plantilla del WhatsApp de la cita
+  it("el formulario: los 11 de la plantilla de Jose, en su orden", () => {
+    expect(CAMPOS_FICHA.map((c) => c.k)).toEqual(["contexto", "experiencia", "motivacion", "importe", "respuesta", "edad", "situacion", "decision", "lugar", "conclusion", "tiempo"]);
+    expect(CAMPOS_FICHA.map((c) => c.t)).toEqual(["Contexto del lead", "Experiencia", "Motivación", "Importe informado", "Respuesta", "Edad", "Situación actual", "Decisión", "Lugar", "Conclusión", "Tiempo disponible"]);
+  });
+  it("los 4 antiguos (fuera del formulario, nunca se borran)", () => {
+    expect(CAMPOS_ANTIGUOS.map((c) => [c.k, c.t])).toEqual([["dolor", "Dolor"], ["objecion", "Objeción principal"], ["resultado", "Resultado"], ["nota", "Nota"]]);
+    expect(limpiarFicha({ dolor: " x ", conclusion: " y " })).toEqual({ dolor: "x", conclusion: "y" });
   });
   it("limpia: solo campos conocidos, texto recortado, vacíos fuera y como mucho 2.000 caracteres", () => {
     expect(limpiarFicha({ lugar: "  Madrid ", edad: 34, hack: "x", dolor: "", nota: "a".repeat(2500) })).toEqual({ lugar: "Madrid", edad: "34", nota: "a".repeat(2000) });
@@ -61,9 +68,56 @@ describe("C6 · guardar (idempotente)", () => {
     await expect(guardarFichaDe("l1", { lugar: "Madrid" })).rejects.toThrow(/asignado/);
     expect(escrituras).toHaveLength(0);
   });
+  // Fase E: los antiguos se quedan como estaban en la base, mande lo que mande el navegador (versión vieja o sendBeacon)
+  it("conserva los campos antiguos de la base y no deja que el navegador los cambie", async () => {
+    respuesta["cualificaciones:select"] = { data: { campos: { dolor: "viejo", nota: "n" } }, error: null };
+    expect(await guardarFichaDe("l1", { contexto: "A", dolor: "nuevo" })).toEqual({ cambiado: true });
+    expect(escrituras[0].args[0]).toMatchObject({ campos: { contexto: "A", dolor: "viejo", nota: "n" } });
+  });
+  it("si el navegador solo cambia un antiguo, no escribe", async () => {
+    respuesta["cualificaciones:select"] = { data: { campos: { contexto: "A", nota: "n" } }, error: null };
+    expect(await guardarFichaDe("l1", { contexto: "A" })).toEqual({ cambiado: false });
+    expect(await guardarFichaDe("l1", { contexto: "A", nota: "otra" })).toEqual({ cambiado: false });
+    expect(escrituras).toHaveLength(0);
+  });
   it("si la base falla al guardar, da error (no «guardado»)", async () => {
     respuesta["cualificaciones:upsert"] = { data: null, error: { message: "caída" } };
     await expect(guardarFichaDe("l1", { lugar: "Madrid" })).rejects.toThrow();
+  });
+});
+
+describe("Fase E · columnas para leer (página del lead y Exportar)", () => {
+  it("los 11 y después los 4 antiguos, marcados «(antiguo)»", () => {
+    expect(COLUMNAS_FICHA).toHaveLength(15);
+    expect(COLUMNAS_FICHA.slice(0, 11).map((c) => c.k)).toEqual(CAMPOS_FICHA.map((c) => c.k));
+    expect(COLUMNAS_FICHA.slice(0, 11).every((c) => !c.antiguo)).toBe(true);
+    expect(COLUMNAS_FICHA.slice(11).map((c) => [c.k, c.t, c.antiguo])).toEqual([
+      ["dolor", "Dolor (antiguo)", true],
+      ["objecion", "Objeción principal (antiguo)", true],
+      ["resultado", "Resultado (antiguo)", true],
+      ["nota", "Nota (antiguo)", true],
+    ]);
+  });
+  const leer = (r: string) => readFileSync(r, "utf8");
+  it("el formulario del caller solo pinta los 11; la página del lead y Exportar, los 15", () => {
+    const formulario = leer("src/components/ficha-cualificacion.tsx");
+    expect(formulario).toContain("CAMPOS_FICHA.map(");
+    expect(formulario).not.toContain("COLUMNAS_FICHA");
+    expect(formulario).not.toContain("CAMPOS_ANTIGUOS");
+    for (const r of ["src/app/(panel)/leads/[id]/page.tsx", "src/app/(panel)/crm/barra-masiva.tsx"]) {
+      expect(leer(r), r).toContain("COLUMNAS_FICHA");
+      expect(leer(r), r).not.toContain("CAMPOS_FICHA");
+    }
+  });
+});
+
+describe("Fase E · conAntiguosDe (función pura)", () => {
+  it("los 11 de la nueva + los 4 antiguos de la guardada", () => {
+    expect(conAntiguosDe({ contexto: "A", dolor: "nuevo" }, { dolor: "viejo", nota: "n", lugar: "Madrid" })).toEqual({ contexto: "A", dolor: "viejo", nota: "n" });
+  });
+  it("un antiguo que no estaba guardado no entra", () => {
+    expect(conAntiguosDe({ dolor: "x" }, {})).toEqual({});
+    expect(conAntiguosDe({ dolor: "x" }, null)).toEqual({});
   });
 });
 

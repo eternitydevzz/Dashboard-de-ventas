@@ -101,6 +101,16 @@ Decisión de Cristian:
 - Ojo: WAHA no es la API oficial de WhatsApp. Escribir automáticamente a gente que no tiene el número guardado puede hacer que lo bloqueen. Usar un número que no sea el principal y pedir al equipo que lo guarde.
 - Corre 24 h fuera de Vercel (Render). `WAHA_URL` y `WAHA_API_KEY` van en las variables de entorno de Vercel, nunca en el código.
 
+## 6b. Fase E · La ficha completa en el WhatsApp de cada cita (diseño aprobado por Jose, 18 nov)
+
+- **Para qué:** que el closer y los CEO lleguen a la llamada sabiendo quién es el lead, sin abrir la app.
+- **Ficha del caller (11 campos):** Lugar, Edad, Decisión, Motivación, Situación actual + 6 nuevos: Contexto del lead, Experiencia, Importe informado, Respuesta, Conclusión, Tiempo disponible. Dolor, Objeción principal, Resultado y Nota salen del formulario pero **no se borran nunca**: se conservan al guardar y se siguen viendo en la página del lead y en «Exportar» como campos antiguos. Sin migración (`cualificaciones.campos` es `jsonb`).
+- **WhatsApp al agendar** (el de la Fase D, `avisos-whatsapp.ts`): al **closer** y al **grupo de los CEO**, la plantilla de Jose rellenada con la ficha (negritas de WhatsApp `*…*`, hora en la zona de cada uno, campo vacío = «—», «MEET» sin enlace, «@ <closer>»). Al **caller**, el aviso corto de siempre. Cita que reserva el lead en GHL (sin ficha): el aviso corto para todos. Cita cambiada de hora: la plantilla con «🔁».
+- Al pulsar «Agendado», la ficha ya se guarda antes de seguir (`conFichaGuardada`, `guion-llamada.tsx`): el aviso no sale a medias sin tocar nada.
+- **No se toca:** el popup y el email del closer (`aviso-closer.ts`), la configuración de Administración → WhatsApp.
+- **Fuera:** enlace de Meet; volver a avisar si se edita la ficha después de agendar.
+- **Ojo:** el teléfono, la edad y la situación económica del lead pasan a ir por WhatsApp al grupo (antes solo el nombre). Jose lo sabe y está de acuerdo.
+
 ## 7. Otros pendientes
 
 - **Cristian:** borrar en GHL el contacto y la cita de «Jose Prueba Claude». Después se borra el lead `75a4319e-dfac-46be-8347-cf356cb78c2c` en la app (sigue en la base).

@@ -3,7 +3,7 @@ import { esJefe, getSesion } from "@/lib/auth";
 import { exigirSeccion } from "@/lib/permisos";
 import { db, escribir } from "@/lib/datos";
 import { ErrorUsuario } from "@/lib/resultado";
-import { limpiarFicha, mismaFicha, type Ficha } from "@/lib/ficha-cualificacion";
+import { conAntiguosDe, limpiarFicha, mismaFicha, type Ficha } from "@/lib/ficha-cualificacion";
 
 // C6: la ficha de un lead, solo para quien puede tocarlo (jefes, o su caller o closer)
 async function leadDeLaFicha(leadId: string) {
@@ -25,8 +25,8 @@ export async function leerFichaDe(leadId: string): Promise<Ficha> {
 // pero solo escribe si algo cambió. Una fila por lead.
 export async function guardarFichaDe(leadId: string, entrada: unknown): Promise<{ cambiado: boolean }> {
   const { perfil, proyecto } = await leadDeLaFicha(leadId);
-  const campos = limpiarFicha(entrada);
   const { data: actual } = await db().from("cualificaciones").select("campos").eq("lead_id", leadId).maybeSingle();
+  const campos = conAntiguosDe(entrada, actual?.campos); // Fase E: los 4 antiguos se quedan como estaban
   if (mismaFicha(actual?.campos ?? {}, campos)) return { cambiado: false };
   await escribir(
     db().from("cualificaciones").upsert({ lead_id: leadId, proyecto_id: proyecto.id, campos, actualizado_por: perfil.id, actualizado_en: new Date().toISOString() }),

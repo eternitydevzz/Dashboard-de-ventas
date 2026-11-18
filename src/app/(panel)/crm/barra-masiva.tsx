@@ -8,7 +8,7 @@ import { confirmar } from "@/components/dialogos";
 import { exigirOk } from "@/lib/resultado-cliente";
 import { csvExcel } from "@/lib/csv-excel";
 import { ETIQUETA_ESTADO_CALLER, nombrePais } from "@/lib/formato";
-import { CAMPOS_FICHA } from "@/lib/ficha-cualificacion";
+import { COLUMNAS_FICHA } from "@/lib/ficha-cualificacion";
 import { fichasParaExportar } from "@/app/(panel)/caller/ficha-acciones";
 import type { LeadTarjeta } from "./tablero";
 
@@ -109,7 +109,7 @@ export function BarraMasiva({
       Estado: ETIQUETA_ESTADO_CALLER[l.estado_caller as keyof typeof ETIQUETA_ESTADO_CALLER] ?? l.estado_caller,
       Etiquetas: l.etiquetas.join(", "),
       Entró: new Intl.DateTimeFormat("en-CA", { timeZone: zona }).format(new Date(l.creado_en)), // S1-21: día en la zona del proyecto
-      ...Object.fromEntries(CAMPOS_FICHA.map((c) => [`Cualificación · ${c.t}`, (fichas as Record<string, Record<string, string>>)[l.id]?.[c.k] ?? ""])),
+      ...Object.fromEntries(COLUMNAS_FICHA.map((c) => [`Cualificación · ${c.t}`, (fichas as Record<string, Record<string, string>>)[l.id]?.[c.k] ?? ""])),
     }));
     const csv = csvExcel(Object.keys(filas[0] ?? {}), filas.map(Object.values)); // S1-4: neutraliza fórmulas (nombres de formularios públicos)
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/datos";
 import { guardarError } from "@/lib/errores-app";
+import { CAMPOS_FICHA, limpiarFicha, type Ficha } from "@/lib/ficha-cualificacion";
 import { dinero, fechaHora } from "@/lib/formato";
 import { ABIERTAS } from "@/lib/llamadas";
 import { chatIdDe, enviarWhatsapp, whatsappConfigurado } from "@/lib/whatsapp";
@@ -22,9 +23,10 @@ const NO_ES_NUMERO = "No es un número de teléfono (con +)";
 export type MotivoCita = "agendada" | "reagendada";
 export type PersonaAviso = { id: string; nombre: string; whatsapp: string | null; rol: string; zona_horaria?: string | null; activo: boolean };
 // destino = lo que se guarda en whatsapp_envios (el chatId, o «perfil:<id>» si la persona no tiene un número válido)
-export type DestinoAviso = { destino: string; chatId: string | null; error: string | null; para: "persona" | "grupo"; zona: string };
+// quien (Fase E): a quién va, para elegir el texto (la plantilla con la ficha al closer y al grupo; al caller, el corto)
+export type DestinoAviso = { destino: string; chatId: string | null; error: string | null; para: "persona" | "grupo"; quien: "closer" | "caller" | "grupo"; zona: string };
 type Evento = "cita" | "venta";
-type Lead = { nombre: string | null; apellido: string | null } | null;
+type Lead = { nombre: string | null; apellido: string | null; telefono?: string | null } | null;
 
 const nombreLead = (l: Lead) => [l?.nombre, l?.apellido].filter(Boolean).join(" ") || "Sin nombre";
 
@@ -37,6 +39,41 @@ export function textoCita(o: { motivo: MotivoCita; lead: string; fecha: string; 
     `Closer: ${o.closer ?? "sin asignar"}`,
     o.agendo ? `La consiguió: ${o.agendo}` : "La reservó el lead en el calendario",
   ].join("\n");
+}
+
+// Fase E (Jose, 18 nov): la plantilla solo si el caller rellenó algo de los 11 del formulario (los antiguos no cuentan)
+export const tieneFicha = (f: Ficha) => CAMPOS_FICHA.some(({ k }) => !!f[k]);
+
+// «viernes 20 nov a las 17:30», en la zona dada
+function diaYHora(fecha: string, zona: string) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("es-ES", { timeZone: zona, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date(fecha))
+      .map((x) => [x.type, x.value])
+  );
+  return `${p.weekday} ${p.day} ${p.month} a las ${p.hour}:${p.minute}`;
+}
+
+// La plantilla de Jose (negritas de WhatsApp: un asterisco), una línea en blanco entre campos y «—» si falta
+export function textoPlantillaCita(o: { motivo: MotivoCita; lead: string; telefono: string | null; fecha: string; zona: string; para: "persona" | "grupo"; closer: string | null; ficha: Ficha }) {
+  const f = o.ficha;
+  const raya = (v: string | null | undefined) => v || "—";
+  const cuando = `${diaYHora(o.fecha, o.zona)} (${o.para === "persona" ? "tu hora" : `hora de ${nombreZona(o.zona)}`})`;
+  const situacion = [f.edad && `Edad: ${f.edad}`, f.situacion].filter(Boolean).join(" · ");
+  return [
+    `${o.motivo === "reagendada" ? "🔁" : "📅"} *LLAMADA LEAD (${o.lead}) – ${cuando} MEET* @ ${o.closer ?? "sin asignar"}`,
+    `*Contacto:* ${raya(o.telefono)}`,
+    `*Contexto del lead:* ${raya(f.contexto)}`,
+    `*Experiencia:* ${raya(f.experiencia)}`,
+    `*Motivación:* ${raya(f.motivacion)}`,
+    `*Precio:* ${f.importe ? `Se le informó de una inversión de ${f.importe}.` : "—"}`,
+    `*Respuesta:* ${raya(f.respuesta)}`,
+    `*Situación profesional y actual:* ${raya(situacion)}`,
+    `*Decisión de compra:* ${raya(f.decision)}`,
+    `*Ubicación:* ${raya(f.lugar)}`,
+    `*Conclusión:* ${raya(f.conclusion)}`,
+    `*Tiempo disponible:* ${raya(f.tiempo)}`,
+  ].join("\n\n");
 }
 
 export function textoVenta(o: { lead: string; producto: string; importe: number; moneda: Proyecto["moneda"]; vendedor: string | null; caller: string | null }) {
@@ -61,15 +98,15 @@ export function destinosDe(config: ConfigWhatsapp, personas: { closer: PersonaAv
   const poner = (d: DestinoAviso) => {
     if (!lista.some((x) => x.destino === d.destino)) lista.push(d);
   };
-  const persona = (p: PersonaAviso | null) => {
+  const persona = (p: PersonaAviso | null, quien: "closer" | "caller") => {
     if (!p || !p.activo) return;
     const n = numeroPersona(p.whatsapp);
-    poner({ destino: n.chatId ?? `perfil:${p.id}`, chatId: n.chatId, error: n.error, para: "persona", zona: zonaPersona(p, { zona_horaria: zonaProyecto }) });
+    poner({ destino: n.chatId ?? `perfil:${p.id}`, chatId: n.chatId, error: n.error, para: "persona", quien, zona: zonaPersona(p, { zona_horaria: zonaProyecto }) });
   };
-  if (config.a_closer) persona(personas.closer);
-  if (config.a_caller) persona(personas.caller);
+  if (config.a_closer) persona(personas.closer, "closer"); // primero: si es también el caller, se queda como closer
+  if (config.a_caller) persona(personas.caller, "caller");
   const idGrupo = config.a_grupo ? chatIdDe(grupo) : null;
-  if (idGrupo?.endsWith("@g.us")) poner({ destino: idGrupo, chatId: idGrupo, error: null, para: "grupo", zona: zonaProyecto });
+  if (idGrupo?.endsWith("@g.us")) poner({ destino: idGrupo, chatId: idGrupo, error: null, para: "grupo", quien: "grupo", zona: zonaProyecto });
   return lista;
 }
 
@@ -128,28 +165,44 @@ async function apuntar(o: Origen, r: Awaited<ReturnType<typeof enviarWhatsapp>>)
 
 const mensaje = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-type CitaAviso = { id: string; proyecto_id: string; fecha: string; estado: string; closer_id: string | null; agendada_por: string | null; leads: Lead };
+type CitaAviso = { id: string; proyecto_id: string; fecha: string; estado: string; closer_id: string | null; agendada_por: string | null; lead_id: string; leads: Lead };
+
+// Fase E: la ficha de cualificación del lead (vacía si no tiene). Si no se puede leer, vacía también: sale el aviso
+// corto en vez de ninguno, y el fallo queda en el registro
+async function leerFicha(leadId: string): Promise<Ficha> {
+  const { data, error } = await db().from("cualificaciones").select("campos").eq("lead_id", leadId).maybeSingle();
+  if (error) {
+    console.error(PREFIJO, `no se pudo leer la ficha del lead ${leadId} (sale el aviso corto): ${error.message}`);
+    return {};
+  }
+  return limpiarFicha((data as { campos: unknown } | null)?.campos);
+}
 
 export async function avisarCita(citaId: string, motivo: MotivoCita = "agendada"): Promise<void> {
   if (!whatsappConfigurado()) return;
   try {
-    const cita = leido(await db().from("citas").select("id, proyecto_id, fecha, estado, closer_id, agendada_por, leads(nombre, apellido)").eq("id", citaId).maybeSingle(), "la cita") as CitaAviso | null;
+    const cita = leido(await db().from("citas").select("id, proyecto_id, fecha, estado, closer_id, agendada_por, lead_id, leads(nombre, apellido, telefono)").eq("id", citaId).maybeSingle(), "la cita") as CitaAviso | null;
     if (!cita) return;
     if (new Date(cita.fecha).getTime() < Date.now()) return; // solo futuras: importar citas viejas no avisa
     if (!(ABIERTAS as readonly string[]).includes(cita.estado)) return; // una cancelada o terminada no es «nueva cita»
     const config = (await leerConfigsWhatsapp(cita.proyecto_id)).cita;
     if (!config.activo) return;
-    const [proyecto, personas] = await Promise.all([leerProyecto(cita.proyecto_id), leerPersonas([cita.closer_id, cita.agendada_por])]);
+    const [proyecto, personas, ficha] = await Promise.all([leerProyecto(cita.proyecto_id), leerPersonas([cita.closer_id, cita.agendada_por]), leerFicha(cita.lead_id)]);
     const closer = cita.closer_id ? personas.get(cita.closer_id) ?? null : null;
     const caller = cita.agendada_por ? personas.get(cita.agendada_por) ?? null : null;
     const agendo = cita.agendada_por ? caller?.nombre ?? "—" : null; // null = la reservó el lead (GHL)
     const fecha = new Date(cita.fecha).toISOString();
+    const lead = nombreLead(cita.leads);
+    const conPlantilla = tieneFicha(ficha); // Fase E: sin ficha (p. ej. la reservó el lead en GHL), el corto para todos
     await mandar({
       proyectoId: cita.proyecto_id,
       evento: "cita",
       origenId: `${cita.id}:${fecha}`, // la hora en la clave: otra hora, otro aviso; la misma, ninguno
       destinos: destinosDe(config, { closer, caller }, proyecto.whatsapp_grupo, proyecto.zona_horaria),
-      texto: (d) => textoCita({ motivo, lead: nombreLead(cita.leads), fecha, zona: d.zona, para: d.para, closer: closer?.nombre ?? null, agendo }),
+      texto: (d) =>
+        conPlantilla && d.quien !== "caller"
+          ? textoPlantillaCita({ motivo, lead, telefono: cita.leads?.telefono ?? null, fecha, zona: d.zona, para: d.para, closer: closer?.nombre ?? null, ficha })
+          : textoCita({ motivo, lead, fecha, zona: d.zona, para: d.para, closer: closer?.nombre ?? null, agendo }),
     });
   } catch (e) {
     console.error(PREFIJO, `cita ${citaId}: ${mensaje(e)}`);

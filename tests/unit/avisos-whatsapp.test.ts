@@ -58,7 +58,7 @@ vi.mock("@/lib/whatsapp-config", () => ({ leerConfigsWhatsapp: async () => confi
 const guardarError = vi.fn<(sitio: string, texto: string, proyectoId: string | null) => Promise<undefined>>(async () => undefined);
 vi.mock("@/lib/errores-app", () => ({ guardarError: (s: string, t: string, p: string | null) => guardarError(s, t, p) }));
 
-const { avisarCita, avisarVenta, textoCita, textoVenta, destinosDe } = await import("@/lib/avisos-whatsapp");
+const { avisarCita, avisarVenta, textoCita, textoVenta, destinosDe, textoPlantillaCita, tieneFicha } = await import("@/lib/avisos-whatsapp");
 
 const FUTURA = "2099-11-20T16:30:00.000Z";
 const OTRA_HORA = "2099-11-21T18:00:00.000Z";
@@ -122,14 +122,73 @@ describe("textos (funciones puras)", () => {
   });
 });
 
+// Fase E (Jose, 18 nov): la plantilla de Jose con la ficha de cualificación, para el closer y el grupo de los CEO
+const FICHA_LLENA = {
+  contexto: "Vino de un anuncio de Instagram",
+  experiencia: "Ninguna con IA",
+  motivacion: "Dejar su trabajo",
+  importe: "3.000 €",
+  respuesta: "Puede pagarlo en 2 plazos",
+  edad: "34",
+  situacion: "Administrativa, sueldo fijo",
+  decision: "Decide ella sola",
+  lugar: "Madrid, España",
+  conclusion: "Muy interesada",
+  tiempo: "10 h/semana",
+};
+describe("Fase E · plantilla de la cita (funciones puras)", () => {
+  const base = { motivo: "agendada" as const, lead: "María Gómez", telefono: "+34 600 000 000", fecha: "2026-11-20T16:30:00Z", zona: "Europe/Madrid", para: "persona" as const, closer: "Ana" };
+  it("con la ficha completa: la plantilla entera, negritas de WhatsApp y la hora de la persona", () => {
+    expect(textoPlantillaCita({ ...base, ficha: FICHA_LLENA })).toBe(
+      [
+        "📅 *LLAMADA LEAD (María Gómez) – viernes 20 nov a las 17:30 (tu hora) MEET* @ Ana",
+        "*Contacto:* +34 600 000 000",
+        "*Contexto del lead:* Vino de un anuncio de Instagram",
+        "*Experiencia:* Ninguna con IA",
+        "*Motivación:* Dejar su trabajo",
+        "*Precio:* Se le informó de una inversión de 3.000 €.",
+        "*Respuesta:* Puede pagarlo en 2 plazos",
+        "*Situación profesional y actual:* Edad: 34 · Administrativa, sueldo fijo",
+        "*Decisión de compra:* Decide ella sola",
+        "*Ubicación:* Madrid, España",
+        "*Conclusión:* Muy interesada",
+        "*Tiempo disponible:* 10 h/semana",
+      ].join("\n\n")
+    );
+  });
+  it("el grupo ve la hora del proyecto con su nombre; sin closer, «sin asignar»", () => {
+    expect(textoPlantillaCita({ ...base, zona: ZONA_NY, para: "grupo", closer: null, ficha: FICHA_LLENA }).split("\n")[0]).toBe(
+      "📅 *LLAMADA LEAD (María Gómez) – viernes 20 nov a las 11:30 (hora de Nueva York) MEET* @ sin asignar"
+    );
+  });
+  it("lo que falta sale «—»: sin teléfono, sin importe; solo la edad, sin « · » sueltos", () => {
+    const t = textoPlantillaCita({ ...base, telefono: null, ficha: { edad: "34" } });
+    expect(t).toContain("*Contacto:* —");
+    expect(t).toContain("*Precio:* —");
+    expect(t).toContain("*Situación profesional y actual:* Edad: 34\n");
+    expect(t).toContain("*Conclusión:* —");
+    expect(textoPlantillaCita({ ...base, ficha: { situacion: "En paro" } })).toContain("*Situación profesional y actual:* En paro\n");
+    expect(t).not.toContain("**");
+  });
+  it("cita cambiada de hora: «🔁» delante", () => {
+    expect(textoPlantillaCita({ ...base, motivo: "reagendada", ficha: FICHA_LLENA }).startsWith("🔁 *LLAMADA LEAD (María Gómez)")).toBe(true);
+  });
+  it("tieneFicha: solo cuentan los 11 del formulario (una ficha solo con antiguos no)", () => {
+    expect(tieneFicha({ dolor: "x", nota: "y" })).toBe(false);
+    expect(tieneFicha({})).toBe(false);
+    expect(tieneFicha({ conclusion: "x" })).toBe(true);
+  });
+});
+
 describe("destinos (función pura)", () => {
   it("closer, caller y grupo, cada uno con su zona; la misma persona dos veces, una sola", () => {
     expect(destinosDe(porDefecto("cita"), { closer: ANA, caller: LUIS }, GRUPO, ZONA_NY)).toEqual([
-      { destino: CHAT_ANA, chatId: CHAT_ANA, error: null, para: "persona", zona: "Europe/Madrid" },
-      { destino: CHAT_LUIS, chatId: CHAT_LUIS, error: null, para: "persona", zona: "America/Bogota" },
-      { destino: GRUPO, chatId: GRUPO, error: null, para: "grupo", zona: ZONA_NY },
+      { destino: CHAT_ANA, chatId: CHAT_ANA, error: null, para: "persona", quien: "closer", zona: "Europe/Madrid" },
+      { destino: CHAT_LUIS, chatId: CHAT_LUIS, error: null, para: "persona", quien: "caller", zona: "America/Bogota" },
+      { destino: GRUPO, chatId: GRUPO, error: null, para: "grupo", quien: "grupo", zona: ZONA_NY },
     ]);
-    expect(destinosDe(porDefecto("cita"), { closer: ANA, caller: ANA }, null, ZONA_NY)).toHaveLength(1);
+    // Fase E: si el closer es también el caller (Facu), se queda como closer (le llega la plantilla)
+    expect(destinosDe(porDefecto("cita"), { closer: ANA, caller: ANA }, null, ZONA_NY)).toMatchObject([{ destino: CHAT_ANA, quien: "closer" }]);
     expect(destinosDe({ ...porDefecto("cita"), a_caller: false, a_grupo: false }, { closer: ANA, caller: LUIS }, GRUPO, ZONA_NY).map((d) => d.destino)).toEqual([CHAT_ANA]);
   });
 
@@ -173,6 +232,47 @@ describe("avisarCita", () => {
       expect(u.datos).toEqual({ estado: "enviado", error: null });
       expect(u.filtros).toEqual(expect.arrayContaining([["evento", "cita"], ["origen_id", `c1:${FUTURA}`]]));
     }
+  });
+
+  it("Fase E · con ficha: plantilla al closer y al grupo; al caller, el corto de siempre", async () => {
+    base["cualificaciones:select"] = { data: { campos: { contexto: "Vino de un anuncio", dolor: "antiguo" } }, error: null };
+    base["citas:select"] = cita({ leads: { nombre: "María", apellido: "Gómez", telefono: "+34 600 000 000" } });
+    await avisarCita("c1");
+    const r = recibido();
+    for (const chat of [CHAT_ANA, GRUPO]) {
+      expect(r.get(chat), chat).toContain("*LLAMADA LEAD (María Gómez)");
+      expect(r.get(chat), chat).toContain("*Contexto del lead:* Vino de un anuncio");
+      expect(r.get(chat), chat).toContain("*Contacto:* +34 600 000 000");
+    }
+    expect(r.get(CHAT_ANA)).toContain("(tu hora) MEET* @ Ana Closer");
+    expect(r.get(CHAT_LUIS)).toBe("📅 Nueva cita\nLead: María Gómez\nCuándo: 20 nov, 11:30 (tu hora)\nCloser: Ana Closer\nLa consiguió: Luis Caller");
+    expect(filasReserva()).toHaveLength(3);
+  });
+
+  it("Fase E · si no se puede leer la ficha, el aviso sale igual (el corto) y queda en el registro", async () => {
+    base["cualificaciones:select"] = { data: null, error: { message: "caída" } };
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await avisarCita("c1");
+    expect(mandadosA().sort()).toEqual([CHAT_LUIS, CHAT_ANA, GRUPO].sort());
+    for (const t of recibido().values()) expect(t.startsWith("📅 Nueva cita\n")).toBe(true);
+    expect(log.mock.calls.flat().join(" ")).toContain("ficha");
+    log.mockRestore();
+  });
+
+  it("Fase E · ficha solo con campos antiguos: el corto para todos", async () => {
+    base["cualificaciones:select"] = { data: { campos: { dolor: "x", nota: "y" } }, error: null };
+    await avisarCita("c1");
+    for (const t of recibido().values()) expect(t.startsWith("📅 Nueva cita\n")).toBe(true);
+  });
+
+  it("Fase E · closer que también es el caller, con ficha: un solo envío, con la plantilla", async () => {
+    base["cualificaciones:select"] = { data: { campos: { conclusion: "Muy interesada" } }, error: null };
+    base["citas:select"] = cita({ agendada_por: "ana" });
+    base["perfiles:select"] = personas(ANA);
+    configs.cita = { ...porDefecto("cita"), a_grupo: false };
+    await avisarCita("c1");
+    expect(mandadosA()).toEqual([CHAT_ANA]);
+    expect(recibido().get(CHAT_ANA)).toContain("*Conclusión:* Muy interesada");
   });
 
   it("la misma cita con otra hora (reagendada o juntada) avisa otra vez; con la misma hora, no", async () => {
