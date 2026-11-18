@@ -10,7 +10,8 @@ import { coincidenTexto, condicionTexto, describirPaso, disparadorTexto, estadoE
 import type { ResumenWorkflow } from "@/lib/workflows-motor";
 import { fechaHora } from "@/lib/formato";
 import type { Proyecto } from "@/lib/tipos";
-import { Cuadro, ICONOS, NuevoWorkflowCita } from "./workflows-editor";
+import { Cuadro, NuevoWorkflowCita } from "./workflows-editor";
+import { ICONOS } from "./workflows-iconos"; // 18 nov: no desde workflows-editor («use client»), ahí llegaba vacío
 
 export type WorkflowFila = { id: string; nombre: string; disparador: Disparador; pasos: Paso[]; modo: string; encendido: boolean; version: number };
 export type EjecucionFila = { id: string; estado: string; coincide: boolean | null; creado_en: string; siguiente_en: string; registro: { tipo?: string; pasos?: string[]; hora?: string; diferencias?: string[] }[]; quien: string };
