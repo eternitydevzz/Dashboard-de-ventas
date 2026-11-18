@@ -12,7 +12,7 @@ export function FormulariosLead({ envios }: { envios: EnvioFormulario[] }) {
             <summary className="cursor-pointer px-3 py-2">
               <span className="font-medium">{e.fecha}</span>
               <span className="text-texto-3"> · {e.entrada}</span>
-              {!e.vaciado && <span className="text-texto-3"> · {e.respuestas.length} {e.respuestas.length === 1 ? "respuesta" : "respuestas"}</span>}
+              {!e.vaciado && e.respuestas.length > 0 && <span className="text-texto-3"> · {e.respuestas.length} {e.respuestas.length === 1 ? "respuesta" : "respuestas"}</span>}
             </summary>
             <div className="border-t border-borde px-3 py-2">
               {e.vaciado ? (
