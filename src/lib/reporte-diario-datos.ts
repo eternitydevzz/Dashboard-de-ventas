@@ -3,7 +3,8 @@ import { cargarBase } from "@/lib/metricas";
 import { mercadosDelProyecto } from "@/lib/mercado-datos";
 import { avisosCeo } from "@/lib/avisos-ceo";
 import { calcularAvances, cargarObjetivos } from "@/lib/objetivos";
-import { armarReporte, fechaReporte, ZONA_REPORTE, type DatosReporte } from "@/lib/reporte-diario";
+import { armarReporte, fechaReporte, type DatosReporte } from "@/lib/reporte-diario";
+import { ZONA_REPORTE } from "@/lib/reporte-config";
 import type { MercadoReporte, Proyecto } from "@/lib/tipos";
 
 // Fase C: carga lo que necesita el reporte diario de un mercado y lo arma (reporte-diario.ts). No envía nada.
@@ -19,5 +20,5 @@ export async function datosReporte(proyecto: Proyecto, mercado: MercadoReporte, 
   ]);
   const personas = base.gente.filter((g) => (g.rol === "caller" || g.rol === "closer") && mercados[g.id] === mercado);
   const avances = calcularAvances(base, objetivos, personas, zona, fecha);
-  return armarReporte(base, { mercado, mercados, zona, ahora, avisos, avances });
+  return armarReporte(base, { mercado, moneda: proyecto.moneda, mercados, zona, ahora, avisos, avances });
 }
