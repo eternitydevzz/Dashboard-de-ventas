@@ -95,6 +95,7 @@ beforeEach(() => {
   enviarWa.mockReset().mockImplementation(async (destinos: string[]) => ({ enviados: destinos, fallos: [] }));
   datos.mockReset().mockImplementation(async (_p: unknown, mercado: string) => ({
     mercado,
+    moneda: "USD", // 18 nov: el reporte lleva la moneda del proyecto (antes era fija por mercado)
     fecha: "2026-11-17",
     personas: [],
     dia: vacio,
@@ -309,7 +310,7 @@ describe("POST /api/avisos/reporte/[proyectoId]", () => {
     config = [fila("es"), fila("latam", { hora: "15:00" })]; // 20:00Z = 21:00 en Madrid y 15:00 en Nueva York: tocan los dos
     datos.mockImplementation(async (_p: unknown, mercado: string) => {
       if (mercado === "es") throw new Error("base caída");
-      return { mercado, fecha: "2026-11-17", personas: [], dia: vacio, mes: vacio, vaMal: [], objetivos: [] };
+      return { mercado, moneda: "USD", fecha: "2026-11-17", personas: [], dia: vacio, mes: vacio, vaMal: [], objetivos: [] };
     });
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const r = await llamar({ "x-eternity-secreto": SECRETO });

@@ -1,13 +1,14 @@
 // Fase C (Cristian, 17 nov 2026): el reporte diario usa los mismos números que KPIs (calcularKpis), por mercado.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { armarReporte, textoReporte, ZONA_REPORTE } from "@/lib/reporte-diario";
+import { armarReporte, textoReporte } from "@/lib/reporte-diario";
+import { ZONA_REPORTE } from "@/lib/reporte-config";
 import { calcularKpis } from "@/lib/kpis";
-import { rangoDe } from "@/lib/formato";
+import { dinero, rangoDe } from "@/lib/formato";
 import type { Base } from "@/lib/metricas";
 import type { Mercado } from "@/lib/mercado";
 import type { Avance } from "@/lib/objetivos";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
-import { esCloser, type ParteReporte, type Perfil } from "@/lib/tipos";
+import { esCloser, type ParteReporte, type Perfil, type Proyecto } from "@/lib/tipos";
 
 const persona = (id: string, nombre: string, rol: Perfil["rol"]): Perfil =>
   ({ id, nombre, email: `${id}@t`, rol, telefono: null, whatsapp: null, admin_activo: false, onboarding_completo: true, activo: true }) as Perfil;
@@ -55,7 +56,10 @@ const avances = new Map<string, Avance[]>([
   ["cEs1", [avance("agendas", 1, 3)]],
 ]);
 
-const armar = (mercado: "es" | "latam", ahora: Date) => armarReporte(base(), { mercado, mercados, zona: ZONA_REPORTE[mercado], ahora, avisos, avances });
+// La moneda es la del proyecto (no la del mercado); por defecto, la de cada mercado de antes para no cambiar las demás pruebas
+const MONEDA_DE: Record<"es" | "latam", Proyecto["moneda"]> = { es: "EUR", latam: "USD" };
+const armar = (mercado: "es" | "latam", ahora: Date, moneda: Proyecto["moneda"] = MONEDA_DE[mercado]) =>
+  armarReporte(base(), { mercado, mercados, zona: ZONA_REPORTE[mercado], ahora, avisos, avances, moneda });
 
 // Lo que da KPIs con el mismo rango y la misma gente (rangoDe con el reloj puesto en `ahora`)
 function deKpis(mercado: "es" | "latam", ahora: Date, periodo: "hoy" | "mes") {
@@ -120,6 +124,18 @@ describe("textoReporte", () => {
     const sin = textoReporte(armar("latam", AHORA_USA), ["por_persona", "totales_dia", "totales_mes", "va_mal"]);
     expect(sin.texto).not.toContain("Objetivos");
     expect(sin.html).not.toContain("Objetivos");
+  });
+
+  it("el cash va en la moneda del proyecto, no en la del mercado", () => {
+    // Proyecto en dólares con el equipo de España: «$», nunca «€»
+    const es = textoReporte(armar("es", AHORA_ES, "USD"), ["totales_dia"]).texto;
+    expect(es).toContain(`Cash: ${dinero(0, { moneda: "USD" })}`);
+    expect(es).not.toContain("€");
+    // Proyecto en euros con el equipo de USA: «€», nunca «$»
+    const usa = textoReporte(armar("latam", AHORA_USA, "EUR"), ["totales_dia", "totales_mes"]).texto;
+    expect(usa).toContain(`Cash: ${dinero(700, { moneda: "EUR" })}`);
+    expect(usa).toContain(`Cash: ${dinero(1700, { moneda: "EUR" })}`);
+    expect(usa).not.toContain("$");
   });
 
   it("el texto lleva las cifras de cada parte", () => {

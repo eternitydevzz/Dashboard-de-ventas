@@ -3,7 +3,7 @@ import { dinero, rangoDe, sumarDias } from "@/lib/formato";
 import { plantillaEmail } from "@/lib/plantilla-email";
 import { urlApp } from "@/lib/email";
 import { CIFRAS } from "@/lib/objetivos-constantes";
-import { esCloser, type MercadoReporte, type ParteReporte } from "@/lib/tipos";
+import { esCloser, type MercadoReporte, type ParteReporte, type Proyecto } from "@/lib/tipos";
 import type { Base } from "@/lib/metricas";
 import type { Mercado } from "@/lib/mercado";
 import type { AvisoCeo } from "@/lib/avisos-ceo";
@@ -13,14 +13,13 @@ import type { Avance } from "@/lib/objetivos";
 // Nueva York). Sin base de datos: los números salen de calcularKpis (los mismos que KPIs) con la gente de su mercado
 // (Jose, D4: callers y closers de ese mercado). La carga está en reporte-diario-datos.ts; el envío, en otro sitio.
 
-export const ZONA_REPORTE: Record<MercadoReporte, string> = { es: "Europe/Madrid", latam: "America/New_York" };
+// La zona de cada mercado (ZONA_REPORTE) está en reporte-config.ts.
 export const NOMBRE_REPORTE: Record<MercadoReporte, string> = { es: "España", latam: "USA" };
-// Supuesto (sin verificar con Cristian): España en euros y USA en dólares; DatosReporte no lleva la moneda del proyecto
-const MONEDA_REPORTE = { es: { moneda: "EUR" }, latam: { moneda: "USD" } } as const;
 
 type Totales = { llamadas: number; agendas: number; ventas: number; cash: number };
 export type DatosReporte = {
   mercado: MercadoReporte;
+  moneda: Proyecto["moneda"]; // la del proyecto (no la del mercado): el cash sale en ella
   fecha: string; // «YYYY-MM-DD», el día en la zona del reporte
   personas: { nombre: string; rol: "caller" | "closer"; llamadas: number; agendas: number; ventas: number }[];
   dia: Totales;
@@ -61,7 +60,15 @@ const nombreCifra = (c: Avance["cifra"]) => CIFRAS.find((x) => x.v === c)?.t ?? 
 // `avances`: lo que devuelve calcularAvances (perfil_id → sus avances); solo entran los de la gente del reporte
 export function armarReporte(
   base: Base,
-  o: { mercado: MercadoReporte; mercados: Record<string, Mercado>; zona: string; ahora: Date; avisos: AvisoCeo[]; avances: Map<string, Avance[]> }
+  o: {
+    mercado: MercadoReporte;
+    moneda: Proyecto["moneda"];
+    mercados: Record<string, Mercado>;
+    zona: string;
+    ahora: Date;
+    avisos: AvisoCeo[];
+    avances: Map<string, Avance[]>;
+  }
 ): DatosReporte {
   const gente = base.gente.filter((g) => (g.rol === "caller" || g.rol === "closer") && o.mercados[g.id] === o.mercado);
   const delMercado = { ...base, gente };
@@ -72,7 +79,7 @@ export function armarReporte(
   const objetivos = gente.flatMap((g) =>
     (o.avances.get(g.id) ?? []).map((a) => ({ nombre: g.nombre, cifra: `${nombreCifra(a.cifra)} · ${a.etiqueta}`, hecho: a.hecho, meta: a.meta }))
   );
-  return { mercado: o.mercado, fecha, personas: porPersona(hoy), dia: totales(hoy), mes: totales(mes), vaMal: o.avisos.map((a) => a.texto), objetivos };
+  return { mercado: o.mercado, moneda: o.moneda, fecha, personas: porPersona(hoy), dia: totales(hoy), mes: totales(mes), vaMal: o.avisos.map((a) => a.texto), objetivos };
 }
 
 // ---------- Texto y HTML ----------
@@ -90,7 +97,7 @@ const num = (n: number) => n.toLocaleString("es-ES", { maximumFractionDigits: 2 
 const ddmmaaaa = (ymd: string) => `${ymd.slice(8, 10)}/${ymd.slice(5, 7)}/${ymd.slice(0, 4)}`;
 
 function lineasTotales(t: Totales, d: DatosReporte) {
-  return [`Llamadas: ${num(t.llamadas)}`, `Agendas: ${num(t.agendas)}`, `Ventas: ${num(t.ventas)}`, `Cash: ${dinero(t.cash, MONEDA_REPORTE[d.mercado])}`];
+  return [`Llamadas: ${num(t.llamadas)}`, `Agendas: ${num(t.agendas)}`, `Ventas: ${num(t.ventas)}`, `Cash: ${dinero(t.cash, d)}`];
 }
 
 function lineasPersona(p: DatosReporte["personas"][number]) {

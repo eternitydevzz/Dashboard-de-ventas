@@ -1,6 +1,6 @@
 // Fase C (reporte diario): la pantalla «Reporte» de Administración. Cada mercado (España = «es», USA = «latam»)
 // tiene su hora, sus emails, sus WhatsApp, sus partes y su interruptor, en la tabla reporte_config.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let respuesta: { data: unknown; error: { message: string } | null };
@@ -38,6 +38,15 @@ beforeEach(() => {
 describe("configPorDefecto y ZONA_REPORTE", () => {
   it("las zonas de cada mercado", () => {
     expect(ZONA_REPORTE).toEqual({ es: "Europe/Madrid", latam: "America/New_York" });
+  });
+  it("ZONA_REPORTE se define en un solo sitio (reporte-config.ts); el resto lo importa", () => {
+    const carpeta = new URL("../../src/", import.meta.url);
+    // En Windows readdirSync devuelve «lib\reporte-config.ts»: se pasa a «/»
+    const archivos = readdirSync(carpeta, { recursive: true, encoding: "utf8" })
+      .map((f) => f.split("\\").join("/"))
+      .filter((f) => /\.tsx?$/.test(f));
+    const conDefinicion = archivos.filter((f) => /\bconst ZONA_REPORTE\b/.test(readFileSync(new URL(f, carpeta), "utf8")));
+    expect(conDefinicion).toEqual(["lib/reporte-config.ts"]);
   });
   it("por defecto: encendido, 21:00, info@eternity.llc, sin WhatsApp y las 5 partes", () => {
     expect(configPorDefecto("latam")).toEqual({

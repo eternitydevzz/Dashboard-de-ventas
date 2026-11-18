@@ -8,7 +8,7 @@ import { clientesDeCloser, pasosCloser, PASOS_DEFECTO } from "@/lib/onboarding-c
 import { registrarVenta } from "@/app/(panel)/leads/acciones";
 import { guardarLinkPago } from "@/app/(panel)/recursos/acciones";
 import { guardarPrograma, type DatosPrograma } from "@/app/(panel)/programas/acciones";
-import { PREGUNTAS } from "@/lib/reportes";
+import { PREGUNTAS, preguntasDe } from "@/lib/reportes";
 import type { Proyecto } from "@/lib/tipos";
 
 let e: Escenario;
@@ -29,6 +29,24 @@ describe("Preguntas del reporte (Administración)", () => {
     await falla(guardarPreguntasReporte("closer", PREGUNTAS.closer.filter((p) => p.clave !== "llamadas_realizadas")), /no se puede quitar/);
     await ok(guardarPreguntasReporte("caller", nuevas));
     expect((await alDia()).preguntas_reporte).toEqual({ caller: nuevas });
+  });
+
+  it("con null vuelven las de siempre de ese rol (y el otro rol se queda con las suyas)", async () => {
+    const delCaller = [{ clave: "demos", texto: "¿Cuántas demos?", tipo: "numero" }];
+    const delCloser = [...PREGUNTAS.closer, { clave: "referidos", texto: "¿Cuántos referidos?", tipo: "numero" }];
+    como(e, e.p.directorAdmin);
+    await ok(guardarPreguntasReporte("caller", delCaller));
+    await ok(guardarPreguntasReporte("closer", delCloser));
+    expect(preguntasDe((await alDia()).preguntas_reporte, "caller")).toEqual(delCaller);
+    // El caller vuelve a las de siempre; el closer sigue con su lista
+    await ok(guardarPreguntasReporte("caller", null));
+    expect((await alDia()).preguntas_reporte).toEqual({ closer: delCloser });
+    expect(preguntasDe(e.proyecto.preguntas_reporte, "caller")).toEqual(PREGUNTAS.caller);
+    expect(preguntasDe(e.proyecto.preguntas_reporte, "closer")).toEqual(delCloser);
+    // Sin ninguna lista propia, la columna se queda vacía (null) y los dos roles tienen las de siempre
+    await ok(guardarPreguntasReporte("closer", null));
+    expect((await alDia()).preguntas_reporte).toBeNull();
+    expect(preguntasDe(e.proyecto.preguntas_reporte, "closer")).toEqual(PREGUNTAS.closer);
   });
 });
 
