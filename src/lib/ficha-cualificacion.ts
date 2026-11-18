@@ -24,6 +24,11 @@ export const CAMPOS_ANTIGUOS = [
 ] as const;
 const TODOS = [...CAMPOS_FICHA, ...CAMPOS_ANTIGUOS];
 export type CampoFicha = (typeof TODOS)[number]["k"];
+// Para leer la ficha (página del lead y «Exportar»): los 11 y después los antiguos, con «(antiguo)» en el título
+export const COLUMNAS_FICHA: { k: CampoFicha; t: string; largo: boolean; antiguo: boolean }[] = [
+  ...CAMPOS_FICHA.map((c) => ({ ...c, antiguo: false })),
+  ...CAMPOS_ANTIGUOS.map((c) => ({ ...c, t: `${c.t} (antiguo)`, antiguo: true })),
+];
 export type Ficha = Partial<Record<CampoFicha, string>>;
 const MAX = 2000;
 

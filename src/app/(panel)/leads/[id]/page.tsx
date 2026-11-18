@@ -1,5 +1,5 @@
 import { ETIQUETA_ESTADO } from "@/lib/estados-caller";
-import { CAMPOS_FICHA, limpiarFicha } from "@/lib/ficha-cualificacion";
+import { COLUMNAS_FICHA, limpiarFicha } from "@/lib/ficha-cualificacion";
 import Link from "next/link";
 import { cargarGuion, rolDelGuion } from "@/lib/guiones-datos";
 import { mercadosDelProyecto, miLinkAgenda, miMoneda } from "@/lib/mercado-datos";
@@ -148,7 +148,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 <Vacio icono={FileText} texto="El caller todavía no ha rellenado la ficha de este lead." />
               ) : (
                 <dl className="grid gap-3 sm:grid-cols-2">
-                  {CAMPOS_FICHA.filter((c) => ficha[c.k]).map((c) => (
+                  {COLUMNAS_FICHA.filter((c) => ficha[c.k]).map((c) => (
                     <div key={c.k} className={`rounded-lg border border-borde bg-panel-2 p-3 ${c.largo ? "sm:col-span-2" : ""}`}>
                       <dt className="text-xs text-texto-3">{c.t}</dt>
                       <dd className="mt-1 whitespace-pre-line font-medium">{ficha[c.k]}</dd>

@@ -1,7 +1,8 @@
 // C6 (plan Callers, 7 nov; 7c.2): ficha de cualificación en el guion. 8 campos + «Nota», texto libre, ninguno
 // obligatorio. Se guarda siempre; el servidor solo escribe si algo cambió (idempotente).
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CAMPOS_ANTIGUOS, CAMPOS_FICHA, conAntiguosDe, fichaAlLeer, limpiarFicha, mismaFicha } from "@/lib/ficha-cualificacion";
+import { CAMPOS_ANTIGUOS, CAMPOS_FICHA, COLUMNAS_FICHA, conAntiguosDe, fichaAlLeer, limpiarFicha, mismaFicha } from "@/lib/ficha-cualificacion";
 
 type Resp = { data: unknown; error: { message: string } | null };
 let respuesta: Record<string, Resp>;
@@ -82,6 +83,31 @@ describe("C6 · guardar (idempotente)", () => {
   it("si la base falla al guardar, da error (no «guardado»)", async () => {
     respuesta["cualificaciones:upsert"] = { data: null, error: { message: "caída" } };
     await expect(guardarFichaDe("l1", { lugar: "Madrid" })).rejects.toThrow();
+  });
+});
+
+describe("Fase E · columnas para leer (página del lead y Exportar)", () => {
+  it("los 11 y después los 4 antiguos, marcados «(antiguo)»", () => {
+    expect(COLUMNAS_FICHA).toHaveLength(15);
+    expect(COLUMNAS_FICHA.slice(0, 11).map((c) => c.k)).toEqual(CAMPOS_FICHA.map((c) => c.k));
+    expect(COLUMNAS_FICHA.slice(0, 11).every((c) => !c.antiguo)).toBe(true);
+    expect(COLUMNAS_FICHA.slice(11).map((c) => [c.k, c.t, c.antiguo])).toEqual([
+      ["dolor", "Dolor (antiguo)", true],
+      ["objecion", "Objeción principal (antiguo)", true],
+      ["resultado", "Resultado (antiguo)", true],
+      ["nota", "Nota (antiguo)", true],
+    ]);
+  });
+  const leer = (r: string) => readFileSync(r, "utf8");
+  it("el formulario del caller solo pinta los 11; la página del lead y Exportar, los 15", () => {
+    const formulario = leer("src/components/ficha-cualificacion.tsx");
+    expect(formulario).toContain("CAMPOS_FICHA.map(");
+    expect(formulario).not.toContain("COLUMNAS_FICHA");
+    expect(formulario).not.toContain("CAMPOS_ANTIGUOS");
+    for (const r of ["src/app/(panel)/leads/[id]/page.tsx", "src/app/(panel)/crm/barra-masiva.tsx"]) {
+      expect(leer(r), r).toContain("COLUMNAS_FICHA");
+      expect(leer(r), r).not.toContain("CAMPOS_FICHA");
+    }
   });
 });
 
