@@ -155,7 +155,7 @@ export function PanelFicha({ ficha }: { ficha: ReturnType<typeof useFicha> }) {
             <div key={c.k} className={c.largo ? "col-span-2" : ""}>
               <label htmlFor={id} className="etiqueta-campo">{c.t}</label>
               {c.largo ? (
-                <textarea id={id} rows={2} className="campo resize-y !bg-panel py-1.5" value={campos[c.k] ?? ""} disabled={estado === "cargando"} onChange={(e) => cambiar(c.k, e.target.value)} placeholder={c.k === "nota" ? "Lo que quieras apuntar de esta llamada…" : ""} />
+                <textarea id={id} rows={2} className="campo resize-y !bg-panel py-1.5" value={campos[c.k] ?? ""} disabled={estado === "cargando"} onChange={(e) => cambiar(c.k, e.target.value)} placeholder={c.k === "conclusion" ? "Resumen del perfil, interés y predisposición de compra…" : ""} />
               ) : (
                 <input id={id} className="campo !bg-panel py-1.5" value={campos[c.k] ?? ""} disabled={estado === "cargando"} onChange={(e) => cambiar(c.k, e.target.value)} />
               )}
