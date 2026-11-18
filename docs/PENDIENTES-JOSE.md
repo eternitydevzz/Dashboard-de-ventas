@@ -104,7 +104,7 @@ Decisión de Cristian:
 ## 7. Otros pendientes
 
 - **Cristian:** borrar en GHL el contacto y la cita de «Jose Prueba Claude». Después se borra el lead `75a4319e-dfac-46be-8347-cf356cb78c2c` en la app (sigue en la base).
-- **Revisar los registros de Vercel** después del 18 nov a las 00:23 UTC: que no vuelva el atasco de la lectura de GHL (A1-01).
+- ~~**Revisar los registros de Vercel** después del 18 nov a las 00:23 UTC (A1-01)~~ → **hecho 18 nov**: de 00:48 a 12:48 UTC, buscando «ghl», 720 Info, 0 Warning, 0 Error, 0 Fatal (una lectura por minuto, sin huecos). El atasco no volvió.
 - **Supabase (lo hace Cristian en su panel):** falta la copia de seguridad del 13 nov; el enlace mágico dura más de 1 hora; las contraseñas filtradas no se comprueban.
 - **Ver en un teléfono el guion del móvil** (PR #194): los botones miden 36 px, por debajo de los 44 px recomendados.
 - **Sin causa encontrada:** KPIs en el móvil medía 3 px más que la pantalla (no se reproduce); un enlace de un manual dio 404 el 13 nov (los registros ya no lo tienen).
@@ -112,7 +112,7 @@ Decisión de Cristian:
 - **Otro plan:** revisar los roles closer y director, Safari, los controles de Administración que guardan, el móvil al tocar y la carga con todo el equipo a la vez.
 - **Límites conocidos:**
   - «contactos cambiados» de GHL lee como mucho 100 cada 30 min;
-  - faltan índices de `lead_id` en 4 tablas;
+  - ~~faltan índices de `lead_id` en 4 tablas~~ → **hecho 18 nov (#204)**: `clientes`, `seguimientos_cliente`, `vencimientos` y `workflow_ejecuciones` (sufijo `_lead_id_idx`; `workflow_ejecuciones_lead_idx` ya existía como `(workflow_id, lead_id)`);
   - etiquetas: si dos personas cambian el mismo lead a la vez, una pisa a la otra;
   - el MCP `finanzas` mezcla € y $;
   - «Reintentar» de una grabación larga puede volver a fallar;
@@ -127,21 +127,30 @@ Decisión de Cristian:
   - El MCP `crear_miembro` sigue pidiendo «es» o «latam» (es el valor que acepta; decidido dejarlo).
   - **Pregunta para Cristian:** en KPIs, las ventas de Facu (caller y closer) incluyen las que cerró otro closer sobre leads que agendó él; en Agendas solo cuentan las suyas como vendedor. ¿Cuál vale?
   - El PDF «Generar reporte» de KPIs, para Facu, cuenta solo sus citas como closer (no las que agendó con otro closer).
-- **Errores en la campana del CEO, de antes de la Fase A** (vistos el 17 nov con Playwright; `errores_app`): `/admin` · «Minified React error #441» (4 veces, 11:09-11:10 UTC) y `/grabaciones` · «TypeError: e is not iterable» (4 veces, 05:03-05:11 UTC). Sin causa buscada todavía; mirarlos después de la Fase B (decisión de Jose).
+- ~~**Errores en la campana del CEO, de antes de la Fase A**~~ → **resuelto 18 nov** (causa en los registros de Vercel, por el código `digest` que guarda `errores_app`):
+  - `/admin` #441 = Administración → Workflows se caía siempre (`workflows.tsx`, servidor, leía `ICONOS` de un archivo «use client»; desde `3939fc3`, 11 nov). Arreglado en **#203**, con una guarda en tests para que no vuelva a pasar. Comprobado en producción.
+  - `/grabaciones` «e is not iterable» = grabaciones de personas borradas (`[...null]`). Ya lo arregló `ac1c422` (17 nov, 05:10 UTC, justo tras los errores).
+  - `/ranking` y `/mi-funnel` #441 (16 nov) = `RangeError: Invalid time value` con fechas imposibles en la URL. Ya lo arregló A2-01 (`fechaReal`, 17 nov). Comprobado en producción con `?desde=2026-13-01`.
 - **Apuntado en la Fase B (17 nov, revisión):**
   - «Formularios (N)»: la fecha de cada envío sale sin año («17 nov, 10:30», con `fechaHora`, como el resto de la ficha). Hoy todos son de 2026; desde enero de 2027 será ambiguo. Decidido no tocarlo ahora (Jose).
   - Se enseñan como mucho 50 envíos por lead (hoy el máximo real es 9).
-  - Faltan tests del componente y de que `resumenLead` no lea envíos sin permiso (el orden en el código está bien).
-  - Un envío sin respuestas dice «0 respuestas» y debajo «no trae respuestas» (redundante).
+  - ~~Faltan tests del componente y de que `resumenLead` no lea envíos sin permiso~~ → **hecho 18 nov (#206)**.
+  - ~~Un envío sin respuestas dice «0 respuestas» y debajo «no trae respuestas»~~ → **hecho 18 nov (#206)**: ya no sale «0 respuestas».
 - **Apuntado en la Fase C (17 nov, revisión; decisión de Jose: apuntar):**
   - Reporte diario: si la función se corta a mitad (más de 60 s), la fecha queda reservada en `reporte_envios` y ese día no sale, sin aviso (igual que el email de las 8:00).
   - Con la hora del reporte a las 00:00 (o de madrugada), sale el reporte del día que empieza, casi vacío.
   - Si Resend tarda más de 10 s en responder pero sí manda, el reporte puede llegar 2 veces.
   - «Lo que va mal» es de todo el proyecto, no de cada país (igual en España y USA).
-  - El símbolo de moneda del reporte va fijo (€ España, $ USA); hoy los 2 proyectos son USD. Debería leerse de `proyecto.moneda`.
-  - `ZONA_REPORTE` está repetido en `src/lib/reporte-diario.ts` y `src/lib/reporte-config.ts`.
-  - «Webhook de avisos» (Administración → Proyecto) ya no se usa: `enviarAviso` (`src/lib/avisos.ts`) no tiene llamadas desde que se quitó la pantalla Reportes. El campo dice «Sin uso por ahora». Código muerto también en `src/lib/reportes.ts` (`rolDeReporte`, `tasasCloser`, `PREGUNTAS`) y el icono `reportes` de `barra-lateral.tsx`.
-  - Se perdió en integración la prueba de `guardarPreguntasReporte(rol, null)` (volver a las preguntas de siempre), que sigue en el producto.
+  - ~~El símbolo de moneda del reporte va fijo~~ → **hecho 18 nov (#207)**: sale en `proyecto.moneda`. **Cambio visible:** Maestria está en USD, así que el reporte de España pasa de € a $.
+  - ~~`ZONA_REPORTE` está repetido~~ → **hecho 18 nov (#207)**: solo en `src/lib/reporte-config.ts`.
+  - ~~Código muerto~~ → **hecho 18 nov (#205)**: fuera `src/lib/avisos.ts` (`enviarAviso`), `rolDeReporte`, `tasasCloser` y el icono `reportes` del menú. Corrección: `PREGUNTAS` **no** era código muerto (lo usan Administración → Reportes y los tests) y se queda.
+  - **Queda (decisión de Jose o Cristian):** el campo «Webhook de avisos» de Administración → Proyecto y la columna `aviso_webhook_url`. Desde #205 ningún código lo lee: es solo decoración. ¿Se quita?
+  - ~~Se perdió la prueba de `guardarPreguntasReporte(rol, null)`~~ → **hecho 18 nov (#207)**, en `tests/integracion/bloque7.test.ts`.
+- **Apuntado el 18 nov:**
+  - **Fallo nuevo (necesita decisión):** al agendar, `agendarCita` cambia el lead (`estado_caller = agendado`, `closer_id`, columna «Agendados», `llamar_en = null`). Al borrar la cita (`borrarCita`, Agendas), nada de eso se deshace: el lead se queda en «Agendados» sin cita. ¿A qué estado debe volver? (Su estado de antes no se guarda en ningún sitio).
+  - Lead de prueba Kevin: se borró la cita de prueba de la Fase D (18 nov) y, por decisión de Jose, quedó como lead nuevo: `estado_caller = nuevo`, sin closer, columna «Form completo» (deducido de su etiqueta). Su estado exacto de antes no se conocía. El historial guarda la prueba y «Cita borrada».
+  - WhatsApp: el aviso de cita ya funciona con citas reales (4 «enviado» el 18 nov hasta las 11:03 UTC). **Falta:** el aviso de venta con la primera venta real (sin ventas desde el 17 nov), y comprobar que el reporte de las 21:00 llega por WhatsApp a `reporte_config.whatsapps`. Número: Jose decide **dejar el actual** (18 nov), asumiendo el riesgo de bloqueo.
+  - Copias nuevas para agentes: antes de `tsc`, ejecutar `npx next typegen` (sin `.next/` salen unos 39 errores de `PageProps` y `RouteContext`). La integración en local necesita `npx supabase@2.90.0` (con la 3.2.0, `supabase/config.toml` no carga: `inbucket`).
 
 ## 8. Hecho (rellenar al terminar cada fase)
 
@@ -150,4 +159,9 @@ Decisión de Cristian:
 | A | #198 | `cfddb2a` | 17 nov. Migración `20261124100000_zona_otro` subida antes de fusionar. Unitarios 1413/1413, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): enlace sin gastar al abrir, campana sin citas pasadas, sin «Latam» visible, CRM de Facu con las que agendó. Sin ver: la zona «Otro» (no la tiene el CEO) y la vista propia de Facu. |
 | B | #199 | `8713bbe` | 17 nov. Sin migración. Unitarios 1420/1420, integración 492/492 (local), 4 checks en verde. Producción comprobada con Playwright (sesión del CEO): el lead con más envíos enseña «Formularios (9)» en la ficha y en el popup, con su Entrada en los 9; respuestas en 2 de 9 (en la base, justo los 2 que traen preguntas). La fecha sale sin año (apuntado). |
 | C | #200 | `80d3dfb` | 17 nov. Migración `20261125100000_reporte_diario` subida antes de fusionar (89 migraciones; 2 tablas con RLS; cron `reporte-diario` cada 15 min). Unitarios 1459/1459, integración 484/484 (local), 4 checks en verde. Producción: pestaña «Reporte» con los 2 por defecto, `/reportes` da 404 y no está en el menú; cron 18:15 → 200 `fuera_de_hora`; **primer reporte España enviado a las 20:00 UTC** (fila en `reporte_envios`; 20:15 → `ya_enviado`, sin duplicar). Sin verificar: que el email llegó a la bandeja de info@. |
-| D | #201 | `0cbf740` | 17 nov. Migración `20261126100000_whatsapp_equipo` subida antes de fusionar. Unitarios 1525/1525, integración 484/484 (local), 4 checks en verde. Render: `eternity-waha` (Starter, `gows-2026.10.1`) + `eternity-waha-db` (Postgres de pago). Vercel: `WAHA_URL`, `WAHA_API_KEY` (rotada tras salir en el chat) y `WAHA_SESION`. La sesión conectada es la de Jose (`session_01m7…`, WORKING). Avisos **apagados** por defecto. Sin probar aún: envío real, grupo de los CEO y avisos con Kevin/Pier. |
+| D | #201 | `0cbf740` | 17 nov. Migración `20261126100000_whatsapp_equipo` subida antes de fusionar. Unitarios 1525/1525, integración 484/484 (local), 4 checks en verde. Render: `eternity-waha` (Starter, `gows-2026.10.1`) + `eternity-waha-db` (Postgres de pago). Vercel: `WAHA_URL`, `WAHA_API_KEY` (rotada tras salir en el chat) y `WAHA_SESION`. La sesión conectada es la de Jose (`session_01m7…`, WORKING). Avisos **apagados** por defecto. Sin probar aún: envío real, grupo de los CEO y avisos con Kevin/Pier. **18 nov:** avisos de cita y de venta encendidos; grupo «MaestrIA Notifys» guardado; aviso de cita probado con Kevin (cita borrada después) y 4 enviados con citas reales. Falta: el aviso de venta (primera venta real) y el reporte de las 21:00 por WhatsApp. |
+| Arreglos 18 nov | #203 | `dde58ba` | Administración → Workflows no se caía (`ICONOS` en `workflows-iconos.ts`, sin «use client»). Test nuevo, con una guarda general de servidor a «use client». Comprobado en producción: la pestaña carga y no hay errores nuevos. |
+| Arreglos 18 nov | #204 | `bf3e137` | Migración `20261127100000_indices_lead_id` subida antes de fusionar (4 índices, comprobados en `pg_indexes`). |
+| Arreglos 18 nov | #205 | `8a03119` | Fuera el código muerto de la Fase C (`avisos.ts`, `rolDeReporte`, `tasasCloser`, icono `reportes`). |
+| Arreglos 18 nov | #206 | `009e5ee` | Formularios: sin «0 respuestas»; tests del componente y del permiso de `resumenLead`. |
+| Arreglos 18 nov | #207 | `a0dfbca` | Reporte con `proyecto.moneda`; `ZONA_REPORTE` en un solo sitio; vuelve el test de `guardarPreguntasReporte(rol, null)`. Main con todo junto: unitarios 1543/1543, `tsc` 0 errores, Vercel `success`. Sin ver aún: el reporte de esta noche con `$`. |
