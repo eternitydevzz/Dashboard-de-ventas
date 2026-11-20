@@ -26,6 +26,13 @@ export function quedanAviso(fin: number, ahora: number) {
   return Math.max(0, Math.ceil((fin - ahora) / 1000));
 }
 
+// 20 nov: si poner el índice al .webm tarda más que esto, se sube la original («Guardando…» no puede quedarse colgado)
+export const ESPERA_INDICE_MS = 60_000;
+export function conTiempo<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([p, new Promise<null>((ok) => (t = setTimeout(() => ok(null), ms)))]).finally(() => clearTimeout(t));
+}
+
 export function transcripcionValida(t: unknown) {
   const s = String(t ?? "").trim();
   if (!s) throw new ErrorUsuario("La transcripción está vacía.");

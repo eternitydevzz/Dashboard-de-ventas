@@ -65,3 +65,12 @@ describe("urlConGrabacion", () => {
     expect(urlConGrabacion("/grabaciones", "", "abc")).toBe("/grabaciones?g=abc");
   });
 });
+
+// 20 nov (auditoría Aitzi/Doly): «Guardando…» no puede quedarse colgado si poner el índice no termina nunca
+describe("conTiempo", () => {
+  it("devuelve el resultado si llega a tiempo y null si no", async () => {
+    const { conTiempo } = await import("@/lib/grabaciones");
+    expect(await conTiempo(Promise.resolve("ok"), 50)).toBe("ok");
+    expect(await conTiempo(new Promise(() => {}), 20)).toBeNull();
+  });
+});

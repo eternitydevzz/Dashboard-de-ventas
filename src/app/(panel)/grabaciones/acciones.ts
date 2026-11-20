@@ -5,6 +5,7 @@ import { esJefe } from "@/lib/auth";
 import { exigirSeccion } from "@/lib/permisos";
 import { db, escribir } from "@/lib/datos";
 import { ErrorUsuario, seguro } from "@/lib/resultado";
+import { guardarError } from "@/lib/errores-app";
 import { prepararSubida, rutaDeSubidaValida } from "@/lib/subidas";
 import { tipoGrabacion, transcripcionValida } from "@/lib/grabaciones";
 
@@ -13,6 +14,15 @@ export async function prepararSubidaGrabacion(ext: string) {
   return seguro(async () => {
     const { proyecto } = await exigirSeccion("grabaciones");
     return prepararSubida("grabaciones", proyecto.id, ext);
+  });
+}
+
+// 20 nov 2026 (auditoría Aitzi/Doly): los fallos de la grabadora no dejaban rastro y no se sabía si no pulsaron Grabar
+// o si falló. Se guardan en `errores_app` con el nombre de quien graba (salen en los avisos del CEO). Nunca lanza.
+export async function anotarFalloGrabadora(texto: string) {
+  return seguro(async () => {
+    const { perfil, proyecto } = await exigirSeccion("grabaciones");
+    await guardarError("grabadora", `${perfil.nombre} · ${String(texto).slice(0, 300)}`, proyecto.id);
   });
 }
 
