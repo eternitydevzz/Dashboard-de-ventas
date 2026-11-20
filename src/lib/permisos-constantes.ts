@@ -10,6 +10,8 @@ export const SECCIONES_TODAS = [
   { v: "grabadas", t: "Llamadas grabadas", d: "Llamadas de GHL (cada uno las suyas)", grupo: "Ventas" },
   // C10 (plan Callers, 7 nov): las llamadas grabadas desde el guion (aparte de las de GHL)
   { v: "grabaciones", t: "Grabaciones", d: "Llamadas grabadas desde el guion (cada uno las suyas; los jefes, todas)", grupo: "Ventas" },
+  // Cristian (20 nov): que algunos callers o closers escuchen y descarguen las grabaciones del guion de todo el equipo
+  { v: "grabaciones_todas", t: "Grabaciones de todo el equipo", d: "Escuchar y descargar las grabaciones del guion de todos (necesita también «Grabaciones»)", grupo: "Ventas" },
   { v: "ventas", t: "Ventas", d: "Ventas y cobros (a un caller, las suyas)", grupo: "Ventas" },
   { v: "ranking", t: "Ranking del equipo", d: "Clasificación de callers y closers", grupo: "Ventas" },
   { v: "recursos", t: "Links y recursos", d: "Links de pago, PDF, guiones y vídeos", grupo: "Día a día" },
@@ -32,7 +34,7 @@ export type RolPermiso = (typeof ROLES_PERMISO)[number];
 // Lo que cada rol tenía antes del H5 (lo de siempre)
 export const DEFECTO: Record<"ceo" | RolPermiso, Set<Seccion>> = {
   ceo: new Set(SECCIONES_TODAS.map((s) => s.v)),
-  director: new Set<Seccion>(["funnel", "kpis", "crm", "cola", "agendas", "grabadas", "ventas", "ranking", "recursos", "reportes", "manuales", "grabaciones"]),
+  director: new Set<Seccion>(["funnel", "kpis", "crm", "cola", "agendas", "grabadas", "ventas", "ranking", "recursos", "reportes", "manuales", "grabaciones", "grabaciones_todas"]),
   // 1.0 (Cristian, 11 oct): «Llamadas de GHL» (grabadas) fuera por defecto para closers y callers hasta que esté
   // configurado; se abre por persona (los 2 perfiles de prueba) o por rol en Permisos
   closer: new Set<Seccion>(["mi_funnel", "crm", "agendas", "ventas", "ranking", "recursos", "reportes", "manuales", "grabaciones"]),

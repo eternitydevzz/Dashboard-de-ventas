@@ -49,7 +49,7 @@ const texto = (n: ReactNode): string => (Array.isArray(n) ? n.map(texto).join(""
 const filas = [{ id: "g1", leadId: null, lead: "Lead 1", callerId: "c1", caller: "Caller", duracion: 600, transcripcion: null, creado_en: "2026-11-10T10:00:00Z" }];
 const pintar = () => {
   h.i = 0;
-  return ListaGrabaciones({ filas, elegida: null, jefe: false, zona: "Europe/Madrid" }) as ReactNode;
+  return ListaGrabaciones({ filas, elegida: null, jefe: false, todas: false, yo: "c1", zona: "Europe/Madrid" }) as ReactNode;
 };
 const audioDe = (arbol: ReactNode) => buscar(arbol, (el) => el.type === "audio")[0];
 const boton = (arbol: ReactNode, t: string) => buscar(arbol, (el) => el.type === "button" && texto(el.props.children as ReactNode).includes(t))[0];
@@ -107,7 +107,7 @@ describe("grabación de una persona borrada", () => {
     h.i = 0;
     h.slots = [];
     const huerfana = { ...filas[0], id: "g2", callerId: null as unknown as string, caller: "Persona borrada" };
-    expect(() => ListaGrabaciones({ filas: [filas[0], huerfana], elegida: null, jefe: true, zona: "Europe/Madrid" })).not.toThrow();
+    expect(() => ListaGrabaciones({ filas: [filas[0], huerfana], elegida: null, jefe: true, todas: true, yo: "c1", zona: "Europe/Madrid" })).not.toThrow();
   });
 });
 
@@ -116,7 +116,7 @@ describe("grabaciones de personas borradas, en el selector de perfiles", () => {
     h.i = 0;
     h.slots = [];
     const huerfana = { ...filas[0], id: "g2", callerId: null as unknown as string, caller: "Persona borrada" };
-    const arbol = ListaGrabaciones({ filas: [filas[0], huerfana], elegida: null, jefe: true, zona: "Europe/Madrid" }) as ReactNode;
+    const arbol = ListaGrabaciones({ filas: [filas[0], huerfana], elegida: null, jefe: true, todas: true, yo: "c1", zona: "Europe/Madrid" }) as ReactNode;
     const chips = buscar(arbol, (el) => el.type === "button" && el.props["aria-pressed"] !== undefined);
     expect(chips.map((c) => c.key).slice(0, 3)).toEqual(["todos", "c1", "persona-borrada"]); // después van los filtros (todas, sin, largas)
   });

@@ -64,7 +64,7 @@ export function soloLoSuyo(perfil: Perfil, seccion: Seccion) {
 // Cristian, 14 nov: agendas → /closer/llamadas (/closer ya solo redirige a /closer/llamadas: Métricas se borró el 17 nov)
 const RUTA: Record<Seccion, string> = {
   funnel: "/kpis?vista=funnel", mi_funnel: "/mi-funnel", kpis: "/kpis", crm: "/crm", cola: "/caller", agendas: "/closer/llamadas", grabadas: "/caller/grabadas",
-  ventas: "/ventas", ranking: "/ranking", recursos: "/recursos", reportes: "/reportes", manuales: "/manuales", grabaciones: "/grabaciones", equipo: "/equipo", programas: "/programas", finanzas: "/finanzas", clientes: "/clientes",
+  ventas: "/ventas", ranking: "/ranking", recursos: "/recursos", reportes: "/reportes", manuales: "/manuales", grabaciones: "/grabaciones", grabaciones_todas: "/grabaciones", equipo: "/equipo", programas: "/programas", finanzas: "/finanzas", clientes: "/clientes",
 };
 // 26 oct 2026 (Cristian): el CEO y los directores entran en KPIs → Leads (antes, en el Funnel)
 const INICIO: Record<Perfil["rol"], Seccion> = { ceo: "kpis", director: "kpis", closer: "agendas", caller: "cola" };
@@ -72,7 +72,8 @@ export async function rutaInicio(perfil: Perfil, proyectoId: string) {
   const tiene = await seccionesPermitidas(perfil, proyectoId);
   if (tiene.has(INICIO[perfil.rol])) return RUTA[INICIO[perfil.rol]];
   // Fase C (Cristian): la pantalla Reportes se quitó; el permiso sigue (preguntas de Administración), pero no es inicio
-  const primera = SECCIONES_TODAS.find((s) => s.v !== "reportes" && tiene.has(s.v));
+  // «grabaciones_todas» sola no abre la página (exige «grabaciones»): como inicio daría un bucle de redirecciones
+  const primera = SECCIONES_TODAS.find((s) => s.v !== "reportes" && s.v !== "grabaciones_todas" && tiene.has(s.v));
   return primera ? RUTA[primera.v] : "/sin-acceso";
 }
 
