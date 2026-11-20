@@ -43,6 +43,13 @@ describe("C10 · seguridad y permisos", () => {
   it("la sección la tienen por defecto callers, closers y directores (cada uno ve las suyas; los jefes, todas)", () => {
     for (const rol of ["director", "closer", "caller"] as const) expect(DEFECTO[rol].has("grabaciones")).toBe(true);
   });
+  it("«Grabaciones de todo el equipo» (20 nov): apagado para callers y closers; se abre por persona", async () => {
+    const { calcularPermisos } = await import("@/lib/permisos");
+    expect(calcularPermisos("caller", [], []).has("grabaciones_todas")).toBe(false);
+    expect(calcularPermisos("closer", [], []).has("grabaciones_todas")).toBe(false);
+    expect(calcularPermisos("caller", [], [{ seccion: "grabaciones_todas", permitido: true }]).has("grabaciones_todas")).toBe(true);
+    expect(calcularPermisos("director", [], []).has("grabaciones_todas")).toBe(true);
+  });
 });
 
 describe("Aviso de fin de grabación (13 nov)", () => {

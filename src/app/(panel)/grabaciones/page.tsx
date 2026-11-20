@@ -10,8 +10,9 @@ import { ListaGrabaciones, type GrabacionFila } from "./cliente";
 // C10 (plan Callers, 7 nov; maqueta «Grabaciones»): las llamadas grabadas desde el guion. El caller ve las suyas; los
 // jefes, todas (con la columna Caller). Escuchar, descargar y subir la transcripción (CEO y directores).
 export default async function GrabacionesPage({ searchParams }: PageProps<"/grabaciones">) {
-  const { perfil, proyecto } = await exigirPagina("grabaciones");
+  const { perfil, proyecto, tiene } = await exigirPagina("grabaciones");
   const jefe = esJefe(perfil);
+  const verTodas = jefe || tiene.has("grabaciones_todas"); // Cristian (20 nov): algunos callers o closers ven las de todos
   const sp = await searchParams;
   // S2-12 (17 nov): por periodo (Mes por defecto) y todas sus filas; antes, las últimas 500 sin avisar (los contadores
   // «N llamadas · M min» salían sobre esas 500) y un fallo de la base salía como «Todavía no hay grabaciones»
@@ -25,7 +26,7 @@ export default async function GrabacionesPage({ searchParams }: PageProps<"/grab
       .eq("proyecto_id", proyecto.id)
       .gte("creado_en", rango.desde!.toISOString())
       .lt("creado_en", rango.hasta!.toISOString());
-    if (!jefe) q = q.eq("perfil_id", perfil.id);
+    if (!verTodas) q = q.eq("perfil_id", perfil.id);
     return q.order("creado_en", { ascending: false }).order("id").range(d, h);
   });
   const filas: GrabacionFila[] = data.map((g) => {
@@ -43,13 +44,13 @@ export default async function GrabacionesPage({ searchParams }: PageProps<"/grab
   });
   return (
     <>
-      <Cabecera titulo="Grabaciones" subtitulo={jefe ? "Elige un perfil para ver sus llamadas. Dale al play y escucha sin salir de la lista." : "Tus llamadas grabadas desde el guion"} />
+      <Cabecera titulo="Grabaciones" subtitulo={verTodas ? "Elige un perfil para ver sus llamadas. Dale al play y escucha sin salir de la lista." : "Tus llamadas grabadas desde el guion"} />
       <Contenido>
         <BarraPeriodo etiqueta={rango.etiqueta} conActualizar={false} />
         {filas.length === 0 ? (
           <div className="tarjeta"><Vacio icono={Mic} texto="No hay grabaciones en este periodo. Se graban desde el guion de un lead, con «Grabar»." /></div>
         ) : (
-          <ListaGrabaciones filas={filas} elegida={typeof sp.g === "string" ? sp.g : null} jefe={jefe} zona={proyecto.zona_horaria} />
+          <ListaGrabaciones filas={filas} elegida={typeof sp.g === "string" ? sp.g : null} jefe={jefe} todas={verTodas} yo={perfil.id} zona={proyecto.zona_horaria} />
         )}
       </Contenido>
     </>

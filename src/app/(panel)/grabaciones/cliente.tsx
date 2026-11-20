@@ -26,7 +26,8 @@ const iniciales = (n: string) => inicialesDe(n);
 const BARRAS = Array.from({ length: 64 }, (_, i) => 20 + Math.abs(Math.sin(i * 1.7) * 60 + Math.cos(i * 0.6) * 20)); // decorativas, no es la onda real
 const FILTROS = [["todas", "Todas"], ["sin", "Sin transcripción"], ["largas", "Más de 3 min"]] as const;
 
-export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: GrabacionFila[]; elegida: string | null; jefe: boolean; zona: Proyecto["zona_horaria"] }) {
+// `todas`: ve las de todo el equipo (jefes o permiso «grabaciones_todas»); borrar y transcribir siguen siendo de `jefe`
+export function ListaGrabaciones({ filas, elegida, jefe, todas, yo, zona }: { filas: GrabacionFila[]; elegida: string | null; jefe: boolean; todas: boolean; yo: string; zona: Proyecto["zona_horaria"] }) {
   const toast = useToast();
   const [sel, setSel] = useState(elegida && filas.some((f) => f.id === elegida) ? elegida : filas[0].id);
   const [perfil, setPerfil] = useState<string | null>(null);
@@ -111,7 +112,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
 
   return (
     <div className="space-y-4">
-      {jefe && perfiles.length > 1 && (
+      {todas && perfiles.length > 1 && (
         <div>
           <p className="titulo-seccion">Perfiles</p>
           <div className="flex gap-2.5 overflow-x-auto pb-2">
@@ -160,7 +161,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
                       <p className="truncate font-semibold" title={f.leadId ? "Doble clic: ver el lead" : undefined} onDoubleClick={(e) => (e.stopPropagation(), f.leadId && setPopup(f))}>{f.lead}</p>
                       <p className="flex flex-wrap items-center gap-x-2 text-xs text-texto-2">
                         <span className="tabular-nums">{fecha.format(new Date(f.creado_en))}</span>·
-                        {jefe && <><span className="font-semibold" style={{ color: colorDe(f.callerId) }}>{f.caller}</span>·</>}
+                        {todas && <><span className="font-semibold" style={{ color: colorDe(f.callerId) }}>{f.caller}</span>·</>}
                         <span className="tabular-nums">{on ? `${duracionTexto(t)} / ` : ""}{duracionTexto(f.duracion)}</span>
                         {on && dur > 0 && <span className="h-1 w-24 overflow-hidden rounded bg-borde"><i className="block h-full bg-primario" style={{ width: `${Math.min(100, (t / dur) * 100)}%` }} /></span>}
                       </p>
@@ -180,7 +181,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
         <section className="tarjeta p-5 xl:sticky xl:top-5">
           <p className="titulo-seccion">Grabación</p>
           <h3 className="text-xl font-semibold">{g.lead}</h3>
-          <p className="text-xs text-texto-3">{diaDe.format(new Date(g.creado_en))}, {fecha.format(new Date(g.creado_en))}{jefe ? <> · <b style={{ color: colorDe(g.callerId) }}>{g.caller}</b></> : ""}</p>
+          <p className="text-xs text-texto-3">{diaDe.format(new Date(g.creado_en))}, {fecha.format(new Date(g.creado_en))}{todas ? <> · <b style={{ color: colorDe(g.callerId) }}>{g.caller}</b></> : ""}</p>
           {/* El audio llega por /api/grabaciones/<id> (enlace firmado de Supabase, 1 hora) */}
           <audio
             ref={audio}
@@ -242,7 +243,7 @@ export function ListaGrabaciones({ filas, elegida, jefe, zona }: { filas: Grabac
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <a href={`/api/grabaciones/${g.id}?descargar=1`} className="btn-secundario px-2.5 py-1.5 text-xs"><Download className="h-3.5 w-3.5" /> Descargar audio</a>
-            {g.leadId && <Link href={jefe ? `/leads/${g.leadId}` : `/caller?lead=${g.leadId}`} className="btn-secundario px-2.5 py-1.5 text-xs">Abrir lead <ArrowRight className="h-3.5 w-3.5" /></Link>}
+            {g.leadId && (jefe || g.callerId === yo) && <Link href={jefe ? `/leads/${g.leadId}` : `/caller?lead=${g.leadId}`} className="btn-secundario px-2.5 py-1.5 text-xs">Abrir lead <ArrowRight className="h-3.5 w-3.5" /></Link>}
           </div>
           <Transcripcion key={g.id} g={g} jefe={jefe} />
         </section>
