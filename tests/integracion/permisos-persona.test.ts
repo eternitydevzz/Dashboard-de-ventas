@@ -28,7 +28,7 @@ describe("Regla: manda la persona, luego su rol, luego lo de siempre", () => {
     expect(calcularPermisos("caller", [{ seccion: "cola", permitido: false }], [{ seccion: "cola", permitido: true }]).has("cola")).toBe(true); // la persona manda
     expect(calcularPermisos("caller", [], [{ seccion: "finanzas", permitido: true }]).has("finanzas")).toBe(false); // nunca
     expect(calcularPermisos("director", [], [{ seccion: "mi_funnel", permitido: true }]).has("mi_funnel")).toBe(false); // no aplica
-    expect(calcularPermisos("ceo", [{ seccion: "funnel", permitido: false }], []).size).toBe(17); // el CEO, siempre todo (17 con «Manuales» y «Grabaciones», C9 y C10)
+    expect(calcularPermisos("ceo", [{ seccion: "funnel", permitido: false }], []).size).toBe(18); // el CEO, siempre todo (18 con «Manuales», «Grabaciones» y «Grabaciones de todo el equipo», C9, C10 y 20 nov)
   });
 });
 
