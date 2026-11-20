@@ -23,7 +23,7 @@ vi.mock("react", async (original) => {
   };
 });
 vi.mock("@/components/toasts", () => ({ useToast: () => vi.fn() }));
-vi.mock("@/app/(panel)/grabaciones/acciones", () => ({ guardarGrabacion: vi.fn(), prepararSubidaGrabacion: vi.fn() }));
+vi.mock("@/app/(panel)/grabaciones/acciones", () => ({ guardarGrabacion: vi.fn(), prepararSubidaGrabacion: vi.fn(), anotarFalloGrabadora: vi.fn(async () => ({ ok: true })) }));
 
 const { ProveedorGrabadora } = await import("@/components/grabadora");
 

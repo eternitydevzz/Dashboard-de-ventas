@@ -4,9 +4,12 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Square } from "lucide-react";
 import { useToast } from "@/components/toasts";
 import { exigirOk } from "@/lib/resultado-cliente";
-import { AVISO_FIN_SEG, duracionTexto, extDeTipo, quedanAviso } from "@/lib/grabaciones";
-import { guardarGrabacion, prepararSubidaGrabacion } from "@/app/(panel)/grabaciones/acciones";
+import { AVISO_FIN_SEG, ESPERA_INDICE_MS, conTiempo, duracionTexto, extDeTipo, quedanAviso } from "@/lib/grabaciones";
+import { anotarFalloGrabadora, guardarGrabacion, prepararSubidaGrabacion } from "@/app/(panel)/grabaciones/acciones";
 import { hacerBuscable } from "@/lib/webm-buscable";
+
+// Al registro de errores (avisos del CEO); si no se puede apuntar, no molesta a quien graba
+const anotar = (texto: string) => void anotarFalloGrabadora(texto).catch(() => {});
 
 // C10 (plan Callers, 7 nov; 7b.3 punto 4): la grabadora vive en el marco de la app, no en la ventana del guion: cerrar
 // el guion o cambiar de sección no corta la grabación, y avisa antes de salir de la página. La grabación queda unida
@@ -66,7 +69,11 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
     async (grabado: Blob, tipo: string, leadId: string, seg: number) => {
       const ext = extDeTipo(tipo) ?? "webm";
       setSubiendo(true);
-      const blob = await hacerBuscable(grabado); // con índice, para poder saltar al escucharla (si falla, la original)
+      if (!grabado.size) anotar(`Grabación vacía (0 bytes, ${seg} s): el micrófono no mandó sonido`);
+      // con índice, para poder saltar al escucharla (si falla o tarda demasiado, la original)
+      const conIndice = await conTiempo(hacerBuscable(grabado), ESPERA_INDICE_MS);
+      if (!conIndice) anotar(`Poner el índice tardó más de ${ESPERA_INDICE_MS / 1000} s (${Math.round(grabado.size / 1024)} KB): se sube la original`);
+      const blob = conIndice ?? grabado;
       try {
         const { ruta, url } = await exigirOk(prepararSubidaGrabacion(ext));
         const r = await fetch(url, { method: "PUT", headers: { "content-type": tipo.split(";")[0], "x-upsert": "false" }, body: blob });
@@ -74,6 +81,7 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
         await exigirOk(guardarGrabacion(leadId, ruta, seg));
         toast("Grabación guardada en «Grabaciones»");
       } catch (e) {
+        anotar(`No se pudo subir (${seg} s, ${Math.round(blob.size / 1024)} KB): ${e instanceof Error ? e.message : String(e)}. Se descargó en su ordenador.`);
         // No se pierde: se descarga en el ordenador para subirla después
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -90,12 +98,17 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   const empezar = useCallback(
     async (leadId: string, nombre: string) => {
       if (rec.current || iniciando.current) return;
-      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return void toast("Este navegador no puede grabar. Usa Chrome en el ordenador.", "error");
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        anotar("Este navegador no puede grabar");
+        return void toast("Este navegador no puede grabar. Usa Chrome en el ordenador.", "error");
+      }
       let stream: MediaStream;
       iniciando.current = true;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
+      } catch (e) {
+        // NotAllowedError = sin permiso; NotFoundError = no hay micrófono; NotReadableError = otra app lo está usando
+        anotar(`No se pudo abrir el micrófono: ${e instanceof Error ? `${e.name} ${e.message}` : String(e)}`);
         return void toast("Sin permiso para el micrófono: dale permiso en el candado de la barra de direcciones.", "error");
       } finally {
         iniciando.current = false; // rec.current se pone justo debajo, sin otro await entre medias
@@ -105,6 +118,7 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
       trozos.current = [];
       const desde = Date.now();
       m.ondataavailable = (e) => e.data.size && trozos.current.push(e.data);
+      m.onerror = (e) => anotar(`La grabadora falló mientras grababa: ${(e as Event & { error?: Error }).error?.message ?? "sin detalle"}`);
       m.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const real = m.mimeType || tipo || "audio/webm";
