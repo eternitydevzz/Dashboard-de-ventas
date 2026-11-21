@@ -23,11 +23,10 @@ vi.mock("react", async (original) => {
   };
 });
 vi.mock("@/components/toasts", () => ({ useToast: () => vi.fn() }));
-vi.mock("@/app/(panel)/grabaciones/acciones", () => ({ guardarGrabacion: vi.fn(), prepararSubidaGrabacion: vi.fn(), anotarFalloGrabadora: vi.fn(async () => ({ ok: true })) }));
+vi.mock("@/app/(panel)/grabaciones/acciones", () => ({ guardarGrabacion: vi.fn(), prepararSubidaGrabacion: vi.fn(() => new Promise(() => {})) /* la subida no termina: sin DOM no se puede descargar */, anotarFalloGrabadora: vi.fn(async () => ({ ok: true })) }));
 vi.mock("@/lib/webm-buscable", () => ({ hacerBuscable: async (b: Blob) => b }));
 
 const { ProveedorGrabadora } = await import("@/components/grabadora");
-const acciones = await import("@/app/(panel)/grabaciones/acciones");
 
 type Api = { empezar: (l: string, n: string) => Promise<void>; parar: () => void };
 const pintar = () => {
@@ -119,7 +118,6 @@ describe("grabadora", () => {
   });
 
   it("mientras sube la grabación, avisa antes de cerrar la pestaña", async () => {
-    vi.mocked(acciones.prepararSubidaGrabacion).mockReturnValue(new Promise(() => {})); // la subida no termina
     const g = pintar();
     const p = g.empezar("l1", "Lead 1");
     soltar(stream);
