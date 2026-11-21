@@ -228,9 +228,10 @@ export function TableroCrm({
   const seleccion = useMemo(() => marcadosVisibles(marcados, leads), [marcados, leads]);
 
   const toast = useToast();
-  function ejecutar(fn: () => Promise<unknown>, mensaje?: string, deshacer?: () => unknown) {
+  // Devuelve si salió bien (la ventana de resultado se cierra solo entonces)
+  function ejecutar(fn: () => Promise<unknown>, mensaje?: string, deshacer?: () => unknown): Promise<boolean> {
     setError("");
-    iniciar(async () => {
+    return new Promise((listo) => iniciar(async () => {
       try {
         const r = await fn();
         // A3b-02 + N2: un resultado del caller (columna con estado, con o sin ventana) se deshace con deshacerResultado
@@ -239,12 +240,14 @@ export function TableroCrm({
         if (mensaje) toast(mensaje, "ok", atras ? { deshacer: { texto: mensaje, deshacer: atras } } : undefined);
         const aviso = avisoDe(r);
         if (aviso) toast(aviso, "error");
+        listo(true);
       } catch (e) {
         const texto = e instanceof Error ? e.message : "Algo falló.";
         setError(texto);
         toast(texto, "error");
+        listo(false);
       }
-    });
+    }));
   }
 
   function soltar(etapaId: string, idArrastrado?: string) {
@@ -280,7 +283,7 @@ export function TableroCrm({
   function mover(id: string, etapaId: string, accion: () => Promise<unknown>, mensaje?: string, deshacer?: () => unknown) {
     const base = leadsCompactos;
     setMoviendo((m) => ({ ...m, [id]: { etapa: etapaId } }));
-    ejecutar(async () => {
+    return ejecutar(async () => {
       try {
         const r = await exigirOk(accion());
         // A4-04: confirmado; deja de valer en cuanto lleguen datos nuevos (los de este cambio u otro posterior)

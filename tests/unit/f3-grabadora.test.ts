@@ -23,11 +23,12 @@ vi.mock("react", async (original) => {
   };
 });
 vi.mock("@/components/toasts", () => ({ useToast: () => vi.fn() }));
-vi.mock("@/app/(panel)/grabaciones/acciones", () => ({ guardarGrabacion: vi.fn(), prepararSubidaGrabacion: vi.fn(), anotarFalloGrabadora: vi.fn(async () => ({ ok: true })) }));
+vi.mock("@/app/(panel)/grabaciones/acciones", () => ({ guardarGrabacion: vi.fn(), prepararSubidaGrabacion: vi.fn(() => new Promise(() => {})) /* la subida no termina: sin DOM no se puede descargar */, anotarFalloGrabadora: vi.fn(async () => ({ ok: true })) }));
+vi.mock("@/lib/webm-buscable", () => ({ hacerBuscable: async (b: Blob) => b }));
 
 const { ProveedorGrabadora } = await import("@/components/grabadora");
 
-type Api = { empezar: (l: string, n: string) => Promise<void> };
+type Api = { empezar: (l: string, n: string) => Promise<void>; parar: () => void };
 const pintar = () => {
   h.i = 0;
   h.efectos = [];
@@ -43,6 +44,7 @@ const getUserMedia = vi.fn(() => new Promise((r) => esperando.push(r)));
 const creadas: unknown[] = [];
 class FalsoRecorder {
   mimeType = "audio/webm";
+  onstop: null | (() => void) = null;
   stream: unknown;
   start = vi.fn();
   stop = vi.fn();
@@ -54,7 +56,8 @@ class FalsoRecorder {
 }
 vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
 vi.stubGlobal("MediaRecorder", FalsoRecorder);
-vi.stubGlobal("window", { addEventListener: vi.fn(), removeEventListener: vi.fn() });
+const ventana = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
+vi.stubGlobal("window", ventana);
 
 afterEach(() => {
   h.slots = [];
@@ -83,5 +86,47 @@ describe("grabadora", () => {
     expect(pista.stop).not.toHaveBeenCalled();
     limpiezas.forEach((f) => f()); // React quita el proveedor (p. ej. al cerrar sesión)
     expect(pista.stop).toHaveBeenCalled();
+  });
+
+  // 21 nov (auditoría): tras un resultado o «Siguiente» quedan 30 s de aviso; si llaman al siguiente lead y pulsan
+  // Grabar, la anterior se para y se guarda y empieza la nueva (antes Grabar estaba bloqueado y no se grababa)
+  it("Grabar en otro lead para la grabación anterior y empieza la nueva", async () => {
+    const g = pintar();
+    const p1 = g.empezar("l1", "Lead 1");
+    soltar(stream);
+    await p1;
+    const [vieja] = creadas as FalsoRecorder[];
+    const p2 = g.empezar("l2", "Lead 2");
+    expect(vieja.stop).toHaveBeenCalled();
+    soltar(stream);
+    await p2;
+    expect(creadas).toHaveLength(2);
+    const nueva = creadas[1] as FalsoRecorder;
+    vieja.onstop?.(); // llega tarde el «stop» de la anterior: no puede soltar la nueva
+    g.parar();
+    expect(nueva.stop).toHaveBeenCalled();
+  });
+
+  it("Grabar en el mismo lead mientras graba no hace nada", async () => {
+    const g = pintar();
+    const p1 = g.empezar("l1", "Lead 1");
+    soltar(stream);
+    await p1;
+    await g.empezar("l1", "Lead 1");
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect((creadas[0] as FalsoRecorder).stop).not.toHaveBeenCalled();
+  });
+
+  it("mientras sube la grabación, avisa antes de cerrar la pestaña", async () => {
+    const g = pintar();
+    const p = g.empezar("l1", "Lead 1");
+    soltar(stream);
+    await p;
+    (creadas[0] as FalsoRecorder).onstop?.(); // para: empieza a subir
+    await new Promise((r) => setTimeout(r, 0));
+    ventana.addEventListener.mockClear();
+    pintar();
+    h.efectos.forEach((f) => f());
+    expect(ventana.addEventListener).toHaveBeenCalledWith("beforeunload", expect.any(Function));
   });
 });

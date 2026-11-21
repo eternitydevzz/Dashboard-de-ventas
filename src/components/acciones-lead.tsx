@@ -166,11 +166,12 @@ export function AccionesLead({
 
   // C1/R2/C13: el lead cambia en pantalla al pulsar (onCambio, dentro de la transición: si falla, vuelve solo), los
   // botones no se bloquean, «Guardando…» se quita al responder (C5, C14) y el aviso final trae «Deshacer» (y Ctrl+Z)
-  function guardarResultado(clave: string, accion: () => Promise<unknown>, mensaje: string) {
-    if (enCurso.has(`resultado:${clave}`)) return; // doble clic en el mismo botón = un guardado
+  // Devuelve si salió bien (la ventana de resultado se cierra solo entonces)
+  function guardarResultado(clave: string, accion: () => Promise<unknown>, mensaje: string): Promise<boolean> {
+    if (enCurso.has(`resultado:${clave}`)) return Promise.resolve(false); // doble clic en el mismo botón = un guardado
     enCurso.add(`resultado:${clave}`);
     const espera = aviso("Guardando…", "cargando");
-    iniciarResultado(async () => {
+    return new Promise((listo) => iniciarResultado(async () => {
       onCambio?.({ estado_caller: clave as Lead["estado_caller"] });
       try {
         const r = await exigirOk(accion());
@@ -178,13 +179,15 @@ export function AccionesLead({
         aviso(mensaje, "ok", paso ? { deshacer: { texto: mensaje, deshacer: () => deshacer(paso) } } : undefined);
         const a = avisoDe(r);
         if (a) aviso(a, "error");
+        listo(true);
       } catch (e) {
         aviso(e instanceof Error ? e.message : "Algo falló.", "error");
+        listo(false);
       } finally {
         quitarAviso(espera);
         enCurso.delete(`resultado:${clave}`);
       }
-    });
+    }));
   }
   // A3b-01: vuelve exactamente a como estaba (también la columna de la cola, al momento)
   function deshacer(paso: PasoResultado) {
@@ -306,7 +309,7 @@ export function AccionesLead({
             )}
             {/* C10 (7c.3): «Grabar» abre el guion y empieza a grabar */}
             {puedeGrabar && grabadora && (
-              <button type="button" className={`${bv} !border-white !bg-white !text-[#b4202f]`} disabled={!!grabadora.grabando} onClick={() => { abrirGuion(true); void grabadora.empezar(leadId, nombre); }}>
+              <button type="button" className={`${bv} !border-white !bg-white !text-[#b4202f]`} disabled={grabadora.grabando?.leadId === leadId} onClick={() => { abrirGuion(true); void grabadora.empezar(leadId, nombre); }}>
                 <span className="h-2.5 w-2.5 rounded-full bg-mal" /> {grabadora.grabando?.leadId === leadId ? "Grabando…" : "Grabar"}
               </button>
             )}
