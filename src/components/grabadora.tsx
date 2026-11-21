@@ -32,10 +32,10 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   const toast = useToast();
   const [grabando, setGrabando] = useState<Estado>(null);
   const [segundos, setSegundos] = useState(0);
-  const [subiendo, setSubiendo] = useState(false);
+  const [subiendo, setSubiendo] = useState(0); // cuántas se están subiendo (puede haber dos: la anterior y la nueva)
   const rec = useRef<MediaRecorder | null>(null);
+  const deLead = useRef<string | null>(null); // lead de la grabación en curso
   const iniciando = useRef(false); // S4-7: mientras sale el permiso del micrófono, un 2.º «empezar» no hace nada
-  const trozos = useRef<Blob[]>([]);
   const [finAviso, setFinAviso] = useState<number | null>(null);
   const [quedan, setQuedan] = useState(AVISO_FIN_SEG);
 
@@ -57,18 +57,23 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!grabando) return;
     const t = setInterval(() => setSegundos(Math.floor((Date.now() - grabando.desde) / 1000)), 1000);
-    const salir = (e: BeforeUnloadEvent) => e.preventDefault(); // «¿Salir? La grabación se perderá»
-    window.addEventListener("beforeunload", salir);
-    return () => {
-      clearInterval(t);
-      window.removeEventListener("beforeunload", salir);
-    };
+    return () => clearInterval(t);
   }, [grabando]);
+
+  // «¿Salir? La grabación se perderá»: mientras graba y también mientras sube (21 nov, auditoría: cerrar o recargar
+  // durante la subida la perdía sin aviso y sin descargarla)
+  const ocupada = !!grabando || subiendo > 0;
+  useEffect(() => {
+    if (!ocupada) return;
+    const salir = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", salir);
+    return () => window.removeEventListener("beforeunload", salir);
+  }, [ocupada]);
 
   const subir = useCallback(
     async (grabado: Blob, tipo: string, leadId: string, seg: number) => {
       const ext = extDeTipo(tipo) ?? "webm";
-      setSubiendo(true);
+      setSubiendo((n) => n + 1);
       if (!grabado.size) anotar(`Grabación vacía (0 bytes, ${seg} s): el micrófono no mandó sonido`);
       // con índice, para poder saltar al escucharla (si falla o tarda demasiado, la original)
       const conIndice = await conTiempo(hacerBuscable(grabado), ESPERA_INDICE_MS);
@@ -89,7 +94,7 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
         a.click();
         toast(`${e instanceof Error ? e.message : "No se pudo guardar"} Se ha descargado en tu ordenador.`, "error");
       } finally {
-        setSubiendo(false);
+        setSubiendo((n) => n - 1);
       }
     },
     [toast]
@@ -97,7 +102,15 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
 
   const empezar = useCallback(
     async (leadId: string, nombre: string) => {
-      if (rec.current || iniciando.current) return;
+      if (iniciando.current || (rec.current && deLead.current === leadId)) return;
+      // 21 nov (auditoría): Grabar en otro lead (p. ej. durante los 30 s del aviso) para y guarda la anterior y empieza
+      // la nueva. Antes el botón quedaba bloqueado y la llamada siguiente no se grababa
+      if (rec.current) {
+        const anterior = rec.current;
+        rec.current = null;
+        setFinAviso(null);
+        anterior.stop();
+      }
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
         anotar("Este navegador no puede grabar");
         return void toast("Este navegador no puede grabar. Usa Chrome en el ordenador.", "error");
@@ -115,21 +128,25 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
       }
       const tipo = TIPOS.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
       const m = new MediaRecorder(stream, tipo ? { mimeType: tipo } : undefined);
-      trozos.current = [];
       const desde = Date.now();
-      m.ondataavailable = (e) => e.data.size && trozos.current.push(e.data);
       m.onerror = (e) => anotar(`La grabadora falló mientras grababa: ${(e as Event & { error?: Error }).error?.message ?? "sin detalle"}`);
+      const suyos: Blob[] = []; // los trozos de esta grabación (si empieza otra, no se mezclan)
+      m.ondataavailable = (e) => e.data.size && suyos.push(e.data);
       m.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const real = m.mimeType || tipo || "audio/webm";
-        const blob = new Blob(trozos.current, { type: real.split(";")[0] });
-        rec.current = null;
-        setFinAviso(null);
-        setGrabando(null);
+        const blob = new Blob(suyos, { type: real.split(";")[0] });
+        if (rec.current === m) rec.current = null;
+        if (!rec.current) {
+          // si ya hay otra en marcha (Grabar en otro lead), su estado no se toca
+          setFinAviso(null);
+          setGrabando((g) => (g?.desde === desde ? null : g));
+        }
         void subir(blob, real, leadId, Math.round((Date.now() - desde) / 1000));
       };
       m.start(1000); // un trozo por segundo: si algo falla, se pierde poco
       rec.current = m;
+      deLead.current = leadId;
       setSegundos(0);
       setGrabando({ leadId, nombre, desde });
     },
@@ -144,7 +161,7 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Contexto.Provider value={{ grabando, segundos, subiendo, empezar, parar, avisarFin }}>
+    <Contexto.Provider value={{ grabando, segundos, subiendo: subiendo > 0, empezar, parar, avisarFin }}>
       {children}
       {/* Mientras graba, siempre a la vista (también con el guion cerrado o en otra sección) */}
       {grabando && (
@@ -174,14 +191,13 @@ export function BotonGrabar({ leadId, nombre }: { leadId: string; nombre: string
     <div className={`flex items-center gap-2 rounded-xl py-1 pl-1 pr-2.5 transition-colors ${esEste ? "bg-mal-suave" : ""}`}>
       <button
         type="button"
-        disabled={!!otro || g.subiendo}
         aria-pressed={esEste}
-        title="Graba el micrófono de tu ordenador. Pon el móvil en altavoz para que se oiga al lead."
+        title={otro ? `Para y guarda la grabación de ${g.grabando!.nombre} y empieza esta` : "Graba el micrófono de tu ordenador. Pon el móvil en altavoz para que se oiga al lead."}
         onClick={() => (esEste ? g.parar() : void g.empezar(leadId, nombre))}
         className={`inline-flex items-center gap-2 rounded-xl border border-mal bg-mal-suave px-3 py-1.5 text-[12.5px] font-bold text-mal disabled:opacity-50 ${esEste ? "shadow-[0_0_0_4px_color-mix(in_srgb,var(--mal)_22%,transparent)]" : ""}`}
       >
         <span className={`h-2.5 w-2.5 rounded-full bg-mal ${esEste ? "animate-pulse" : ""}`} />
-        {g.subiendo ? "Guardando…" : esEste ? "Parar y guardar" : otro ? `Grabando a ${g.grabando!.nombre}` : "Empezar a grabar"}
+        {esEste ? "Parar y guardar" : otro ? `Empezar a grabar (para la de ${g.grabando!.nombre})` : g.subiendo ? "Empezar a grabar · guardando la anterior…" : "Empezar a grabar"}
       </button>
       <span className={`min-w-11 text-[15px] font-bold tabular-nums ${esEste ? "text-mal" : "text-texto-3"}`}>{duracionTexto(esEste ? g.segundos : 0)}</span>
     </div>
