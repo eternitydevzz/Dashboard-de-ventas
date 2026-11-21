@@ -175,3 +175,8 @@ Decisión de Cristian:
 | Arreglos 18 nov | #205 | `8a03119` | Fuera el código muerto de la Fase C (`avisos.ts`, `rolDeReporte`, `tasasCloser`, icono `reportes`). |
 | Arreglos 18 nov | #206 | `009e5ee` | Formularios: sin «0 respuestas»; tests del componente y del permiso de `resumenLead`. |
 | Arreglos 18 nov | #207 | `a0dfbca` | Reporte con `proyecto.moneda`; `ZONA_REPORTE` en un solo sitio; vuelve el test de `guardarPreguntasReporte(rol, null)`. Main con todo junto: unitarios 1543/1543, `tsc` 0 errores, Vercel `success`. Sin ver aún: el reporte de esta noche con `$`. |
+| Arreglos 18 nov | #209 | `7858458` | Grabaciones `.webm` con índice para poder saltar al escucharlas. Sin migración. 4 checks en verde. |
+| E | #210 | `8b272c7` | 18 nov. La ficha completa (plantilla de Jose) en el WhatsApp de cada cita, al closer y al grupo; al caller, el aviso corto. Sin migración. 4 checks en verde. Falta el OK de Cristian (datos personales por WhatsApp). |
+| Arreglos 20 nov | #211 | `36f5a29` | La grabadora apunta sus fallos y no se queda colgada en «Guardando…». Sin migración. 4 checks en verde. |
+| Arreglos 20 nov | #212 | `bbaabde` | Permiso «Grabaciones de todo el equipo». Sin migración. 4 checks en verde. |
+| Arreglos 21 nov | #213 | `9ce2393` | Grabadora y ventanas no pierden datos tras un despliegue ni en la llamada siguiente. Sin migración. 4 checks en verde. Sin comprobar: que no vuelva el error de `/caller` («An unexpected response…», 20 nov). |
