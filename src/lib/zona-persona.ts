@@ -10,7 +10,9 @@ export function zonaPersona(perfil: { rol: string; zona_horaria?: string | null 
   return ((conZona(perfil.rol) && zonaValida(perfil.zona_horaria)) || proyecto.zona_horaria) as Proyecto["zona_horaria"];
 }
 
-export const nombreZona = (zona: string) => ZONAS.find((z) => z.v === zona)?.t ?? zona;
+// Las 6 de la lista, con su nombre corto. Zona «Otro» (pendiente del 21 nov 2026, Jose): la ciudad, lo que va tras
+// la última barra («America/Lima» → «Lima»), no el nombre técnico. Sin barra (UTC), tal cual.
+export const nombreZona = (zona: string) => ZONAS.find((z) => z.v === zona)?.t ?? zona.slice(zona.lastIndexOf("/") + 1).replaceAll("_", " ");
 
 // Huecos libres (en hora del proyecto) vistos en la zona de quien agenda: `t` es lo que ve y `v` lo que se envía,
 // «AAAA-MM-DDTHH:MM» en hora del proyecto (agendarCita lo sigue leyendo así, igual que el MCP y la ventana de jefes).

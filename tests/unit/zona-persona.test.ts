@@ -22,10 +22,23 @@ describe("zonaPersona", () => {
 });
 
 describe("nombreZona", () => {
-  it("nombre corto de las 6 zonas y la zona tal cual si no es una de ellas", () => {
+  it("nombre corto de las 6 zonas", () => {
     expect(nombreZona("Europe/Madrid")).toBe("España");
     expect(nombreZona("America/New_York")).toBe("Nueva York");
-    expect(nombreZona("Asia/Tokyo")).toBe("Asia/Tokyo");
+    expect(nombreZona("America/Argentina/Buenos_Aires")).toBe("Argentina");
+  });
+
+  // Pendiente de la zona «Otro» (21 nov 2026, Jose): la ciudad de la zona, no el nombre técnico
+  it("zona «Otro»: la ciudad, con espacios en vez de guiones bajos", () => {
+    expect(nombreZona("America/Lima")).toBe("Lima");
+    expect(nombreZona("Asia/Tokyo")).toBe("Tokyo");
+    expect(nombreZona("America/Argentina/Cordoba")).toBe("Cordoba");
+    expect(nombreZona("America/Port_of_Spain")).toBe("Port of Spain");
+  });
+
+  it("sin barra (UTC) o vacía: tal cual", () => {
+    expect(nombreZona("UTC")).toBe("UTC");
+    expect(nombreZona("")).toBe("");
   });
 });
 
