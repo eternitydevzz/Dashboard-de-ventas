@@ -190,15 +190,15 @@ export async function darDeBajaMembresia(ventaId: string) {
   return seguro(async () => {
     await exigirSeccion("ventas", "agendas", "finanzas"); // H5
     const { venta, perfil, proyecto } = await ventaPermitida(ventaId);
-    if (venta.tipo_pago !== "mensual") throw new ErrorUsuario("Solo las membresías (pago cada mes) se dan de baja.");
-    if (venta.baja_en) throw new ErrorUsuario("Esta membresía ya está dada de baja.");
+    if (venta.tipo_pago !== "mensual") throw new ErrorUsuario("Solo el Club (pago cada mes) se da de baja.");
+    if (venta.baja_en) throw new ErrorUsuario("Este Club ya está dado de baja.");
     const hoy = hoyEnZona(proyecto.zona_horaria);
     // D43: solo si sigue de alta (dos bajas a la vez no se pisan) y mirando el error de cada paso
     const { data: baja, error } = await db().from("ventas").update({ baja_en: new Date().toISOString() }).eq("id", ventaId).is("baja_en", null).select("id");
     if (error) throw new Error(`No se pudo guardar en «ventas»: ${error.message}`);
-    if (!baja?.length) throw new ErrorUsuario("Esta membresía ya está dada de baja.");
+    if (!baja?.length) throw new ErrorUsuario("Este Club ya está dado de baja.");
     await escribir(db().from("vencimientos").delete().eq("venta_id", ventaId).eq("estado", "pendiente").gt("vence_el", hoy), "vencimientos");
-    await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: "baja", nota: "Membresía dada de baja" });
+    await registrarActividad({ proyecto_id: proyecto.id, lead_id: venta.lead_id, perfil_id: perfil.id, tipo: "venta", resultado: "baja", nota: "Club dado de baja" });
     revalidatePath("/", "layout");
   });
 }

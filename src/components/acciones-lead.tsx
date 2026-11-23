@@ -501,7 +501,7 @@ export function FormVenta({
             <option value="completo">Pago completo</option>
             <option value="reserva">Reserva (seña)</option>
             <option value="cuotas">Cuotas</option>
-            <option value="mensual">Cada mes (membresía)</option>
+            <option value="mensual">Cada mes (Club)</option>
           </Pastillas>
         </div>
         <div>

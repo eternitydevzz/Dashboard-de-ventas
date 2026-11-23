@@ -45,7 +45,7 @@ Si vive en EE. UU.: "¿Cuánto te entra a la semana?"`, checklist: ["Sé qué IA
 "Para poder [deseo 1], [deseo 2] y [deseo 3] tienes que invertir para crear tu agencia de IA, ¿me entiendes?"
 "¿Cuánto podrías invertir para [deseo 1], [deseo 2] y [deseo 3] gracias a la inteligencia artificial?"
 • 200 $ o más → se agenda.
-• Menos de 200 $ → Membresía.`, checklist: ["Sé cuántas horas al día puede dedicarle", "Sé cuánto puede invertir", "Decidí: se agenda (200 $ o más) o Membresía"], pistas: [] },
+• Menos de 200 $ → Club.`, checklist: ["Sé cuántas horas al día puede dedicarle", "Sé cuánto puede invertir", "Decidí: se agenda (200 $ o más) o Club"], pistas: [] },
       { id: "p6", titulo: "Agendar · La cita", texto: `"Perfecto, pues por lo que me has contado, creo que encajas dentro de nuestra academia. Pero es importante que sepas que esto no es un curso: nosotros te damos los sistemas listos para copiar, pegar y vender. ¿Te hace sentido?"
 "Nosotros te enseñamos cómo configurarlos y cómo venderlos. ¿Qué te parece?"
 "Perfecto, pues ahí te envío el link para que puedas agendar tu sesión estratégica con nuestro equipo especialista en IA, para que evalúen tu caso y veamos si podemos colaborar juntos. Revisa tu WhatsApp."
@@ -56,7 +56,7 @@ Si dice que lo consultaría: "Perfecto. ¿Y ella podría estar también en la re
 Cuando envíe la captura: "Perfecto, pues un placer, {nombre}. Ya nuestro equipo confirmó tu llamada, nos vemos el [día]. Antes de la llamada te mando dos vídeos cortos para que veas cómo es por dentro nuestro sistema, ¿ok?"
 "Perfecto, {nombre}. ¡Buen día!"`, checklist: ["Me mandó la captura de la cita agendada", "Le avisé de los dos vídeos antes de la llamada"], pistas: [] },
       // Cristian, 11 nov: cierre para quien no llega a 200 $ (paso 5 → Membresía) y para quien no llega ni a eso
-      { id: "p9", titulo: "Si no cualifica · Membresía", texto: `"Mira, {nombre}, ahora mismo lo más inteligente para ti es empezar por la Membresía, 47 dólares al mes. Aprendes a tu ritmo, consigues tu primer cliente y, cuando estés listo, das el salto al programa. ¿Cómo lo ves?"
+      { id: "p9", titulo: "Si no cualifica · Club", texto: `"Mira, {nombre}, ahora mismo lo más inteligente para ti es empezar por el Club, 47 dólares al mes. Aprendes a tu ritmo, consigues tu primer cliente y, cuando estés listo, das el salto al programa. ¿Cómo lo ves?"
 
 Si dice que es mucho: "Mira, esto no lo hago con todo el mundo, pero me has caído bien y te quiero ayudar. El equipo tiene un programa de 10 becas al mes para ayudar a personas que quieren pero que por x motivo no pueden, y te voy a dar 1 beca a ti…"
 (Silencio.)
@@ -67,7 +67,7 @@ Si pregunta qué incluye: "Incluye toda nuestra formación, +100 módulos, 200 h
 
 • Sí → manda el link por WhatsApp sin colgar.
 • No → "Perfecto, {nombre}. Si cambias de idea, me escribes a este número. ¡Bendiciones!"`, checklist: [], pistas: [] },
-      { id: "p10", titulo: "Si no tiene ni para la Membresía", texto: `"Te entiendo, {nombre}. Bueno, no te preocupes, te mando ahora por WhatsApp un vídeo de Cristian que te va a venir bien. Míralo con calma, y cuando quieras dar el paso me escribes a este número, que es el mío."
+      { id: "p10", titulo: "Si no tiene ni para el Club", texto: `"Te entiendo, {nombre}. Bueno, no te preocupes, te mando ahora por WhatsApp un vídeo de Cristian que te va a venir bien. Míralo con calma, y cuando quieras dar el paso me escribes a este número, que es el mío."
 (Le envías alguna de nuestras clases.)`, checklist: [], pistas: [] },
     ],
     objeciones: [

@@ -162,7 +162,7 @@ describe("D43 · baja de la membresía mirando el error", () => {
   });
   it("si otro la dio de baja a la vez, aviso y no se tocan los plazos", async () => {
     base["ventas:update"] = { data: [], error: null };
-    expect(await darDeBajaMembresia("v1")).toEqual({ error: "Esta membresía ya está dada de baja." });
+    expect(await darDeBajaMembresia("v1")).toEqual({ error: "Este Club ya está dado de baja." });
     expect(de("vencimientos", "delete")).toHaveLength(0);
   });
   it("sin fallos: baja solo si seguía de alta y se quitan los plazos pendientes que no han vencido", async () => {

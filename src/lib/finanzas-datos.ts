@@ -78,7 +78,7 @@ export async function asegurarPlazosMensuales(proyectoId: string, hoy?: string) 
   if (nuevos.length) {
     // Dos cargas a la vez calculan el mismo plazo: el índice único (venta_id, numero) deja solo uno
     const { error: e2 } = await db().from("vencimientos").upsert(nuevos.map((n) => ({ ...n, proyecto_id: proyectoId })), { onConflict: "venta_id,numero", ignoreDuplicates: true });
-    if (e2) throw new Error(`No se pudieron crear los cobros de la membresía: ${e2.message}`);
+    if (e2) throw new Error(`No se pudieron crear los cobros del Club: ${e2.message}`);
   }
   return nuevos.length;
 }

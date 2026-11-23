@@ -23,7 +23,6 @@ export type RecursosLlamada = {
 export async function recursosLlamada() {
   return seguro(async (): Promise<RecursosLlamada> => {
     const { perfil, proyecto } = await exigirSeccion("recursos");
-    const editor = puedeRecursos(perfil);
     const [{ data: productos }, { data: recursosData }, mercado] = await Promise.all([
       db().from("productos").select("*").eq("proyecto_id", proyecto.id).eq("activo", true).order("orden"),
       db().from("recursos").select("*").eq("proyecto_id", proyecto.id).order("creado_en", { ascending: false }),
@@ -40,7 +39,7 @@ export async function recursosLlamada() {
     }
     return {
       productos: ((productos ?? []) as Producto[])
-        .filter((p) => editor || perfil.rol !== "caller" || p.vende_caller)
+        // Cristian (23 nov): los callers ven todos los programas y sus links
         .map((p) => ({ id: p.id, nombre: p.nombre, precio: p.precio ? dinero(Number(p.precio), { moneda: c.moneda(proyecto) }) : "Precio personalizado", dossier: p.link_dossier ?? null, links: c.linksPago(p) })),
       reserva: c.linkReserva(proyecto),
       recursos: recursos.map((r) => ({ id: r.id, titulo: r.titulo, tipo: r.tipo, href: r.archivo_path ? (firmados.get(r.archivo_path) ?? null) : (r.url ?? null), contenido: r.tipo === "guion" ? (r.contenido ?? "") : null })),
