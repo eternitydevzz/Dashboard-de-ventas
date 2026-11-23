@@ -104,14 +104,14 @@ function Ventana({ programa, moneda, comisionesRol, editables, onCerrar }: { pro
                 </div>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="interruptor" checked={d.activo} onChange={(e) => poner({ activo: e.target.checked })} /> Activo (se puede vender)</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="interruptor" checked={d.vende_caller} onChange={(e) => poner({ vende_caller: e.target.checked })} /> Lo puede vender el caller (low ticket)</label>
-                <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="interruptor mt-1" checked={d.cuenta_comision !== false} onChange={(e) => poner({ cuenta_comision: e.target.checked })} /><span>Cuenta para comisión<span className="block text-xs text-texto-3">Si lo quitas, sus ventas no pagan comisión a nadie ni suman para los tramos (como la Membresía, de momento).</span></span></label>
+                <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="interruptor mt-1" checked={d.cuenta_comision !== false} onChange={(e) => poner({ cuenta_comision: e.target.checked })} /><span>Cuenta para comisión<span className="block text-xs text-texto-3">Si lo quitas, sus ventas no pagan comisión a nadie ni suman para los tramos (como el Club, de momento).</span></span></label>
                 <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="interruptor mt-1" checked={d.backend_offer} onChange={(e) => poner({ backend_offer: e.target.checked })} /><span>Back-end offer<span className="block text-xs text-texto-3">En Finanzas → Resumen, lo cobrado de este programa cuenta como «Back-end» en vez de «Venta nueva» o «Cuotas». Vale también para lo ya cobrado.</span></span></label>
               </>
             )}
             {tab === "precios" && (
               <>
                 <div><label className="etiqueta-campo" htmlFor="cliente-como-lo-paga-el-cliente">Cómo lo paga el cliente</label>
-                  <Pastillas id="cliente-como-lo-paga-el-cliente" className="campo max-w-xs" value={d.modo_pago} onChange={(e) => poner({ modo_pago: e.target.value as "unico" | "cuotas" | "mensual" })}><option value="unico">Una sola vez</option><option value="cuotas">En cuotas</option><option value="mensual">Cada mes, sin fin (membresía)</option></Pastillas>
+                  <Pastillas id="cliente-como-lo-paga-el-cliente" className="campo max-w-xs" value={d.modo_pago} onChange={(e) => poner({ modo_pago: e.target.value as "unico" | "cuotas" | "mensual" })}><option value="unico">Una sola vez</option><option value="cuotas">En cuotas</option><option value="mensual">Cada mes, sin fin (Club)</option></Pastillas>
                 </div>
                 {d.modo_pago === "cuotas" && <label className="block"><span className="etiqueta-campo">Número de cuotas</span><input type="number" min={2} max={60} className="campo w-28" value={d.num_cuotas ?? ""} onChange={(e) => poner({ num_cuotas: Number(e.target.value) || null })} /></label>}
                 <div className="grid gap-3 sm:grid-cols-2">

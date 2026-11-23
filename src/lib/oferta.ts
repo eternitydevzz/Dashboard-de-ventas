@@ -9,7 +9,7 @@ export const OFERTAS: { v: Oferta; t: string; orden: number }[] = [
   { v: "vip", t: "VIP", orden: 2 },
   { v: "empresas", t: "Empresas", orden: 3 },
   { v: "grupal", t: "Grupal", orden: 4 },
-  { v: "membresia", t: "Membresía", orden: 5 },
+  { v: "membresia", t: "Club", orden: 5 },
 ];
 export const ETIQUETA_OFERTA = Object.fromEntries(OFERTAS.map((o) => [o.v, o.t])) as Record<Oferta, string>;
 

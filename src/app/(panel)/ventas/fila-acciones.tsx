@@ -19,7 +19,7 @@ export function FilaVentaAcciones({ ventaId, pendiente, cobrado, devuelta, jefe,
   return (
     <div className="flex items-center justify-end gap-1">
       {membresiaActiva && (
-        <button className="btn-secundario px-2 py-1 text-xs" disabled={cargando} title="La membresía deja de generar cobros cada mes" onClick={() => void confirmar("¿Dar de baja esta membresía? Deja de generar cobros cada mes y se quitan los que aún no vencieron.").then((ok) => ok && ejecutar(() => darDeBajaMembresia(ventaId), "Membresía dada de baja"))}>
+        <button className="btn-secundario px-2 py-1 text-xs" disabled={cargando} title="El Club deja de generar cobros cada mes" onClick={() => void confirmar("¿Dar de baja este Club? Deja de generar cobros cada mes y se quitan los que aún no vencieron.").then((ok) => ok && ejecutar(() => darDeBajaMembresia(ventaId), "Club dado de baja"))}>
           Dar de baja
         </button>
       )}

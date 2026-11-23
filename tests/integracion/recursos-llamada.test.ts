@@ -28,7 +28,7 @@ const datos = async () => {
 };
 
 describe("Popup «Recursos» del guion", () => {
-  it("el caller ve los de todos y los suyos, y solo los productos que vende", async () => {
+  it("el caller ve los de todos y los suyos, y todos los productos (Cristian, 23 nov)", async () => {
     como(e, e.p.callerA);
     const r = await datos();
     expect(r.recursos.map((x) => x.titulo).sort()).toEqual(["Para todos", "Solo callers"]);
@@ -36,7 +36,7 @@ describe("Popup «Recursos» del guion", () => {
     expect(r.recursos.find((x) => x.titulo === "Para todos")?.href).toBe("https://ejemplo.test/todos");
     const nombres = r.productos.map((p) => p.nombre);
     expect(nombres).toContain("Lo vende el caller");
-    expect(nombres).not.toContain("Solo el closer");
+    expect(nombres).toContain("Solo el closer");
     expect(r.productos.find((p) => p.nombre === "Lo vende el caller")?.dossier).toBe("https://ejemplo.test/dossier");
   });
   it("el closer no ve los de los callers; el director lo ve todo", async () => {

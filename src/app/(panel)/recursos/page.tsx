@@ -52,7 +52,8 @@ export default async function RecursosPage({ searchParams }: PageProps<"/recurso
         {/* Bloque 7 de 1.0 (Cristian): una tarjeta por producto con su dossier encima del link de pago */}
         <Seccion titulo="Productos: dossier y link de pago">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {((productos ?? []) as Producto[]).filter((p) => editor || perfil.rol !== "caller" || p.vende_caller).map((p) => (
+            {/* Cristian (23 nov): los callers ven todos los programas y sus links */}
+            {((productos ?? []) as Producto[]).map((p) => (
               <div key={p.id} className="space-y-2 rounded-xl border border-borde bg-panel-2 p-4">
                 <div className="flex items-start gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-oro-suave text-oro"><Package className="h-5 w-5" /></span>

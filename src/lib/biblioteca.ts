@@ -56,7 +56,7 @@ const BUSCA_INGRESOS = ["Llegar a $5,000 al mes", "Cerrar mi primer cliente en U
 // Qué encaja en cada escalón de la escalera (texto de la vista de Cristian). Con la pestaña «Biblioteca» quitada
 // (Cristian, 26 oct 2026), la escalera se ve en KPIs → «Leads».
 export const ESCALERA: { clave: "membresia" | "grupal" | "vip" | "dfy"; producto: string; quien: string }[] = [
-  { clave: "membresia", producto: "Membresía", quien: "No puede invertir ahora o lo hará en unos meses" },
+  { clave: "membresia", producto: "Club", quien: "No puede invertir ahora o lo hará en unos meses" },
   { clave: "grupal", producto: "Grupal", quien: "Puede invertir ya, no encaja en VIP ni Empresas" },
   { clave: "vip", producto: "VIP", quien: "Invierte ya, quiere empezar ya y tiene negocio o experiencia en AI" },
   { clave: "dfy", producto: "DFY", quien: "Tiene negocio y quiere automatizarlo" },
