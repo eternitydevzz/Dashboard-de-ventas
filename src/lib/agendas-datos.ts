@@ -38,7 +38,9 @@ async function cargarDeLaBase(pid: string, conPrueba: boolean) {
 }
 
 // Qué closers puede ver esta persona: el closer solo a sí mismo; los jefes, a todos o al elegido.
-export function closersVisibles(perfil: Perfil, gente: Perfil[], elegido: string | null) {
+// `verTodas`: permiso «agendas_todas» (Cristian, 25 nov): como un jefe, todos los closers o el elegido
+export function closersVisibles(perfil: Perfil, gente: Perfil[], elegido: string | null, verTodas = false) {
+  if (verTodas) return closersVisibles({ ...perfil, rol: "director" }, gente, elegido);
   const closers = gente.filter(esCloser);
   // H5: un caller con «Agendas» ve las citas que agendó él, con cualquier closer (las filtra quien carga los datos)
   // A2: el caller con «También closer», como un closer (solo a sí mismo); las que agendó las añade quien carga (modo «o»)

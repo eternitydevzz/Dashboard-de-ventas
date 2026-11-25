@@ -45,13 +45,15 @@ const sumarMes = (ym: string, n: number) => {
 };
 
 export default async function LlamadasPage({ searchParams }: PageProps<"/closer/llamadas">) {
-  const { perfil, proyecto } = await exigirPagina("agendas"); // H5
+  const { perfil, proyecto, tiene } = await exigirPagina("agendas"); // H5
   const jefe = esJefe(perfil);
+  // Cristian (25 nov, Paula): con «Agendas de todo el equipo», las citas de todos los closers, y las gestiona
+  const todas = !jefe && tiene.has("agendas_todas");
   // H5 (caso 1 confirmado por Cristian): un caller con «Agendas» ve solo las citas que agendó él, solo para mirar
   // A2 (Cristian, 17 nov): el caller con «También closer» (Facu), como un closer, y además ve las que agendó; las que
   // agendó con OTRO closer, solo mirar (D1, Jose: se ven, no se mueven, sin acciones)
-  const doble = perfil.rol === "caller" && esCloser(perfil);
-  const mirar = perfil.rol === "caller" && !esCloser(perfil);
+  const doble = !todas && perfil.rol === "caller" && esCloser(perfil);
+  const mirar = !todas && perfil.rol === "caller" && !esCloser(perfil);
   const sp = await searchParams;
   const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const tabsVisibles = TABS.filter((t) => (!("soloJefe" in t) || jefe) && (!mirar || ["agendas", "precall", "postcall"].includes(t.v)));
@@ -78,7 +80,9 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
   ]);
   // 13 nov: los jefes filtran por mercado (Todos / España / Latam) los closers y, con ellos, sus citas
   const filtroM = jefe ? mercadoValido(sp.mercado) : null;
-  const vis = closersVisibles(perfil, filtroM ? gente.filter((g) => entraEnMercado(mercados, g.id, filtroM)) : gente, str("closer") || null);
+  const vis = closersVisibles(perfil, filtroM ? gente.filter((g) => entraEnMercado(mercados, g.id, filtroM)) : gente, str("closer") || null, todas);
+  // Cristian (25 nov): con «agendas_todas», Grabaciones y Revisión IA siguen siendo solo las suyas
+  const propias = todas ? [perfil.id] : vis.ids;
   // Paso 0: las mismas citas, ventas y columnas que el pipeline «Closers» del CRM. Las ventas solo se enseñan en Post-call
   const { citas: citasTodas, ventas: ventasTodas, gente: conBaja } = await cargarCitasVentas(proyecto.id, vis.ids, mirar || doble ? perfil.id : null, jefe && !str("closer") && !filtroM, gente, tab === "postcall", doble ? "o" : "y"); // con mercado, sin las citas sin closer; N5: con las de closers de baja
   const nombrePersona = (id: string | null) => conBaja.find((g) => g.id === id)?.nombre ?? "—"; // N5: «Ana (baja)»
@@ -122,7 +126,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
     <>
       <Cabecera
         titulo="Agendas"
-        subtitulo={`${proyecto.nombre} · ${jefe ? (str("closer") ? nombrePersona(str("closer")) : "todos los closers") : mirar ? `citas que agendó ${perfil.nombre} (solo mirar)` : doble ? `${perfil.nombre} · y las que agendó` : perfil.nombre}${horaDe ? ` · horas de ${horaDe}` : ""}`}
+        subtitulo={`${proyecto.nombre} · ${jefe || todas ? (str("closer") ? nombrePersona(str("closer")) : "todos los closers") : mirar ? `citas que agendó ${perfil.nombre} (solo mirar)` : doble ? `${perfil.nombre} · y las que agendó` : perfil.nombre}${horaDe ? ` · horas de ${horaDe}` : ""}`}
         acciones={
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span><b className="text-aviso">{contadores.pendientes}</b> pendientes</span>
@@ -146,7 +150,7 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
         <div className="tarjeta flex flex-wrap items-center gap-2 p-2.5">
           <BuscadorUrl placeholder="Buscar por nombre, email o teléfono…" />
           {jefe && <FiltroMercado />}
-          {jefe && <FiltroUrl nombre="closer" etiqueta="Closer" todos="Todos los closers" opciones={vis.todos.map((c) => ({ v: c.id, t: c.nombre }))} />}
+          {(jefe || todas) && <FiltroUrl nombre="closer" etiqueta="Closer" todos="Todos los closers" opciones={vis.todos.map((c) => ({ v: c.id, t: c.nombre }))} />}
           {/* Fase 4 (plan GHL): canal de la cita, por el UTM de la página donde reservó */}
           <FiltroUrl nombre="canal" etiqueta="Canal" todos="Todos los canales" opciones={[...opcionesCanal(canales).map((c) => ({ v: c.clave as string, t: c.nombre })), { v: SIN_CANAL, t: "Sin canal" }]} />
           <FiltroUrl nombre="utm" etiqueta="UTM" todos="Todas las UTM" opciones={utms.map((u) => ({ v: u, t: u }))} />
@@ -183,9 +187,9 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
         {tab === "agendas" && <VistaAgendas />}
         {tab === "precall" && <VistaPrecall />}
         {tab === "postcall" && <VistaPostcall />}
-        {tab === "revision" && <RevisionIa proyecto={proyecto} closerIds={vis.ids} jefe={jefe} sinLead={pendientesUnir.length} baseQs={baseQs} />}
+        {tab === "revision" && <RevisionIa proyecto={proyecto} closerIds={propias} jefe={jefe} sinLead={pendientesUnir.length} baseQs={baseQs} />}
         {tab === "cualificacion" && jefe && <Cualificacion proyecto={proyecto} sp={sp} baseQs={baseQs} />}
-        {tab === "grabaciones" && <Grabaciones proyecto={proyecto} sp={sp} closerIds={vis.ids} closers={vis.todos.map((c) => ({ id: c.id, nombre: c.nombre }))} jefe={jefe} yo={perfil.id} baseQs={baseQs} />}
+        {tab === "grabaciones" && <Grabaciones proyecto={proyecto} sp={sp} closerIds={propias} closers={vis.todos.map((c) => ({ id: c.id, nombre: c.nombre }))} jefe={jefe} yo={perfil.id} baseQs={baseQs} />}
       </Contenido>
     </>
   );
