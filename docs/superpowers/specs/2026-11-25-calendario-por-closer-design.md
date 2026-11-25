@@ -3,7 +3,10 @@
 > 25 nov 2026. Aprobado por Jose en el chat (opción B). Proyecto: **Maestria**.
 
 ## Para qué
-Hoy Yara, Stefy (Estefanía Rodríguez), Alba, Valentina y Aitzi llaman en frío y mandan al lead el enlace de
+**Personas (Jose, 25 nov):** Yara, Aitzi, Facu (Facu Cepeda), Paula (Paula Gamba), Cris (Cristian, CEO) y Jose (CEO).
+Stefy, Alba y Valentina se quedan fuera. Las 4 primeras son callers; Cristian y Jose son CEO (ver Tarea 2b).
+
+Hoy llaman en frío y mandan al lead el enlace de
 `codigomaestria.com/agenda`. El lead responde las preguntas y reserva en «0. Calendar Principal»
 (`X7qpsbS2ChORZkwO4O3f`). El dashboard le pasa esa cita a Facu o a la rotación (regla de Cristian del 11 nov,
 `src/lib/ghl-sync.ts:244-260`). Queremos que **cada una se agende la llamada a sí misma**: el lead reserva en el
@@ -29,7 +32,7 @@ calendario de ella, la cita es suya como closer y la agenda cuenta para ella (ha
 ## Opciones que se miraron
 | | Qué es | Por qué no / por qué sí |
 |---|---|---|
-| A | Duplicar landing + calendario + Entrada por closer | 5 copias de todo; cambiar una pregunta = 5 cambios. Descartada |
+| A | Duplicar landing + calendario + Entrada por closer | 6 copias de todo; cambiar una pregunta = 6 cambios. Descartada |
 | **B** | **Una landing; un calendario por closer; el enlace dice cuál** | **Elegida (Jose).** Se duplica solo el calendario; lo de hoy no cambia |
 | C | Un calendario de equipo en GHL y que el enlace fuerce al closer | No se sabe si el widget de GHL lo permite. Descartada |
 
@@ -41,15 +44,15 @@ Enlace ?closer=yara → landing busca el calendario de Yara → preguntas → En
 ```
 
 ### 1 · GHL (configuración; lo hace Claude con Playwright)
-- Copiar «0. Calendar Principal» 5 veces («0. Calendar Yara», …), cada copia con **solo** esa persona como usuario.
+- Copiar «0. Calendar Principal» una vez por persona (Facu: se mira antes si su calendario actual sirve) («0. Calendar Yara», …), cada copia con **solo** esa persona como usuario.
   Mismo formulario, duración, avisos y redirección a la thank-you que el original.
-- Workflows de GHL cuyo disparador filtra por «0. Calendar Principal»: añadir los 5 calendarios nuevos. Se apunta
+- Workflows de GHL cuyo disparador filtra por «0. Calendar Principal»: añadir los calendarios nuevos. Se apunta
   antes la lista de workflows tocados y cómo estaban.
 
 ### 2 · Dashboard (configuración; Claude con Playwright en dashboard.eternity.llc)
 - Ficha de cada una: marcar «También closer»; poner su usuario de GHL y su calendario nuevo.
   Comprobado: con «También closer», % 0 y sin país, **no** les entran citas del reparto (`src/lib/rotacion.ts:11-13,32-35`).
-- Administración → Integraciones GHL: añadir los 5 calendarios a los que se leen (si no, el dashboard no ve sus citas,
+- Administración → Integraciones GHL: añadir los calendarios nuevos a los que se leen (si no, el dashboard no ve sus citas,
   `src/lib/ghl-sync.ts:61-67`).
 
 ### 3 · Dashboard (código, con tests)
@@ -84,7 +87,7 @@ closer». Si dos fichas tienen el mismo calendario (p. ej. el Principal), no es 
 ## Riesgos sin verificar
 - Si al copiar un calendario GHL copia sus avisos y su redirección (se comprueba en la pasada con Yara).
 - Qué workflows de GHL filtran por el Calendar Principal (se mira en GHL antes de tocar).
-- Si las 5 tienen usuario de GHL (se mira en su ficha y en GHL).
+- Si las 6 tienen usuario de GHL (se mira en su ficha y en GHL).
 - Con ella como caller y closer, los avisos de WhatsApp «al closer» y «al caller» pueden llegarle dos veces.
 - KPIs: la pregunta abierta de Cristian sobre Facu (`docs/PENDIENTES-JOSE.md:138`) vale también para ellas.
 
@@ -148,6 +151,16 @@ memoria de `tests/unit/ghl-sync-agenda-unica.test.ts` copiada y `closerDeLaRotac
 - [ ] `npx vitest run tests/unit` y `npx tsc --noEmit` en verde (los tests de GHL de siempre, sin tocarlos).
 - [ ] Commit `feat: la cita del calendario personal de una closer se queda con ella`.
 
+### Tarea 2b · «También closer» también para CEO (decisión de Jose, 25 nov)
+**Archivos:** `src/app/(panel)/equipo/ficha-partes.tsx:99` (la casilla sale con `rol === "caller"`);
+`src/app/(panel)/equipo/ficha-acciones.ts:106` (el servidor rechaza si no es caller); test en `tests/unit/`.
+Comprobado: a un CEO no le cambia permisos (`permisos.ts:21`) ni pipelines (`pipelines.ts:21`); solo pasa a contar
+como closer (`esCloser`, `tipos.ts:6`).
+- [ ] Test (falla): `guardarTambienCloser` acepta un CEO y sigue rechazando closer y director; la ficha enseña la
+  casilla para `caller` y `ceo`.
+- [ ] Implementar: permitir `rol` `caller` o `ceo` en los dos sitios; mensaje «"También closer" es solo para callers y CEO.».
+- [ ] Tests y `tsc` en verde. Commit `feat: un CEO también puede ser closer`.
+
 ### Tarea 3 · Publicar el dashboard
 - [ ] Push de la rama, PR a `main`, checks en verde, fusionar (Vercel publica). Comprobar en Vercel que el despliegue
   de `main` está «Ready». Sin migración.
@@ -175,11 +188,12 @@ memoria de `tests/unit/ghl-sync-agenda-unica.test.ts` copiada y `closerDeLaRotac
 - [ ] Borrar la cita de prueba (en GHL y en el dashboard) con el OK de Jose. **PARAR: Jose lo ve antes de seguir.**
 
 ### Tarea 6 · Las otras 4 y la página real
-- [ ] Repetir la Tarea 5 (sin la prueba completa) para Stefy, Alba, Valentina y Aitzi: calendario, workflows, ficha e
-  Integraciones. Tabla `CLOSERS` con las 5.
+- [ ] Repetir la Tarea 5 (sin la prueba completa) para Aitzi, Facu, Paula, Cristian y Jose: calendario, workflows,
+  ficha e Integraciones. Facu ya tiene calendario propio en GHL: se mira si sirve antes de crear otro. Tabla `CLOSERS`
+  con las 6 (`yara`, `aitzi`, `facu`, `paula`, `cris`, `jose`).
 - [ ] Pegar el código nuevo en `/agenda` (la real). Comprobar sin `closer` (el general) y con cada `closer` (su
   calendario) en la página en vivo. Borrar `/agenda-prueba`.
-- [ ] Entregar a Jose los 5 enlaces.
+- [ ] Entregar a Jose los 6 enlaces.
 
 ### Tarea 7 · Dejarlo escrito
 - [ ] `docs/GUIA-GHL.md` sección 4 (Citas): los calendarios personales y la regla nueva; actualizar la lista de
