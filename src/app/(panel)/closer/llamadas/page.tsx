@@ -187,9 +187,9 @@ export default async function LlamadasPage({ searchParams }: PageProps<"/closer/
         {tab === "agendas" && <VistaAgendas />}
         {tab === "precall" && <VistaPrecall />}
         {tab === "postcall" && <VistaPostcall />}
-        {tab === "revision" && <RevisionIa proyecto={proyecto} closerIds={propias}jefe={jefe} sinLead={pendientesUnir.length} baseQs={baseQs} />}
+        {tab === "revision" && <RevisionIa proyecto={proyecto} closerIds={propias} jefe={jefe} sinLead={pendientesUnir.length} baseQs={baseQs} />}
         {tab === "cualificacion" && jefe && <Cualificacion proyecto={proyecto} sp={sp} baseQs={baseQs} />}
-        {tab === "grabaciones" && <Grabaciones proyecto={proyecto} sp={sp} closerIds={propias}closers={vis.todos.map((c) => ({ id: c.id, nombre: c.nombre }))} jefe={jefe} yo={perfil.id} baseQs={baseQs} />}
+        {tab === "grabaciones" && <Grabaciones proyecto={proyecto} sp={sp} closerIds={propias} closers={vis.todos.map((c) => ({ id: c.id, nombre: c.nombre }))} jefe={jefe} yo={perfil.id} baseQs={baseQs} />}
       </Contenido>
     </>
   );
