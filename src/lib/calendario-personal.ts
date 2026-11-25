@@ -18,3 +18,16 @@ export function duenaDeCalendario(miembros: MiembroCalendario[], calendarioId: s
   // Si además lo tiene otra ficha activa (aunque sea de un closer puro), no es personal de nadie
   return conEse.length === 1 && conEse[0].perfiles.tambien_closer ? conEse[0].perfil_id : null;
 }
+
+// El enlace de agenda propio (Jose, 25 nov): el general del proyecto + `cal=<su calendario>`. La agenda de GHL
+// (elemento CODE de /agenda) solo hace caso a `cal` si es uno de los calendarios de su tabla `CLOSERS`.
+export function linkConCalendario(base: string | null, calendarioId: string): string | null {
+  if (!base) return null;
+  try {
+    const url = new URL(base);
+    url.searchParams.set("cal", calendarioId.trim());
+    return url.toString();
+  } catch {
+    return base; // no es una URL: mejor el enlace de siempre que ninguno
+  }
+}

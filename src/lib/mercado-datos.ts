@@ -3,6 +3,7 @@ import { cache } from "react";
 import { db } from "@/lib/datos";
 import { contenidoMercado, mercadoDe, mercadoValido, type Mercado } from "@/lib/mercado";
 import type { Proyecto } from "@/lib/tipos";
+import { duenaDeCalendario, linkConCalendario, type MiembroCalendario } from "@/lib/calendario-personal";
 
 // El mercado que eligió la persona en este proyecto. `undefined` = no es miembro o la base aún no tiene la
 // columna (no se le pregunta); null = sin elegir. Una vez por petición.
@@ -31,9 +32,26 @@ export async function mercadoVista(editor: boolean, param: unknown, proyectoId: 
   return editor ? (mercadoValido(param) ?? "latam") : miMercado(proyectoId, perfilId);
 }
 
-// El link de agenda que copia quien llama (el de su mercado)
+// El link de agenda que copia quien llama (el de su mercado). Calendario por closer (Jose, 25 nov): quien tiene
+// calendario personal copia el general + su calendario, para que el lead reserve con él (también en España: la
+// agenda general tiene las mismas preguntas que /agendas-espana)
 export async function miLinkAgenda(proyecto: Proyecto, perfilId: string) {
-  return contenidoMercado(await miMercado(proyecto.id, perfilId)).linkAgenda(proyecto);
+  const delMercado = contenidoMercado(await miMercado(proyecto.id, perfilId)).linkAgenda(proyecto);
+  const cal = await miCalendarioPersonal(proyecto.id, perfilId);
+  return cal ? linkConCalendario(proyecto.link_agenda ?? null, cal) ?? delMercado : delMercado;
+}
+
+// Su calendario de GHL si es personal (misma regla que la lectura de citas, src/lib/calendario-personal.ts).
+// Si la lectura falla, null: se copia el enlace de siempre (el lead reserva igual, en el calendario general)
+async function miCalendarioPersonal(proyectoId: string, perfilId: string): Promise<string | null> {
+  const { data, error } = await db().from("miembros_proyecto").select("perfil_id, ghl_calendar_id, perfiles!inner(rol, activo, tambien_closer)").eq("proyecto_id", proyectoId);
+  if (error) {
+    console.error("[link de agenda] no se pudo leer el calendario personal:", error.message);
+    return null;
+  }
+  const miembros = (data ?? []) as unknown as MiembroCalendario[];
+  const mio = miembros.find((m) => m.perfil_id === perfilId)?.ghl_calendar_id ?? null;
+  return mio && duenaDeCalendario(miembros, mio) === perfilId ? mio.trim() : null;
 }
 
 // La moneda en que ve los precios y registra ventas: € para España (mismo número; Cristian, 13 nov)
