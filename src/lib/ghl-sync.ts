@@ -266,8 +266,11 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         }
       }
       const datosOrigen = calendario ? { ghl_calendario: calendario, ...origen } : {};
-      // Calendario por closer: hace de caller y closer a la vez, así que la agenda cuenta para ella
-      const agenda = { ...(await datosAgendaGhl(leadId, origen?.canal ?? null)), ...(duena ? { agendada_por: duena } : {}) };
+      // Calendario por closer: hace de caller y closer a la vez, así que la agenda cuenta para ella… salvo que ya sea de
+      // otro caller (Jose, 25 nov: si un caller de España manda su enlace y reserva en «0. Calendar España» de Facu,
+      // la agenda sigue siendo de ese caller)
+      const deAgenda = await datosAgendaGhl(leadId, origen?.canal ?? null);
+      const agenda = { ...deAgenda, agendada_por: deAgenda.agendada_por ?? duena ?? null };
       // Fase 3: si el lead ya tiene una cita abierta, esta se junta con ella (manda la última)
       const junta = abierta ? await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId: closerFinal, ghlCitaId: ev.id, origen: "ghl", agendadaPor: agenda.agendada_por, extra: datosOrigen }, { ahora }) : null;
       const { data: creada, error } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerFinal, ...agenda, fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select(CAMPOS_CITA).single());
