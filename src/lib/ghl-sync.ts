@@ -16,6 +16,7 @@ import { dispararEtiquetas, dispararWorkflows } from "@/lib/workflows-motor";
 import type { DisparoCita } from "@/lib/workflows";
 import { guardarError } from "@/lib/errores-app";
 import { closerDeLaRotacion } from "@/lib/rotacion";
+import { duenaDeCalendario, type MiembroCalendario } from "@/lib/calendario-personal";
 
 type ProyectoGhl = Proyecto & { ghl_token: string | null; ghl_location_id: string | null };
 type ResultadoSync = { nuevas: number; actualizadas: number; canceladas: number; sinUnir: number; invalidas: number; closers: number; errores: string[] };
@@ -52,8 +53,10 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
 
   const miembros = leido(await db()
     .from("miembros_proyecto")
-    .select("perfil_id, ghl_calendar_id, ghl_user_id, perfiles!inner(rol, nombre, tambien_closer)")
+    .select("perfil_id, ghl_calendar_id, ghl_user_id, perfiles!inner(rol, nombre, tambien_closer, activo)")
     .eq("proyecto_id", proyecto.id));
+  // Calendario por closer (Jose, 25 nov): con TODOS los miembros (si dos fichas tienen el mismo calendario, no es de nadie)
+  const deQuien = (calendarioId: string | null) => duenaDeCalendario((miembros ?? []) as unknown as MiembroCalendario[], calendarioId);
   // Plan GHL E1: closer = rol closer o un caller con «También closer»
   const closers = ((miembros ?? []) as unknown as { perfil_id: string; ghl_calendar_id: string | null; ghl_user_id: string | null; perfiles: { rol: string; nombre: string; tambien_closer: boolean } }[]).filter((m) => (m.perfiles.rol === "closer" || m.perfiles.tambien_closer) && (m.ghl_calendar_id || m.ghl_user_id));
   const closerDeUsuario = new Map(closers.filter((c) => c.ghl_user_id).map((c) => [c.ghl_user_id as string, c.perfil_id]));
@@ -154,6 +157,8 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       const deGhl = estadoDesdeGhl(ev.appointmentStatus);
       const abierta = !deGhl || deGhl === "confirmada"; // pendiente (sin estado de GHL) o confirmada: solo estas mueven el lead a la columna de citas
       const closerId = f.closerId ?? (ev.assignedUserId ? closerDeUsuario.get(ev.assignedUserId) ?? null : null);
+      // Calendario por closer: la cita del calendario personal de alguien es suya (closer y «agendó»), sin reparto
+      const duena = deQuien(calendarioId);
 
       // ¿Ya está en la app?
       const existe = enApp.get(ev.id);
@@ -180,7 +185,7 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         // closer (11 oct: una venta adelantada cierra la cita con la hora de ahora y GHL la devolvería a la suya)
         if (!(ABIERTAS as readonly string[]).includes(existe.estado)) continue;
         const estado = nuevoEstado(existe.estado, deGhl);
-        const closer = closerId ?? existe.closer_id;
+        const closer = duena ?? closerId ?? existe.closer_id;
         const otraHora = new Date(existe.fecha).getTime() !== new Date(fecha).getTime();
         if (estado !== existe.estado || otraHora || existe.closer_id !== closer) {
           await db().from("citas").update({ estado, fecha, closer_id: closer }).eq("id", existe.id);
@@ -245,8 +250,9 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
       // Cristian (11 nov 2026): una cita nueva y futura va al closer del país del lead (España, Europa y Emiratos → Facu;
       // el resto → la rotación). Si GHL la puso a otro, se cambia también en GHL (usuario y calendario de ese closer);
       // si GHL no lo acepta, se queda como venía y se apunta el error.
-      let closerFinal = closerId;
-      if (abierta && new Date(fecha).getTime() > ahora.getTime()) {
+      // Calendario por closer (Jose, 25 nov): la de un calendario personal no pasa por aquí
+      let closerFinal = duena ?? closerId;
+      if (!duena && abierta && new Date(fecha).getTime() > ahora.getTime()) {
         const l = leido(await db().from("leads").select("pais").eq("id", leadId).maybeSingle());
         const correcto = await closerDeLaRotacion(proyecto.id, (l?.pais as string | null) ?? null).catch(() => null);
         const destino = correcto && correcto !== closerId ? closers.find((c) => c.perfil_id === correcto) : undefined;
@@ -260,7 +266,8 @@ export async function sincronizarCalendarios(proyectoId: string, opciones: { fet
         }
       }
       const datosOrigen = calendario ? { ghl_calendario: calendario, ...origen } : {};
-      const agenda = await datosAgendaGhl(leadId, origen?.canal ?? null);
+      // Calendario por closer: hace de caller y closer a la vez, así que la agenda cuenta para ella
+      const agenda = { ...(await datosAgendaGhl(leadId, origen?.canal ?? null)), ...(duena ? { agendada_por: duena } : {}) };
       // Fase 3: si el lead ya tiene una cita abierta, esta se junta con ella (manda la última)
       const junta = abierta ? await juntarConCitaAbierta(proyecto.id, leadId, { fecha, closerId: closerFinal, ghlCitaId: ev.id, origen: "ghl", agendadaPor: agenda.agendada_por, extra: datosOrigen }, { ahora }) : null;
       const { data: creada, error } = junta ?? (await db().from("citas").insert({ proyecto_id: proyecto.id, lead_id: leadId, closer_id: closerFinal, ...agenda, fecha, estado, origen: "ghl", ghl_cita_id: ev.id, nota: ev.title ?? null, ...datosOrigen }).select(CAMPOS_CITA).single());
