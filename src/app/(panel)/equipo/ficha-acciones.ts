@@ -104,7 +104,8 @@ export async function marcarPrueba(perfilId: string, prueba: boolean) {
 export async function guardarTambienCloser(perfilId: string, valor: boolean) {
   return seguro(async () => {
     const { persona } = await personaDelProyecto(perfilId);
-    if (persona.rol !== "caller") throw new ErrorUsuario("«También closer» es solo para callers.");
+    // Jose (25 nov, calendario por closer): también un CEO, para que sus citas cuenten como suyas
+    if (persona.rol !== "caller" && persona.rol !== "ceo") throw new ErrorUsuario("«También closer» es solo para callers y CEO.");
     await escribir(db().from("perfiles").update({ tambien_closer: valor === true }).eq("id", perfilId), "perfiles");
     refrescar();
   });

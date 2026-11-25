@@ -1,4 +1,5 @@
 // Plan GHL E2: un caller con «También closer» ve sus 2 pantallas, cuenta como closer y solo un admin cambia el interruptor.
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { calcularKpis } from "@/lib/kpis";
 import type { Base } from "@/lib/metricas";
@@ -103,7 +104,18 @@ describe("guardarTambienCloser (servidor)", () => {
     expect(await guardarTambienCloser("facu", true)).toEqual({ error: "No tienes permiso para esto." });
     expect(actualizado).toBeNull();
   });
-  it("solo para callers: un closer o un director, rechazado", async () => {
+  it("un CEO también puede ser closer (Jose, 25 nov: calendario por closer)", async () => {
+    personaBD = { rol: "ceo" };
+    expect(await guardarTambienCloser("facu", true)).toBeUndefined();
+    expect(actualizado).toEqual({ tambien_closer: true });
+    expect(esCloser(persona("jose", "ceo", true))).toBe(true);
+    expect(esCloser(persona("jose", "ceo"))).toBe(false);
+  });
+  it("la ficha enseña la casilla a callers y CEO", () => {
+    const f = readFileSync(new URL("../../src/app/(panel)/equipo/ficha-partes.tsx", import.meta.url), "utf8");
+    expect(f).toMatch(/\(p\.rol === "caller" \|\| p\.rol === "ceo"\) && \(/);
+  });
+  it("solo para callers y CEO: un closer o un director, rechazado", async () => {
     for (const rol of ["closer", "director"] as const) {
       personaBD = { rol };
       expect(await guardarTambienCloser("facu", true)).toMatchObject({ error: expect.stringMatching(/callers/) });

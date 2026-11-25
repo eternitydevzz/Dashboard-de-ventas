@@ -96,7 +96,7 @@ export function AccesoPersona({ f, recargar }: { f: Ficha; recargar: () => void 
             </button>
           </div>
         )}
-        {p.rol === "caller" && (
+        {(p.rol === "caller" || p.rol === "ceo") && (
           <label className="flex items-start gap-2 text-xs">
             <input type="checkbox" className="interruptor mt-0.5" checked={p.tambien_closer} disabled={pendiente} onChange={(e) => hacer(() => guardarTambienCloser(p.id, e.target.checked), e.target.checked ? "Ahora también es closer" : "Ya no es closer")} />
             <span><b>También closer</b> · sigue de caller y además ve y cuenta sus citas como closer.</span>
