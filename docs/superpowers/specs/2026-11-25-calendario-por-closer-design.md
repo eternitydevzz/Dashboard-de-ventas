@@ -58,7 +58,7 @@ Enlace ?closer=yara → landing busca el calendario de Yara → preguntas → En
 ### 3 · Dashboard (código, con tests)
 En la lectura de citas (`src/lib/ghl-sync.ts`), una cita cuyo calendario es el **calendario personal** de una persona:
 - se queda con esa persona como closer (no pasa por el reparto por país ni por la rotación);
-- «agendó» = esa persona (aunque el lead no tenga caller o tenga otro).
+- «agendó» = esa persona **solo si la cita no la agendó ya un caller** (Jose, 25 nov: el calendario de Facu es «0. Calendar España» y puede recibir reservas de enlaces de otros callers de España; su agenda no se toca).
 
 **Calendario personal** = el `ghl_calendar_id` de la ficha de **un único** miembro activo que es closer o «También
 closer». Si dos fichas tienen el mismo calendario (p. ej. el Principal), no es personal de nadie y todo sigue como hoy.

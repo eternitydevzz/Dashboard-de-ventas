@@ -78,7 +78,8 @@ beforeEach(() => {
 });
 
 describe("lectura de GHL: calendario personal", () => {
-  it("cita nueva en el calendario de Yara: closer y «agendó» = Yara, sin pasar por el reparto", async () => {
+  it("cita nueva en el calendario de Yara (lead sin caller): closer y «agendó» = Yara, sin pasar por el reparto", async () => {
+    base.tablas.leads[0].caller_id = null;
     ghl.eventos = [evento("g-yara", "cal-yara", "u-yara")];
     await sincronizarCalendarios("p1", { ahora });
     expect(base.tablas.citas).toHaveLength(1);
@@ -86,10 +87,17 @@ describe("lectura de GHL: calendario personal", () => {
     expect(cambiarUsuarioCitaGhl).not.toHaveBeenCalled();
   });
 
-  it("aunque el lead tenga otro caller y llegue por «callers», la agenda es de Yara", async () => {
+  it("si el lead es de otro caller y llega por su enlace de «callers», la agenda sigue siendo de ese caller (closer = Yara)", async () => {
     ghl.eventos = [evento("g-yara", "cal-yara", "u-yara")];
     await sincronizarCalendarios("p1", { ahora });
-    expect(base.tablas.citas[0]).toMatchObject({ canal: "callers", agendada_por: "yara" });
+    expect(base.tablas.citas[0]).toMatchObject({ canal: "callers", closer_id: "yara", agendada_por: "caller-ana" });
+  });
+
+  it("lead de Yara como caller: la agenda es suya", async () => {
+    base.tablas.leads[0].caller_id = "yara";
+    ghl.eventos = [evento("g-yara", "cal-yara", "u-yara")];
+    await sincronizarCalendarios("p1", { ahora });
+    expect(base.tablas.citas[0]).toMatchObject({ closer_id: "yara", agendada_por: "yara" });
   });
 
   it("cita nueva en el Calendar Principal: el reparto como siempre (Facu)", async () => {
