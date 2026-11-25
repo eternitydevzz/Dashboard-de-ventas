@@ -2,7 +2,7 @@
 
 import { closerLibreA } from "@/lib/agenda-libre";
 import { TEXTO_MOTIVO } from "@/lib/disponibilidad";
-import { exigirSeccion } from "@/lib/permisos";
+import { exigirSeccion, puedeSeccion } from "@/lib/permisos";
 import { ErrorUsuario, esError, notaValida, seguro } from "@/lib/resultado";
 import { borrarVenta } from "@/app/(panel)/ventas/acciones";
 import { refrescarPantalla } from "@/lib/refrescar";
@@ -34,7 +34,7 @@ async function citaPermitida(citaId: string) {
   const { perfil, proyecto } = await getSesion();
   const { data: cita } = await db().from("citas").select("*").eq("id", citaId).eq("proyecto_id", proyecto.id).maybeSingle<Cita>();
   if (!cita) throw new ErrorUsuario("Cita no encontrada.");
-  if (!esJefe(perfil) && cita.closer_id !== perfil.id) throw new ErrorUsuario("Esta cita no es tuya.");
+  if (!esJefe(perfil) && cita.closer_id !== perfil.id && !(await puedeSeccion(perfil, proyecto.id, "agendas_todas"))) throw new ErrorUsuario("Esta cita no es tuya.");
   return { cita, perfil, proyecto };
 }
 

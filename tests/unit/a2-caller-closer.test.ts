@@ -92,6 +92,11 @@ describe("A2 · qué closers ve cada uno en Agendas", () => {
     expect(r.ids).toEqual(["facu", "ana", "luis"]);
     expect(r.closers.map((c) => c.id)).toEqual(["facu", "ana", "luis"]);
   });
+  it("con «Agendas de todo el equipo» (25 nov): todos los closers, o el elegido", () => {
+    expect(closersVisibles(facu, gente, null, true).ids).toEqual(["facu", "ana", "luis"]);
+    expect(closersVisibles(facu, gente, "ana", true).ids).toEqual(["ana"]);
+    expect(closersVisibles(persona("ana", "closer"), gente, null, true).ids).toEqual(["facu", "ana", "luis"]);
+  });
 });
 
 describe("A2 · lo que exigía rol «closer» ahora acepta a quien es closer", () => {
@@ -103,8 +108,8 @@ describe("A2 · lo que exigía rol «closer» ahora acepta a quien es closer", (
   it("Agendas: ya no pone a todo caller en «solo mirar»", () => {
     const f = leer("app/(panel)/closer/llamadas/page.tsx");
     expect(f).not.toContain(`mirar = perfil.rol === "caller";`);
-    expect(f).toContain(`const doble = perfil.rol === "caller" && esCloser(perfil);`);
-    expect(f).toContain(`const mirar = perfil.rol === "caller" && !esCloser(perfil);`);
+    expect(f).toContain(`const doble = !todas && perfil.rol === "caller" && esCloser(perfil);`);
+    expect(f).toContain(`const mirar = !todas && perfil.rol === "caller" && !esCloser(perfil);`);
   });
   it("las citas que agendó con otro closer: solo mirar (D1)", () => {
     expect(leer("app/(panel)/closer/llamadas/page.tsx")).toMatch(/soloMirarIds=/);

@@ -2,7 +2,7 @@
 
 import { zonaPersona } from "@/lib/zona-persona";
 import { crearCitaEnGhl } from "@/lib/cita-en-ghl";
-import { exigirSeccion } from "@/lib/permisos";
+import { exigirSeccion, puedeSeccion } from "@/lib/permisos";
 import { ErrorUsuario, notaValida, seguro } from "@/lib/resultado";
 import { refrescarPantalla } from "@/lib/refrescar";
 import { marcarViejo } from "@/lib/memoria";
@@ -34,11 +34,12 @@ const refrescar = () => {
 };
 
 // Quién puede tocar un lead: jefes, o el caller/closer asignado.
-async function leadPermitido(leadId: string): Promise<{ lead: Lead; perfil: Perfil; proyecto: Proyecto }> {
+// `desdeCita`: la venta se cierra desde una cita de Agendas; con «agendas_todas» vale la de cualquier closer (25 nov)
+async function leadPermitido(leadId: string, desdeCita = false): Promise<{ lead: Lead; perfil: Perfil; proyecto: Proyecto }> {
   const { perfil, proyecto } = await getSesion();
   const { data: lead } = await db().from("leads").select("*").eq("id", leadId).eq("proyecto_id", proyecto.id).maybeSingle<Lead>();
   if (!lead) throw new ErrorUsuario("Lead no encontrado.");
-  const ok = esJefe(perfil) || lead.caller_id === perfil.id || lead.closer_id === perfil.id;
+  const ok = esJefe(perfil) || lead.caller_id === perfil.id || lead.closer_id === perfil.id || (desdeCita && (await puedeSeccion(perfil, proyecto.id, "agendas_todas")));
   if (!ok) throw new ErrorUsuario("Este lead no está asignado a ti.");
   return { lead, perfil, proyecto };
 }
@@ -285,7 +286,7 @@ export async function agendarCita(leadId: string, closerId: string, fechaLocal: 
 export async function registrarVenta(leadId: string, formData: FormData) {
   return seguro(async () => {
     await exigirSeccion("cola", "crm", "agendas", "clientes"); // H5
-    const { lead, perfil, proyecto } = await leadPermitido(leadId);
+    const { lead, perfil, proyecto } = await leadPermitido(leadId, !!formData.get("desde_cita"));
     const productoId = String(formData.get("producto") ?? "");
     const { data: producto } = await db().from("productos").select("*").eq("id", productoId).eq("proyecto_id", proyecto.id).maybeSingle();
     if (!producto) throw new ErrorUsuario("Elige un producto.");
@@ -323,6 +324,8 @@ export async function registrarVenta(leadId: string, formData: FormData) {
           .limit(1)
           .maybeSingle();
     if (citaElegida && !cita) throw new ErrorUsuario("Esa cita no es de este lead o ya está cerrada.");
+    // «agendas_todas» con un lead ajeno: solo cerrando una cita con closer (la venta es de ese closer, nunca de quien la registra)
+    if (!esJefe(perfil) && lead.caller_id !== perfil.id && lead.closer_id !== perfil.id && !cita?.closer_id) throw new ErrorUsuario("Este lead no tiene una cita abierta con closer: la venta la registra su closer.");
     // Vendedor: al cerrar una cita, la venta es del closer de esa cita aunque la cierre
     // el director o el CEO; si no, quien la registra (o a quien elija un jefe).
     // Mejora de la pasada (Cristian, 11 oct): un jefe que la registra desde la ficha sin elegir vendedor
