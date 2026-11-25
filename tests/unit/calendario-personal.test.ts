@@ -14,8 +14,12 @@ describe("duenaDeCalendario", () => {
     expect(duenaDeCalendario([m("yara", "cal-yara"), m("facu", "cal-facu", "closer")], "cal-yara")).toBe("yara");
   });
 
-  it("un closer también puede ser dueño", () => {
-    expect(duenaDeCalendario([m("facu", "cal-facu", "closer", { tambien_closer: false })], "cal-facu")).toBe("facu");
+  it("un closer puro no es dueño: su calendario sigue siendo general (Thiago tiene el Principal en su ficha)", () => {
+    expect(duenaDeCalendario([m("thiago", "cal-principal", "closer", { tambien_closer: false })], "cal-principal")).toBeNull();
+  });
+
+  it("un CEO con «También closer» sí es dueño", () => {
+    expect(duenaDeCalendario([m("jose", "cal-jose", "ceo")], "cal-jose")).toBe("jose");
   });
 
   it("un calendario puesto en dos fichas no es de nadie (p. ej. el Principal)", () => {

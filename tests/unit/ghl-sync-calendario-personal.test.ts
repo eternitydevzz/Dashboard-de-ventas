@@ -69,7 +69,8 @@ beforeEach(() => {
   vi.mocked(cambiarUsuarioCitaGhl).mockClear();
   base.tablas = {
     proyectos: [{ id: "p1", zona_horaria: "Europe/Madrid", ghl_token: "x", ghl_location_id: "loc", ghl_calendarios: ["cal-principal", "cal-yara"] }],
-    miembros_proyecto: [miembro("yara", "caller", "cal-yara", "u-yara", true), miembro("facu", "closer", "cal-facu", "u-facu")],
+    // Como en Maestria (25 nov): Thiago, closer puro, tiene el Calendar Principal en su ficha
+    miembros_proyecto: [miembro("yara", "caller", "cal-yara", "u-yara", true), miembro("facu", "closer", "cal-facu", "u-facu"), miembro("thiago", "closer", "cal-principal", "u-thiago")],
     leads: [{ id: "l1", proyecto_id: "p1", ghl_contact_id: "ct1", caller_id: "caller-ana", estrellas_caller: 4, estado_caller: "nuevo", etiquetas: [], pais: "AR" }],
     citas: [],
     actividades: [],
