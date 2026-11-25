@@ -52,6 +52,8 @@ Administración → Etiquetas y UTMs → Etiquetas: crear, renombrar, unir o bor
   | `cris` | 0. Calendar Cris | `4HLliPsNkYeNVrc2Ofwv` |
   | `jose` | 0. Calendar Jose | `oXLY8IYsmrxDgWmqM0UA` |
 
+  **Botón «Link de agenda» del dashboard (25 nov, #220):** a quien tiene calendario personal le copia el link general del proyecto + `cal=<su calendario>` (también a las de España: `/agenda` y `/agendas-espana` tienen las mismas preguntas). La página solo hace caso a `cal` si está en su tabla `CLOSERS`; si no, el general. Al resto, el link de su mercado como siempre.
+
   **Para añadir a alguien:** 1) en GHL, «Duplicate» de «0. Calendar Principal», nombre y dirección nuevos, y en «Staff» solo esa persona; 2) en el workflow «2. Agendan llamada», un disparador más «Customer booked appointment» con «In calendar» = el nuevo; 3) en el dashboard, «También closer» en su ficha (callers y CEO) y su calendario y usuario en Integraciones GHL, y el id en «Calendarios de GHL del proyecto»; 4) en el elemento CODE de `/agenda` (funnel «2. Calendar Funnel», página `Qg7Z8eihEy1PFOGcpKJz`), una línea más en `CLOSERS`.
 - Mientras una cita está abierta, la hora y el closer de GHL mandan; cuando el closer la cierra en el dashboard, GHL ya no la cambia. Si la cita se borra en GHL, en el dashboard pasa a «cancelada».
 - **Webhook antiguo** `/api/webhooks/ghl/<proyecto>` (acción «Webhook» normal de un workflow de GHL, cabecera `x-eternity-secreto`, campo `tipo` = `lead_nuevo`, `cita_agendada` o `cambio_etapa`): sigue funcionando para los workflows de GHL que aún lo usan. Lo nuevo va por Entradas y por la API.
