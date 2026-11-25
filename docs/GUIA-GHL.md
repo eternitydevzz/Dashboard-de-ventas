@@ -22,7 +22,7 @@ Web ──JSON v1──▶ Entrada ──▶ lead en el dashboard ──(lectura
 | **`CLAVE_CIFRADO`** | Vercel → variables (GUIA-PUBLICAR, sección 2) | Cifrar el token. Si cambia, hay que volver a pegar el token |
 | **Clave del proyecto** (`x-eternity-secreto`) | Administración → Integraciones → «Copiar clave» | La usan la lectura de cada minuto, el email diario y los workflows antiguos de GHL que mandan citas |
 
-**Maestria:** location `ZGWJLBH58RJtl2iGhykp`; API Version `2021-07-28`. Usuarios de GHL (25 nov): Thiago `7nN0jkRM6ixPxsCEGJRr`, Facu `X00AtbvZ2MHqgIj5Ijv3`, Yara `nffQdjDg2zaaBThCUzH4`, Aitzi (Aitziber Robredo) `Xcoz3T6jyIm1F39AZUvP`, Paula `lziBXnBFxw2Pg8ViktBo`, Cristian `DubIbjsps2tK1fhLcgcP`, José `J8xk7z0XlRevokd1bsH8`.
+**Maestria:** location `ZGWJLBH58RJtl2iGhykp`; API Version `2021-07-28`. Usuarios de GHL (25 nov): Thiago `7nN0jkRM6ixPxsCEGJRr`, Facu `X00AtbvZ2MHqgIj5Ijv3`, Yara `nffQdjDg2zaaBThCUzH4`, Aitzi (Aitziber Robredo) `Xcoz3T6jyIm1F39AZUvP`, Paula `lziBXnBFxw2Pg8ViktBo`, Cristian `DubIbjsps2tK1fhLcgcP`, José `J8xk7z0XlRevokd1bsH8`, Estefanía (Stefy) `Hwxlj4NQgeDjmNPG1H2k`. El Calendar Principal tiene ahora a Paula en su equipo (cambio del 25 nov, 18:48 UTC, no hecho desde el dashboard).
 
 ## 1 · Entradas (una por web)
 Administración → Entradas. Cada Entrada tiene su dirección secreta, su pipeline del dashboard y su «Qué hacer en GHL»: campos (lo que llega → campo de GHL), hasta 5 pipelines de GHL, etiqueta base (sale `<base>-completo` o `<base>-incompleto`), hasta 10 etiquetas fijas y la espera antes de mandar (0 a 3600 s; 60 por defecto, por si llega el cuestionario después). Todo, en el manual [`Team/Template-landing.md`](../Team/Template-landing.md).
@@ -51,6 +51,7 @@ Administración → Etiquetas y UTMs → Etiquetas: crear, renombrar, unir o bor
   | `paula` | 0. Calendar Paula | `C4vvltuXDM9pQsz5asRC` |
   | `cris` | 0. Calendar Cris | `4HLliPsNkYeNVrc2Ofwv` |
   | `jose` | 0. Calendar Jose | `oXLY8IYsmrxDgWmqM0UA` |
+  | `stefy` | 0. Calendar Stefy | `0bE5IlphdWaphHerPmn6` |
 
   **Botón «Link de agenda» del dashboard (25 nov, #220):** a quien tiene calendario personal le copia el link general del proyecto + `cal=<su calendario>` (también a las de España: `/agenda` y `/agendas-espana` tienen las mismas preguntas). La página solo hace caso a `cal` si está en su tabla `CLOSERS`; si no, el general. Al resto, el link de su mercado como siempre.
 
