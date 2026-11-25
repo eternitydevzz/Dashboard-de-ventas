@@ -22,7 +22,7 @@ Web ──JSON v1──▶ Entrada ──▶ lead en el dashboard ──(lectura
 | **`CLAVE_CIFRADO`** | Vercel → variables (GUIA-PUBLICAR, sección 2) | Cifrar el token. Si cambia, hay que volver a pegar el token |
 | **Clave del proyecto** (`x-eternity-secreto`) | Administración → Integraciones → «Copiar clave» | La usan la lectura de cada minuto, el email diario y los workflows antiguos de GHL que mandan citas |
 
-**Maestria:** location `ZGWJLBH58RJtl2iGhykp`; API Version `2021-07-28`. Usuarios de GHL de los closers: Andrés `GFc1HiIWJkr1PlTQOSNn`, Renzo `Dyz4qLnUYxbkfyEJ3srG`, Cristian `DubIbjsps2tK1fhLcgcP`, José `J8xk7z0XlRevokd1bsH8`, Facu `X00AtbvZ2MHqgIj5Ijv3`.
+**Maestria:** location `ZGWJLBH58RJtl2iGhykp`; API Version `2021-07-28`. Usuarios de GHL (25 nov): Thiago `7nN0jkRM6ixPxsCEGJRr`, Facu `X00AtbvZ2MHqgIj5Ijv3`, Yara `nffQdjDg2zaaBThCUzH4`, Aitzi (Aitziber Robredo) `Xcoz3T6jyIm1F39AZUvP`, Paula `lziBXnBFxw2Pg8ViktBo`, Cristian `DubIbjsps2tK1fhLcgcP`, José `J8xk7z0XlRevokd1bsH8`.
 
 ## 1 · Entradas (una por web)
 Administración → Entradas. Cada Entrada tiene su dirección secreta, su pipeline del dashboard y su «Qué hacer en GHL»: campos (lo que llega → campo de GHL), hasta 5 pipelines de GHL, etiqueta base (sale `<base>-completo` o `<base>-incompleto`), hasta 10 etiquetas fijas y la espera antes de mandar (0 a 3600 s; 60 por defecto, por si llega el cuestionario después). Todo, en el manual [`Team/Template-landing.md`](../Team/Template-landing.md).
@@ -40,7 +40,19 @@ Administración → Workflows. Hacen en GHL lo que hacían los workflows de GHL,
 Administración → Etiquetas y UTMs → Etiquetas: crear, renombrar, unir o borrar una etiqueta en el dashboard la cambia también en GHL (probado el 9 nov). La casilla «usada por GHL» se marca a mano en las que arrancan algún workflow de GHL. **Antes de cambiar una:** leer el aviso (los emails y SMS de las agendas los manda un workflow de GHL que arranca con la etiqueta: cambiarla puede dejar de mandarlos o mandarlos de más).
 
 ## 4 · Citas
-- **Por la API (lo normal):** la lectura de cada minuto trae las citas de los calendarios elegidos en el proyecto; el closer sale del usuario de GHL de cada cita. Maestria lee «0. Calendar Principal» `X7qpsbS2ChORZkwO4O3f`, «0. Calendar Tatu» `OpfTegXVjj5r1HgNxiO9`, «Funnel DFY Softwares» `CTsw97wT6aXtUYEQoVeA` y «Funnel DFY Clones» `b1C9gLDbl7EQCyJqEl9X`. También el botón «Sincronizar GHL» de Agendas.
+- **Por la API (lo normal):** la lectura de cada minuto trae las citas de los calendarios elegidos en el proyecto; el closer sale del usuario de GHL de cada cita. Maestria lee «0. Calendar Principal» `X7qpsbS2ChORZkwO4O3f` (equipo: solo Thiago), «0. Calendar España» `OpfTegXVjj5r1HgNxiO9` (antes «Tatu»; el de Facu), «Funnel DFY Softwares» `CTsw97wT6aXtUYEQoVeA`, «Funnel DFY Clones» `b1C9gLDbl7EQCyJqEl9X` y los calendarios personales de abajo. También el botón «Sincronizar GHL» de Agendas.
+- **Calendario propio de cada closer (25 nov):** quien llama en frío manda al lead `codigomaestria.com/agenda?closer=<nombre>` (más su `utm_source` de siempre) y el lead reserva en su calendario. La cita es suya como closer y **no pasa por el reparto**; el «agendó» también es suyo, salvo que la cita ya la agendara otro caller (`src/lib/calendario-personal.ts`, `src/lib/ghl-sync.ts`). Un calendario es personal solo si lo tiene en su ficha **una** persona activa con «También closer» (un closer puro como Thiago, no). Sin `?closer` o con un nombre que no existe, sale el Principal.
+
+  | `?closer=` | Calendario de GHL | Id |
+  |---|---|---|
+  | `yara` | 0. Calendar Yara | `qph5DCSlK0L2Ulsy6IQ2` |
+  | `aitzi` | 0. Calendar Aitzi | `1DsDUgtZNZEs5LffhDHC` |
+  | `facu` | 0. Calendar España | `OpfTegXVjj5r1HgNxiO9` |
+  | `paula` | 0. Calendar Paula | `C4vvltuXDM9pQsz5asRC` |
+  | `cris` | 0. Calendar Cris | `4HLliPsNkYeNVrc2Ofwv` |
+  | `jose` | 0. Calendar Jose | `oXLY8IYsmrxDgWmqM0UA` |
+
+  **Para añadir a alguien:** 1) en GHL, «Duplicate» de «0. Calendar Principal», nombre y dirección nuevos, y en «Staff» solo esa persona; 2) en el workflow «2. Agendan llamada», un disparador más «Customer booked appointment» con «In calendar» = el nuevo; 3) en el dashboard, «También closer» en su ficha (callers y CEO) y su calendario y usuario en Integraciones GHL, y el id en «Calendarios de GHL del proyecto»; 4) en el elemento CODE de `/agenda` (funnel «2. Calendar Funnel», página `Qg7Z8eihEy1PFOGcpKJz`), una línea más en `CLOSERS`.
 - Mientras una cita está abierta, la hora y el closer de GHL mandan; cuando el closer la cierra en el dashboard, GHL ya no la cambia. Si la cita se borra en GHL, en el dashboard pasa a «cancelada».
 - **Webhook antiguo** `/api/webhooks/ghl/<proyecto>` (acción «Webhook» normal de un workflow de GHL, cabecera `x-eternity-secreto`, campo `tipo` = `lead_nuevo`, `cita_agendada` o `cambio_etapa`): sigue funcionando para los workflows de GHL que aún lo usan. Lo nuevo va por Entradas y por la API.
 
