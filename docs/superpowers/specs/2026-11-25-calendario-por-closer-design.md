@@ -87,3 +87,100 @@ closer». Si dos fichas tienen el mismo calendario (p. ej. el Principal), no es 
 - Si las 5 tienen usuario de GHL (se mira en su ficha y en GHL).
 - Con ella como caller y closer, los avisos de WhatsApp «al closer» y «al caller» pueden llegarle dos veces.
 - KPIs: la pregunta abierta de Cristian sobre Facu (`docs/PENDIENTES-JOSE.md:138`) vale también para ellas.
+
+---
+
+# Plan de implementación
+
+> Lo ejecuta Claude en esta sesión, tarea a tarea, sin agentes (regla de Jose). Casillas `- [ ]` para seguir el avance.
+
+**Objetivo:** que la cita reservada en el calendario personal de una closer quede con ella como closer y «agendó», y
+que el enlace `?closer=` enseñe ese calendario.
+**Arquitectura:** una función pura nueva decide de quién es un calendario; la lectura de GHL la usa antes del reparto.
+El resto es configuración en GHL y en el dashboard (Playwright) y un cambio en el elemento CODE de la agenda.
+**Tecnología:** Next.js + Supabase + Vitest (dashboard); HTML/JS pegado en GHL (agenda); Playwright MCP.
+
+## Reglas para todas las tareas
+- Nada cambia si el enlace no lleva `closer` o si la cita es del Calendar Principal (`X7qpsbS2ChORZkwO4O3f`).
+- Test primero en el código del dashboard. `npx vitest run tests/unit` y `npx tsc --noEmit` en verde antes de cada commit.
+- Antes de cambiar algo en GHL: apuntar cómo estaba (captura o texto) para poder volver atrás.
+- Datos de prueba: un lead inventado de Jose; se borra la cita de prueba al acabar.
+
+## Lo que puede fallar y no cubre ninguna otra prueba (cada uno con su test en la tarea que toca)
+1. `?closer=Yara ` (mayúsculas o espacios) → tiene que salir el calendario de Yara (Tarea 4).
+2. `?closer=pepe` (no existe) o sin `closer` → el Calendar Principal (Tarea 4).
+3. El lead ya tenía una cita abierta con otro closer y reserva en el calendario de Yara → una sola cita, con Yara (Tarea 2).
+4. GHL vuelve a mandar la misma cita en la lectura siguiente → sigue con Yara, no pasa al reparto (Tarea 2).
+5. Una closer dada de baja con calendario puesto → su calendario deja de ser personal (Tarea 1).
+
+---
+
+### Tarea 1 · Quién es la dueña de un calendario
+**Archivos:** crear `src/lib/calendario-personal.ts`; test `tests/unit/calendario-personal.test.ts`.
+**Produce:** `duenaDeCalendario(miembros: MiembroCalendario[], calendarioId: string | null): string | null` y
+`type MiembroCalendario = { perfil_id: string; ghl_calendar_id: string | null; perfiles: { rol: string; activo: boolean; tambien_closer: boolean } }`.
+
+- [ ] Test (falla): `duenaDeCalendario` devuelve
+  - `"yara"` con `[{yara, cal-yara, caller, activo, tambien_closer}]` y `"cal-yara"`;
+  - `null` si dos miembros tienen `"cal-x"`; `null` si la única que lo tiene está `activo: false`;
+  - `null` si es una caller **sin** «También closer»; `null` con `calendarioId` `null` o `""`;
+  - compara sin espacios: `" cal-yara "` en la ficha cuenta como `"cal-yara"`.
+- [ ] Implementar (sin base de datos; cuenta los miembros que son closer o «También closer», activos, con ese id).
+- [ ] Test en verde. Commit `feat: función que dice de qué closer es un calendario de GHL`.
+
+### Tarea 2 · La lectura de GHL respeta el calendario personal
+**Archivos:** `src/lib/ghl-sync.ts` (select de `miembros_proyecto` en la línea 55; cita existente, línea 183; reparto,
+líneas 248-260; inserción, línea 265); test nuevo `tests/unit/ghl-sync-calendario-personal.test.ts`, con la base en
+memoria de `tests/unit/ghl-sync-agenda-unica.test.ts` copiada y `closerDeLaRotacion` simulada para devolver `"facu"`.
+**Consume:** `duenaDeCalendario` (Tarea 1).
+
+- [ ] Tests (fallan). Proyecto con `ghl_calendarios: ["cal-principal", "cal-yara"]`; miembros Yara (caller, «También
+  closer», `ghl_calendar_id: "cal-yara"`, `ghl_user_id: "u-yara"`) y Facu (closer, `ghl_calendar_id: "cal-facu"`):
+  - cita nueva y futura en `cal-yara` → `closer_id: "yara"`, `agendada_por: "yara"`, y `cambiarUsuarioCitaGhl` **no** se llama;
+  - lo mismo aunque el lead tenga `caller_id: "caller-ana"` y el canal sea `callers` → `agendada_por: "yara"`;
+  - cita nueva en `cal-principal` → `closer_id: "facu"` (el reparto, como hoy);
+  - (riesgo 3) el lead tiene una cita abierta con Facu y reserva en `cal-yara` → 1 sola cita, `closer_id: "yara"`;
+  - (riesgo 4) segunda lectura con la misma cita y `assignedUserId` de otro → sigue `closer_id: "yara"`.
+- [ ] Implementar: añadir `activo` al select de `perfiles`; `const duena = duenaDeCalendario(miembros, calendarioId)`
+  tras la línea 156; reparto solo si `!duena`; `closerFinal = duena ?? …`; `agendada_por: duena ?? agenda.agendada_por`;
+  en la cita existente, `closer = duena ?? closerId ?? existe.closer_id`. Ojo: `duena` se calcula con **todos** los
+  miembros (no con `closers`, que ya viene filtrado).
+- [ ] `npx vitest run tests/unit` y `npx tsc --noEmit` en verde (los tests de GHL de siempre, sin tocarlos).
+- [ ] Commit `feat: la cita del calendario personal de una closer se queda con ella`.
+
+### Tarea 3 · Publicar el dashboard
+- [ ] Push de la rama, PR a `main`, checks en verde, fusionar (Vercel publica). Comprobar en Vercel que el despliegue
+  de `main` está «Ready». Sin migración.
+
+### Tarea 4 · Código nuevo de la agenda
+**Archivos:** copia del código en vivo (lo de antes) y código nuevo, en la carpeta que diga Jose.
+- [ ] Sacar el código del elemento CODE de `/agenda` (desde el editor de GHL con Playwright; si no se puede, de la
+  página en vivo) y guardarlo tal cual.
+- [ ] Cambio: `CLOSERS = { yara: '<id>' }` (de momento solo Yara); `closerDeUrl()` = `closer` de la dirección, en
+  minúsculas y sin espacios; `bookingUrl`/`calendarId` = el de la tabla o el general; `closer` en lo que se manda a la Entrada.
+- [ ] Prueba en el navegador (Playwright) sobre un HTML local: `?closer=yara`, `?closer=Yara%20`, `?closer=pepe` y sin
+  `closer` → el iframe apunta al calendario que toca (riesgos 1 y 2).
+
+### Tarea 5 · Yara de punta a punta (GHL + dashboard + página de prueba)
+- [ ] GHL: leer «0. Calendar Principal» (usuarios, formulario, avisos, redirección). Copiarlo como «0. Calendar Yara»,
+  con solo Yara. Apuntar su id.
+- [ ] GHL: lista de workflows que arrancan con el Calendar Principal (nombre y disparador). Añadir «0. Calendar Yara».
+- [ ] Dashboard: ficha de Yara → «También closer», su usuario de GHL y `ghl_calendar_id` = el de «0. Calendar Yara».
+  Integraciones GHL → añadir el calendario a los que se leen.
+- [ ] GHL: copiar el paso `/agenda` como `/agenda-prueba` y pegar el código nuevo (con el id real de Yara).
+- [ ] Prueba real: lead de prueba entra por `/agenda-prueba?closer=yara&utm_source=callers`, responde y reserva.
+  Comprobar: la cita en «0. Calendar Yara»; en el dashboard (Agendas → Llamadas) con Yara de closer y «agendó» antes
+  de 2 min; el lead en «Agendados»; email o SMS de GHL al lead; WhatsApp al equipo. Y que `/agenda-prueba` sin
+  `closer` enseña el general.
+- [ ] Borrar la cita de prueba (en GHL y en el dashboard) con el OK de Jose. **PARAR: Jose lo ve antes de seguir.**
+
+### Tarea 6 · Las otras 4 y la página real
+- [ ] Repetir la Tarea 5 (sin la prueba completa) para Stefy, Alba, Valentina y Aitzi: calendario, workflows, ficha e
+  Integraciones. Tabla `CLOSERS` con las 5.
+- [ ] Pegar el código nuevo en `/agenda` (la real). Comprobar sin `closer` (el general) y con cada `closer` (su
+  calendario) en la página en vivo. Borrar `/agenda-prueba`.
+- [ ] Entregar a Jose los 5 enlaces.
+
+### Tarea 7 · Dejarlo escrito
+- [ ] `docs/GUIA-GHL.md` sección 4 (Citas): los calendarios personales y la regla nueva; actualizar la lista de
+  closers de la línea 25. `docs/PENDIENTES-JOSE.md`: fila en «Hecho». Commit y PR.
