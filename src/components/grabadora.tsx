@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Square } from "lucide-react";
 import { useToast } from "@/components/toasts";
 import { exigirOk } from "@/lib/resultado-cliente";
-import { AVISO_FIN_SEG, ESPERA_INDICE_MS, conTiempo, duracionTexto, extDeTipo, quedanAviso } from "@/lib/grabaciones";
+import { AVISO_FIN_SEG, ESPERA_INDICE_MS, MAX_GRABACION_BYTES, conTiempo, duracionTexto, extDeTipo, quedanAviso } from "@/lib/grabaciones";
 import { anotarFalloGrabadora, guardarGrabacion, prepararSubidaGrabacion } from "@/app/(panel)/grabaciones/acciones";
 import { hacerBuscable } from "@/lib/webm-buscable";
 
@@ -26,6 +26,7 @@ type Grabadora = {
 const Contexto = createContext<Grabadora | null>(null);
 export const useGrabadora = () => useContext(Contexto);
 
+const PESA_DEMASIADO = "La grabación pesa más de 50 MB.";
 const TIPOS = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"];
 
 export function ProveedorGrabadora({ children }: { children: ReactNode }) {
@@ -80,9 +81,11 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
       if (!conIndice) anotar(`Poner el índice tardó más de ${ESPERA_INDICE_MS / 1000} s (${Math.round(grabado.size / 1024)} KB): se sube la original`);
       const blob = conIndice ?? grabado;
       try {
+        // 28 nov: Supabase no siempre contesta 413 al pasarse del tope; se mira antes y no se gasta la subida
+        if (blob.size > MAX_GRABACION_BYTES) throw new Error(PESA_DEMASIADO);
         const { ruta, url } = await exigirOk(prepararSubidaGrabacion(ext));
         const r = await fetch(url, { method: "PUT", headers: { "content-type": tipo.split(";")[0], "x-upsert": "false" }, body: blob });
-        if (!r.ok) throw new Error(r.status === 413 ? "La grabación pesa más de 50 MB." : "No se pudo subir la grabación.");
+        if (!r.ok) throw new Error(r.status === 413 ? PESA_DEMASIADO : "No se pudo subir la grabación.");
         await exigirOk(guardarGrabacion(leadId, ruta, seg));
         toast("Grabación guardada en «Grabaciones»");
       } catch (e) {
