@@ -127,7 +127,8 @@ export function ProveedorGrabadora({ children }: { children: ReactNode }) {
         iniciando.current = false; // rec.current se pone justo debajo, sin otro await entre medias
       }
       const tipo = TIPOS.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
-      const m = new MediaRecorder(stream, tipo ? { mimeType: tipo } : undefined);
+      // 64 kbps basta para voz: ~28 MB por hora, frente a ~184 kbps sin fijarlo (39 min = 54 MB, más que el tope de 50 MB)
+      const m = new MediaRecorder(stream, { audioBitsPerSecond: 64_000, ...(tipo ? { mimeType: tipo } : {}) });
       const desde = Date.now();
       m.onerror = (e) => anotar(`La grabadora falló mientras grababa: ${(e as Event & { error?: Error }).error?.message ?? "sin detalle"}`);
       const suyos: Blob[] = []; // los trozos de esta grabación (si empieza otra, no se mezclan)

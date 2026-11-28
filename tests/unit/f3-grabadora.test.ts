@@ -46,10 +46,12 @@ class FalsoRecorder {
   mimeType = "audio/webm";
   onstop: null | (() => void) = null;
   stream: unknown;
+  opciones: unknown;
   start = vi.fn();
   stop = vi.fn();
-  constructor(s: unknown) {
+  constructor(s: unknown, o?: unknown) {
     this.stream = s;
+    this.opciones = o;
     creadas.push(this);
   }
   static isTypeSupported = () => true;
@@ -105,6 +107,15 @@ describe("grabadora", () => {
     vieja.onstop?.(); // llega tarde el «stop» de la anterior: no puede soltar la nueva
     g.parar();
     expect(nueva.stop).toHaveBeenCalled();
+  });
+
+  // 28 nov (Cristian): sin calidad fija Chrome grababa a ~184 kbps y una llamada de 39 min (54 MB) pasó el tope de 50 MB
+  it("graba la voz a 64 kbps para que una llamada larga quepa en 50 MB", async () => {
+    const g = pintar();
+    const p = g.empezar("l1", "Lead 1");
+    soltar(stream);
+    await p;
+    expect((creadas[0] as FalsoRecorder).opciones).toMatchObject({ audioBitsPerSecond: 64_000 });
   });
 
   it("Grabar en el mismo lead mientras graba no hace nada", async () => {
