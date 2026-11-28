@@ -26,6 +26,9 @@ export function quedanAviso(fin: number, ahora: number) {
   return Math.max(0, Math.ceil((fin - ahora) / 1000));
 }
 
+// El tope del almacén «grabaciones» (file_size_limit de la migración 20261107150300_grabaciones.sql)
+export const MAX_GRABACION_BYTES = 50 * 1024 * 1024;
+
 // 20 nov: si poner el índice al .webm tarda más que esto, se sube la original («Guardando…» no puede quedarse colgado)
 export const ESPERA_INDICE_MS = 60_000;
 export function conTiempo<T>(p: Promise<T>, ms: number): Promise<T | null> {

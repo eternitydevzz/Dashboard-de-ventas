@@ -118,6 +118,26 @@ describe("grabadora", () => {
     expect((creadas[0] as FalsoRecorder).opciones).toMatchObject({ audioBitsPerSecond: 64_000 });
   });
 
+  // 28 nov (Cristian): una de 54 MB decía «No se pudo subir» sin decir por qué. Ahora se mira el tamaño antes de subir.
+  it("si pesa más de 50 MB, el aviso lo dice y no intenta subirla", async () => {
+    const acciones = await import("@/app/(panel)/grabaciones/acciones");
+    vi.mocked(acciones.prepararSubidaGrabacion).mockClear();
+    const clic = vi.fn();
+    vi.stubGlobal("document", { createElement: () => ({ click: clic }) });
+    vi.stubGlobal("URL", { createObjectURL: () => "blob:x" });
+    const g = pintar();
+    const p = g.empezar("l1", "Lead 1");
+    soltar(stream);
+    await p;
+    const rec = creadas[0] as FalsoRecorder & { ondataavailable: (e: { data: Blob }) => void };
+    rec.ondataavailable({ data: new Blob([new Uint8Array(50 * 1024 * 1024 + 1)]) });
+    rec.onstop?.();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(acciones.prepararSubidaGrabacion).not.toHaveBeenCalled();
+    expect(acciones.anotarFalloGrabadora).toHaveBeenCalledWith(expect.stringContaining("La grabación pesa más de 50 MB."));
+    expect(clic).toHaveBeenCalled(); // se descarga en su ordenador
+  });
+
   it("Grabar en el mismo lead mientras graba no hace nada", async () => {
     const g = pintar();
     const p1 = g.empezar("l1", "Lead 1");
